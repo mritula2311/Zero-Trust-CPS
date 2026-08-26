@@ -1,0 +1,350 @@
+
+PROJECT SYNOPSIS
+Zero-Trust Security Framework for IoT-Based
+Cyber-Physical Systems
+ZERO-TRUST SECURITY FRAMEWORK FOR
+IOT-BASED CYBER-PHYSICAL SYSTEMS
+A Literature-Grounded, Feasibility-Assessed Research Proposal
+Built on Open-Access, Peer-Reviewed Journal Literature (2020–2026)
+Project Reference: Module 14 — CPS / Cybersecurity Project Portfolio
+Domain Focus: AIoT · Embedded Systems · System Security · Cybersecurity · IT Governance · IoT Security
+Prepared: August 2026
+Table of Contents
+TOC \h \o "1-3"
+Abstract
+Cyber-Physical Systems (CPS) increasingly rely on interconnected, resource-constrained IoT devices to sense, compute, and actuate across domains such as healthcare, industrial automation, smart infrastructure, and defence. Traditional perimeter-based security models, which implicitly trust any device once inside a network boundary, are structurally inadequate for CPS environments characterised by device heterogeneity, intermittent connectivity, and an expanding attack surface. This project proposes and evaluates a Zero-Trust Security Framework for IoT-based Cyber-Physical Systems built around seven mandatory functional modules: CPS Device Identity, Authentication, Trust Evaluation, Continuous Verification, Access Control, Secure Communication, and Monitoring. The design is grounded entirely in a curated corpus of open-access, peer-reviewed journal literature published between 2020 and 2026 — drawn from IEEE Access, MDPI (Sensors, Electronics, Algorithms, IoT, Symmetry, Information, Network, Mathematics), Elsevier's gold-open-access Internet of Things journal, SpringerOpen's Cybersecurity, Nature's Scientific Reports, and Oxford Academic's Journal of Cybersecurity — rather than vendor material or non-peer-reviewed sources, so that every design choice traces back to a verifiable, citable publication. Rather than replicating the generic, single-model implementations common in existing prototypes, the Trust Evaluation module is built as a multi-model fusion engine: a rule-based cold-start score, an unsupervised Isolation Forest (point-anomaly detection), an LSTM-Autoencoder (temporal behavioural drift), and a Graph Neural Network (relational, coordinated-attack detection across the device interaction graph) are combined by a stacking meta-learner into one unified trust score with an attached confidence measure, none of which requires external labelled attack data. A SHAP-based explainability layer is applied to every fused decision, generating a machine-readable reason code that feeds both the audit log and a reinforcement-learning-driven Access Control module, which adapts its allow/deny/step-up thresholds over time rather than relying on static rules. All governance-relevant outputs — trust scores, reason codes, and access decisions — are explicitly mapped to the tenets of NIST Special Publication 800-207, giving the system's outputs direct relevance to IT-governance and compliance review. All inter-component communication is secured using MQTT over TLS and CoAP over DTLS, and a monitoring dashboard provides real-time visibility together with a structured, queryable audit log. The report additionally sets out a dedicated feasibility case: every component of the fusion engine already has at least one directly transferable, published, open-access precedent; all required hardware is low-cost; and model training is performed offline, with only lightweight inference running on the resource-constrained gateway at runtime — meaning the project is buildable and evaluable within a standard academic timeline rather than being a purely theoretical proposal. The outcome is a working, measurable Zero-Trust CPS prototype demonstrating how multi-signal, explainable, adaptively-enforced trust evaluation can be realised without exceeding the resource budget of embedded IoT hardware.
+Keywords: Zero Trust Architecture, Cyber-Physical Systems, IoT Security, Continuous Verification, Multi-Model Fusion, Isolation Forest, LSTM-Autoencoder, Graph Neural Network, Reinforcement Learning, Explainable AI (SHAP), NIST SP 800-207, IT Governance, Embedded Systems, Open-Access Literature Review, MQTT/CoAP Security.
+1. Objectives
+1.1 Primary Objective
+To design, implement, and evaluate a resource-aware Zero-Trust security framework for IoT-based Cyber-Physical Systems that integrates continuous, AI-assisted trust evaluation with governance-aligned access control, secure communication, and auditability — with every design decision grounded in verifiable, open-access, peer-reviewed journal literature, and with an explicit feasibility case demonstrating the framework can be built and evaluated within a standard academic research timeline.
+1.2 Specific Objectives
+To conduct a systematic review of open-access, peer-reviewed journal literature (2020–2026) on Zero Trust Architecture for IoT and CPS, and to identify gaps specific to resource-constrained embedded devices and IT-governance alignment.
+To design a lightweight, verifiable Device Identity scheme (Module 1) suitable for constrained CPS nodes, avoiding full X.509/PKI overhead on the endpoint itself.
+To implement mutual Authentication (Module 2) between devices, gateway, and monitoring backend with minimal computational and energy overhead.
+To design a hybrid rule-based and machine-learning Trust Evaluation engine (Module 3) that computes and continuously updates a per-device trust score from behavioural and contextual features, using an unsupervised model that does not require labelled attack data.
+To implement Continuous Verification (Module 4) that re-evaluates trust and access at runtime rather than only at session initiation, consistent with NIST SP 800-207 tenets.
+To design and enforce dynamic, policy-based Access Control (Module 5) that ties access decisions to live trust scores and is explicitly traceable to governance policy.
+To secure all inter-component communication (Module 6) using MQTT/TLS and CoAP/DTLS appropriate for constrained hardware.
+To build a Monitoring and audit dashboard (Module 7) providing real-time visibility, historical trust trends, and compliance-oriented audit logs.
+To establish and document the technical, resource, and timeline feasibility of the proposed system for academic research purposes, benchmarked against published open-access precedents.
+To design a multi-model fusion layer combining rule-based, Isolation Forest, LSTM-Autoencoder, and Graph Neural Network signals into a single, unified trust score with an attached confidence measure.
+To make every fused trust decision explainable via a SHAP-based reason-code layer, and to make the Access Control policy itself adaptive via a reinforcement-learning-driven Policy Decision Point, rather than static thresholds.
+To evaluate the resulting system for security effectiveness, performance overhead on constrained hardware, and governance completeness (auditability and policy traceability mapped to NIST SP 800-207).
+2. Literature Survey
+Sourcing note: every source cited in this section is a peer-reviewed article published in an open-access journal — IEEE Access, MDPI titles (Sensors, Electronics, Algorithms, IoT), Elsevier's gold-open-access Internet of Things journal, Wiley/Hindawi's Wireless Communications and Mobile Computing and Security and Communication Networks, SpringerOpen's Cybersecurity, Nature's Scientific Reports, Oxford Academic's Journal of Cybersecurity, GSC Advanced Research and Reviews, Engineering, Technology & Applied Science Research, and Elsevier's Procedia Computer Science — spanning 2021 to 2026. Vendor blogs, preprint-server manuscripts, and paywalled/unverified-access sources were deliberately excluded from this review so that every claim below is independently checkable in a public, citable, peer-reviewed record. The single exception is NIST Special Publication 800-207 (2020) [S1], a governance standard rather than a journal article, which is cited separately because it is the normative reference against which this project's governance mapping (Sections 4 and 7) is built.
+2.1 Foundations of Zero Trust Architecture and Governance Framing
+NIST SP 800-207 [S1] formalised the Zero Trust Architecture (ZTA) model around a small set of tenets: no implicit trust is granted on the basis of network location, every access request is authenticated and authorised per-session, and trust is continuously reassessed using signals such as device posture, behaviour, and identity. A cluster of open-access, peer-reviewed surveys corroborates and extends this framing. He et al. [1], published in Wireless Communications and Mobile Computing, chart ZTA's evolution and future research trends. Syed et al. [2] and Phiayura and Teerakanok [3], both in IEEE Access, independently catalogue adoption barriers and migration frameworks. Teerakanok et al. [4], in Security and Communication Networks, focus specifically on migration reviews and challenges. A 2025 open-access systematic review in Sensors [5] synthesises ZTA research across 2016–2025, and a 2025 open-access review in GSC Advanced Research and Reviews [6] finds that the evolving AI, IoT, and quantum-computing threat landscape continues to outpace formal ZTNA standardisation. Collectively, these open-access sources converge on the same conclusion: ZTA functions as much as a governance discipline as a technical control, since every access decision must be logged, explainable, and policy-traceable — directly motivating this project's Access Control and Monitoring modules.
+2.2 Zero Trust for IoT and Cyber-Physical Systems
+Azad et al. [7], published open-access in Internet of Things (Elsevier), catalogue IoT-specific obstacles to ZTA adoption — device heterogeneity, intermittent connectivity, and the absence of centralised control. Ashraf et al.'s ZFORT framework [8], published open-access in the same journal, proposes a scalable zero-trust trust-management and traffic-engineering approach for SDN-based IoT. Federici et al. [9], published open-access in Electronics (MDPI), demonstrate a Zero-Trust architecture for remote access to Industrial IoT infrastructure, validated against two real infrastructure scenarios and reporting concrete access-control and scalability gains. The widely cited 'Dissecting Zero Trust' analysis is now available in fully open-access form in Cybersecurity (SpringerOpen) [10], mapping the IoT-specific research landscape and explicitly flagging edge-computing overhead as an unresolved problem. A 2026 open-access study in Scientific Reports [11] extends Zero Trust into a digital-twin-synchronised framework for Industrial IoT intrusion detection with lightweight blockchain auditing. Read together, these sources show the field has already moved well beyond single-purpose demonstrations toward integrated frameworks — but, notably, almost none of them report overhead figures measured on genuinely constrained hardware, which is precisely the evaluation this project supplies.
+2.3 Device Identity and Lightweight Authentication for Constrained Devices
+Al-Shareeda et al. [12], published open-access in Engineering, Technology & Applied Science Research, design an ultra-lightweight identity-authentication protocol for nano-scale IoT devices using hash and XOR operations specifically to avoid public-key infrastructure overhead. A companion open-access study in Procedia Computer Science [13] applies Elliptic Curve Cryptography with Schnorr signatures to reduce authentication computation further while preserving mutual verification. An open-access IEEE Access study [14] designs a lightweight, robust key-establishment protocol validated specifically for constrained Internet-of-Medical-Things deployments. A 2024 open-access MDPI study [15] proposes two-layered multi-factor authentication combining Physical-Unclonable-Function-based device-level verification with blockchain-anchored identity. A 2022 open-access systematic review in Sensors [16] maps the broader IoT authentication and authorisation design space, evaluating centralisation trade-offs directly relevant to this project's decision to place the Device Identity Registry at the gateway rather than on the constrained node itself.
+2.4 Trust Evaluation Using Machine Learning
+A 2025 open-access study in Algorithms (MDPI) [18] introduces a Decision Tree Regression model for real-time trust and reputation scoring of battlefield IoT devices, using transmission success rate, packet loss, latency, and peer feedback as features — demonstrating that lightweight supervised regression can produce explainable, continuously updated trust values suitable for gateway-level deployment. A 2026 open-access study in IoT (MDPI) [19] folds Common Vulnerability Scoring System (CVSS) severity into network-layer trust modelling, combining probabilistic security evidence with behavioural features while keeping the computational footprint low enough for heterogeneous device fleets. A 2025 open-access survey [20] reviews machine-learning security solutions across IoT networks broadly, concluding that tree-based ensembles offer the strongest accuracy-to-latency trade-off for constrained deployment relative to deep sequence models. A 2026 open-access study in Sensors [21] on non-human-identity management for IoT further shows that identity and trust evaluation are converging research threads rather than separable design choices. A 2025 open-access study in Sensors [17] presents the closest published precedent to this project's own design: a Random Forest classifier that dynamically scores access requests from behavioural and login-pattern features in real time. This project departs from [17] specifically by choosing an unsupervised Isolation Forest layer over a supervised classifier, since Isolation Forest does not require the labelled attack data that a Random-Forest-based approach depends on — a practical constraint the CPS deployment context makes hard to satisfy.
+2.5 Continuous Verification and Dynamic Access Control
+Badhib et al. [22], published open-access in IEEE Access, design and formally validate a device-to-device continuous-authentication protocol for the Internet of Things, directly operationalising the 'never trust, always verify' tenet at the protocol level rather than only at the architectural level. This is, to date, the most directly transferable open-access journal precedent for this project's Continuous Verification module, since it demonstrates that continuous re-verification is achievable within IoT devices' energy and latency budgets without requiring full re-authentication on every message — the same design constraint this project's Module 4 is built around.
+2.6 Secure Communication for Constrained CPS Protocols
+Iglesias-Urkia et al. [23], published open-access in IEEE Access, benchmark CoAP, MQTT, and HTTP for real-time IoT systems, providing quantitative latency and resource-usage baselines that this project's own communication-overhead evaluation is designed to be measured against. A 2024 open-access MDPI study [24] evaluates TLS-tunnelled MQTT brokers and SSL-tunnelled cloud bridging specifically for constrained-hardware, open-source distributed measurement infrastructure — the closest published precedent for this project's own Secure Communication module, which likewise pairs a local, VLAN-isolated MQTT/TLS broker with a cloud-facing encrypted bridge.
+2.7 Monitoring, Auditability, and Governance Alignment
+A 2026 open-access article in the Journal of Cybersecurity (Oxford Academic) [25] argues that resource-constrained perception-layer devices — microcontrollers, embedded sensors, smart cameras — structurally lack the computational capacity to maintain local audit trails compatible with conventional SIEM tooling, and that lightweight protocols such as MQTT and CoAP were designed for bandwidth efficiency rather than auditability. This is precisely the tension this project's Monitoring module is designed to resolve, by generating the audit log at the gateway rather than expecting resource-constrained endpoints to produce it themselves. A 2025 open-access study in Sensors [26] proposes a reproducible machine-learning framework for IoT security auditing with explicit feature-hygiene rules and reproducibility artefacts, reinforcing this project's own commitment to keeping the trust-evaluation pipeline's inputs and outputs fully inspectable rather than operating as an unauditable black box.
+2.8 Advanced Algorithmic Extensions: Graph Neural Networks, Reinforcement Learning, and Explainable AI
+The preceding sections ground the project's baseline design. This subsection reviews open-access journal precedent for the higher-sophistication extensions layered on top of that baseline: graph-based relational modelling, adaptive reinforcement-learning policy control, and post-hoc explainability.
+Graph Neural Networks (GNNs) are increasingly applied to IoT/IIoT intrusion and anomaly detection because they model devices as nodes and their interactions as edges, capturing coordinated or lateral-movement attacks that per-device models cannot see. Yang et al. [27], published open-access in Symmetry, apply a GNN-based intrusion detection system to Industrial IoT traffic. A companion open-access study in Information [28] constructs attribute-similarity graphs and applies GraphSAGE for scalable IoT intrusion detection. A 2025 open-access study in Network [29] goes further and combines GNN-based detection with edge-aware explainability specifically to address the 'black-box' interpretability barrier that GNN-based intrusion detectors otherwise carry. A broader open-access survey in IEEE Access [30] catalogues the GNN-for-intrusion-detection field, confirming it is active but still methodologically fragmented — supporting this project's decision to treat the GNN as one signal fused with others rather than a standalone detector.
+Reinforcement Learning (RL) is emerging as a mechanism for adaptive Zero-Trust policy enforcement rather than static thresholds. A 2025 open-access study in Mathematics [31] proposes SecureChain-ZT, an adaptive Zero-Trust policy framework that integrates reinforcement learning with blockchain-based identity verification, formulating policy adaptation as a Markov Decision Process that continuously updates access decisions from network feedback. A related 2025 open-access study in Electronics [32] proposes ZT-IoTrust, a federated, trust-weighted adaptive access-control architecture for IoT. Both confirm that RL-driven policy adaptation is feasible and already demonstrated at prototype scale, though neither couples it to a fused, multi-model trust signal of the kind this project's Module 3 produces.
+Explainable AI (XAI) addresses the practical governance problem that a high-accuracy black-box trust or intrusion model is hard to defend in an audit. Gaspar et al. [33] and Arreche et al. [34], both published open-access in IEEE Access, evaluate SHAP and LIME specifically for intrusion-detection interpretability, finding SHAP the more consistent of the two for structured security telemetry. A 2025 open-access study in Sensors [35] builds a complete XAI-instrumented intrusion detection pipeline for IoT data streams, and a 2026 open-access systematic review in Sensors [36] confirms SHAP and LIME remain the dominant, most model-agnostic explainability techniques in this space. This project's SHAP layer (Section 4.3) applies the same technique to the fusion engine's output specifically so every access decision carries a machine-generated reason code into the audit log.
+Finally, the LSTM-Autoencoder component of the fusion engine is grounded in Hnamte et al. [37], published open-access in IEEE Access, who demonstrate a two-stage LSTM-Autoencoder architecture for network intrusion detection that captures temporal sequence patterns a point-in-time model would miss — directly supporting this project's use of an LSTM-AE as the 'behavioural drift' signal alongside Isolation Forest's 'point anomaly' signal.
+2.9 Summary of Reviewed Literature
+Table 2.1 consolidates the themes above against representative open-access journal sources, their core contribution, and the specific gap each leaves relative to this project's scope.
+Theme
+Representative Source(s)
+Key Contribution
+Gap Relative to This Project
+ZTA Foundations & Governance
+[1]–[6], [S1]
+Establish ZTA tenets; document adoption barriers and governance relevance
+Governance mapping rarely implemented as a working artefact, only discussed conceptually
+CPS / Industrial ZTA
+[7]–[11]
+Adapt ZTA to OT/CPS with segmentation, digital twins, and adaptive policy
+Evaluated at architecture/simulation level; limited constrained-hardware overhead data
+Lightweight Device Identity
+[12], [13], [15], [16]
+Hash/XOR, ECC/Schnorr, and PUF-based identity schemes for constrained nodes
+Addresses identity in isolation, not integrated into a full 7-module ZT loop
+ML-Based Trust Evaluation
+[17]–[21]
+Real-time trust/anomaly scoring via decision trees, ensembles, CVSS fusion
+Favours single models; none fuse multiple signal types into one score
+Continuous Verification
+[22]
+Protocol-level continuous re-authentication within IoT energy/latency budgets
+Rarely combined with governance-mapped access control in one deployable prototype
+Secure Transport (MQTT/CoAP)
+[23], [24]
+Quantitative latency/overhead baselines for TLS/DTLS-secured constrained transport
+Treated as a standalone benchmark rather than integrated with trust-score-driven access
+Monitoring, Audit & Governance
+[25], [26]
+Documents structural audit gap on constrained devices; reproducible ML audit tooling
+Audit generation rarely relocated to the gateway as an explicit design decision
+GNN for IoT/IIoT Anomaly Detection
+[27]–[30]
+Relational/graph-based detection of coordinated and lateral-movement attacks
+Used as a standalone detector, not fused with point-anomaly or sequence models
+RL-Adaptive Zero-Trust Policy
+[31], [32]
+MDP-formulated, continuously learning access-policy adaptation
+Not coupled to a multi-model fused trust signal; evaluated at prototype/simulation scale
+Explainable AI (SHAP/LIME) for Security
+[33]–[36]
+SHAP shown most consistent for structured security telemetry; XAI pipelines for IoT IDS
+Applied to single classifiers, not to a fused fusion-layer trust output
+Sequential/Temporal Modelling (LSTM-AE)
+[37]
+Two-stage LSTM-AE captures temporal patterns missed by point-in-time models
+Not previously combined with graph-based or point-anomaly signals in one engine
+3. Research Gap and Problem Statement
+Despite the depth of the open-access literature reviewed in Section 2, five recurring gaps motivate this project's specific scope:
+Fragmented scope: most works optimise one Zero-Trust function in isolation — identity [12],[13],[15],[16], trust scoring [17]–[21], or continuous verification [22] — rather than an integrated pipeline spanning all seven functions this project implements end-to-end.
+Qualitative resource accounting: CPS-oriented ZTA frameworks [7]–[11] are evaluated at the architectural, simulation, or digital-twin level without reporting concrete computational, memory, or energy overhead on genuinely constrained hardware, making real-world adoption feasibility difficult to judge from the published record alone.
+Governance as a byproduct, not a design goal: auditability and NIST SP 800-207 tenet mapping are cited as motivation across the ZTA foundations literature [1]–[6] and are explicitly identified as structurally difficult on constrained devices [25], but are rarely implemented as explicit, first-class outputs of a working prototype.
+Mismatch between trust-scoring models and deployment constraints: the strongest available precedent for behavioural trust scoring [17] relies on a supervised Random Forest classifier requiring labelled training data — a poor fit for CPS deployments where labelled attack data is scarce and device behaviour drifts over time.
+Single-signal, single-purpose intelligence: GNN-based detectors [27]–[30], RL-based adaptive policy [31],[32], and XAI/SHAP explainability [33]–[36] are each demonstrated separately in the literature, but no reviewed source fuses point-anomaly, temporal, and relational signals into one trust score, makes that fused score explainable, and drives an adaptive policy decision from it.
+Problem Statement: There is no widely demonstrated, end-to-end Zero-Trust prototype for IoT-based CPS in the current open-access journal record that (a) integrates device identity, authentication, trust evaluation, continuous verification, access control, secure communication, and monitoring as a single measurable pipeline, (b) is explicitly evaluated for computational and energy overhead on resource-constrained embedded hardware, (c) produces governance-ready audit artefacts mapped to NIST SP 800-207 as a primary deliverable, and (d) fuses multiple independent trust signals — point-anomaly, temporal, and relational — into one explainable, adaptively-enforced decision. This project addresses that gap directly, while remaining fully traceable to the published precedents that make each individual module feasible (Section 5).
+4. Proposed Solution and Methodology
+The proposed solution is a seven-module Zero-Trust pipeline — CPS Device Identity, Authentication, Trust Evaluation, Continuous Verification, Access Control, Secure Communication, and Monitoring — implemented end-to-end and evaluated on resource-constrained embedded hardware, rather than left at the architectural or simulation level as most of the literature in Section 2 is. Each module's design choice is deliberately anchored to a specific open-access precedent identified in the survey, so the proposal is an integration and evaluation contribution rather than a request to invent unproven primitives. The project follows a Design Science Research approach: requirements are extracted from the literature-identified gaps (Section 3), a modular system is designed and implemented, and the resulting artefact is evaluated against defined, measurable criteria.
+4.1 Novelty Statement
+The novelty of this project is integration, fusion, and constrained-hardware evaluation — not the invention of new algorithms. Specifically: (1) no reviewed source combines point-anomaly (Isolation Forest), temporal (LSTM-Autoencoder), and relational/graph-based (GNN) trust signals into a single fused score for CPS devices; (2) no reviewed source pairs that fused score with a SHAP-based explainability layer so every access decision carries a machine-generated, audit-ready reason code; (3) no reviewed source couples an RL-adaptive policy engine to a multi-model fused trust signal specifically, as opposed to a single classifier's output; and (4) no reviewed source treats NIST SP 800-207 governance mapping as a primary system deliverable rather than a discussion point. Each individual component (GNN-based detection, RL-adaptive policy, SHAP explainability, LSTM-AE sequence modelling) is independently well-precedented in the open-access literature reviewed in Section 2 — the contribution here is combining them into one coherent, evaluated, governance-mapped pipeline for resource-constrained CPS.
+4.2 Research and Development Approach
+Stage 1 — Requirement Analysis: consolidate the seven mandatory modules into concrete functional and non-functional requirements (e.g., authentication must complete within a defined latency budget; trust scoring must not require labelled attack data).
+Stage 2 — Architecture Design: define a layered architecture (Section 7) separating the constrained Device/Edge Layer from the Zero-Trust Gateway Layer and the Monitoring/Governance Layer.
+Stage 3 — Modular Implementation: implement each of the seven modules independently, with defined interfaces, so modules can be tested in isolation before integration.
+Stage 4 — Fusion Engine Assembly: train the four trust-signal models independently, then train the stacking meta-learner on top of their outputs (Section 4.4).
+Stage 5 — Testbed Integration: assemble simulated/emulated CPS nodes, gateway, and monitoring backend into a working end-to-end pipeline.
+Stage 6 — Adversarial Evaluation: inject spoofing, replay, behavioural-drift, and coordinated multi-device attack scenarios to test trust evaluation, continuous verification, and access control jointly.
+Stage 7 — Governance Mapping and Reporting: map implemented controls to NIST SP 800-207 tenets and compile the audit-log and SHAP reason-code output into a compliance-style report.
+4.3 Module-Wise Design Approach and Literature Grounding
+#
+Module
+Design Approach
+Grounded In
+1
+CPS Device Identity
+Lightweight HMAC-based device fingerprinting; gateway holds the PKI/certificate relationship on the node's behalf where full X.509 is too heavy for the endpoint.
+[12], [13], [16]
+2
+Authentication
+Mutual challenge-response authentication (ECC where hardware allows; hash/XOR for the most constrained nodes).
+[12], [14], [16]
+3
+Trust Evaluation
+Multi-model fusion engine: rule-based bootstrap, Isolation Forest, LSTM-Autoencoder, and GNN outputs combined via a stacking meta-learner, with SHAP explainability on the fused output.
+[17]–[21], [27]–[30], [33]–[37]
+4
+Continuous Verification
+Gateway re-evaluates the fused trust score at fixed short intervals and on every access request rather than once at session start.
+[22], [S1]
+5
+Access Control
+RL-adaptive Policy Decision Point learns optimal allow/deny/step-up thresholds from the fused trust score and context, rather than using static thresholds.
+[2], [3], [9], [31], [32]
+6
+Secure Communication
+MQTT over TLS 1.2/1.3 and CoAP over DTLS; scheduled key/certificate rotation; no plaintext fallback.
+[23], [24]
+7
+Monitoring
+Dashboard and structured audit-log store — including SHAP reason codes — generated at the gateway, doubling as governance/compliance evidence.
+[25], [26]
+4.4 Multi-Algorithm Fusion and Decision Architecture
+Module 3 is the heart of the upgraded design and answers the practical question of how four independently-trained models produce one actionable decision. Figure 4.1 shows the architecture: four models — a rule-based cold-start score, Isolation Forest (point-anomaly), an LSTM-Autoencoder (temporal/behavioural drift, grounded in [37]), and a Graph Neural Network (relational/coordinated-anomaly across the device interaction graph, grounded in [27]–[30]) — each independently score a device. Rather than hand-tuning weights to combine them, a lightweight stacking meta-learner (a small logistic regression or shallow decision tree) is trained on the four models' outputs to learn the optimal combination, producing a single Unified Trust Score with an attached confidence measure. A SHAP explainability layer (grounded in [33]–[36]) is then applied to the meta-learner's decision, generating a per-decision 'reason code' — e.g., which specific behavioural or relational feature drove a low trust score — that feeds directly into both the RL-adaptive Access Control module and the Monitoring/audit log, so every access decision is simultaneously actionable and defensible in a governance review.
+Figure 4.1 — Trust Evaluation multi-model fusion and decision architecture (Module 3 detail).
+This fusion design directly answers the four-part novelty claim in Section 4.1: it is the specific combination of signal types (point, temporal, relational), the specific fusion mechanism (learned stacking rather than fixed weights), and the specific pairing with explainability that is not demonstrated as a single system anywhere in the reviewed literature.
+5. Feasibility: Why This Can Be Built and Evaluated Now
+A proposal is only useful for research purposes if it can actually be executed within a realistic timeline, budget, and skill set. Adding a GNN, an RL-adaptive policy engine, and a SHAP explainability layer raises the sophistication of the design, so this section is explicit about where that added complexity actually lands — and why it still stays feasible.
+5.1 Technical Feasibility — No Unproven Primitives, Even at the Higher Tier
+Every model in the upgraded fusion engine has at least one directly transferable, published, open-access precedent: point-anomaly and ensemble trust scoring in [17]–[20]; GNN-based relational anomaly detection in [27]–[30]; RL-driven adaptive Zero-Trust policy in [31],[32]; SHAP-based explainability for security telemetry in [33]–[36]; and LSTM-Autoencoder sequence modelling in [37]. Nothing in the fusion engine is a first-of-its-kind algorithm — the novelty (Section 4.1) is entirely in the combination, which keeps technical risk bounded even as sophistication increases.
+5.2 The Key Design Decision That Keeps This Feasible: Train Offline, Infer at the Gateway
+GNNs and RL policies are meaningfully more compute-intensive to train than Isolation Forest or a rule-based score. The design keeps this feasible with one explicit split: model training happens offline on a development machine or free-tier cloud notebook (a laptop or a Colab-class GPU instance is sufficient for the small graph sizes and state spaces involved at prototype scale), while only inference — a forward pass through already-trained, lightweight models — happens at runtime on the Raspberry Pi 4 gateway. This is standard practice in constrained-device ML deployment and means the 'resource-constrained' claim is never violated: the embedded nodes never run any model at all, and the gateway only ever runs inference, not training, during live operation.
+5.3 Resource and Tooling Feasibility — Still Low Cost, Still Freely Available
+Hardware cost is unchanged: ESP32/Pico W nodes at approximately ₹400–900 (US$5–12) each, and a Raspberry Pi 4 (4GB) gateway at roughly ₹4,500–5,500 (under US$60) — the fusion engine adds software complexity, not new hardware.
+All required software remains free and open-source: scikit-learn (Isolation Forest, meta-learner), PyTorch or TensorFlow/Keras (LSTM-Autoencoder), PyTorch Geometric or DGL (GNN), a lightweight Q-learning/contextual-bandit implementation (custom or Stable-Baselines3) for the RL policy, and the `shap` library for explainability — no proprietary licences anywhere in the pipeline.
+No external labelled attack dataset is required for the core anomaly signals: Isolation Forest, the LSTM-Autoencoder, and the GNN (used in an anomaly-scoring rather than supervised-classification configuration) all train on self-generated simulated device/graph telemetry. Only the stacking meta-learner needs a small labelled validation set to tune its combination weights, which can be constructed from the project's own adversarial-testing scenarios (Section 4.2, Stage 6) rather than an external corpus.
+5.4 Timeline and Scope Feasibility
+The 16-week phased plan (Section 9) is staged so a complete, evaluable core system — rule-based and Isolation Forest trust scoring, mutual authentication, MQTT/TLS transport, and static-threshold access control — is working by Week 8. The LSTM-Autoencoder, GNN, stacking fusion, SHAP layer, and RL-adaptive policy are layered on top of that working core in the second half of the timeline as additive enhancements, not blocking dependencies. This means the project has a complete, defensible fallback scope at the halfway point regardless of how the advanced components progress.
+5.5 Why Now: Research-Readiness of the Underlying Ecosystem
+NIST SP 800-207 has been stable and unrevised since 2020, providing a fixed, authoritative governance target to map the system's controls against.
+GNN-based IoT intrusion detection [27]–[30] and RL-adaptive Zero-Trust policy [31],[32] are both 2025-dated open-access literature — meaning this project sits at the leading edge of two still-maturing sub-areas rather than saturated ones, which is exactly the profile that makes a strong final-year or early graduate research contribution.
+SHAP has converged as the dominant, most model-agnostic explainability technique for security telemetry specifically [33]–[36], so choosing it over less-consistent alternatives like LIME is itself an evidence-backed decision, not a default.
+Mature open-source tooling exists for every added component (PyTorch Geometric for GNNs, Stable-Baselines3-class libraries for RL, `shap` for explainability), removing the platform risk that made these techniques considerably harder to prototype even three to four years ago.
+The specific research gap identified in Section 3 — fusing point, temporal, and relational trust signals into one explainable, adaptively-enforced, governance-mapped decision — remains open in the reviewed open-access record as of 2026.
+5.6 What "Done for Research Purposes" Concretely Means Here
+A working prototype demonstrating the full seven-module Zero-Trust loop, with the four-model fusion engine, on simulated/emulated constrained hardware.
+Quantified overhead and latency figures for both the core pipeline (benchmarked against [22],[23],[24]) and the added inference cost of the fusion engine at the gateway.
+An ablation study showing the fused trust score's detection accuracy against each individual model in isolation (rule-based, Isolation Forest, LSTM-AE, GNN alone) — directly evidencing the fusion's value rather than asserting it.
+SHAP-generated reason codes for a sample of access decisions, demonstrating the explainability layer functions as governance evidence, not just a technical add-on.
+A governance-mapping table and audit-log export usable directly as IT-governance/compliance-style documentation.
+A documented basis for a short conference paper or extended thesis chapter, since the specific fusion-plus-governance integration this project performs is not yet demonstrated in the reviewed open-access record.
+6. Workflow Diagram
+Figure 6.1 traces a single access request end-to-end through the seven modules. Unlike a conventional login flow, the loop does not terminate once a device is authenticated: the trust-evaluation and continuous-verification stages re-run for the lifetime of the session, and monitoring data feeds back into trust scoring, so no device is ever permanently trusted.
+Figure 6.1 — End-to-end Zero-Trust workflow for an IoT-based CPS access request.
+Walkthrough of the loop:
+A device presents its cryptographic identity (Module 1), which is verified against the gateway's identity registry.
+Mutual authentication (Module 2) establishes a session using a lightweight challenge-response exchange.
+The Trust Evaluation engine (Module 3) scores the device using its multi-model fusion pipeline — rule-based, Isolation Forest, LSTM-Autoencoder, and GNN signals combined by a stacking meta-learner (Figure 4.1) — producing a unified trust score with a SHAP-generated reason code.
+Continuous Verification (Module 4) re-checks this fused score at short intervals and on every subsequent request — this is the defining departure from a conventional 'verify-once' login, and the step most directly grounded in [22].
+Access Control (Module 5) — the RL-Adaptive Policy Decision Point — converts the current fused trust score, its SHAP reason code, and context into an allow, deny, or step-up-authentication decision, with thresholds that adapt over time rather than staying fixed.
+Secure Communication (Module 6) carries the resulting traffic only if access was granted, over MQTT/TLS or CoAP/DTLS.
+Monitoring (Module 7) logs every decision and score, and that behavioural record feeds back into future Trust Evaluation cycles, closing the loop.
+Every audit record is simultaneously mapped to the relevant NIST SP 800-207 tenet, so the log doubles as governance evidence.
+7. Proposed System Architecture
+The system is organised into three layers, separating concerns by resource budget and trust role: a constrained Device/Edge Layer that must remain cheap to run, a Zero-Trust Gateway Layer that performs the computationally heavier trust and policy logic, and a Monitoring/Governance Layer that consumes the gateway's output for visibility and compliance.
+Figure 7.1 — Proposed three-layer Zero-Trust architecture for IoT-based CPS.
+7.1 Layer 1 — CPS Device / Edge Layer
+Comprises sensor nodes, actuator nodes, and an edge gateway agent implemented on ESP32- or Raspberry Pi Pico-class hardware, plus a secure element or software-protected key store holding each device's long-term credentials. This layer is deliberately kept minimal: it only needs to hold a stable identity, speak a lightweight authentication handshake, and terminate TLS/DTLS — the trust-scoring and policy logic are intentionally pushed to Layer 2 so constrained nodes are never asked to run models or maintain large state.
+7.2 Layer 2 — Zero-Trust Gateway Layer (Policy Decision / Enforcement Point)
+The gateway hosts the Device Identity Registry, Authentication Module, the multi-model Trust Evaluation Engine (Isolation Forest, LSTM-Autoencoder, GNN, and the stacking fusion/SHAP layer), the Continuous Verification Controller, the RL-Adaptive Access Control/PDP, and the MQTT/TLS and CoAP/DTLS termination points. This is where the computational cost of Zero Trust is absorbed — all model inference, fusion, explainability computation, policy evaluation, and session-state tracking run here, on hardware with a materially larger resource budget than the edge nodes it protects, and with model training itself performed offline beforehand (Section 5.2).
+7.3 Layer 3 — Monitoring and Governance Layer
+Consumes every access decision and trust score emitted by Layer 2 and renders it as (a) a real-time dashboard for operational visibility, (b) a structured, queryable audit-log store, and (c) a compliance mapping view that expresses the same data in terms of NIST SP 800-207 tenets — identity verification, least-privilege enforcement, continuous diagnostics — for governance review.
+8. System to Be Used
+8.1 Hardware Requirements
+Component
+Recommended Option
+Role
+Simulated CPS sensor/actuator nodes
+ESP32 (WiFi + BLE) or Raspberry Pi Pico W
+Represent resource-constrained embedded devices under test
+Gateway
+Raspberry Pi 4 (4 GB) or equivalent laptop VM
+Hosts the Zero-Trust engine: authentication, trust scoring, policy decisions
+Monitoring backend
+Same host as gateway, or a separate low-cost VM
+Runs the dashboard and audit-log database
+Secure element (optional)
+ATECC608A or software-protected key store
+Hardware-backed credential storage for device identity
+8.2 Software Requirements
+Layer
+Technology
+Purpose
+Device firmware / simulation
+MicroPython or C (ESP-IDF), or pure Python simulation
+Implements device identity, authentication client, and telemetry generation
+Core Trust Signals
+Python, scikit-learn (Isolation Forest, rule-based scorer)
+Point-anomaly scoring plus rule-based cold-start bootstrap
+Sequential Trust Signal
+PyTorch or TensorFlow/Keras (LSTM-Autoencoder)
+Temporal/behavioural-drift detection [37]
+Relational Trust Signal
+PyTorch Geometric or DGL (Graph Neural Network)
+Coordinated/lateral-movement anomaly detection across the device graph [27]–[30]
+Fusion & Explainability
+scikit-learn (stacking meta-learner) + `shap` library
+Combines the four trust signals; generates per-decision reason codes [33]–[36]
+Adaptive Policy Engine
+Custom Q-learning / contextual bandit, or Stable-Baselines3
+RL-adaptive Access Control thresholds [31], [32]
+Secure Messaging
+Eclipse Mosquitto (MQTT broker) with TLS; aiocoap (CoAP) with DTLS
+Encrypted, authenticated transport between all components
+Audit Log Store
+SQLite (prototype) / PostgreSQL (scaled deployment)
+Structured, queryable record of trust scores, SHAP reason codes, and access decisions
+Monitoring Dashboard
+Flask or Streamlit
+Real-time visualisation and governance/compliance view
+Containerisation (optional)
+Docker / Docker Compose
+Reproducible deployment of gateway and monitoring services
+Governance Reference
+NIST SP 800-207 [S1]
+Tenet mapping for audit and compliance reporting
+Note on training location: as set out in Section 5.2, the LSTM-Autoencoder, GNN, and RL policy are trained offline on a development machine (or a free-tier cloud GPU notebook for the GNN); only trained-model inference runs on the Raspberry Pi 4 gateway at runtime, so the hardware list above does not change even though the software stack has grown more sophisticated.
+9. Implementation Strategy
+The implementation is planned as nine phases over a sixteen-week timeline, sequenced so the core Zero-Trust loop (Phases 1–5) is complete and independently defensible before the advanced fusion components (Phases 6–8) are layered on top, per the fallback logic set out in Section 5.4.
+Phase
+Weeks
+Deliverable
+1. Requirement Finalisation & Literature Consolidation
+1–2
+Finalised functional/non-functional requirements; confirmed module interfaces
+2. Device Identity & Authentication
+2–4
+Working identity registry and mutual authentication between simulated nodes and gateway
+3. Secure Communication Layer
+4–5
+MQTT/TLS broker and CoAP/DTLS endpoint operational; no-plaintext-fallback verified
+4. Core Trust Evaluation (rule-based + Isolation Forest)
+5–7
+Rule-based scoring live; Isolation Forest model trained and integrated
+5. Continuous Verification & Static-Threshold Access Control
+7–8
+Runtime re-verification loop and a working (static-threshold) Policy Decision Point — core system complete and defensible
+6. Sequential & Relational Trust Signals (LSTM-AE, GNN)
+8–11
+LSTM-Autoencoder and GNN trained offline; both integrated as additional scoring signals
+7. Fusion Engine & Explainability (meta-learner, SHAP)
+11–13
+Stacking meta-learner trained on all four signals; SHAP reason-code generation live
+8. RL-Adaptive Policy Engine
+13–14
+Static-threshold PDP upgraded to RL-adaptive policy learning from fused trust score and context
+9. Monitoring, Adversarial Testing, Evaluation & Documentation
+14–16
+Dashboard and audit log (with SHAP reason codes) complete; attack/ablation results; final report and compliance summary
+10. Evaluation Plan and Expected Outcomes
+10.1 Evaluation Metrics
+Authentication latency: time to complete mutual authentication on simulated constrained hardware, benchmarked against [14] and [22].
+Trust-score responsiveness: how quickly the fused trust score reacts to injected anomalous behaviour (spoofing, replay, behavioural drift, coordinated multi-device attacks).
+Fusion ablation: detection accuracy of the fused score compared against each individual model (rule-based, Isolation Forest, LSTM-AE, GNN) in isolation, to evidence the fusion's actual contribution rather than assert it.
+Explainability quality: qualitative and quantitative review of SHAP reason codes against ground-truth attack labels — do the top-ranked features actually correspond to the injected anomaly?
+RL policy convergence: reward trend and stabilisation of the adaptive Policy Decision Point's thresholds over repeated simulated sessions, compared against the static-threshold baseline from Phase 5.
+Computational and energy overhead: CPU, memory, and power draw attributable to the Zero-Trust stack on the edge node versus a baseline with no security layer, benchmarked against [23] and [24]; separately, gateway-side inference latency for the fusion engine.
+Governance completeness: proportion of NIST SP 800-207 [S1] tenets for which the system produces a traceable, logged artefact, including SHAP-backed reason codes.
+10.2 Expected Outcomes
+A working, end-to-end Zero-Trust CPS prototype demonstrating all seven modules, including the four-model fusion engine, operating as a single continuous loop.
+Quantified overhead figures showing the framework — including the added GNN/RL/XAI components — is feasible on genuinely resource-constrained hardware given the offline-training/gateway-inference split (Section 5.2), directly addressing Research Gap 2 (Section 3).
+An ablation study empirically demonstrating that the fused trust score outperforms any single constituent model — directly addressing Research Gap 5 (Section 3).
+A governance-ready audit report mapping implemented controls, including SHAP reason codes, to NIST SP 800-207 tenets — directly addressing Research Gap 3 (Section 3).
+A portfolio-ready project artefact and potential basis for a short research paper or extended thesis direction in multi-signal, explainable, resource-constrained Zero-Trust CPS security.
+11. References
+11.1 Governance Standard
+[S1] S. Rose, O. Borchert, S. Mitchell, and S. Connelly, "Zero Trust Architecture," NIST Special Publication 800-207, National Institute of Standards and Technology, 2020. (Normative governance standard; cited separately from the journal literature below.)
+11.2 Open-Access, Peer-Reviewed Journal Articles (2021–2026)
+[1] Y. He, D. Huang, L. Chen, Y. Ni, and X. Ma, "A Survey on Zero Trust Architecture: Challenges and Future Trends," Wireless Communications and Mobile Computing, vol. 2022, Art. no. 6476274, 2022. (Hindawi/Wiley, open access)
+[2] N. F. Syed, S. W. Shah, A. Shaghaghi, A. Anwar, Z. Baig, and R. Doss, "Zero Trust Architecture (ZTA): A Comprehensive Survey," IEEE Access, vol. 10, pp. 57143–57179, 2022. (open access)
+[3] P. Phiayura and S. Teerakanok, "A Comprehensive Framework for Migrating to Zero Trust Architecture," IEEE Access, vol. 11, pp. 19487–19511, 2023. (open access)
+[4] S. Teerakanok, T. Uehara, and A. Inomata, "Migrating to Zero Trust Architecture: Reviews and Challenges," Security and Communication Networks, vol. 2021, Art. no. 9947347, 2021. (Hindawi/Wiley, open access)
+[5] "A Systematic Literature Review on the Implementation and Challenges of Zero Trust Architecture Across Domains," Sensors, vol. 25, Art. no. 6118, 2025. (MDPI, open access)
+[6] "A Survey of Security in Zero Trust Network Architectures," GSC Advanced Research and Reviews, vol. 22, no. 2, pp. 182–214, 2025. (open access)
+[7] M. A. Azad, S. Abdullah, J. Arshad, H. Lallie, and Y. H. Ahmed, "Verify and Trust: A Multidimensional Survey of Zero-Trust Security in the Age of IoT," Internet of Things, vol. 27, Art. no. 101227, 2024. (Elsevier, gold open access)
+[8] U. Ashraf, M. Al-Naeem, M. N. M. Bhutta, and C. Yuen, "ZFORT: A Scalable Zero-Trust Approach for Trust Management and Traffic Engineering in SDN-Based IoT," Internet of Things, vol. 28, Art. no. 101419, 2024. (Elsevier, gold open access)
+[9] F. Federici, D. Martintoni, and V. Senni, "A Zero-Trust Architecture for Remote Access in Industrial IoT Infrastructures," Electronics, vol. 12, no. 3, Art. no. 566, 2023. (MDPI, open access)
+[10] "Dissecting Zero Trust: Research Landscape and Its Implementation in IoT," Cybersecurity, vol. 7, 2024. (SpringerOpen, open access)
+[11] "A Zero-Trust Digital Twin Framework for Privacy-Preserving Multi-Dataset Intrusion Detection in Industrial IoT with Lightweight Blockchain Auditing," Scientific Reports, 2026. (Nature, open access)
+[12] M. A. Al-Shareeda et al., "A Lightweight Identity Authentication Protocol for Nano-Scale IoT Devices," Engineering, Technology & Applied Science Research, vol. 15, no. 5, pp. 27938–27946, 2025. (open access)
+[13] "Lightweight Identity Authentication Protocol for Internet of Things Devices" (ECC and Schnorr-signature based), Procedia Computer Science, 2025. (Elsevier, open access)
+[14] "A Lightweight and Robust Secure Key Establishment Protocol for Internet of Medical Things in COVID-19 Patients Care," IEEE Access, vol. 9, 2021. (open access)
+[15] "Two-Layered Multi-Factor Authentication Using Decentralized Blockchain in an IoT Environment," MDPI journal, 2024. (CC BY open access)
+[16] "Systematic Review of Authentication and Authorization Advancements for the Internet of Things," Sensors, vol. 22, no. 4, Art. no. 1361, 2022. (MDPI, open access)
+[17] "Machine Learning-Enhanced Attribute-Based Authentication for Secure IoT Access Control," Sensors, vol. 25, no. 9, Art. no. 2779, 2025. (MDPI, open access)
+[18] "A Decision Tree Regression Algorithm for Real-Time Trust Evaluation of Battlefield IoT Devices," Algorithms, vol. 18, no. 10, Art. no. 641, 2025. (MDPI, open access)
+[19] "Lightweight Protection Mechanisms for IoT Networks Based on Trust Modelling," IoT, vol. 7, no. 1, Art. no. 18, 2026. (MDPI, open access)
+[20] "Machine Learning-Based Security Solutions for IoT Networks: A Comprehensive Survey," MDPI journal, 2025. (CC BY open access)
+[21] "Zero Trust for NHIs Based on Robust Identity and Access Management for a Resilient IoT Future," Sensors, vol. 26, no. 8, Art. no. 2392, 2026. (MDPI, open access)
+[22] A. Badhib, S. Alshehri, and A. Cherif, "A Robust Device-to-Device Continuous Authentication Protocol for the Internet of Things," IEEE Access, vol. 9, pp. 124768–124792, 2021. (open access)
+[23] M. Iglesias-Urkia, A. Orive, M. Barcelo, and A. Moran, "Analysis of CoAP, MQTT, and HTTP Protocols for Real-Time IoT Systems," IEEE Access, vol. 9, pp. 104521–104535, 2021. (open access)
+[24] "A Performance Analysis of Security Protocols for Distributed Measurement Systems Based on Internet of Things with Constrained Hardware and Open-Source Infrastructures," MDPI journal, 2024. (CC BY open access)
+[25] "Systematization of Human-Centered Continuous Audit for IoT Security Compliance," Journal of Cybersecurity, vol. 12, no. 1, Art. no. tyag021, 2026. (Oxford Academic, open access)
+[26] "Security Audit of IoT Device Networks: A Reproducible Machine Learning Framework for Threat Detection and Performance Benchmarking," Sensors, vol. 25, no. 24, Art. no. 7519, 2025. (MDPI, open access)
+[27] S. Yang, W. Pan, M. Li, M. Yin, H. Ren, Y. Chang, Y. Liu, S. Zhang, and F. Lou, "Industrial Internet of Things Intrusion Detection System Based on Graph Neural Network," Symmetry, vol. 17, no. 7, Art. no. 997, 2025. (MDPI, open access)
+[28] "Optimizing IoT Intrusion Detection—A Graph Neural Network Approach with Attribute-Based Graph Construction," Information, vol. 16, no. 9, Art. no. 499, 2025. (MDPI, open access)
+[29] "TE-G-SAGE: Explainable Edge-Aware Graph Neural Networks for Network Intrusion Detection," Network, vol. 6, no. 4, Art. no. 165, 2025. (MDPI, open access)
+[30] T. Bilot, N. El Madhoun, K. Al Agha, and A. Zouaoui, "Graph Neural Networks for Intrusion Detection: A Survey," IEEE Access, vol. 11, pp. 49114–49139, 2023. (open access)
+[31] "Adaptive Zero Trust Policy Management Framework in 5G Networks" (SecureChain-ZT), Mathematics, vol. 13, no. 9, Art. no. 1501, 2025. (MDPI, open access)
+[32] "ZT-IoTrust: A Quantum-Resistant Zero Trust Framework for Secure IoT Access Control," Electronics, vol. 14, no. 22, Art. no. 4469, 2025. (MDPI, open access)
+[33] D. Gaspar, P. Silva, and C. Silva, "Explainable AI for Intrusion Detection Systems: LIME and SHAP Applicability on Multi-Layer Perceptron," IEEE Access, vol. 12, pp. 30164–30175, 2024. (open access)
+[34] O. Arreche, T. R. Guntur, J. W. Roberts, and M. Abdallah, "E-XAI: Evaluating Black-Box Explainable AI Frameworks for Network Intrusion Detection," IEEE Access, vol. 12, pp. 23954–23988, 2024. (open access)
+[35] A. Alabbadi and F. Bajaber, "An Intrusion Detection System over the IoT Data Streams Using eXplainable Artificial Intelligence (XAI)," Sensors, vol. 25, no. 3, Art. no. 847, 2025. (MDPI, open access)
+[36] "Performance Analysis of Explainable Deep Learning-Based Intrusion Detection Systems for IoT Networks: A Systematic Review," Sensors, vol. 26, no. 2, Art. no. 363, 2026. (MDPI, open access)
+[37] V. Hnamte, H. Nhung-Nguyen, J. Hussain, and Y. Hwa-Kim, "A Novel Two-Stage Deep Learning Model for Network Intrusion Detection: LSTM-AE," IEEE Access, vol. 11, pp. 37131–37148, 2023. (open access)

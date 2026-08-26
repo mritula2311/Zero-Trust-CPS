@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+venv/
+.venv/
+env/
+
+# Secrets / private key material -- generated locally per docs/03_add_tls.md
+# and docs/07_transport_zero_trust.md, never committed. ca.key/server.key/
+# coap_server.key are real TLS private keys; mosquitto_passwd holds hashed
+# broker credentials. Public certs (*.crt) are excluded too since they're
+# regenerated alongside the keys by the same scripts -- nothing here is
+# meant to be shared via git, only generated fresh per deployment.
+certs/*.key
+certs/*.crt
+certs/*.csr
+certs/*.srl
+certs/mosquitto_passwd
+certs/mosquitto_acl
+
+# Real HMAC secrets / MQTT broker passwords for this machine's local
+# deployment -- see src/secrets_local.example.py for the committed
+# template. config.py imports from this file if it exists, falling back
+# to placeholder values otherwise.
+src/secrets_local.py
+
+# Runtime databases -- regenerate every run, not source
+data/audit_log.db
+src/data/audit_log.db
+*.db
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

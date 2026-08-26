@@ -1,0 +1,127 @@
+"""
+Module 3, Phase 6c: GNN anomaly scorer -- INFERENCE ONLY.
+
+CLAUDE.md Section 8: training happens offline in scripts/train_gnn.py,
+which imports `_GCN` from this file (one architecture, not two copies)
+and saves a trained state dict to config.GNN_MODEL_PATH. This file's
+`GNNScorer` only ever loads it and runs a forward pass over the current
+device graph -- it never trains in the live gateway path.
+
+Graph choice (CLAUDE.md Section 2 offers two legitimate options -- this
+build uses the HYBRID DEVICE-GRAPH, documented in config.py): nodes =
+DEVICE_REGISTRY entries, edges = "communicated with the gateway in the
+same time window" (config.GNN_EDGE_WINDOW_SECONDS), node feature vector =
+[rule_score, isolation_forest_score, lstm_ae_score]. For the two scalar
+devices (sensor-002, actuator-001), which have no independent IF/LSTM-AE
+models of their own (those are specific to esp32-vib-001's feature
+vector), the if/lstm slots mirror their rule_score -- documented
+explicitly here and in gateway.py, not a silent placeholder.
+
+Implementation note: plain PyTorch (hand-rolled GCN layer via matrix
+multiply against a normalized adjacency), not `torch-geometric` --
+`torch-geometric`'s compiled extensions are version-locked and a common
+source of broken installs; not worth the risk for a 3-node graph, where a
+hand-rolled GCN layer does the identical math. Swapping in real
+torch-geometric later is a contained change if you need a larger graph.
+"""
+
+import time
+
+import numpy as np
+import torch
+import torch.nn as nn
+
+from config import DEVICE_REGISTRY, GNN_EDGE_WINDOW_SECONDS, GNN_HIDDEN_SIZE, GNN_NUM_LAYERS, GNN_NODE_FEATURE_DIM, GNN_MODEL_PATH
+
+torch.manual_seed(0)
+
+# GPU support: this file's own `device_id` parameter name already means
+# "which CPS device" (esp32-vib-001 etc.), so the torch compute device is
+# named _TORCH_DEVICE throughout to avoid colliding with that. Falls back
+# to CPU automatically if no CUDA GPU is present -- same code runs
+# correctly either way, no separate GPU/CPU code path to keep in sync.
+_TORCH_DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+class _GCN(nn.Module):
+    """N-layer Graph Convolutional Network: H' = sigma(A_hat @ H @ W) at
+    each hop, N-1 hidden hops followed by one hidden->1 output hop.
+    Shared between scripts/train_gnn.py (trains it) and this file (only
+    ever loads and runs it).
+
+    GPU-scale-up (SESSION_LOG.md): num_layers=2 reproduces the original
+    architecture exactly (one in_dim->hidden layer, one hidden->1 output
+    layer); num_layers=GNN_NUM_LAYERS (3, the new default) adds one
+    hidden->hidden hop in between for real added depth."""
+
+    def __init__(self, in_dim=GNN_NODE_FEATURE_DIM, hidden=GNN_HIDDEN_SIZE, num_layers=GNN_NUM_LAYERS):
+        super().__init__()
+        assert num_layers >= 2, "need at least an input hop and an output hop"
+        hop_layers = [nn.Linear(in_dim, hidden)]
+        hop_layers += [nn.Linear(hidden, hidden) for _ in range(num_layers - 2)]
+        self.hidden_layers = nn.ModuleList(hop_layers)
+        self.out_layer = nn.Linear(hidden, 1)
+
+    def forward(self, x, a_hat):
+        h = x
+        for layer in self.hidden_layers:
+            h = torch.relu(a_hat @ layer(h))
+        out = torch.sigmoid(a_hat @ self.out_layer(h))
+        return out.squeeze(-1)  # (num_nodes,) -- probability node is "normal"
+
+
+def normalized_adjacency(active_mask: np.ndarray) -> torch.Tensor:
+    """A_hat = D^-1/2 (A+I) D^-1/2, edge between any two ACTIVE devices."""
+    n = len(active_mask)
+    a = np.eye(n)
+    for i in range(n):
+        for j in range(n):
+            if i != j and active_mask[i] and active_mask[j]:
+                a[i, j] = 1.0
+    deg = a.sum(axis=1)
+    d_inv_sqrt = np.diag(1.0 / np.sqrt(np.maximum(deg, 1e-6)))
+    return torch.tensor(d_inv_sqrt @ a @ d_inv_sqrt, dtype=torch.float32)
+
+
+class GNNScorer:
+    """Single shared instance across all devices -- a GNN's whole point is
+    reasoning about the device graph jointly. Loads a trained model at
+    construction; `score()` is a pure forward pass over the current graph
+    snapshot, no training."""
+
+    def __init__(self):
+        self.device_ids = list(DEVICE_REGISTRY.keys())
+        self._index = {d: i for i, d in enumerate(self.device_ids)}
+        n = len(self.device_ids)
+        self.last_seen = np.zeros(n)
+        self.last_features = np.full((n, GNN_NODE_FEATURE_DIM), 0.9, dtype=np.float32)
+        self.model: _GCN | None = None
+        self._load()
+
+    def _load(self):
+        import os
+        if not os.path.exists(GNN_MODEL_PATH):
+            return
+        model = _GCN()
+        model.load_state_dict(torch.load(GNN_MODEL_PATH, map_location=_TORCH_DEVICE, weights_only=True))
+        model.eval()
+        self.model = model.to(_TORCH_DEVICE)
+
+    def score(self, device_id: str, rule_score: float, if_score: float, lstm_score: float) -> float:
+        now = time.time()
+        i = self._index[device_id]
+        self.last_seen[i] = now
+        self.last_features[i] = [rule_score, if_score, lstm_score]
+
+        if self.model is None:
+            return 0.9  # not trained yet -- defer to the other scorers
+
+        active = (now - self.last_seen) <= GNN_EDGE_WINDOW_SECONDS
+        a_hat = normalized_adjacency(active).to(_TORCH_DEVICE)
+        x = torch.tensor(self.last_features, dtype=torch.float32, device=_TORCH_DEVICE)
+        with torch.no_grad():
+            scores = self.model(x, a_hat)
+        return float(scores[i].item())  # .item() implicitly syncs GPU->CPU for this one scalar
+
+    def is_trained(self) -> bool:
+        return self.model is not None

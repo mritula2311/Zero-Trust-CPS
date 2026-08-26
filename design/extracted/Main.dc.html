@@ -1,0 +1,689 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600;700&amp;display=swap">
+<style>
+  :root {
+    --bg: oklch(0.15 0.018 255);
+    --bg-1: oklch(0.185 0.02 255);
+    --bg-2: oklch(0.22 0.02 255);
+    --bg-3: oklch(0.26 0.02 255);
+    --border: oklch(0.30 0.02 255);
+    --border-soft: oklch(0.24 0.02 255);
+    --text: oklch(0.94 0.008 255);
+    --text-dim: oklch(0.68 0.02 255);
+    --text-faint: oklch(0.48 0.02 255);
+    --cyan: oklch(0.78 0.13 195);
+    --cyan-soft: oklch(0.78 0.13 195 / 0.14);
+    --cyan-line: oklch(0.78 0.13 195 / 0.35);
+    --cyan-glow: oklch(0.78 0.13 195 / 0.4);
+    --cyan-dark: oklch(0.24 0.06 195);
+    --navy-dark: oklch(0.18 0.03 255);
+    --amber: oklch(0.80 0.15 75);
+    --amber-soft: oklch(0.80 0.15 75 / 0.14);
+    --amber-line: oklch(0.80 0.15 75 / 0.35);
+    --red: oklch(0.68 0.19 25);
+    --red-soft: oklch(0.68 0.19 25 / 0.14);
+    --red-line: oklch(0.68 0.19 25 / 0.35);
+    --font-ui: 'Space Grotesk', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; background: var(--bg); color: var(--text);
+    font-family: var(--font-ui); width: 100%;
+  }
+  a { color: var(--cyan); text-decoration: none; }
+  a:hover { color: oklch(0.85 0.13 195); }
+  .dash { max-width: 1560px; margin: 0 auto; padding: 20px 28px 40px; }
+
+  /* ---- top bar ---- */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 20px; padding: 16px 22px; background: var(--bg-1);
+    border: 1px solid var(--border-soft); border-radius: 14px; margin-bottom: 22px;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-mark {
+    width: 38px; height: 38px; border-radius: 10px;
+    background: linear-gradient(155deg, var(--cyan-dark), var(--navy-dark));
+    border: 1px solid var(--cyan-line);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .brand-title { font-weight: 700; font-size: 17px; letter-spacing: 0.2px; }
+  .brand-sub { font-family: var(--font-mono); font-size: 11px; color: var(--text-faint); letter-spacing: 0.4px; margin-top: 2px; }
+  .topbar-right { display: flex; align-items: center; gap: 14px; }
+  .status-chip {
+    display: flex; align-items: center; gap: 8px; padding: 7px 12px;
+    background: var(--bg-2); border: 1px solid var(--border-soft); border-radius: 999px;
+    font-family: var(--font-mono); font-size: 11.5px; color: var(--text-dim);
+  }
+  .pulse-dot { position: relative; width: 8px; height: 8px; border-radius: 50%; background: var(--cyan); }
+  .pulse-dot::after {
+    content: ''; position: absolute; inset: -4px; border-radius: 50%;
+    background: var(--cyan); opacity: 0.5; animation: pulse 2s ease-out infinite;
+  }
+  @keyframes pulse { 0% { transform: scale(0.6); opacity: 0.6; } 100% { transform: scale(2.2); opacity: 0; } }
+  .chip-warn { color: var(--amber); }
+  .chip-warn .dot-static { background: var(--amber); }
+  .dot-static { width: 7px; height: 7px; border-radius: 50%; }
+  .policy-toggle {
+    display: flex; padding: 3px; background: var(--bg-2); border: 1px solid var(--border-soft);
+    border-radius: 999px; font-family: var(--font-mono); font-size: 11.5px; font-weight: 600;
+  }
+  .policy-opt {
+    padding: 6px 14px; border-radius: 999px; cursor: pointer; color: var(--text-faint);
+    transition: all .15s ease; border: none; background: transparent; font-family: inherit; font-size: inherit; font-weight: inherit;
+  }
+  .policy-opt.active-rl { background: var(--cyan-soft); color: var(--cyan); box-shadow: inset 0 0 0 1px var(--cyan-line); }
+  .policy-opt.active-static { background: var(--amber-soft); color: var(--amber); box-shadow: inset 0 0 0 1px var(--amber-line); }
+  .policy-opt:hover:not(.active-rl):not(.active-static) { color: var(--text-dim); }
+
+  /* ---- layout ---- */
+  .layout { display: grid; grid-template-columns: 1fr 320px; gap: 20px; align-items: start; }
+  .main-col { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+  .panel {
+    background: var(--bg-1); border: 1px solid var(--border-soft); border-radius: 14px; padding: 20px;
+  }
+  .panel-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 16px; }
+  .panel-title { font-size: 13px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: var(--text); }
+  .panel-sub { font-family: var(--font-mono); font-size: 11px; color: var(--text-faint); }
+
+  /* ---- device cards ---- */
+  .device-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .device-card {
+    background: var(--bg-1); border: 1px solid var(--border-soft); border-radius: 14px;
+    padding: 20px; cursor: pointer; transition: all .15s ease; position: relative;
+  }
+  .device-card:hover { border-color: var(--border); }
+  .device-card.selected { border-color: var(--cyan-line); box-shadow: 0 0 0 1px var(--cyan-line), 0 0 24px -8px var(--cyan-glow); }
+  .dc-top { display: flex; justify-content: space-between; align-items: flex-start; }
+  .dc-id { font-family: var(--font-mono); font-weight: 600; font-size: 14px; letter-spacing: 0.2px; }
+  .dc-meta { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-faint); margin-top: 4px; }
+  .dc-body { display: flex; align-items: center; gap: 18px; margin-top: 16px; }
+  .badge {
+    display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 999px;
+    font-family: var(--font-mono); font-size: 11px; font-weight: 700; letter-spacing: 0.4px;
+  }
+  .badge-allow { background: var(--cyan-soft); color: var(--cyan); box-shadow: inset 0 0 0 1px var(--cyan-line); }
+  .badge-stepup { background: var(--amber-soft); color: var(--amber); box-shadow: inset 0 0 0 1px var(--amber-line); }
+  .badge-deny { background: var(--red-soft); color: var(--red); box-shadow: inset 0 0 0 1px var(--red-line); }
+  .dc-facts { display: flex; flex-direction: column; gap: 8px; font-family: var(--font-mono); font-size: 11.5px; }
+  .fact-row { display: flex; align-items: center; gap: 7px; color: var(--text-dim); }
+
+  /* ---- gauge ---- */
+  .gauge-wrap { position: relative; width: 118px; height: 118px; flex-shrink: 0; }
+  .gauge-num { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .gauge-val { font-family: var(--font-mono); font-size: 26px; font-weight: 700; }
+  .gauge-lbl { font-family: var(--font-mono); font-size: 9px; color: var(--text-faint); letter-spacing: 1px; margin-top: 2px; }
+
+  /* ---- trust chart ---- */
+  .chart-svg { width: 100%; height: auto; display: block; }
+  .chart-legend { display: flex; gap: 18px; margin-top: 10px; font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-swatch { width: 14px; height: 3px; border-radius: 2px; }
+
+  /* ---- two col ---- */
+  .two-col { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 20px; }
+
+  /* ---- scorer bars ---- */
+  .scorer-row { display: grid; grid-template-columns: 128px 1fr 52px; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .scorer-row:last-child { margin-bottom: 0; }
+  .scorer-name { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-dim); }
+  .scorer-track { height: 8px; background: var(--bg-2); border-radius: 999px; overflow: hidden; position: relative; }
+  .scorer-fill { height: 100%; border-radius: 999px; }
+  .scorer-fill.fused { box-shadow: 0 0 10px -1px currentColor; }
+  .scorer-track.training { background: repeating-linear-gradient(135deg, var(--bg-2) 0 6px, var(--bg-3) 6px 12px); }
+  .scorer-val { font-family: var(--font-mono); font-size: 11.5px; text-align: right; color: var(--text-dim); }
+  .scorer-val.training-lbl { color: var(--text-faint); font-size: 9.5px; letter-spacing: 0.4px; }
+  .fused-row .scorer-name { color: var(--text); font-weight: 600; }
+
+  /* ---- shap ---- */
+  .shap-row { margin-bottom: 16px; }
+  .shap-row:last-child { margin-bottom: 0; }
+  .shap-top-line { display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 11.5px; margin-bottom: 6px; }
+  .shap-feat { color: var(--text-dim); }
+  .shap-row.is-top .shap-feat { color: var(--text); font-weight: 600; }
+  .shap-val { color: var(--text-faint); }
+  .shap-track { position: relative; height: 8px; background: var(--bg-2); border-radius: 4px; }
+  .shap-center { position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--border); }
+  .shap-fill { position: absolute; top: 0; bottom: 0; border-radius: 4px; }
+  .shap-sentence {
+    margin-top: 18px; padding: 12px 14px; background: var(--bg-2); border-radius: 10px;
+    border: 1px solid var(--border-soft); font-size: 13px; color: var(--text-dim); line-height: 1.5;
+  }
+  .shap-sentence b { color: var(--text); font-weight: 600; }
+
+  /* ---- policy panel ---- */
+  .static-scale { position: relative; height: 46px; margin-top: 6px; }
+  .static-scale-track { position: absolute; top: 18px; left: 0; right: 0; height: 10px; border-radius: 999px; overflow: hidden; display: flex; }
+  .static-mark { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--text); opacity: 0.6; }
+  .static-mark-lbl { position: absolute; top: 32px; font-family: var(--font-mono); font-size: 10px; color: var(--text-faint); white-space: nowrap; }
+  .qtable { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+  .qhead { display: grid; grid-template-columns: 74px repeat(3, 1fr); gap: 4px; font-family: var(--font-mono); font-size: 10px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.5px; padding: 0 2px 4px; }
+  .qrow { display: grid; grid-template-columns: 74px repeat(3, 1fr); gap: 4px; align-items: center; }
+  .qbucket { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-faint); }
+  .qcell { height: 24px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 9.5px; color: var(--text-dim); }
+  .qcell.winner { box-shadow: inset 0 0 0 1px var(--text-dim); color: var(--text); font-weight: 600; }
+  .policy-caption { margin-top: 14px; font-size: 12px; color: var(--text-faint); line-height: 1.5; }
+
+  /* ---- event log ---- */
+  .log-table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 11.5px; }
+  .log-table th { text-align: left; padding: 6px 10px; color: var(--text-faint); font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border-soft); }
+  .log-table td { padding: 8px 10px; border-bottom: 1px solid var(--border-soft); color: var(--text-dim); white-space: nowrap; }
+  .log-row-allow td:first-child { box-shadow: inset 3px 0 0 var(--cyan); }
+  .log-row-stepup { background: var(--amber-soft); }
+  .log-row-stepup td:first-child { box-shadow: inset 3px 0 0 var(--amber); }
+  .log-row-deny { background: var(--red-soft); }
+  .log-row-deny td:first-child { box-shadow: inset 3px 0 0 var(--red); }
+  .log-reason { color: var(--text-faint); max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .log-scroll { max-height: 300px; overflow-y: auto; margin: 0 -6px; padding: 0 6px; }
+  .pill-tiny { font-size: 9.5px; padding: 2px 7px; border-radius: 999px; font-weight: 700; }
+
+  /* ---- alerts ---- */
+  .alert-col { position: sticky; top: 20px; }
+  .alert-card {
+    padding: 12px 13px; border-radius: 10px; background: var(--bg-2); margin-bottom: 10px;
+    border-left: 3px solid var(--border); font-size: 12px;
+  }
+  .alert-card:last-child { margin-bottom: 0; }
+  .alert-card.sev-red { border-left-color: var(--red); }
+  .alert-card.sev-amber { border-left-color: var(--amber); }
+  .alert-card.sev-cyan { border-left-color: var(--cyan); }
+  .alert-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+  .alert-title { font-weight: 600; color: var(--text); font-size: 12.5px; }
+  .alert-time { font-family: var(--font-mono); font-size: 10px; color: var(--text-faint); flex-shrink: 0; margin-left: 8px; }
+  .alert-desc { color: var(--text-dim); line-height: 1.4; }
+
+  /* ---- pipeline strip ---- */
+  .pipeline { margin-top: 20px; }
+  .pipeline-row { display: flex; align-items: center; overflow-x: auto; padding: 4px 2px 8px; gap: 0; }
+  .pipe-node {
+    flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 8px;
+    padding: 12px 16px; background: var(--bg-2); border: 1px solid var(--border-soft); border-radius: 10px;
+    min-width: 108px; text-align: center;
+  }
+  .pipe-node.wide { min-width: 168px; }
+  .pipe-node-icon { width: 26px; height: 26px; color: var(--cyan); }
+  .pipe-node-label { font-family: var(--font-mono); font-size: 10px; color: var(--text-dim); line-height: 1.3; }
+  .pipe-arrow { flex-shrink: 0; width: 28px; height: 14px; color: var(--text-faint); margin: 0 4px; }
+
+  @media (max-width: 1180px) {
+    .layout { grid-template-columns: 1fr; }
+    .device-cards, .two-col { grid-template-columns: 1fr; }
+    .alert-col { position: static; }
+  }
+</style>
+</helmet>
+
+<div class="dash">
+
+  <!-- 1. TOP BAR -->
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2 L20 6 V12 C20 17 16.5 20.5 12 22 C7.5 20.5 4 17 4 12 V6 Z"></path>
+          <path d="M9 12 L11 14 L15 9.5"></path>
+        </svg>
+      </div>
+      <div>
+        <div class="brand-title">Zero-Trust CPS Command Center</div>
+        <div class="brand-sub">GATEWAY // TELEMETRY-01</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="status-chip"><span class="pulse-dot"></span> GATEWAY CONNECTED</div>
+      <div class="status-chip"><span class="pulse-dot" style="background:var(--cyan)"></span> MQTT :1883 UP</div>
+      <div class="status-chip chip-warn"><span class="dot-static"></span> TLS NOT ENABLED</div>
+      <div class="policy-toggle">
+        <button type="button" class="policy-opt {{rlBtnClass}}" onClick="{{setRL}}">RL</button>
+        <button type="button" class="policy-opt {{staticBtnClass}}" onClick="{{setStatic}}">STATIC</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="layout">
+    <div class="main-col">
+
+      <!-- 2. DEVICE STATUS CARDS -->
+      <div class="device-cards">
+        <div class="device-card {{vibCardClass}}" onClick="{{selectVib}}">
+          <div class="dc-top">
+            <div>
+              <div class="dc-id">vibration-001</div>
+              <div class="dc-meta">SW-420 · analog vibration sensor</div>
+            </div>
+            <span class="badge badge-allow">ALLOW</span>
+          </div>
+          <div class="dc-body">
+            <div class="gauge-wrap">
+              <svg width="118" height="118" viewBox="0 0 118 118">
+                <circle cx="59" cy="59" r="50" fill="none" stroke="var(--bg-2)" stroke-width="9"></circle>
+                <circle cx="59" cy="59" r="50" fill="none" stroke="var(--cyan)" stroke-width="9" stroke-linecap="round" stroke-dasharray="314.16 314.16" stroke-dashoffset="34.6" transform="rotate(-90 59 59)"></circle>
+              </svg>
+              <div class="gauge-num">
+                <div class="gauge-val" style="color:var(--cyan)">0.89</div>
+                <div class="gauge-lbl">TRUST</div>
+              </div>
+            </div>
+            <div class="dc-facts">
+              <div class="fact-row">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>
+                AUTH OK
+              </div>
+              <div class="fact-row">last seen <b style="color:var(--text)">2s ago</b></div>
+              <div class="fact-row" style="color:var(--text-faint)">policy: RL bandit</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="device-card {{mpuCardClass}}" onClick="{{selectMpu}}">
+          <div class="dc-top">
+            <div>
+              <div class="dc-id">mpu6050-001</div>
+              <div class="dc-meta">I2C · accelerometer + gyro</div>
+            </div>
+            <span class="badge badge-stepup">STEP_UP</span>
+          </div>
+          <div class="dc-body">
+            <div class="gauge-wrap">
+              <svg width="118" height="118" viewBox="0 0 118 118">
+                <circle cx="59" cy="59" r="50" fill="none" stroke="var(--bg-2)" stroke-width="9"></circle>
+                <circle cx="59" cy="59" r="50" fill="none" stroke="var(--amber)" stroke-width="9" stroke-linecap="round" stroke-dasharray="314.16 314.16" stroke-dashoffset="150.8" transform="rotate(-90 59 59)"></circle>
+              </svg>
+              <div class="gauge-num">
+                <div class="gauge-val" style="color:var(--amber)">0.52</div>
+                <div class="gauge-lbl">TRUST</div>
+              </div>
+            </div>
+            <div class="dc-facts">
+              <div class="fact-row">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>
+                AUTH OK
+              </div>
+              <div class="fact-row">last seen <b style="color:var(--text)">4s ago</b></div>
+              <div class="fact-row" style="color:var(--amber)">sustained anomaly, 22s</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. TRUST OVER TIME -->
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title">Trust Score — Live</div>
+          <div class="panel-sub">EWMA α=0.35 · last 60s</div>
+        </div>
+        <svg class="chart-svg" viewBox="0 0 760 200" preserveAspectRatio="none">
+          <rect x="0" y="10" width="760" height="54" fill="var(--cyan)" opacity="0.05"></rect>
+          <rect x="0" y="64" width="760" height="54" fill="var(--amber)" opacity="0.06"></rect>
+          <rect x="0" y="118" width="760" height="72" fill="var(--red)" opacity="0.06"></rect>
+          <line x1="0" y1="64" x2="760" y2="64" stroke="var(--cyan-line)" stroke-width="1" stroke-dasharray="4 4"></line>
+          <line x1="0" y1="118" x2="760" y2="118" stroke="var(--amber-line)" stroke-width="1" stroke-dasharray="4 4"></line>
+          <text x="6" y="60" font-family="JetBrains Mono" font-size="9.5" fill="var(--cyan)">ALLOW ≥ 0.70</text>
+          <text x="6" y="114" font-family="JetBrains Mono" font-size="9.5" fill="var(--amber)">STEP_UP ≥ 0.40</text>
+
+          <path d="M0,37 L26,35 L52,39 L79,37 L105,41 L131,39 L157,42 L183,41 L210,44 L236,46 L262,48 L288,50 L314,53 L341,55 L367,59 L393,60 L419,64 L445,68 L472,78 L498,91 L524,96 L550,100 L576,95 L603,98 L629,93 L655,96 L681,100 L707,95 L734,98 L760,96" fill="none" stroke="var(--amber)" stroke-width="2.25" stroke-linejoin="round" stroke-linecap="round"></path>
+          <path d="M0,41 L26,37 L52,39 L79,35 L105,32 L131,33 L157,30 L183,35 L210,32 L236,28 L262,30 L288,33 L314,37 L341,78 L367,104 L393,91 L419,68 L445,48 L472,37 L498,32 L524,28 L550,30 L576,33 L603,28 L629,26 L655,30 L681,28 L707,32 L734,30 L760,30" fill="none" stroke="var(--cyan)" stroke-width="2.25" stroke-linejoin="round" stroke-linecap="round"></path>
+
+          <circle cx="367" cy="104" r="5" fill="var(--bg-1)" stroke="var(--red)" stroke-width="2"></circle>
+          <text x="375" y="100" font-family="JetBrains Mono" font-size="9.5" fill="var(--red)">auth fail</text>
+          <circle cx="472" cy="78" r="5" fill="var(--bg-1)" stroke="var(--amber)" stroke-width="2"></circle>
+          <text x="480" y="74" font-family="JetBrains Mono" font-size="9.5" fill="var(--amber)">anomaly injected</text>
+
+          <text x="4" y="196" font-family="JetBrains Mono" font-size="9.5" fill="var(--text-faint)">-60s</text>
+          <text x="738" y="196" font-family="JetBrains Mono" font-size="9.5" fill="var(--text-faint)">now</text>
+        </svg>
+        <div class="chart-legend">
+          <div class="legend-item"><span class="legend-swatch" style="background:var(--cyan)"></span> vibration-001</div>
+          <div class="legend-item"><span class="legend-swatch" style="background:var(--amber)"></span> mpu6050-001</div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <!-- 4. SCORER BREAKDOWN -->
+        <div class="panel">
+          <div class="panel-head">
+            <div class="panel-title">Scorer Breakdown</div>
+            <div class="panel-sub">{{selectedLabel}}</div>
+          </div>
+
+          <div class="scorer-row">
+            <div class="scorer-name">Rule-Based</div>
+            <div class="scorer-track"><div class="scorer-fill" style="{{s0Style}}"></div></div>
+            <div class="scorer-val">{{s0Val}}</div>
+          </div>
+          <div class="scorer-row">
+            <div class="scorer-name">Isolation Forest</div>
+            <div class="scorer-track"><div class="scorer-fill" style="{{s1Style}}"></div></div>
+            <div class="scorer-val">{{s1Val}}</div>
+          </div>
+          <div class="scorer-row">
+            <div class="scorer-name">LSTM-Autoencoder</div>
+            <div class="scorer-track {{s2TrackClass}}"><div class="scorer-fill" style="{{s2Style}}"></div></div>
+            <div class="scorer-val {{s2ValClass}}">{{s2Val}}</div>
+          </div>
+          <div class="scorer-row">
+            <div class="scorer-name">GNN</div>
+            <div class="scorer-track"><div class="scorer-fill" style="{{s3Style}}"></div></div>
+            <div class="scorer-val">{{s3Val}}</div>
+          </div>
+          <div class="scorer-row fused-row">
+            <div class="scorer-name">Fused (final)</div>
+            <div class="scorer-track"><div class="scorer-fill fused" style="{{s4Style}}"></div></div>
+            <div class="scorer-val">{{s4Val}}</div>
+          </div>
+        </div>
+
+        <!-- 5. SHAP EXPLAINABILITY -->
+        <div class="panel">
+          <div class="panel-head">
+            <div class="panel-title">Fusion — SHAP</div>
+            <div class="panel-sub">{{selectedLabel}}</div>
+          </div>
+
+          <div class="shap-row {{shap0TopClass}}">
+            <div class="shap-top-line"><span class="shap-feat">{{shap0Name}}</span><span class="shap-val">{{shap0Val}}</span></div>
+            <div class="shap-track"><div class="shap-center"></div><div class="shap-fill" style="{{shap0Bar}}"></div></div>
+          </div>
+          <div class="shap-row {{shap1TopClass}}">
+            <div class="shap-top-line"><span class="shap-feat">{{shap1Name}}</span><span class="shap-val">{{shap1Val}}</span></div>
+            <div class="shap-track"><div class="shap-center"></div><div class="shap-fill" style="{{shap1Bar}}"></div></div>
+          </div>
+          <div class="shap-row {{shap2TopClass}}">
+            <div class="shap-top-line"><span class="shap-feat">{{shap2Name}}</span><span class="shap-val">{{shap2Val}}</span></div>
+            <div class="shap-track"><div class="shap-center"></div><div class="shap-fill" style="{{shap2Bar}}"></div></div>
+          </div>
+          <div class="shap-row {{shap3TopClass}}">
+            <div class="shap-top-line"><span class="shap-feat">{{shap3Name}}</span><span class="shap-val">{{shap3Val}}</span></div>
+            <div class="shap-track"><div class="shap-center"></div><div class="shap-fill" style="{{shap3Bar}}"></div></div>
+          </div>
+
+          <div class="shap-sentence">{{shapSentence}}</div>
+        </div>
+      </div>
+
+      <!-- 6. POLICY ENGINE -->
+      <div class="panel" style="width: 1484px; height: 408px">
+        <div class="panel-head">
+          <div class="panel-title">Access Control Policy</div>
+          <div class="panel-sub">{{policyModeLabel}}</div>
+        </div>
+
+        <sc-if value="{{isStatic}}" hint-placeholder-val="{{false}}">
+          <div class="static-scale">
+            <div class="static-scale-track">
+              <div style="width:40%;background:var(--red-soft)"></div>
+              <div style="width:30%;background:var(--amber-soft)"></div>
+              <div style="width:30%;background:var(--cyan-soft)"></div>
+            </div>
+            <div class="static-mark" style="left:40%"></div>
+            <div class="static-mark-lbl" style="left:calc(40% - 26px)">0.40</div>
+            <div class="static-mark" style="left:70%"></div>
+            <div class="static-mark-lbl" style="left:calc(70% - 26px)">0.70</div>
+          </div>
+          <div class="policy-caption">Fixed thresholds — every decision follows this rule exactly: trust ≥ 0.70 → ALLOW, 0.40–0.70 → STEP_UP, below 0.40 → DENY. No learning, no drift.</div>
+        </sc-if>
+
+        <sc-if value="{{isRL}}" hint-placeholder-val="{{true}}">
+          <div class="qtable">
+            <div class="qhead"><div></div><div>ALLOW</div><div>STEP_UP</div><div>DENY</div></div>
+            <sc-for list="{{qrows}}" as="row" hint-placeholder-count="10">
+              <div class="qrow">
+                <div class="qbucket">{{row.label}}</div>
+                <div class="qcell {{row.c0class}}" style="{{row.c0style}}">{{row.c0val}}</div>
+                <div class="qcell {{row.c1class}}" style="{{row.c1style}}">{{row.c1val}}</div>
+                <div class="qcell {{row.c2class}}" style="{{row.c2style}}">{{row.c2val}}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div class="policy-caption">Epsilon-greedy contextual bandit — cell shade ∝ learned Q-value per trust-bucket / action pair. ε=0.10 exploration means an occasional off-policy decision even in a confident bucket, by design.</div>
+        </sc-if>
+      </div>
+
+      <!-- 7. LIVE EVENT LOG -->
+      <div class="panel" style="width: 1490px; height: 360px">
+        <div class="panel-head">
+          <div class="panel-title">Live Event Log</div>
+          <div class="panel-sub">audit_log.db · newest first</div>
+        </div>
+        <div class="log-scroll">
+        <table class="log-table">
+          <thead><tr><th>Time</th><th>Device</th><th>Auth</th><th>Trust</th><th>Decision</th><th>Policy</th><th>Reason</th></tr></thead>
+          <tbody>
+            <tr class="log-row-allow"><td>16:04:22.108</td><td>vibration-001</td><td>OK</td><td>0.89</td><td><span class="pill-tiny badge-allow">ALLOW</span></td><td>RL</td><td class="log-reason">fusion: gnn_score=0.90 most raised trust (SHAP=0.22)</td></tr>
+            <tr class="log-row-stepup"><td>16:04:20.031</td><td>mpu6050-001</td><td>OK</td><td>0.53</td><td><span class="pill-tiny badge-stepup">STEP_UP</span></td><td>RL</td><td class="log-reason">fusion: isolation_forest_score=0.55 most lowered trust (SHAP=-0.18)</td></tr>
+            <tr class="log-row-allow"><td>16:04:18.014</td><td>vibration-001</td><td>OK</td><td>0.90</td><td><span class="pill-tiny badge-allow">ALLOW</span></td><td>RL</td><td class="log-reason">value 0.07 within expected range; fusion: gnn_score=0.90</td></tr>
+            <tr class="log-row-stepup"><td>16:04:16.002</td><td>mpu6050-001</td><td>OK</td><td>0.51</td><td><span class="pill-tiny badge-stepup">STEP_UP</span></td><td>RL</td><td class="log-reason">fusion: isolation_forest_score=0.53 most lowered trust (SHAP=-0.16)</td></tr>
+            <tr class="log-row-allow"><td>16:04:14.097</td><td>vibration-001</td><td>OK</td><td>0.89</td><td><span class="pill-tiny badge-allow">ALLOW</span></td><td>RL</td><td class="log-reason">value 0.04 within expected range; fusion: rule_score=0.90</td></tr>
+            <tr class="log-row-deny"><td>16:04:12.884</td><td>mpu6050-001</td><td>FAIL</td><td>0.34</td><td><span class="pill-tiny badge-deny">DENY</span></td><td>RL</td><td class="log-reason">authentication FAILED (1x in a row)</td></tr>
+            <tr class="log-row-stepup"><td>16:04:10.019</td><td>mpu6050-001</td><td>OK</td><td>0.50</td><td><span class="pill-tiny badge-stepup">STEP_UP</span></td><td>RL</td><td class="log-reason">fusion: gnn_score=0.62 most lowered trust (SHAP=-0.09)</td></tr>
+            <tr class="log-row-allow"><td>16:04:08.041</td><td>vibration-001</td><td>OK</td><td>0.88</td><td><span class="pill-tiny badge-allow">ALLOW</span></td><td>RL</td><td class="log-reason">value 0.94 within expected range; fusion: isolation_forest_score=0.41</td></tr>
+            <tr class="log-row-allow"><td>16:04:06.013</td><td>vibration-001</td><td>OK</td><td>0.87</td><td><span class="pill-tiny badge-allow">ALLOW</span></td><td>RL</td><td class="log-reason">value 0.03 within expected range; fusion: lstm_ae_score=0.90</td></tr>
+            <tr class="log-row-stepup"><td>16:04:04.028</td><td>mpu6050-001</td><td>OK</td><td>0.52</td><td><span class="pill-tiny badge-stepup">STEP_UP</span></td><td>RL</td><td class="log-reason">fusion: isolation_forest_score=0.55 most lowered trust (SHAP=-0.16)</td></tr>
+          </tbody>
+        </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 8. ALERT FEED -->
+    <div class="alert-col">
+      <div class="panel" style="width: 324px; height: 951px">
+        <div class="panel-head">
+          <div class="panel-title">Alert Feed</div>
+        </div>
+        <div class="alert-card sev-red">
+          <div class="alert-top"><span class="alert-title">Auth signature FAILED</span><span class="alert-time">12s ago</span></div>
+          <div class="alert-desc">mpu6050-001 — forged HMAC signature rejected. Trust dropped 0.71 → 0.34.</div>
+        </div>
+        <div class="alert-card sev-amber">
+          <div class="alert-top"><span class="alert-title">Decision: STEP_UP</span><span class="alert-time">28s ago</span></div>
+          <div class="alert-desc">mpu6050-001 crossed below 0.70 trust — sustained anomaly over 22s window.</div>
+        </div>
+        <div class="alert-card sev-cyan">
+          <div class="alert-top"><span class="alert-title">Scorer trained</span><span class="alert-time">1m 04s ago</span></div>
+          <div class="alert-desc">vibration-001's LSTM-Autoencoder finished initial training (40 samples).</div>
+        </div>
+        <div class="alert-card sev-amber">
+          <div class="alert-top"><span class="alert-title">Anomaly injected</span><span class="alert-time">1m 52s ago</span></div>
+          <div class="alert-desc">mpu6050-001 — in-range but statistically unusual accel reading flagged by GNN.</div>
+        </div>
+        <div class="alert-card sev-cyan">
+          <div class="alert-top"><span class="alert-title">Device online</span><span class="alert-time">4m 30s ago</span></div>
+          <div class="alert-desc">vibration-001 connected — MQTT subscribe to cps/telemetry confirmed.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 9. PIPELINE ARCHITECTURE STRIP -->
+  <div class="panel pipeline">
+    <div class="panel-head">
+      <div class="panel-title">Pipeline</div>
+      <div class="panel-sub">device → decision → audit</div>
+    </div>
+    <div class="pipeline-row">
+      <div class="pipe-node">
+        <svg class="pipe-node-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="4" width="16" height="16" rx="3"></rect><path d="M9 9h6v6H9z"></path></svg>
+        <div class="pipe-node-label">Device<br>signed reading</div>
+      </div>
+      <svg class="pipe-arrow" viewBox="0 0 28 14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M0 7h24M18 2l6 5-6 5"></path></svg>
+      <div class="pipe-node">
+        <svg class="pipe-node-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>
+        <div class="pipe-node-label">Auth<br>HMAC verify</div>
+      </div>
+      <svg class="pipe-arrow" viewBox="0 0 28 14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M0 7h24M18 2l6 5-6 5"></path></svg>
+      <div class="pipe-node wide">
+        <svg class="pipe-node-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="6" r="2.4"></circle><circle cx="5" cy="18" r="2.4"></circle><circle cx="19" cy="18" r="2.4"></circle><path d="M12 8.4V13M9.2 15.6 6.8 17M14.8 15.6l2.4 1.4"></path></svg>
+        <div class="pipe-node-label">Rule + Isolation Forest<br>+ LSTM-AE + GNN</div>
+      </div>
+      <svg class="pipe-arrow" viewBox="0 0 28 14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M0 7h24M18 2l6 5-6 5"></path></svg>
+      <div class="pipe-node">
+        <svg class="pipe-node-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 12h4l2-7 4 14 2-7h4"></path></svg>
+        <div class="pipe-node-label">Fusion Engine<br>+ SHAP</div>
+      </div>
+      <svg class="pipe-arrow" viewBox="0 0 28 14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M0 7h24M18 2l6 5-6 5"></path></svg>
+      <div class="pipe-node">
+        <svg class="pipe-node-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3a9 9 0 1 0 9 9"></path><path d="M12 3v9l6 3"></path></svg>
+        <div class="pipe-node-label">EWMA Trust<br>continuous</div>
+      </div>
+      <svg class="pipe-arrow" viewBox="0 0 28 14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M0 7h24M18 2l6 5-6 5"></path></svg>
+      <div class="pipe-node">
+        <svg class="pipe-node-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2 L20 6 V12 C20 17 16.5 20.5 12 22 C7.5 20.5 4 17 4 12 V6 Z"></path></svg>
+        <div class="pipe-node-label">Policy Engine<br>RL / Static</div>
+      </div>
+      <svg class="pipe-arrow" viewBox="0 0 28 14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M0 7h24M18 2l6 5-6 5"></path></svg>
+      <div class="pipe-node">
+        <svg class="pipe-node-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><ellipse cx="12" cy="5" rx="8" ry="3"></ellipse><path d="M4 5v14a8 3 0 0 0 16 0V5M4 12a8 3 0 0 0 16 0"></path></svg>
+        <div class="pipe-node-label">Audit Log<br>SQLite</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  state = { selectedDevice: 'vibration-001', policyMode: 'RL' };
+
+  selectVib = () => this.setState({ selectedDevice: 'vibration-001' });
+  selectMpu = () => this.setState({ selectedDevice: 'mpu6050-001' });
+  setRL = () => this.setState({ policyMode: 'RL' });
+  setStatic = () => this.setState({ policyMode: 'STATIC' });
+
+  barStyle(val, color) {
+    return 'width:' + Math.round(val * 100) + '%;background:' + color + ';';
+  }
+
+  shapBarStyle(shapVal, color) {
+    var maxAbs = 0.3;
+    var pct = Math.min(Math.abs(shapVal) / maxAbs, 1) * 40;
+    if (shapVal >= 0) {
+      return 'left:50%;width:' + pct.toFixed(1) + '%;background:' + color + ';';
+    }
+    return 'left:' + (50 - pct).toFixed(1) + '%;width:' + pct.toFixed(1) + '%;background:' + color + ';';
+  }
+
+  qCellStyle(q, hue) {
+    var alpha = 0.08 + (Math.max(-1, Math.min(1, q)) + 1) / 2 * 0.75;
+    return 'background: oklch(0.55 0.16 ' + hue + ' / ' + alpha.toFixed(2) + ');';
+  }
+
+  buildQRows() {
+    var data = [
+      [0.0, -0.80, -0.20,  0.90],
+      [0.1, -0.60,  0.10,  0.80],
+      [0.2, -0.30,  0.40,  0.60],
+      [0.3, -0.10,  0.70,  0.30],
+      [0.4,  0.10,  0.80, -0.10],
+      [0.5,  0.30,  0.70, -0.30],
+      [0.6,  0.60,  0.50, -0.50],
+      [0.7,  0.85,  0.20, -0.70],
+      [0.8,  0.92,  0.05, -0.85],
+      [0.9,  0.97, -0.10, -0.90]
+    ];
+    var self = this;
+    return data.map(function (row) {
+      var lo = row[0], allow = row[1], step = row[2], deny = row[3];
+      var vals = [allow, step, deny];
+      var maxIdx = vals.indexOf(Math.max.apply(null, vals));
+      return {
+        label: lo.toFixed(1) + '–' + (lo + 0.1).toFixed(1),
+        c0val: allow.toFixed(2),
+        c0class: maxIdx === 0 ? 'winner' : '',
+        c0style: self.qCellStyle(allow, 195),
+        c1val: step.toFixed(2),
+        c1class: maxIdx === 1 ? 'winner' : '',
+        c1style: self.qCellStyle(step, 75),
+        c2val: deny.toFixed(2),
+        c2class: maxIdx === 2 ? 'winner' : '',
+        c2style: self.qCellStyle(deny, 25)
+      };
+    });
+  }
+
+  renderVals() {
+    var isVib = this.state.selectedDevice === 'vibration-001';
+
+    var vibScores = { s0: 0.90, s1: 0.86, s2: 0.83, s3: 0.90, s4: 0.89, lstmTraining: false };
+    var mpuScores = { s0: 0.60, s1: 0.55, s2: null, s3: 0.62, s4: 0.58, lstmTraining: true };
+    var sc = isVib ? vibScores : mpuScores;
+    var color = isVib ? 'var(--cyan)' : 'var(--amber)';
+
+    var vibShap = [
+      { name: 'gnn_score', val: 0.90, shap: 0.22 },
+      { name: 'rule_score', val: 0.90, shap: 0.10 },
+      { name: 'lstm_ae_score', val: 0.83, shap: 0.05 },
+      { name: 'isolation_forest_score', val: 0.86, shap: -0.03 }
+    ];
+    var mpuShap = [
+      { name: 'isolation_forest_score', val: 0.55, shap: -0.18 },
+      { name: 'gnn_score', val: 0.62, shap: -0.09 },
+      { name: 'rule_score', val: 0.60, shap: 0.04 },
+      { name: 'lstm_ae_score', val: null, shap: 0.0 }
+    ];
+    var shap = isVib ? vibShap : mpuShap;
+    var raiseColor = 'var(--cyan)';
+    var lowerColor = 'var(--red)';
+
+    var shapOut = shap.map(function (f, i) {
+      return {
+        name: f.name,
+        valStr: f.val === null ? 'training…' : (f.shap >= 0 ? '+' : '') + f.shap.toFixed(2),
+        barStyle: f.val === null ? 'display:none' : this.shapBarStyle(f.shap, f.shap >= 0 ? raiseColor : lowerColor),
+        topClass: i === 0 ? 'is-top' : ''
+      };
+    }, this);
+
+    var top = shap[0];
+    var sentence = isVib
+      ? '<b>GNN score (0.90)</b> most raised trust for <b>VIBRATION-001</b> — consistent healthy behaviour across all four scorers.'
+      : '<b>Isolation Forest score (0.55)</b> most lowered trust for <b>MPU6050-001</b> — reading is statistically unusual versus this device’s learned baseline.';
+
+    var isRL = this.state.policyMode === 'RL';
+
+    return {
+      selectedLabel: isVib ? 'VIBRATION-001' : 'MPU6050-001',
+      vibCardClass: isVib ? 'selected' : '',
+      mpuCardClass: !isVib ? 'selected' : '',
+      selectVib: this.selectVib,
+      selectMpu: this.selectMpu,
+
+      s0Style: this.barStyle(sc.s0, color), s0Val: sc.s0.toFixed(2),
+      s1Style: this.barStyle(sc.s1, color), s1Val: sc.s1.toFixed(2),
+      s2Style: sc.lstmTraining ? 'width:0%' : this.barStyle(sc.s2, color),
+      s2Val: sc.lstmTraining ? 'training…' : sc.s2.toFixed(2),
+      s2TrackClass: sc.lstmTraining ? 'training' : '',
+      s2ValClass: sc.lstmTraining ? 'training-lbl' : '',
+      s3Style: this.barStyle(sc.s3, color), s3Val: sc.s3.toFixed(2),
+      s4Style: this.barStyle(sc.s4, color), s4Val: sc.s4.toFixed(2),
+
+      shap0Name: shapOut[0].name, shap0Val: shapOut[0].valStr, shap0Bar: shapOut[0].barStyle, shap0TopClass: shapOut[0].topClass,
+      shap1Name: shapOut[1].name, shap1Val: shapOut[1].valStr, shap1Bar: shapOut[1].barStyle, shap1TopClass: shapOut[1].topClass,
+      shap2Name: shapOut[2].name, shap2Val: shapOut[2].valStr, shap2Bar: shapOut[2].barStyle, shap2TopClass: shapOut[2].topClass,
+      shap3Name: shapOut[3].name, shap3Val: shapOut[3].valStr, shap3Bar: shapOut[3].barStyle, shap3TopClass: shapOut[3].topClass,
+      shapSentence: sentence,
+
+      rlBtnClass: isRL ? 'active-rl' : '',
+      staticBtnClass: !isRL ? 'active-static' : '',
+      setRL: this.setRL,
+      setStatic: this.setStatic,
+      policyModeLabel: isRL ? 'RL — epsilon-greedy bandit' : 'STATIC — fixed thresholds',
+      isRL: isRL,
+      isStatic: !isRL,
+      qrows: this.buildQRows()
+    };
+  }
+}
+</script>
+</body>
+</html>

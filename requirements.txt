@@ -1,0 +1,36 @@
+paho-mqtt>=2.0       # Module 6, MQTT/TLS transport
+numpy>=1.24          # feature_engineering.py, gnn_scorer.py, lstm_ae_scorer.py -- direct import, not just a transitive dep
+scikit-learn>=1.3    # Phase 6a (Isolation Forest) + Phase 7 (LogisticRegression meta-learner)
+joblib>=1.4          # saving/loading the offline-trained sklearn models (scripts/train_*.py, isolation_forest_scorer.py, fusion_engine.py)
+torch>=2.0           # Phase 6b (LSTM-Autoencoder) + Phase 6c (GNN, hand-rolled GCN, no torch-geometric needed)
+                      # GPU (optional): lstm_ae_scorer.py/gnn_scorer.py auto-detect CUDA via
+                      # torch.cuda.is_available() and fall back to CPU automatically -- no code
+                      # changes needed either way. If you have an NVIDIA GPU and want CUDA
+                      # acceleration, install the matching CUDA build instead of the line above, e.g.
+                      # for a Blackwell-generation GPU (RTX 50-series):
+                      #   pip install torch --index-url https://download.pytorch.org/whl/cu128
+                      # Honest note (verified, not assumed -- see SESSION_LOG.md): GNN training
+                      # (train_gnn.py) originally looped one tiny (3-node, hidden=8) forward pass
+                      # at a time -- 97,600 individual CUDA kernel launches whose launch overhead
+                      # (measured ~88us/call vs CPU's ~8us/call) dominated the actual FLOPs, making
+                      # GPU ~6.5x SLOWER than CPU (2m33s vs 24s). Fixed by batching the whole
+                      # (1220, 3, 3) snapshot set into one model() call per epoch -- _GCN.forward()
+                      # already handled a leading batch dimension for free via matmul/nn.Linear, no
+                      # architecture change needed. Result: 8.96s, faster than CPU (~2.6x) and the
+                      # unbatched-GPU run (~17x), with numerically identical results (verified: loss
+                      # trajectory and downstream fusion coefficients unchanged). LSTM-AE's training
+                      # loop was already batched (one call over all windows), so it needed no such
+                      # fix -- GPU vs CPU timing for it is close either way at this data size.
+shap>=0.52           # Phase 7 explainability -- must be >=0.46 or so for NumPy 2.x compatibility;
+                      # 0.44.1 (an old cached install) crashes on import under NumPy 2, see docs/05_phase_status.md
+streamlit>=1.35       # Phase 9 live dashboard (dashboard.py)
+pandas>=2.0           # dashboard.py table/chart data wrangling (installed as a streamlit dependency already)
+
+# NOT required: aiocoap. coap_server.py (Module 6's second secured
+# transport) was originally built on aiocoap's CoAP-over-TLS transport,
+# but that transport has a reproducible defect (server reports "ready"
+# but refuses every real connection -- verified on native Windows AND
+# WSL/Linux, on aiocoap 0.4.17 AND 0.4.7; see coap_server.py's docstring
+# for the full trail). coap_server.py now uses an HTTPS endpoint instead,
+# built entirely on the Python standard library (http.server + ssl) --
+# no CoAP library dependency at all.
