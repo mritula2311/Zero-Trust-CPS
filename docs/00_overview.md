@@ -51,13 +51,20 @@
 >    logic, confirmed before removing it). The board has since been
 >    flashed, authenticated, and run live — see `RESULTS.md` Section 13
 >    and `SESSION_LOG.md` §29 for the real bring-up bugs found/fixed and
->    the real-data retraining results. **The second live dashboard
->    (`webapp_server.py`) was removed entirely, on explicit user
->    instruction** — `design/zero-trust-cps-command-center.html` is now a
->    static visual reference file only (open directly, no server, no live
->    data wiring); live monitoring is via `audit_log.recent()`/
->    `scripts/evaluate_governance.py`/`evaluate_iec62443.py` directly. A
->    third dashboard (`dashboard.py`, Streamlit) referenced throughout the
+>    the real-data retraining results. **The dashboard is now served by
+>    `gateway.py` itself, not a separate script** — `webapp_server.py` was
+>    first removed entirely (on explicit user instruction), then its live-
+>    overlay/`/api/*`/`/figures`-gallery logic was merged directly into
+>    `gateway.py` (its Module 9 extension section,
+>    `start_dashboard_server()`, same background-thread pattern
+>    `coap_server.py`'s second transport already used) once the user asked
+>    for the live functionality back without a second script. One process
+>    (`python gateway.py`) now runs MQTT + the HTTPS second transport + the
+>    live dashboard together; `design/zero-trust-cps-command-center.html`
+>    remains the one dashboard file, just served live again — verified
+>    end to end (main page, every `/api/*` endpoint, `/figures`) against
+>    real hardware telemetry. See `SESSION_LOG.md` §29/§30. A third
+>    dashboard (`dashboard.py`, Streamlit) referenced throughout the
 >    original docs was found during this work to never have existed in the
 >    repo at all — stale documentation, not a real feature that was removed.
 >

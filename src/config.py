@@ -100,6 +100,11 @@ MQTT_GATEWAY_USERNAME = "zt-gateway"
 COAP_TLS_PORT = 5684            # standard coaps+tcp port (RFC 8323)
 COAP_TELEMETRY_PATH = "telemetry"
 COAP_CERT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "certs", "coap_server.crt")
+
+# --- Module 9 extension: dashboard HTTP server (Phase 9, merged into
+# gateway.py itself -- see gateway.py's start_dashboard_server(), same
+# background-thread pattern as coap_server.py's second transport) ---
+DASHBOARD_PORT = 8600
 COAP_KEY_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "certs", "coap_server.key")
 COAP_ENABLED = os.path.exists(COAP_CERT_PATH) and os.path.exists(COAP_KEY_PATH)  # auto-on once certs exist
 

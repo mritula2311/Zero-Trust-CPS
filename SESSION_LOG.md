@@ -2170,3 +2170,52 @@ file as a static visual reference only, with live monitoring now via
 directly. `firmware/HARDWARE_SETUP.md` rewritten in full to match the
 MPU6050-only design, the four bugs above, and the real data-collection
 workflow.
+
+---
+
+## 30. Dashboard's live functionality restored — merged directly into gateway.py instead of a second script
+
+Immediately after §29's dashboard removal (and after that change was
+committed and pushed), the user asked for the live-data functionality
+back, but explicitly ruled out reintroducing it as a second script —
+`design/zero-trust-cps-command-center.html` had to stay "the only
+dashboard," with the live wiring merged into `gateway.py` itself.
+
+**What moved**: every piece of `webapp_server.py`'s logic (the live
+overlay bar's HTML/JS, the Level-2 explainability bar, `_build_qtable_view()`/
+`_build_devices_view()`, the `Handler` class's `do_GET` routing, and all
+seven `/api/*` endpoints — `/decisions`, `/devices`, `/governance`,
+`/iec62443`, `/qtable`, `/chain`, `/status` — plus `/figures` and
+`/figures/<file>`) copied into a new "Module 9 extension" section inside
+`gateway.py` itself, renamed with a `Dashboard`/`dashboard` prefix to
+avoid colliding with `gateway.py`'s own existing names. `config.py` gained
+`DASHBOARD_PORT = 8600` (previously a hardcoded local constant in
+`webapp_server.py`) for consistency with how `COAP_TLS_PORT` etc. are
+already centralized there.
+
+**How it's launched**: `start_dashboard_server()` mirrors `coap_server.py`'s
+own `start_https_server()` exactly — an `HTTPServer` started on a daemon
+`threading.Thread`, non-blocking, called from `gateway.py::run()`
+alongside the existing MQTT `loop_forever()` and the HTTPS second-transport
+thread. Net effect: `python gateway.py` is now the only command needed to
+get MQTT, the HTTPS second transport, AND the live dashboard running —
+genuinely one process, not one process plus a second script the user has
+to remember to also start.
+
+**Verified working, not just written** — ran `python gateway.py` in the
+background and tested every route directly: main page (200 OK, 2.27MB,
+`ztcps-live-overlay` div confirmed present in the served HTML),
+`/api/devices`, `/api/governance`, `/api/iec62443`, `/api/qtable`,
+`/api/chain`, `/api/decisions` (300 real rows), and `/figures` (200 OK).
+One transient `curl` failure on the very first request against a
+just-started server (connection reset before the listener thread was
+fully warmed up) turned out not to be reproducible on retry — noted, not
+chased further, since every subsequent request across every endpoint
+succeeded cleanly.
+
+`docs/13_system_architecture_and_workflow.md`'s three diagrams (layered
+architecture, module-to-file map, deployment topology) updated to show
+the dashboard as a background thread inside the gateway process rather
+than either a separate process (pre-§29) or absent entirely (§29).
+`README.md`, `RESULTS.md`, `docs/00_overview.md`'s deviation list, and
+`iec62443_mapping.py`'s zone description updated to match.

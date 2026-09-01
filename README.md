@@ -14,8 +14,8 @@ Isolation Forest, LSTM-Autoencoder, GNN — GPU-accelerated when available)
 fused by a real stacking meta-learner with a full per-signal SHAP
 breakdown, a real offline-trained RL-adaptive policy over the two-score
 state, a hash-chained + independently-checkpointed audit log, NIST SP
-800-207 + IEC 62443 governance mapping, and a static visual reference
-dashboard — all logged to SQLite.
+800-207 + IEC 62443 governance mapping, and a real live dashboard (served
+by `gateway.py` itself, no separate script) — all logged to SQLite.
 
 **First time here? Read `docs/00_overview.md`** for the master overview of
 the as-built architecture (start there, then the module files in numeric
@@ -50,9 +50,8 @@ triggers a real gateway-issued nonce the device must echo back, not just a
 label. Every step is logged, hash-chained (with a separately-stored,
 separately-keyed checkpoint catching an attacker who rewrites the in-DB
 chain consistently), and tagged with which NIST SP 800-207 tenets and IEC
-62443 Foundational Requirements it's evidence for — to SQLite, queryable
-directly (`audit_log.recent()`) or via `scripts/evaluate_governance.py`/
-`evaluate_iec62443.py`.
+62443 Foundational Requirements it's evidence for — to SQLite and a real
+live dashboard, `gateway.py`-served, no separate script.
 
 **Everything in Module 3's ML pipeline (Isolation Forest, LSTM-AE, GNN,
 fusion, RL policy) is trained OFFLINE** (`scripts/train_*.py`) and only
@@ -191,8 +190,8 @@ add `esp32-vib-001` to `config.REAL_HARDWARE_DEVICE_IDS` so
 two would otherwise race on `boot_id`/`seq` and intermittently reject each
 other's messages as replays) — `device_simulator.py` keeps simulating
 `sensor-002`/`actuator-001` fine alongside your real board either way. The
-gateway itself needs zero changes either way (not yet flashed to a real
-board as of this writing — see `SESSION_LOG.md`).
+gateway itself needs zero code changes either way — this has actually been
+run against a real ESP32 + MPU6050, see `RESULTS.md` Section 13.
 
 Check what got logged:
 
@@ -213,17 +212,25 @@ python evaluate_governance.py
 python evaluate_iec62443.py
 ```
 
-**`design/zero-trust-cps-command-center.html`** is a static visual
-reference mockup (a Claude Design canvas export) — open it directly in a
-browser, no server needed. It is **not** wired to live data: its device
-names/numbers are a static export snapshot predating the current device
-registry, and there is deliberately no backend serving it live values (a
-prior version of this project injected a live-data overlay via a small
-Python server; that approach was removed in favor of keeping this to a
-single static file — see `firmware/HARDWARE_SETUP.md`'s changelog note if
-you're looking for it in project history). For live monitoring, use the
-`audit_log.recent()` one-liner above, watch the gateway's own console
-output, or query `src/data/audit_log.db` directly.
+**`design/zero-trust-cps-command-center.html`** (the actual Claude Design
+mockup file) is served live by `gateway.py` itself — no separate
+dashboard script — with a real, live data overlay bar injected at the top
+of the page: per-device Security Trust + Process Anomaly scores,
+decisions, chain-verification status, NIST/IEC governance coverage,
+Identity Targeting Risk, and step-up challenge activity, all polling real
+`/api/*` endpoints `gateway.py` also serves. The canvas beneath the
+overlay is the original design-folder artifact, kept byte-for-byte — its
+own device names/numbers are a static export snapshot predating the
+current device registry, so the overlay bar is the authoritative live
+view, not the canvas below it. Just run the gateway (Terminal 1 above)
+and open:
+
+```text
+http://localhost:8600
+```
+
+`gateway.py` also serves a `/figures` gallery page of every generated PNG
+(see Evaluate it below), linked from the overlay bar.
 
 Note the ML scorers need `models/` populated (see Setup step 4) — without
 trained artifacts, every scorer falls back to a neutral default and the
@@ -260,8 +267,9 @@ Read `docs/12_model_validation_and_justification.md` for a research-
 methodology writeup of every model above (purpose, why that architecture,
 what the validation actually establishes, what it doesn't) and
 `docs/13_system_architecture_and_workflow.md` for the whole-system
-diagrams. The generated PNGs themselves live in `docs/figures/` — open
-them directly, no gallery server needed.
+diagrams. With the gateway running, `http://localhost:8600/figures` also
+serves a gallery page of every generated PNG, linked from the dashboard's
+live overlay bar.
 
 ## Project structure
 
@@ -292,7 +300,7 @@ zt-cps-starter/
 │   ├── 13_system_architecture_and_workflow.md      <- whole-system diagrams (architecture, sequence, training pipeline)
 │   └── figures/                              <- scripts/generate_evaluation_graphs.py's PNG output
 ├── design/
-│   ├── zero-trust-cps-command-center.html   <- static visual reference dashboard (open directly, no server; not live-wired)
+│   ├── zero-trust-cps-command-center.html   <- served live by gateway.py with a real-data overlay (http://localhost:8600)
 │   ├── Main.dc.html                          <- editable source (can't run standalone, missing runtime)
 │   └── canvas.json
 ├── firmware/
@@ -352,7 +360,7 @@ zt-cps-starter/
 | 4.3 Module 6 — Secure Communication | MQTT/TLS (+ per-device broker credentials/ACLs, now including `cps/challenge/*`) + HTTPS (`coap_server.py` — see its docstring for why HTTPS substitutes for CoAP/DTLS) |
 | 4.3 Module 7 — Monitoring | `audit_log.py` (hash-chained + independently checkpointed) + `nist_mapping.py` + `iec62443_mapping.py` |
 | Figure 4.1 — Fusion Engine + SHAP | `fusion_engine.py` (full per-signal SHAP breakdown, not just the top feature) — feeds the Process Anomaly Score only |
-| Section 7.3 — Governance mapping | `nist_mapping.py` + `iec62443_mapping.py`, `scripts/evaluate_governance.py`/`evaluate_iec62443.py` |
+| Section 7.3 — Governance mapping | `nist_mapping.py` + `iec62443_mapping.py`, the live dashboard's governance view, `scripts/evaluate_governance.py`/`evaluate_iec62443.py` |
 | Section 10.1 — Evaluation | `scripts/evaluate_*.py` produce the numbers; **`RESULTS.md`** is the written-up, paper-ready record of all of them, including the hardware-in-the-loop results section |
 
 Next: **`docs/00_overview.md`** for the complete as-built architecture

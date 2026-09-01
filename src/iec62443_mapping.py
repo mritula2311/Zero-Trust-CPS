@@ -33,7 +33,7 @@ from config import NIST_TENETS, MQTT_USE_AUTH  # NIST_TENETS kept for symmetry/r
 ZONES = {
     "Device/Edge Zone": "ESP32 (firmware/main.py) + simulated devices (device_simulator.py) -- Modules 1, 2, 3-feature-extraction, 6 (client side). Deliberately minimal: identity, auth handshake, TLS/HTTPS termination only -- no model inference here (synopsis Section 7.1).",
     "Gateway Zone": "gateway.py + every src/*.py it imports -- Modules 1 (registry), 2 (verification), 3 (all 4 trust signals + fusion), 4, 5, 6 (server side). All computational cost of Zero Trust is absorbed here (synopsis Section 7.2).",
-    "Monitoring/Governance Zone": "audit_log.py, nist_mapping.py, iec62443_mapping.py (this file) -- Module 7 (synopsis Section 7.3). design/zero-trust-cps-command-center.html is a static visual artifact only, not part of this zone's live data path (no server, no live audit_log wiring -- see firmware/HARDWARE_SETUP.md).",
+    "Monitoring/Governance Zone": "audit_log.py, nist_mapping.py, iec62443_mapping.py (this file) -- Module 7 (synopsis Section 7.3). The dashboard (design/zero-trust-cps-command-center.html, served with a live overlay by gateway.py itself -- see gateway.py's Module 9 extension section) reads from this zone via the same /api/* endpoints.",
 }
 
 CONDUITS = {

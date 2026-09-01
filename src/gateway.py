@@ -49,7 +49,10 @@ Run this BEFORE device_simulator.py (or the real ESP32/firmware/main.py).
 import hashlib
 import hmac
 import json
+import os
+import threading
 import time
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import paho.mqtt.client as mqtt
 
@@ -70,6 +73,11 @@ from config import (
     FEATURE_NAMES,
     COAP_ENABLED,
     COAP_TLS_PORT,
+    SECURITY_THRESHOLD,
+    PROCESS_THRESHOLD,
+    NIST_TENETS,
+    ADAPTIVE_PDP_MODEL_PATH,
+    DASHBOARD_PORT,
 )
 from trust_engine import RuleBasedTrustEngine, rule_range_score, IdentityTargetingRisk
 from isolation_forest_scorer import IsolationForestScorer
@@ -77,9 +85,10 @@ from lstm_ae_scorer import LSTMAEScorer
 from gnn_scorer import GNNScorer
 from fusion_engine import FusionEngine
 from policy_engine import decide
-from adaptive_pdp import AdaptivePDP
+from adaptive_pdp import AdaptivePDP, ACTIONS
 import feature_engineering as fe
 import nist_mapping
+import iec62443_mapping
 import audit_log
 import explainability
 
@@ -349,6 +358,364 @@ def on_message(client, userdata, msg):
     process_telemetry(envelope, transport="mqtt", transport_secured=MQTT_USE_TLS)
 
 
+# =============================================================================
+# Module 9 extension: dashboard HTTP server.
+#
+# Formerly a separate script (webapp_server.py) -- merged directly into
+# gateway.py on explicit user instruction, so there is exactly one process
+# to run and exactly one dashboard file (design/zero-trust-cps-command-
+# center.html), not a second competing script. Same non-blocking
+# background-thread pattern coap_server.py's second transport already
+# uses (see start_dashboard_server() / run() below).
+#
+# **Read this before assuming every pixel on the page is live.** The
+# served file is a 2.2MB bundled EXPORT of a Claude Design canvas -- the
+# Design tool's own runtime/renderer bundled together with a flattened
+# snapshot of whatever the canvas showed at export time. The exported
+# bundle's device names are hardcoded, stale TEXT (`vibration-001`,
+# `mpu6050-001`), not live bindings -- they predate the current
+# `esp32-vib-001`/`sensor-002`/`actuator-001` hybrid device registry
+# entirely. There is no reactivity left to reconnect; the export
+# flattened it away. This code does NOT attempt to surgically patch
+# values inside the 2.2MB minified bundle (high risk of silently breaking
+# it). Instead it serves the real file byte-for-byte AS THE VISUAL SHELL,
+# and injects one clearly-labelled, genuinely-live overlay bar at the top
+# of the page, polling the real `/api/*` endpoints below. The overlay is
+# the authoritative live view; the canvas beneath it is the original
+# design artifact kept intact, not a live-updating element.
+# =============================================================================
+
+DASHBOARD_DESIGN_HTML_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "..", "design", "zero-trust-cps-command-center.html"
+)
+DASHBOARD_FIGURES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "docs", "figures")
+DASHBOARD_ROWS_TO_FETCH = 300
+
+# Injected right before the document's real closing </body> tag (found via
+# rfind -- the bundle's own JS contains several LITERAL "</body>" strings
+# in embedded template/license text, so a naive first-match replace would
+# insert into the middle of a JS string instead of the actual document;
+# verified directly against this specific file that the LAST occurrence is
+# the real one, immediately before </html>).
+_DASHBOARD_OVERLAY = """
+<div id="ztcps-live-overlay" style="position:fixed;top:0;left:0;right:0;z-index:999999;
+  background:#0d1420;border-bottom:1px solid #2a3548;color:#dbe4f0;
+  font-family:'JetBrains Mono',ui-monospace,'SF Mono',monospace;font-size:11.5px;
+  padding:8px 14px;display:flex;flex-wrap:wrap;gap:14px;align-items:center;
+  box-shadow:0 2px 12px rgba(0,0,0,.4);">
+  <b style="color:#7dd3fc;letter-spacing:.5px;">LIVE DATA</b>
+  <span id="ztcps-chain" style="color:#94a3b8;">chain: …</span>
+  <span id="ztcps-gov" style="color:#94a3b8;">governance: …</span>
+  <span id="ztcps-idrisk" style="color:#94a3b8;" title="Module 2 Section 5 -- rejected attempts, never touch a device's own score">identity targeting: …</span>
+  <span id="ztcps-stepup" style="color:#94a3b8;" title="Module 2 Section 7 -- real gateway-issued nonce / device-echo challenges">step-up: …</span>
+  <div id="ztcps-devices" style="display:flex;gap:10px;flex-wrap:wrap;"></div>
+  <a href="/figures" target="_blank" style="margin-left:auto;color:#7dd3fc;text-decoration:none;">
+    &#128202; Model Evaluation Figures</a>
+</div>
+<div id="ztcps-level2" style="position:fixed;top:34px;left:0;right:0;z-index:999998;
+  background:#0a0f18;border-bottom:1px solid #1c2534;color:#94a3b8;
+  font-family:'JetBrains Mono',ui-monospace,'SF Mono',monospace;font-size:10.5px;
+  padding:4px 14px;display:none;" title="Module 3 Section C.4 -- validated 100% (GNN) / 2% (Isolation Forest) / 0% (LSTM-AE) flip rate; see RESULTS.md Section 4.1">
+  Level-2 explainability (most recent, per device): <span id="ztcps-level2-body"></span>
+</div>
+<script>
+(function () {
+  "use strict";
+  var BADGE = {ALLOW: "#7dd3fc", ALERT: "#c4b5fd", STEP_UP: "#fbbf24", BLOCK: "#f87171", REJECTED: "#f87171"};
+  function fetchJSON(path) { return fetch(path).then(function (r) { return r.json(); }); }
+  function latestByDevice(rows) {
+    var out = {};
+    rows.forEach(function (r) {
+      if (r.decision === "REJECTED") return;
+      if (!out[r.device_id]) out[r.device_id] = r;
+    });
+    return out;
+  }
+  function refresh() {
+    Promise.all([
+      fetchJSON("/api/decisions"), fetchJSON("/api/devices"),
+      fetchJSON("/api/chain"), fetchJSON("/api/governance"), fetchJSON("/api/iec62443"),
+    ]).then(function (res) {
+      var decisions = res[0], devices = res[1], chain = res[2], gov = res[3], iec = res[4];
+      var rows = decisions.rows || [];
+      var latest = latestByDevice(rows);
+
+      var chainEl = document.getElementById("ztcps-chain");
+      var chainOk = chain.chain_ok && chain.checkpoint_ok;
+      chainEl.textContent = "chain: " + (chainOk ? "verified \\u2713" : "BROKEN \\u2717");
+      chainEl.style.color = chainOk ? "#7dd3fc" : "#f87171";
+
+      var govVals = Object.values(gov.coverage || {});
+      var govPct = govVals.length ? Math.round(100 * govVals.reduce(function (a, b) { return a + b; }, 0) / govVals.length) : 0;
+      var iecImpl = (iec.frs || []).filter(function (f) { return f.status !== "not_implemented"; });
+      var iecPct = iecImpl.length
+        ? Math.round(100 * iecImpl.reduce(function (a, f) { return a + (f.coverage || 0); }, 0) / iecImpl.length) : 0;
+      document.getElementById("ztcps-gov").textContent =
+        "NIST " + govPct + "% \\u00b7 IEC62443 " + iecPct + "%";
+
+      var rejected = rows.filter(function (r) { return r.decision === "REJECTED"; });
+      var idEl = document.getElementById("ztcps-idrisk");
+      idEl.textContent = "identity targeting: " + rejected.length + " rejected attempt(s) logged";
+      idEl.style.color = rejected.length ? "#f87171" : "#94a3b8";
+      idEl.title = rejected.length
+        ? "most recent: " + rejected[0].device_id + " (" + (rejected[0].reason || "") + ") -- that device's own score is unaffected"
+        : idEl.title;
+
+      var stepUps = rows.filter(function (r) { return (r.reason_category || "").indexOf("step_up") === 0; });
+      var suEl = document.getElementById("ztcps-stepup");
+      if (!stepUps.length) {
+        suEl.textContent = "step-up: none issued yet";
+      } else {
+        var last = stepUps[0];
+        var label = last.reason_category === "step_up_succeeded" ? "SUCCESS"
+          : last.reason_category === "step_up_failed" ? "FAILED \\u2192 BLOCK" : "CHALLENGE ISSUED";
+        suEl.textContent = "step-up: " + last.device_id + " " + label;
+        suEl.style.color = last.reason_category === "step_up_succeeded" ? "#7dd3fc"
+          : last.reason_category === "step_up_failed" ? "#f87171" : "#fbbf24";
+      }
+
+      var box = document.getElementById("ztcps-devices");
+      box.innerHTML = "";
+      var level2Bits = [];
+      (devices.devices || []).forEach(function (d) {
+        var row = latest[d.device_id];
+        var span = document.createElement("span");
+        if (!row) {
+          span.style.color = "#5b6b82";
+          span.textContent = d.device_id + ": no data yet";
+        } else {
+          var color = BADGE[row.decision] || "#94a3b8";
+          var sec = row.security_trust_score != null ? row.security_trust_score.toFixed(2) : "n/a";
+          var proc = row.process_trust_score != null ? row.process_trust_score.toFixed(2) : "n/a";
+          span.innerHTML = d.device_id + " sec=" + sec + " proc=" + proc +
+            ' <b style="color:' + color + '">' + row.decision + "</b>";
+          if (row.level2_summary && row.level2_dominant_feature &&
+              row.level2_dominant_feature !== "n/a" && row.level2_dominant_feature !== "unavailable") {
+            level2Bits.push(d.device_id + ": " + row.level2_summary);
+          }
+        }
+        box.appendChild(span);
+      });
+
+      var l2Bar = document.getElementById("ztcps-level2");
+      var l2Body = document.getElementById("ztcps-level2-body");
+      if (level2Bits.length) {
+        l2Bar.style.display = "block";
+        l2Body.textContent = level2Bits.join("  \\u00b7  ");
+      } else {
+        l2Bar.style.display = "none";
+      }
+    }).catch(function (e) { console.error("[ztcps-live-overlay]", e); });
+  }
+  refresh();
+  setInterval(refresh, 2000);
+})();
+</script>
+"""
+
+
+def _dashboard_json(handler: BaseHTTPRequestHandler, payload) -> None:
+    body = json.dumps(payload).encode()
+    handler.send_response(200)
+    handler.send_header("Content-Type", "application/json")
+    handler.send_header("Content-Length", str(len(body)))
+    handler.end_headers()
+    handler.wfile.write(body)
+
+
+def _build_qtable_view() -> dict:
+    """Reads the REAL trained Q-table (models/adaptive_pdp_qtable.json) --
+    not mocked. State is (security_bucket, process_bucket); to keep this a
+    readable single table, fixes process_bucket=9 (process_trust_score in
+    [0.9, 1.0), the common case) and varies only the security bucket
+    across its 10 buckets, same bucketing adaptive_pdp.state_key() uses
+    live."""
+    q = {}
+    if os.path.exists(ADAPTIVE_PDP_MODEL_PATH):
+        with open(ADAPTIVE_PDP_MODEL_PATH) as f:
+            q = json.load(f)
+
+    rows = []
+    PROCESS_BUCKET_SLICE = 9
+    for security_bucket in range(10):
+        key = f"{security_bucket},{PROCESS_BUCKET_SLICE}"
+        qvals = q.get(key)
+        rows.append({
+            "label": f"{security_bucket / 10:.1f}–{(security_bucket + 1) / 10:.1f}",
+            "known": qvals is not None,
+            "q": qvals or {a: 0.0 for a in ACTIONS},
+        })
+    return {"rows": rows, "actions": ACTIONS, "trained": os.path.exists(ADAPTIVE_PDP_MODEL_PATH)}
+
+
+def _build_devices_view() -> list:
+    return [
+        {"device_id": d, "kind": info["kind"]}
+        for d, info in DEVICE_REGISTRY.items()
+    ]
+
+
+class DashboardHandler(BaseHTTPRequestHandler):
+    def log_message(self, fmt, *args):
+        pass  # keep console quiet, same rationale as coap_server.py
+
+    def do_GET(self):
+        if self.path == "/" or self.path == "/index.html":
+            self._serve_design_dashboard()
+        elif self.path == "/figures" or self.path == "/figures/":
+            self._serve_figures_gallery()
+        elif self.path.startswith("/figures/"):
+            self._serve_figure_file(self.path[len("/figures/"):])
+        elif self.path.startswith("/api/decisions"):
+            rows = audit_log.recent(DASHBOARD_ROWS_TO_FETCH)
+            _dashboard_json(self, {"rows": rows})
+        elif self.path == "/api/devices":
+            _dashboard_json(self, {"devices": _build_devices_view()})
+        elif self.path == "/api/governance":
+            rows = audit_log.recent(DASHBOARD_ROWS_TO_FETCH)
+            report = nist_mapping.completeness_report(rows)
+            _dashboard_json(self, {
+                "tenets": NIST_TENETS,
+                "coverage": report,
+                "sample_size": len(rows),
+            })
+        elif self.path == "/api/iec62443":
+            rows = audit_log.recent(DASHBOARD_ROWS_TO_FETCH)
+            coverage = iec62443_mapping.fr_coverage_report(rows)
+            frs = [
+                {
+                    "id": fr, "name": info["name"], "status": info["status"],
+                    "coverage": coverage.get(fr) if info["status"] != "not_implemented" else None,
+                    "detail": info.get("where") or info.get("note"),
+                    "gap_note": info.get("note") if info["status"] == "partial" else None,
+                }
+                for fr, info in iec62443_mapping.FOUNDATIONAL_REQUIREMENTS.items()
+            ]
+            _dashboard_json(self, {
+                "zones": iec62443_mapping.ZONES,
+                "conduits": iec62443_mapping.CONDUITS,
+                "frs": frs,
+                "sl_assessment": iec62443_mapping.SECURITY_LEVEL_ASSESSMENT,
+                "sample_size": len(rows),
+            })
+        elif self.path == "/api/qtable":
+            _dashboard_json(self, _build_qtable_view())
+        elif self.path == "/api/chain":
+            chain_ok, broken_row = audit_log.verify_chain_integrity()
+            checkpoint_ok, checkpoint_note = audit_log.verify_against_checkpoints()
+            _dashboard_json(self, {
+                "chain_ok": chain_ok, "broken_row": broken_row,
+                "checkpoint_ok": checkpoint_ok, "checkpoint_note": checkpoint_note,
+            })
+        elif self.path == "/api/status":
+            _dashboard_json(self, {
+                "use_rl_policy": USE_RL_POLICY,
+                "security_threshold": SECURITY_THRESHOLD,
+                "process_threshold": PROCESS_THRESHOLD,
+            })
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+    def _serve_design_dashboard(self) -> None:
+        """Serves design/zero-trust-cps-command-center.html byte-for-byte,
+        with the live overlay (_DASHBOARD_OVERLAY above) spliced in just
+        before the document's real closing </body> -- found via rfind()."""
+        if not os.path.exists(DASHBOARD_DESIGN_HTML_PATH):
+            self.send_response(404)
+            self.end_headers()
+            self.wfile.write(b"design/zero-trust-cps-command-center.html not found")
+            return
+        with open(DASHBOARD_DESIGN_HTML_PATH, "r", encoding="utf-8") as f:
+            html = f.read()
+        idx = html.rfind("</body>")
+        html = (html[:idx] + _DASHBOARD_OVERLAY + html[idx:]) if idx != -1 else (html + _DASHBOARD_OVERLAY)
+        body = html.encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _serve_figures_gallery(self) -> None:
+        """Serves a small, self-contained HTML gallery of every PNG in
+        docs/figures/ (scripts/generate_evaluation_graphs.py's output),
+        linked from the live overlay bar rather than spliced into the
+        canvas, for the same "don't touch the 2.2MB bundle" reason."""
+        if not os.path.isdir(DASHBOARD_FIGURES_DIR):
+            names = []
+        else:
+            names = sorted(f for f in os.listdir(DASHBOARD_FIGURES_DIR) if f.lower().endswith(".png"))
+        cards = "".join(
+            f'<figure style="margin:0;background:#0d1420;border:1px solid #2a3548;border-radius:8px;'
+            f'padding:10px;"><img src="/figures/{n}" style="width:100%;border-radius:4px;" loading="lazy">'
+            f'<figcaption style="color:#94a3b8;font-size:11px;margin-top:6px;font-family:ui-monospace,monospace;">'
+            f'{n}</figcaption></figure>'
+            for n in names
+        )
+        if not cards:
+            cards = (
+                '<p style="color:#94a3b8;">No figures found -- run '
+                '<code>python scripts/generate_evaluation_graphs.py</code> first.</p>'
+            )
+        html = f"""<!doctype html><html><head><meta charset="utf-8">
+<title>Model Evaluation Figures</title>
+<style>
+body{{background:#0a0f18;color:#dbe4f0;font-family:ui-sans-serif,system-ui,sans-serif;margin:0;padding:24px;}}
+h1{{font-size:18px;color:#7dd3fc;}}
+p.sub{{color:#94a3b8;font-size:13px;max-width:800px;}}
+.grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:16px;margin-top:20px;}}
+a{{color:#7dd3fc;}}
+</style></head><body>
+<h1>Zero-Trust CPS -- Model Evaluation Figures</h1>
+<p class="sub">Every figure here is produced by <code>scripts/generate_evaluation_graphs.py</code>,
+which calls the SAME functions the corresponding <code>scripts/evaluate_*.py</code> script uses --
+a figure and its script's printed numbers can never silently drift apart. See
+<code>RESULTS.md</code> and <code>docs/12_model_validation_and_justification.md</code> for the
+full write-up behind each comparison. <a href="/">&larr; back to live dashboard</a></p>
+<div class="grid">{cards}</div>
+</body></html>"""
+        body = html.encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _serve_figure_file(self, filename: str) -> None:
+        """Serves one PNG from docs/figures/ by exact filename -- no
+        directory traversal (basename-only, rejects any path separator)."""
+        safe_name = os.path.basename(filename)
+        if safe_name != filename or not safe_name.lower().endswith(".png"):
+            self.send_response(400)
+            self.end_headers()
+            return
+        path = os.path.join(DASHBOARD_FIGURES_DIR, safe_name)
+        if not os.path.isfile(path):
+            self.send_response(404)
+            self.end_headers()
+            return
+        with open(path, "rb") as f:
+            body = f.read()
+        self.send_response(200)
+        self.send_header("Content-Type", "image/png")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+
+def start_dashboard_server() -> HTTPServer:
+    """Starts the dashboard HTTP server in a background thread -- same
+    non-blocking pattern as coap_server.py's start_https_server(), called
+    from run() below alongside MQTT and the HTTPS second transport."""
+    server = HTTPServer(("0.0.0.0", DASHBOARD_PORT), DashboardHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    print(f"[dashboard] serving http://localhost:{DASHBOARD_PORT} -- "
+          f"design/zero-trust-cps-command-center.html + a live data overlay bar")
+    return server
+
+
 def run():
     """Runs MQTT and the HTTPS second-transport (coap_server.py) concurrently."""
     global _mqtt_publish_client
@@ -379,11 +746,14 @@ def run():
           f"{'enabled, port ' + str(COAP_TLS_PORT) if COAP_ENABLED else 'disabled (no certs/coap_server.* found)'}")
     print(f" MQTT broker auth (IEC 62443 FR5, per-device credentials + topic ACLs): "
           f"{'enabled' if MQTT_USE_AUTH else 'disabled (anonymous broker access -- no certs/mosquitto_passwd found)'}")
+    print(f" Dashboard: http://localhost:{DASHBOARD_PORT} (design/zero-trust-cps-command-center.html + live overlay)")
     print("=" * 110)
 
     if COAP_ENABLED:
         import coap_server
         coap_server.start_https_server()  # non-blocking -- own background thread
+
+    start_dashboard_server()  # non-blocking -- own background thread
 
     try:
         client.loop_forever()

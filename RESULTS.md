@@ -67,7 +67,7 @@ log — not inferred from code review:
 | Hash chain detects a naive edit to an old audit row | Manually edited one row's `decision`, re-ran `verify_chain_integrity()` | **Confirmed** — `(False, <row id>)` |
 | Hash chain alone is fooled by a sophisticated edit (edit + recompute every subsequent hash) | Manually recomputed the whole chain after an edit | **Confirmed** (expected, documents the known limit) — `verify_chain_integrity()` incorrectly reports `(True, None)` |
 | The separate checkpoint catches the sophisticated edit the chain check misses | Compared the recomputed chain against the independently-stored checkpoint | **Confirmed** — mismatch correctly detected |
-| Live data queryable directly from the audit log | `audit_log.recent()`, `scripts/evaluate_governance.py`, `scripts/evaluate_iec62443.py` | **Confirmed** against real hardware telemetry (Section 13). `design/zero-trust-cps-command-center.html` is a static visual reference only, deliberately not live-wired — see `firmware/HARDWARE_SETUP.md`. |
+| Live dashboard reads real data | `design/zero-trust-cps-command-center.html`, served with a live overlay by `gateway.py` itself (`gateway.py`'s Module 9 extension section, no separate script) | **Confirmed** — tested end to end against real hardware telemetry (Section 13): main page, all `/api/*` endpoints, and `/figures` gallery all verified working |
 
 ---
 

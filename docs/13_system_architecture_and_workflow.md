@@ -39,6 +39,10 @@ flowchart TB
         A2["nist_mapping.py / iec62443_mapping.py"]
     end
 
+    subgraph L5["Layer 5 — Observability (Phase 9, merged into gateway.py)"]
+        V1["Live dashboard<br/>design/zero-trust-cps-command-center.html<br/>+ live overlay, :8600"]
+    end
+
     D1 & D2 & D3 -->|signed telemetry| T1
     D1 -.->|HTTPS alt. transport| T2
     T1 & T2 --> G1
@@ -48,6 +52,8 @@ flowchart TB
     G4 -->|signed decision| D1 & D2 & D3
     G1 & G4 --> A1
     A1 --> A2
+    A1 --> V1
+    A2 --> V1
 ```
 
 **The one rule this diagram exists to make visually unmissable**: G2
@@ -55,11 +61,12 @@ flowchart TB
 only converge at G4. Nothing upstream of G4 ever blends them into one
 number — this is the architectural decision the entire "two-score
 rearchitecture" (`SESSION_LOG.md` §23) exists to enforce, and every
-downstream consumer reads both scores as separate columns for the same
-reason. There is no always-running observability layer past A1/A2 —
-`audit_log.recent()`/`scripts/evaluate_governance.py`/`evaluate_iec62443.py`
-query the SQLite database directly, on demand, rather than a persistent
-dashboard process (`SESSION_LOG.md` §29).
+downstream consumer (audit log, dashboard) reads both scores as separate
+columns for the same reason. V1 is served by `gateway.py` itself (its
+Module 9 extension section, `start_dashboard_server()`) in a background
+thread, not a separate process — one script (`python gateway.py`) runs
+MQTT, the HTTPS second transport, and the dashboard together
+(`SESSION_LOG.md` §29/§30).
 
 ---
 
@@ -76,7 +83,7 @@ dashboard process (`SESSION_LOG.md` §29).
 | 5 — Access Control | Static 2x2 table, or RL bandit reading the same 2D state | `src/policy_engine.py`, `src/adaptive_pdp.py` |
 | 6 — Secure Communication | MQTT/TLS, HTTPS (CoAP-shaped) | `src/device_simulator.py`, `src/coap_server.py`, `firmware/main.py` |
 | 7 — Monitoring & Audit | Hash-chained log, governance tenet mapping | `src/audit_log.py`, `src/nist_mapping.py`, `src/iec62443_mapping.py` |
-| 9 — Observability (extension) | Direct queries against the audit log; `design/zero-trust-cps-command-center.html` is a static visual reference only, not live-wired | `src/audit_log.py`, `scripts/evaluate_governance.py`, `scripts/evaluate_iec62443.py` |
+| 9 — Observability (extension) | Live dashboard (`design/zero-trust-cps-command-center.html` + a real live-data overlay), served by `gateway.py` itself on a background thread, no separate script | `src/gateway.py` (Module 9 extension section), `src/audit_log.py`, `src/nist_mapping.py`, `src/iec62443_mapping.py` |
 
 ---
 
@@ -206,8 +213,9 @@ flowchart LR
         SIM["device_simulator.py<br/>(software, 3 devices)"]
         FW["firmware/main.py<br/>(real ESP32, MicroPython)"]
     end
-    subgraph Proc3["Process: gateway (the PDP/PEP)"]
-        GWP["gateway.py"]
+    subgraph Proc3["Process: gateway (the PDP/PEP -- MQTT + HTTPS + dashboard, all one process)"]
+        GWP["gateway.py<br/>MQTT loop (main thread)"]
+        DASH["gateway.py::start_dashboard_server()<br/>background thread, :8600"]
     end
     subgraph OnDemand["On-demand queries (not a running process)"]
         EVAL["scripts/evaluate_governance.py<br/>scripts/evaluate_iec62443.py<br/>audit_log.recent()"]
@@ -224,13 +232,15 @@ flowchart LR
     GWP -- "reads (inference only)" --> MDL
     GWP -- "writes" --> DB
     GWP -- "writes" --> CKPT
+    GWP -.->|same process, background thread| DASH
     DB --> EVAL
-    CKPT -.->|independent tamper check| EVAL
+    DB --> DASH
+    CKPT -.->|independent tamper check| DASH
 ```
 
-`design/zero-trust-cps-command-center.html` is deliberately not in this
-diagram — it's a static visual reference file (open directly in a
-browser, no process, no live wiring; `SESSION_LOG.md` §29).
+`design/zero-trust-cps-command-center.html` is served by DASH above with
+a live-data overlay spliced in (not a separate script — merged into
+`gateway.py` directly; `SESSION_LOG.md` §29/§30).
 
 **Why `firmware/main.py` and `device_simulator.py` are drawn as
 alternatives, not both-always-on**: both publish under the SAME
