@@ -444,8 +444,14 @@ unconditional for the simpler code path and because every message now
 carries a real Level-2 explanation in the audit log, not just the ones
 that happened to be near a threshold.
 
-Device-side (ESP32) signing/feature-extraction latency is **not yet
-measured** — see Section 13 (Hardware).
+Device-side (ESP32) signing/feature-extraction latency: **measured, see
+Section 13.1** — the ESP32's feature-extraction step alone (~134ms,
+dominated by the hand-rolled O(N²) DFT run in interpreted MicroPython)
+costs more than this entire gateway-side full pipeline (43.5ms mean),
+despite the gateway doing 4 ML models + fusion + policy + explainability
+per message. Expected, not a red flag: a constrained device's interpreted
+loop vs. a PC's compiled numpy/torch is exactly where you'd expect the
+gap to land.
 
 ---
 
@@ -709,11 +715,12 @@ actually take to close.
 
 **Status: real board flashed, authenticated, and running live; real data
 collected across multiple sessions and folded into the trained models
-with a controlled, measured before/after comparison. Device-side latency/
-footprint instrumentation (Sections 13.1/13.4) is now in place, awaiting
-a live run to record real numbers. True physical adversarial testing
-(Section 13.2) is the one item still requiring new physical action** —
-everything below is what has actually been measured, not aspirational. Results in
+with a controlled, measured before/after comparison; device-side latency
+and RAM/flash footprint measured (Sections 13.1/13.4). True physical
+adversarial testing (Section 13.2) and real network round-trip latency
+(the one remaining item in 13.4) are what's left, both requiring new
+physical action, not more analysis** — everything below is what has
+actually been measured, not aspirational. Results in
 Sections 1–12 above remain simulator-only; this section is the real-world
 counterpart, kept separate rather than blended in, so every number's
 provenance stays unambiguous.
@@ -817,19 +824,36 @@ a computation bug. The one genuine bug this investigation *did* surface is
 already listed as item 4 in Section 13.0 above (the fake GNN neighbor
 attribution).
 
-### 13.1 Device-Side Latency — instrumented, real numbers still pending
+### 13.1 Device-Side Latency — measured
 
-`firmware/main.py` now measures, per message, using `time.ticks_ms()`/
+`firmware/main.py` measures, per message, using `time.ticks_ms()`/
 `time.ticks_diff()` (the MicroPython-correct way — handles the periodic
 tick-counter wraparound a naive subtraction would get wrong): sampling
 time (the 32-reading I2C accelerometer window), feature-extraction time
 (RMS/peak/crest-factor/kurtosis + the on-device DFT for `dominant_freq`),
-and signing time (canonicalisation + HMAC-SHA256). Printed to Thonny's
-Shell every message as `[latency] sampling=...ms feature_extraction=...ms
-sign=...ms`. **Code verified (syntax + import-safe), but no real numbers
-recorded yet** — needs a live run with the printed values copied back in.
-Comparison against the gateway-side figures in Section 6 still pending
-until then.
+and signing time (canonicalisation + HMAC-SHA256). 4 consecutive real
+messages, `boot_id=12`:
+
+| Stage | Min | Max | Mean (n=4) |
+| --- | --- | --- | --- |
+| Sampling (32× I2C read) | 26 ms | 30 ms | 27.2 ms |
+| Feature extraction (incl. DFT) | 134 ms | 136 ms | 134.5 ms |
+| Sign (canonicalise + HMAC-SHA256) | 9 ms | 10 ms | 9.2 ms |
+| **Total on-device compute** | | | **~171 ms** |
+
+At a 2000ms publish interval, that's a ~8.6% duty cycle — comfortable
+headroom, not close to falling behind. **Feature extraction dominates**,
+specifically the hand-rolled O(N²) DFT for `dominant_freq` (32 samples →
+16 frequency bins, each a full sine/cosine sum) run in interpreted
+MicroPython — consistent with, and larger than, the entire gateway-side
+full pipeline (Section 6: 43.5ms mean, including 4 ML models + fusion +
+policy + Level-2 explainability on real hardware, just PC-class CPU
+running compiled numpy/torch instead of an interpreted loop on a
+microcontroller). Signing is comparatively cheap — two SHA256 passes
+(HMAC's inner/outer padding) plus small-string canonicalisation, ~9ms.
+A small sample (n=4) from one session, not a statistically rigorous
+benchmark — sufficient to characterize where the time goes, not to bound
+tail latency precisely.
 
 ### 13.2 Real Physical Data Collection — baseline done, adversarial testing still pending
 
@@ -934,18 +958,30 @@ retraining discussion). ISO 10816/20816 zone-boundary comparison
 (`CLAUDE.md` Section 6) still needs real vibration-velocity data, not the
 raw-acceleration proxy used throughout — untouched by this round.
 
-### 13.4 Physical Deployment Overhead — RAM/flash instrumented, network latency still pending
+### 13.4 Physical Deployment Overhead — RAM/flash measured, network latency still pending
 
-- **RAM/flash**: `firmware/main.py::print_deployment_footprint()` now
-  prints real `gc.mem_free()`/`gc.mem_alloc()` and `os.statvfs("/")`
-  numbers once at boot, right after full initialization (WiFi, MQTT,
-  MPU6050) — `[footprint] RAM: ... | Flash filesystem: ...` in Thonny's
-  Shell. **Code verified, no real numbers recorded yet** — needs a live
-  run.
-- Real WiFi/MQTT round-trip latency in a physical network, vs. the
-  loopback-network figures in Section 6 — still not instrumented (would
-  need a timestamped ping/ack round trip, not just one-way publish
-  timing, which the Section 13.1 instrumentation above doesn't cover).
+**RAM/flash**, `firmware/main.py::print_deployment_footprint()`, printed
+once at boot right after full initialization (WiFi, MQTT, MPU6050) —
+real measurements, not the simulated-device-process proxy used
+implicitly everywhere else in this project:
+
+| Resource | Free | Used | Total | % used |
+| --- | --- | --- | --- | --- |
+| RAM (MicroPython GC heap) | 100,976 B | 16,464 B | 117,440 B | 14.0% |
+| Flash filesystem | 2,084,864 B | 12,288 B | 2,097,152 B | 0.59% |
+
+Both comfortably low — this firmware's actual footprint is a small
+fraction of what's available on an ESP32-class device, even accounting
+for the ~117KB figure being MicroPython's own GC-managed heap, not the
+chip's full ~520KB SRAM (the rest is reserved for the WiFi/BT stack, the
+interpreter itself, and static buffers — normal, not a measurement gap).
+12KB of flash used out of a 2MB filesystem partition is essentially just
+`main.py` itself plus `boot_id.txt`.
+
+**Still not instrumented**: real WiFi/MQTT round-trip latency in a
+physical network, vs. the loopback-network figures in Section 6 — would
+need a timestamped ping/ack round trip, not just the one-way publish
+timing Section 13.1 covers.
 
 ---
 

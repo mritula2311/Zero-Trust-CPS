@@ -2342,3 +2342,21 @@ a live run, unlike the six items above which were all resolvable through
 code/investigation alone. `firmware/HARDWARE_SETUP.md`'s Step 9 example
 output and `RESULTS.md` Sections 13.1/13.4 updated to describe the new
 output format and its still-pending status.
+
+**Real numbers landed minutes later** -- the user reflashed and ran the
+instrumented firmware, pasted back 4 real messages worth of `[latency]`/
+`[footprint]` output. Recorded into `RESULTS.md`: sampling 27.2ms mean,
+feature extraction 134.5ms mean (dominates -- the hand-rolled O(N^2) DFT
+in interpreted MicroPython), signing 9.2ms mean, ~171ms total per-message
+device-side compute against a 2000ms publish interval (~8.6% duty cycle,
+comfortable headroom). RAM: 14.0% of the MicroPython GC heap used
+(100,976/117,440 bytes free). Flash: 0.59% of the 2MB filesystem used
+(essentially just `main.py` + `boot_id.txt`). Also fixed a stale line in
+Section 6 that still said device-side latency was "not yet measured," and
+added the real device-vs-gateway comparison it was missing: the ESP32's
+feature-extraction step alone costs more than the gateway's entire full
+pipeline (134.5ms vs. 43.5ms mean) -- expected, an interpreted
+microcontroller loop against a PC's compiled numpy/torch, not a red flag.
+Only Section 13.2 (real adversarial testing) and the network-round-trip-
+latency half of 13.4 remain, both requiring new physical action from the
+user, nothing left to close through code or analysis alone.
