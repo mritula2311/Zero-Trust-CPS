@@ -514,28 +514,58 @@ def _dashboard_json(handler: BaseHTTPRequestHandler, payload) -> None:
 
 
 def _build_qtable_view() -> dict:
-    """Reads the REAL trained Q-table (models/adaptive_pdp_qtable.json) --
-    not mocked. State is (security_bucket, process_bucket); to keep this a
-    readable single table, fixes process_bucket=9 (process_trust_score in
-    [0.9, 1.0), the common case) and varies only the security bucket
-    across its 10 buckets, same bucketing adaptive_pdp.state_key() uses
-    live."""
-    q = {}
+    """The policy table AS THE GATEWAY WOULD APPLY IT, not the raw JSON file.
+
+    That distinction was a real defect. Six of the ten security buckets were
+    never visited during offline training, and reading the artifact directly
+    rendered them as a wall of `0.00` -- implying the policy has no opinion
+    there, or worse that every action scores equally. Neither is what happens
+    live: AdaptivePDP._get_q() SEEDS an unvisited state from the static 2x2
+    table (policy_engine.decide()), so the gateway falls back to the static
+    policy rather than picking arbitrarily. The panel now asks the same
+    AdaptivePDP object the gateway uses what it would actually do, and labels
+    each row's provenance -- `trained` where offline episodes visited the state,
+    `static-fallback` where they did not.
+
+    State is (security_bucket, process_bucket); to stay a readable single table
+    this fixes process_bucket=9 (process score in [0.9, 1.0), the common case)
+    and varies the security bucket across its 10 buckets, the same bucketing
+    adaptive_pdp.state_key() uses live."""
+    trained_states = {}
     if os.path.exists(ADAPTIVE_PDP_MODEL_PATH):
         with open(ADAPTIVE_PDP_MODEL_PATH) as f:
-            q = json.load(f)
+            trained_states = json.load(f)
 
     rows = []
     PROCESS_BUCKET_SLICE = 9
+    process_score = PROCESS_BUCKET_SLICE / 10 + 0.05   # mid-bucket representative
     for security_bucket in range(10):
+        security_score = security_bucket / 10 + 0.05
         key = f"{security_bucket},{PROCESS_BUCKET_SLICE}"
-        qvals = q.get(key)
+        known = key in trained_states
+        # Ask the live objects, so this table can never drift from behaviour.
+        effective = adaptive_pdp.greedy_action(security_score, process_score)
         rows.append({
-            "label": f"{security_bucket / 10:.1f}–{(security_bucket + 1) / 10:.1f}",
-            "known": qvals is not None,
-            "q": qvals or {a: 0.0 for a in ACTIONS},
+            "label": f"{security_bucket / 10:.1f}-{(security_bucket + 1) / 10:.1f}",
+            "known": known,
+            "source": "trained" if known else "static-fallback",
+            "effective_action": effective,
+            "static_action": decide(security_score, process_score, "FRESH"),
+            "q": trained_states.get(key) or {a: None for a in ACTIONS},
         })
-    return {"rows": rows, "actions": ACTIONS, "trained": os.path.exists(ADAPTIVE_PDP_MODEL_PATH)}
+    return {
+        "rows": rows,
+        "actions": ACTIONS,
+        "trained": os.path.exists(ADAPTIVE_PDP_MODEL_PATH),
+        "process_bucket": PROCESS_BUCKET_SLICE,
+        "note": (
+            "Rows marked static-fallback were never visited during offline training. "
+            "They are NOT undefined and NOT all-zero in practice: AdaptivePDP seeds an "
+            "unvisited state from the static 2x2 table, so the gateway's decision there "
+            "is the static policy's. The effective action column is what this gateway "
+            "would actually return for that state, taken from the same object it uses live."
+        ),
+    }
 
 
 def _build_governance_view() -> dict:

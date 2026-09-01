@@ -301,15 +301,21 @@
       <div class="note" id="iecnote"></div>
     </section>
     <section class="card span4">
-      <h2>RL Policy Q-table <span class="tag">process bucket = 9</span></h2>
+      <h2>RL Policy — what the gateway would decide <span class="tag">process bucket = 9</span></h2>
       <div class="why">
-        The deployed offline-trained bandit, sliced at process bucket 9 (process score
-        0.9–1.0). Each row is a security-score bucket; the highlighted action is what the
-        gateway would choose there. <b>Q-values are expected reward</b> (+1 correct action,
-        −1 wrong), estimated as a sample average over training visits — so a higher number
-        means "this action was right more often in this state".
+        The deployed policy sliced at process bucket 9 (process score 0.9–1.0), one row per
+        security-score bucket. The <b>decision</b> column is what this gateway would actually
+        return for that state — read from the same object it uses live, so this table cannot
+        drift from behaviour. <b>Q-values are expected reward</b> (+1 correct action, −1 wrong)
+        estimated as a sample average over training visits.
+        Rows marked <b style="color:var(--amber)">static fallback</b> were never visited in
+        offline training; they show <code>--</code> rather than a misleading <code>0.00</code>,
+        because the policy seeds those states from the static 2×2 table instead of guessing.
+        Where the learned policy disagrees with the static table, the static answer is shown
+        beside the decision.
       </div>
       <div id="qtable"></div>
+      <div class="note" id="qnote"></div>
     </section>
   </div>
 
@@ -487,26 +493,41 @@
     var box=$("iec");box.innerHTML="";
     (iec.frs||[]).forEach(function(f){
       var pct=f.coverage==null?"n/a":Math.round(f.coverage*100)+"%";
-      var tip=(f.detail||"")+(f.gap_note?("\n\nGAP: "+f.gap_note):"");
+      var tip=(f.detail||"");
       box.innerHTML+='<div class="fr" title="'+esc(tip)+'"><span class="st '+f.status+'">'+f.status.replace("_"," ")+'</span>'+
-        '<span class="frname">'+esc(f.id)+" "+esc(f.name)+'</span><span class="frpct">'+pct+'</span></div>';
+        '<span class="frname">'+esc(f.id)+" "+esc(f.name)+'</span><span class="frpct" title="fraction of logged decisions carrying evidence for this FR -- NOT how much of the FR is implemented">evidence '+pct+'</span></div>';
+      if(f.gap_note){
+        box.innerHTML+='<div class="meta" style="margin:-4px 0 8px 6px">'+esc("gap: "+f.gap_note)+'</div>';
+      }
     });
+    var impl=(iec.frs||[]).filter(function(f){return f.status==="implemented"});
+    var part=(iec.frs||[]).filter(function(f){return f.status==="partial"});
+    $("iectag").textContent=impl.length+" implemented · "+part.length+" partial";
     if(iec.status_note)$("iecnote").textContent=iec.status_note;
-    var impl=(iec.frs||[]).filter(function(f){return f.status!=="not_implemented"});
-    var avg=impl.length?Math.round(100*impl.reduce(function(a,f){return a+(f.coverage||0)},0)/impl.length):0;
-    $("iectag").textContent="avg "+avg+"%";
   }
   function renderQtable(q){
     var box=$("qtable");
     if(!q.trained){box.innerHTML='<div class="empty">Q-table not trained yet</div>';return}
     var acts=q.actions||[];
-    var h='<table class="qt"><thead><tr><th>sec bucket</th>'+acts.map(function(a){return "<th>"+a+"</th>"}).join("")+'</tr></thead><tbody>';
+    var h='<table class="qt"><thead><tr><th>sec bucket</th><th>source</th><th>decision</th>'+acts.map(function(a){return "<th>"+a+"</th>"}).join("")+'</tr></thead><tbody>';
     (q.rows||[]).forEach(function(r){
-      var best=null,bv=-1e9;acts.forEach(function(a){if(r.q[a]>bv){bv=r.q[a];best=a}});
-      h+='<tr><td style="color:var(--muted)">'+esc(r.label)+'</td>'+acts.map(function(a){var on=a===best&&r.known;
-        return '<td class="'+(on?"b":"")+'" style="color:'+(on?"var(--cyan)":"var(--dim)")+'">'+(r.q[a]).toFixed(2)+'</td>'}).join("")+'</tr>';
+      var fallback=!r.known;
+      var srcCol=fallback?"var(--amber)":"var(--dim)";
+      var srcTxt=fallback?"static fallback":"trained";
+      var diff=r.static_action&&r.effective_action!==r.static_action;
+      h+='<tr><td style="color:var(--muted)">'+esc(r.label)+'</td>'+
+        '<td style="color:'+srcCol+'" title="'+(fallback?"never visited in offline training -- AdaptivePDP seeds this state from the static 2x2 table, so the gateway uses the static decision here":"visited during offline training; Q-values below are learned expected reward")+'">'+srcTxt+'</td>'+
+        '<td><span class="chip '+esc(r.effective_action)+'">'+esc(r.effective_action)+'</span>'+
+        (diff?' <span class="t" style="color:var(--amber)" title="the learned policy disagrees with the static 2x2 table in this state">(static: '+esc(r.static_action)+')</span>':"")+'</td>'+
+        acts.map(function(a){
+          var v=r.q[a];
+          if(v==null)return '<td style="color:var(--dim)" title="no learned value -- state never visited in training">--</td>';
+          var on=a===r.effective_action;
+          return '<td class="'+(on?"b":"")+'" style="color:'+(on?"var(--cyan)":"var(--dim)")+'">'+v.toFixed(2)+'</td>';
+        }).join("")+'</tr>';
     });
     box.innerHTML=h+'</tbody></table>';
+    if(q.note){var n=document.getElementById("qnote"); if(n)n.textContent=q.note;}
   }
   function setChain(chain){
     var ok=chain.chain_ok&&chain.checkpoint_ok,el=$("p-chain");
