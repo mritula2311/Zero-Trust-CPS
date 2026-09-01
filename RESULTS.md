@@ -70,6 +70,7 @@ log — not inferred from code review:
 | Live dashboard reads real data | `design/zero-trust-cps-command-center.html`, served with a live overlay by `gateway.py` itself (`gateway.py`'s Module 9 extension section, no separate script) | **Confirmed** — tested end to end against real hardware telemetry (Section 13): main page, all `/api/*` endpoints, and `/figures` gallery all verified working |
 | A rate anomaly from a REAL physical device (not the simulator) triggers a real BLOCK | The real `esp32-vib-001` board itself, live | **Confirmed** — `rms=1.02 FLOOD \| security=0.49 \| process=0.40(FRESH) \| BLOCK` with `FLOOD detected (messages arriving faster than the minimum interval)`. Previously this exact response was only ever confirmed with `device_simulator.py`'s synthetic flood scenario (row above) — this is the first live confirmation against genuine hardware. Note this is a Security Trust (rate/timing) event, distinct from Section 13.2's still-pending Process Anomaly (physical fault) adversarial testing — the two domains stay separately evidenced on purpose. |
 | A real physical sensor fault (MPU6050 disconnected) is caught by the fusion pipeline even though the rule check alone misses it | Disconnected/reconnected the real MPU6050 while the board was running | **Confirmed, and a real gap found + fixed** — the disconnected sensor read back all-zero I2C bytes rather than erroring, publishing physically-impossible `rms=peak=crest_factor=kurtosis=0.0`; the rule check's old `(0.0, 3.0)` `rms` bound missed it, but replaying the exact reading through the live scorers gave `fused=0.008` (well below threshold) — the GNN/Isolation Forest caught what the rule check didn't, confirming the fusion design's defense-in-depth. `rms`'s lower bound raised to `0.1` anyway (Section 13.2), verified not to regress the synthetic baseline or reject any real session's data. |
+| A fully unpowered sensor (VCC removed) is correctly diagnosed and auto-recovered, not misdiagnosed as a network error | Removed the real MPU6050's VCC entirely, then reconnected it | **Confirmed, and a real firmware bug found + fixed + re-verified** — a fully unpowered sensor raises a real `OSError`/`ETIMEDOUT` from the I2C read (unlike the zero-byte case above); the firmware's single shared exception handler misdiagnosed this as a network problem, reconnecting MQTT (never broken) in an infinite loop that never addressed the real issue. Fixed with a separate I2C-specific handler that re-initializes the sensor and skips to the next cycle without touching MQTT. Re-verified live after the fix: 3 correctly-labelled `MPU6050 read failed` messages, then fully automatic recovery (same `boot_id`, no reset) — plus the first two post-recovery readings, still zero as the sensor stabilized, now correctly caught by the `rms≥0.1` rule bound from the fix above. |
 
 ---
 
@@ -989,10 +990,23 @@ publish/reconnect block — on an I2C failure it re-runs `mpu6050_init()`
 (so power being restored is picked up automatically, same retry
 philosophy as `sync_time()`'s NTP retries) and skips straight to the next
 cycle without touching MQTT at all, with a correctly-labelled console
-message (`MPU6050 read failed`, not `connection error`). Not yet
-re-verified on real hardware (needs a live re-run with VCC removed again
-to confirm the new path actually recovers cleanly) — flagged here rather
-than claimed as confirmed.
+message (`MPU6050 read failed`, not `connection error`).
+
+**Re-verified live, confirmed working**: the user reflashed and pulled
+VCC again. Result: 3 clean `[main] MPU6050 read failed (sensor
+disconnected, unpowered, or wired incorrectly?): [Errno 116] ETIMEDOUT`
+messages — no `connection error`/MQTT-reconnect loop — followed by
+automatic recovery (publishing resumed at the next `seq`, same
+`boot_id`, no reset needed). One additional finding on the way: the
+first two readings immediately after power was restored (`seq=10`,
+`seq=11`) came back as literal zero again — the sensor hadn't fully
+stabilized yet. Checked, not assumed: this exact reading now scores
+`rule_score=0.15` ("outside expected range") against the `rms≥0.1` bound
+from the fix above, where it would have passed silently before that fix
+existed — the two fixes from this session complement each other, one
+keeping the board from getting stuck, the other catching the brief
+zero-reading blip during recovery that the exception handler alone
+wouldn't flag as anything unusual.
 
 ### 13.3 Real Sensor Calibration — checked, no change needed (yet)
 

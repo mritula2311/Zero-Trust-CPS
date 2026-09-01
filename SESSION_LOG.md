@@ -2404,6 +2404,24 @@ now re-runs `mpu6050_init()` (same retry philosophy as `sync_time()`'s
 NTP retries, so power being restored is picked up automatically) and
 `continue`s straight to the next cycle without touching MQTT, with a
 correctly-labelled message (`MPU6050 read failed`, not `connection
-error`). Not yet re-verified live -- needs the user to remove VCC again
-against the fixed firmware to confirm the new path actually recovers;
-flagged as such in `RESULTS.md`, not claimed as confirmed.
+error`).
+
+**Re-verified live minutes later, confirmed working**: user reflashed and
+pulled VCC again. 3 correctly-labelled `[main] MPU6050 read failed
+(sensor disconnected, unpowered, or wired incorrectly?): [Errno 116]
+ETIMEDOUT` messages -- no `connection error`/MQTT-reconnect loop this
+time -- then fully automatic recovery once VCC was reconnected: publishing
+resumed at the next `seq`, same `boot_id`, no reset needed. One more real
+finding along the way: the first two readings right after power came back
+(`seq=10`, `seq=11`) were literal zero again -- the sensor hadn't fully
+stabilized. Checked, not assumed: replayed that exact reading through
+`rule_range_score()` and confirmed it now scores `0.15` ("outside expected
+range") against the `rms>=0.1` bound from the earlier fix this same
+session, where it would have silently passed before that fix existed.
+The two fixes from this session turned out to be complementary in
+practice, not just in theory: the exception-handling fix keeps the board
+from getting stuck, and the rule-bound fix catches the brief zero-reading
+blip during recovery that the exception handler has no way to flag by
+itself (a slow read that succeeds isn't an OSError). `RESULTS.md`'s
+confirmed-behaviours table and Section 13.2 both updated from "fixed, not
+yet re-verified" to "fixed and confirmed."
