@@ -68,6 +68,7 @@ log — not inferred from code review:
 | Hash chain alone is fooled by a sophisticated edit (edit + recompute every subsequent hash) | Manually recomputed the whole chain after an edit | **Confirmed** (expected, documents the known limit) — `verify_chain_integrity()` incorrectly reports `(True, None)` |
 | The separate checkpoint catches the sophisticated edit the chain check misses | Compared the recomputed chain against the independently-stored checkpoint | **Confirmed** — mismatch correctly detected |
 | Live dashboard reads real data | `design/zero-trust-cps-command-center.html`, served with a live overlay by `gateway.py` itself (`gateway.py`'s Module 9 extension section, no separate script) | **Confirmed** — tested end to end against real hardware telemetry (Section 13): main page, all `/api/*` endpoints, and `/figures` gallery all verified working |
+| A rate anomaly from a REAL physical device (not the simulator) triggers a real BLOCK | The real `esp32-vib-001` board itself, live | **Confirmed** — `rms=1.02 FLOOD \| security=0.49 \| process=0.40(FRESH) \| BLOCK` with `FLOOD detected (messages arriving faster than the minimum interval)`. Previously this exact response was only ever confirmed with `device_simulator.py`'s synthetic flood scenario (row above) — this is the first live confirmation against genuine hardware. Note this is a Security Trust (rate/timing) event, distinct from Section 13.2's still-pending Process Anomaly (physical fault) adversarial testing — the two domains stay separately evidenced on purpose. |
 
 ---
 
@@ -475,17 +476,30 @@ cross its threshold after an injected event.
   instant" EWMA philosophy) and is exactly why the RL policy's ability to
   react to the sub-threshold signal (Section 3) is a genuine advantage,
   not a redundant one.
-- **`high_rate` shows a non-`n/a` PROCESS mean (3.03), which was not
-  expected going in.** The two-score separation is supposed to mean a
-  pure rate/security event never moves the Process Anomaly Score.
-  Reported here honestly as an open finding rather than hidden or
-  explained away: plausible causes not yet isolated include incidental
-  correlation from `sensor-002`'s (a scalar device) readings landing near
-  a range edge during the burst, or a genuine minor leak somewhere in the
-  measurement harness. **Flagged as follow-up work, not resolved in this
-  round** — anyone continuing this project should investigate this
-  specific number before relying on the two-score separation being
-  perfectly leak-free.
+- **`high_rate` shows a non-`n/a` PROCESS mean (3.03) — investigated and
+  resolved, not a leak.** `scripts/diagnose_high_rate_leak.py` replays the
+  exact same stateful pipeline `evaluate_trust_responsiveness.py` uses
+  (imports its `replay_with_state()` logic, not a reimplementation) but
+  keeps every sub-signal (rule/IF/LSTM/GNN) instead of just the fused
+  output. Every flagged `high_rate` row is `esp32-vib-001`, `rule_score`
+  passing cleanly (`0.9`, "all features within expected range"), with
+  `lstm_score` floored at `0.0` — and **17 of 18** flagged rows sit
+  *exactly 4 messages* after a real `anomalous_shock` event, well inside
+  `LSTM_SEQ_LEN=8`'s reconstruction window (verified computationally: the
+  one exception, at distance 10 — outside the window — had by far the
+  mildest dip, 0.5719 vs. the others' 0.05–0.19). This is the SAME
+  "window residue" contamination effect Section 2.2/9 already documents
+  and excludes for the LSTM-AE/Transformer fair comparison — it had just
+  never been checked against `high_rate` specifically. Root cause is
+  synthetic-generator scheduling, not a live architectural leak:
+  `anomalous_shock` (`tick%12==7`) and `high_rate` (`tick%18==11`) are
+  fixed periodic patterns in the generator, so they deterministically
+  co-occur near each other on a regular cadence — a coincidence that
+  would not occur with genuinely independent, non-periodic real-world
+  event timing. **The two-score separation itself is intact**: it's not
+  that a rate event moves the Process score, it's that the Process
+  score's OWN feature-window state happens to still be contaminated by an
+  unrelated recent physical event when a rate event's message lands.
 - `stealthy_forged_values` moves the PROCESS score for some (not all)
   messages (mean 0.83, not `n/a`) — a *better*-than-expected partial
   detection rate, consistent with Section 2.1's fused 0.500 recall on the
@@ -817,9 +831,14 @@ conditions — at rest, gentle tapping, moderate shaking, tilting/rotating,
 and longer free-form mixed sessions — joining in `gateway.py`'s own live
 `fused_score`/`security_trust_score`/`decision` for each captured message
 from `audit_log.db` (not recomputed separately). One session (of 5)
-captured 0 records — it overlapped with an ~11-minute real board outage
-(WiFi/MQTT drop that didn't self-recover; resolved by a manual reset),
-left in this count rather than quietly dropped. Total: **380 real
+captured 0 records — it overlapped with an ~11-minute window where the
+board was manually disconnected (confirmed with the user, not a bug to
+chase), left in this count rather than quietly dropped. That same window
+is also what motivated the silence-watchdog fix in Section 14 — a
+genuinely silent device previously produced no live signal distinguishing
+"deliberately disconnected" from "gone offline/compromised," which this
+project can now at least detect and log, even though it still can't
+determine which of those it is from telemetry alone. Total: **380 real
 records**. Observed real feature ranges (combined across all sessions):
 
 | feature | observed range |
@@ -917,20 +936,49 @@ raw-acceleration proxy used throughout — untouched by this round.
 
 ## 14. Known Limitations & Remediation Roadmap
 
-Five acknowledged gaps against the original design, consolidated here
-rather than scattered across module docs, with an honest assessment of
-what each would actually take to close. Four are genuine engineering
-work with a concrete plan below; one is architecturally capped and no
-amount of engineering (including the Transformer investigated in Section
-2.2) closes it.
+Originally five acknowledged gaps against the original design.
+**All five are now resolved** (struck through below, not deleted, so the
+roadmap's own history stays visible) — one (item 4) resolved in the sense
+of "confirmed architecturally capped, not fixable," the other four
+actually implemented/explained and verified.
 
-| # | Limitation | Solvable? | What it actually takes |
+| # | Limitation | Solvable? | Resolution |
 |---|---|---|---|
-| 1 | **Key rotation / device revocation not implemented** | Yes — pure engineering, no ML, and the design is already fully specified | `docs/02_module1_device_identity.md` Sections 3–4 and `docs/03_module2_authentication.md` (~lines 108–123) already fully specify `key_version_current`, `secret_key_previous`, `status` (active/revoked), and a revocation-checked-before-HMAC, dual-key grace-window scheme — verified via `grep` that **none of `key_version`/`secret_key_previous`/`revoked` appear anywhere in `src/*.py`**. This is not a missing design, it's a missing implementation: wire the already-specified `DEVICE_REGISTRY` fields into `config.py` and the auth check in `trust_engine.py`/`gateway.py`, the same pattern the existing `boot_id`/`seq` anti-replay state already uses in the same file. |
-| 2 | **Level-2 (feature-level) explainability not implemented as a separate function** | Yes — the design already exists, just not coded | `docs/04_module3_trust_evaluation.md` Section C.3 already specifies exactly how: `TreeExplainer` for Isolation Forest, leave-one-channel-out perturbation for LSTM-AE/GNN (and, by the same logic, the Transformer sub-signal if it's ever adopted), trivial pass-through for the rule check. Today's `reason` string only names the dominant signal (Level 1, already implemented in `fusion_engine.py`'s full per-signal SHAP vector) but doesn't drill into which raw feature within that signal drove it. Cheapest item on this list — a missing function, not a missing design. |
-| 3 | **Decision-channel replay** | Yes, mechanically identical to an existing fix | `docs/03_module2_authentication.md` lines 64–73 already states this gap explicitly: gateway→device mutual authentication (HMAC signature on the decision message) is implemented and verified live, but a captured, validly-signed old decision could in principle be replayed — lower stakes than telemetry replay since a decision is an ephemeral access grant, not sensor data feeding trust scoring, but genuinely open. Fix: extend the `boot_id`/`seq` scheme already built for telemetry replay to decision messages — gateway signs a monotonic counter + nonce into each decision, device rejects a repeat. Same primitive, second application, not a redesign (the doc itself notes mTLS or ECC challenge-response are drop-in replacements behind the same interface if a stronger mechanism is wanted later). |
+| ~~1~~ | ~~Key rotation / device revocation not implemented~~ **RESOLVED — implemented** | — | `trust_engine.py` gained `revoke_device()`/`reinstate_device()`/`rotate_key()`/`is_revoked()`, operating directly on `DEVICE_REGISTRY` (additive fields: `status`, `key_version`, `secret_previous`, `key_rotated_at` — `config.py`). `gateway.py` rejects a revoked device unconditionally, BEFORE HMAC (`process_telemetry()`'s new `is_revoked()` check); `verify_signature()` tries the current key first, falling back to `secret_previous` only within `KEY_ROTATION_GRACE_SECONDS` of the last rotation. Verified end to end, not just unit-level: revoke→reject, reinstate→accept again, rotate→old key still verifies inside the grace window, wrong key never verifies, old key correctly stops verifying once the grace window is manually aged past (7 checks, all passed) — plus a live `process_telemetry()` call against a revoked device, confirmed logged as `REJECTED (device_revoked)`. |
+| ~~2~~ | ~~Level-2 (feature-level) explainability not implemented as a separate function~~ **RESOLVED — already implemented, table was stale** | — | `level2_explain()` is a real, dedicated function on every scorer (`gnn_scorer.py`, `isolation_forest_scorer.py`, `lstm_ae_scorer.py`, `transformer_scorer.py`), orchestrated by `src/explainability.py`, populated on every authenticated message, and surfaced live in the dashboard's second overlay bar — verified directly against real hardware telemetry this session (and one real bug in it, the GNN's fake neighbor attribution with no active neighbors, found and fixed; Section 13.0). |
+| ~~3~~ | ~~Decision-channel replay~~ **RESOLVED — implemented** | — | Same `boot_id`/`seq` pattern telemetry replay already used, applied to the gateway's outgoing decisions: `gateway.py` persists its own incrementing `gateway_boot_id` (`data/gateway_boot_id.txt`, same pattern as the device's `boot_id.txt`) and a per-device `decision_seq` counter, both signed into every decision payload. `firmware/main.py`'s `check_decision_replay()` mirrors `check_boot_replay()`'s logic (strictly-higher boot_id always wins; same boot_id needs a strictly-higher seq). Canonical-string construction now reuses `canonical_json()` (the same generic builder telemetry uses) instead of a hand-rolled format string, specifically to avoid a repeat of the earlier telemetry canonicalisation risk — verified byte-for-byte identical to the gateway's `json.dumps(payload, sort_keys=True)` output, and the full HMAC signature verified to match end to end. |
 | 4 | **Stealthy compromised devices reporting plausible in-range forged values** | **Not solvable by a better model — architecturally capped** | If a forged value sits inside the learned-normal range, no telemetry-only detector can distinguish it from a real reading — confirmed directly, not just argued: Section 2.2's Transformer sub-signal, genuinely more capable and fairly evaluated, scores this scenario identically to the LSTM-AE (0.606/0.500/0.667 recall figures across Sections 2.1, 3.2, 11 — unmoved by architecture). The only real fixes are outside single-node ML: a second, independently-trusted sensor for cross-validation, or multi-device correlation (the GNN's multi-node mode, `docs/04_module3_trust_evaluation.md` Section B.5 — not yet meaningfully exercised with fewer than 3 physical devices). This project reports the honest, partial recall rather than a number tuned to look better, per Section 11. |
-| 5 | **Unexplained Process-score movement on `high_rate`** (Section 7) | Yes — a debugging task, not a research gap | Section 7 already names the leading hypothesis: `sensor-002`'s scalar readings landing near a range edge during the burst. First concrete step: log `sub_scores` (already returned by `fusion_engine.FusionEngine.combine()`/`ProcessAnomalyResult`, per `docs/04_module3_trust_evaluation.md` Section B.7) for every `high_rate` message where the Process score moved, and see which individual sub-signal actually moved it. A half-day instrumentation task against already-logged data, not an open research question. |
+| ~~5~~ | ~~Unexplained Process-score movement on `high_rate`~~ **RESOLVED — explained, not a real gap** | — | Root-caused, not fixed, because there was nothing live to fix: `scripts/diagnose_high_rate_leak.py` traced it to synthetic-generator scheduling (`anomalous_shock`/`tick%12==7` and `high_rate`/`tick%18==11` deterministically landing 4 messages apart, inside the LSTM's 8-message window) — the same window-residue effect Section 9 already documents elsewhere, not a live rate→process leak. Full trace in Section 7. |
+
+### A sixth issue found while closing the above, not on the original list
+
+Investigating item 1/3 surfaced a real gap in `trust_engine.py` itself:
+**`is_stale()` (Security side) had zero call sites anywhere in the
+codebase, and `get_process_anomaly()`'s staleness check (Process side) had
+exactly one — inside `gateway.py::process_telemetry()`, always called
+immediately AFTER `update_process_anomaly()` refreshes the very timestamp
+being checked.** Verified against the real audit log, not just read: a
+genuine 753-second silence in the real board's session (`RESULTS.md`
+history) shows the very first message after it logged `process_status:
+'FRESH'`, never `'STALE'` — the staleness code was correct but
+unreachable in the live message-triggered path. **Fixed**: `gateway.py`
+now runs a background silence watchdog (`start_silence_watchdog()`, same
+thread pattern as the dashboard/HTTPS transport, `SILENCE_CHECK_INTERVAL_
+SECONDS=5`) that checks every registered device's staleness independent
+of message arrival, logs a real audit row (`decision="SILENT"`,
+`reason_category="device_silent"`) on the silence-start transition and
+another on the return-to-normal transition, and prints a console alert.
+Verified end to end: simulated a device going silent, confirmed the
+watchdog's underlying check now correctly reports `STALE`/`is_stale()=
+True` with the score frozen (not decayed), and confirmed the audit row
+writes correctly and the hash chain stays intact afterward. This directly
+answers the practical question the ~11-minute real silence episode
+earlier in this session raised — the board was deliberately, manually
+disconnected by the user, not a bug, but the underlying point stands:
+**a genuinely silent device (disconnected, powered off, or an attacker
+deliberately silencing it) was previously indistinguishable from
+"nothing happening" in the live gateway.** It now produces a real,
+queryable, timestamped signal instead.
 
 Items 1–3 and 5 are scoped, buildable engineering work with no open
 design question — the relevant docs already specify *what* to build, only

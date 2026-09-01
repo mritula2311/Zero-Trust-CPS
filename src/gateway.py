@@ -78,8 +78,13 @@ from config import (
     NIST_TENETS,
     ADAPTIVE_PDP_MODEL_PATH,
     DASHBOARD_PORT,
+    GATEWAY_BOOT_ID_PATH,
+    SILENCE_CHECK_INTERVAL_SECONDS,
 )
-from trust_engine import RuleBasedTrustEngine, rule_range_score, IdentityTargetingRisk
+from trust_engine import (
+    RuleBasedTrustEngine, rule_range_score, IdentityTargetingRisk,
+    is_revoked, verify_signature_with_rotation,
+)
 from isolation_forest_scorer import IsolationForestScorer
 from lstm_ae_scorer import LSTMAEScorer
 from gnn_scorer import GNNScorer
@@ -111,11 +116,23 @@ DECISION_ICON = {
 def verify_signature(device_id: str, payload: dict, signature: str) -> bool:
     """Module 2: does this REGISTERED device's signature check out? (The
     unknown-device_id case is handled by the caller before this is ever
-    called -- see process_telemetry().)"""
+    called -- see process_telemetry().) Tries the CURRENT key first; only
+    if that fails does it fall back to secret_previous, and only within
+    KEY_ROTATION_GRACE_SECONDS of the last rotate_key() call
+    (trust_engine.verify_signature_with_rotation()) -- a device that
+    hasn't yet picked up a just-rotated key still authenticates during the
+    grace window, but the fallback never widens acceptance beyond what a
+    real prior key would have covered."""
     info = DEVICE_REGISTRY[device_id]
     canonical = json.dumps(payload, sort_keys=True).encode()
-    expected = hmac.new(info["secret"].encode(), canonical, hashlib.sha256).hexdigest()
-    return hmac.compare_digest(expected, signature)
+
+    def matches(secret: str) -> bool:
+        expected = hmac.new(secret.encode(), canonical, hashlib.sha256).hexdigest()
+        return hmac.compare_digest(expected, signature)
+
+    if matches(info["secret"]):
+        return True
+    return verify_signature_with_rotation(device_id, matches)
 
 
 def _extract_reading(device_id: str, payload: dict):
@@ -181,6 +198,17 @@ def process_telemetry(envelope: dict, transport: str, transport_secured: bool) -
     # registered device's state, since by definition there is none here.
     if device_id not in DEVICE_REGISTRY:
         _reject(device_id, "unknown_device_id", transport)
+        return
+
+    # Module 1 (docs/02_module1_device_identity.md Section 3): a revoked
+    # device is rejected unconditionally, BEFORE HMAC -- a hard override
+    # regardless of signature validity, same as the doc's spec. Checked
+    # right after identity (a revoked id is still a KNOWN id, so it's
+    # correctly distinct from unknown_device_id above) and before the
+    # throttle below, since there's no reason to spend throttle bookkeeping
+    # on an identity that's already permanently rejected.
+    if is_revoked(device_id):
+        _reject(device_id, "device_revoked", transport)
         return
 
     # Optional gateway-level protective response (Module 2 Section 5.1):
@@ -314,6 +342,31 @@ def process_telemetry(envelope: dict, transport: str, transport_secured: bool) -
 
 _mqtt_publish_client = None  # set in run(); coap_server.py gets its own reference passed in
 
+# Decision-channel anti-replay (RESULTS.md Section 14 item 3): the SAME
+# boot_id/seq scheme telemetry replay already uses, applied to the
+# gateway's outgoing decisions instead of a device's outgoing telemetry.
+# gateway_boot_id increments once per gateway process start (persisted the
+# same way firmware/main.py persists its own boot_id.txt); decision_seq is
+# a simple in-memory per-device counter within this run -- no need to
+# persist it, since a strictly-higher gateway_boot_id after a restart
+# already makes any lower seq from a prior run correctly stale to a
+# device checking it, the same way a device's own reboot does for its
+# telemetry seq.
+_gateway_boot_id = 1
+_decision_seq_by_device: dict = {}
+
+
+def _load_and_increment_gateway_boot_id() -> int:
+    try:
+        with open(GATEWAY_BOOT_ID_PATH) as f:
+            boot_id = int(f.read().strip()) + 1
+    except (OSError, ValueError):
+        boot_id = 1
+    os.makedirs(os.path.dirname(GATEWAY_BOOT_ID_PATH), exist_ok=True)
+    with open(GATEWAY_BOOT_ID_PATH, "w") as f:
+        f.write(str(boot_id))
+    return boot_id
+
 
 def _sign_decision(device_id: str, payload: dict) -> str:
     """Module 2 mutual-authentication extension: sign the gateway's own
@@ -325,7 +378,12 @@ def _sign_decision(device_id: str, payload: dict) -> str:
 
 def _publish_decision(device_id: str, decision: str) -> None:
     if _mqtt_publish_client is not None:
-        payload = {"device_id": device_id, "decision": decision, "ts": int(time.time() * 1000)}
+        seq = _decision_seq_by_device.get(device_id, 0) + 1
+        _decision_seq_by_device[device_id] = seq
+        payload = {
+            "device_id": device_id, "decision": decision, "ts": int(time.time() * 1000),
+            "gateway_boot_id": _gateway_boot_id, "decision_seq": seq,
+        }
         signature = _sign_decision(device_id, payload)
         _mqtt_publish_client.publish(
             f"{DECISION_TOPIC}/{device_id}", json.dumps({"payload": payload, "signature": signature})
@@ -716,10 +774,59 @@ def start_dashboard_server() -> HTTPServer:
     return server
 
 
+_silence_alerted: set = set()  # device_ids currently flagged silent, so we alert once per episode, not every sweep
+
+
+def _silence_watchdog_loop() -> None:
+    """Periodically (not message-triggered) checks every registered
+    device's staleness -- the only thing that actually exercises
+    trust_engine.is_stale()/get_process_anomaly()'s lazy staleness checks
+    independent of a new message arriving, which is what makes staleness
+    observable at all in a live gateway (see SILENCE_CHECK_INTERVAL_SECONDS's
+    comment in config.py for why the message-triggered path alone can
+    never do this). Logs a real audit_log row on BOTH the silence-start and
+    silence-end transition, so 'this device went quiet for N seconds' is
+    queryable history, not just a console line that scrolls away -- exactly
+    the visibility a device that's been powered off, disconnected, or
+    deliberately silenced by an attacker would otherwise have none of."""
+    while True:
+        time.sleep(SILENCE_CHECK_INTERVAL_SECONDS)
+        for device_id in DEVICE_REGISTRY:
+            security_stale = trust_engine.is_stale(device_id)
+            _, process_status = trust_engine.get_process_anomaly(device_id)
+            currently_silent = security_stale or process_status == "STALE"
+
+            if currently_silent and device_id not in _silence_alerted:
+                _silence_alerted.add(device_id)
+                security_trust_score = trust_engine.get_security_trust(device_id)
+                print(f"{device_id:14s} | SILENT | no message in over "
+                      f"{SILENCE_CHECK_INTERVAL_SECONDS}s-checked staleness window -- "
+                      f"last known scores frozen, not decayed toward normal or spiked toward anomalous")
+                audit_log.log_decision(
+                    device_id, auth_ok=True, decision="SILENT",
+                    reason="no message received within the staleness window -- device offline, "
+                           "disconnected, or possibly silenced/compromised; indistinguishable from here",
+                    security_trust_score=security_trust_score, process_trust_score=None, process_status="STALE",
+                    policy_source="", nist_tenets=nist_mapping.tenets_for_decision(True, MQTT_USE_TLS, fusion_engine.is_trained()),
+                    transport="", reason_category="device_silent",
+                )
+            elif not currently_silent and device_id in _silence_alerted:
+                _silence_alerted.discard(device_id)
+                print(f"{device_id:14s} | back online after a silence episode")
+
+
+def start_silence_watchdog() -> threading.Thread:
+    thread = threading.Thread(target=_silence_watchdog_loop, daemon=True)
+    thread.start()
+    print(f"[watchdog] checking every registered device for silence every {SILENCE_CHECK_INTERVAL_SECONDS}s")
+    return thread
+
+
 def run():
     """Runs MQTT and the HTTPS second-transport (coap_server.py) concurrently."""
-    global _mqtt_publish_client
+    global _mqtt_publish_client, _gateway_boot_id
     audit_log.init_db()
+    _gateway_boot_id = _load_and_increment_gateway_boot_id()
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id="zt-gateway")
     client.on_connect = on_connect
     client.on_message = on_message
@@ -754,6 +861,7 @@ def run():
         coap_server.start_https_server()  # non-blocking -- own background thread
 
     start_dashboard_server()  # non-blocking -- own background thread
+    start_silence_watchdog()  # non-blocking -- own background thread
 
     try:
         client.loop_forever()

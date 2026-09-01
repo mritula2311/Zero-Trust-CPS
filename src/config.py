@@ -217,6 +217,25 @@ DEVICE_REGISTRY = {
     },
 }
 
+# --- Key rotation / device revocation (Module 1, docs/02_module1_device_
+# identity.md Sections 2-3; RESULTS.md Section 14 item 1) ---
+# Applied uniformly to every DEVICE_REGISTRY entry rather than repeated per
+# entry above -- every device starts "active", version 1, no previous key.
+# `secret` (unchanged key name, not renamed to avoid touching every
+# existing `info["secret"]` call site) is always the CURRENT key;
+# `secret_previous` is populated only during a rotation's grace window by
+# trust_engine.rotate_key(), and cleared once KEY_ROTATION_GRACE_SECONDS
+# has elapsed since `key_rotated_at` or on the next rotation, whichever
+# comes first.
+for _device_id, _info in DEVICE_REGISTRY.items():
+    _info.setdefault("status", "active")           # active | revoked
+    _info.setdefault("key_version", 1)              # increments on every rotate_key() call
+    _info.setdefault("secret_previous", None)       # populated only during a grace period
+    _info.setdefault("key_rotated_at", None)        # time.time() of the last rotation, None if never rotated
+del _device_id, _info
+
+KEY_ROTATION_GRACE_SECONDS = 24 * 3600   # docs/02 Section 3's "24 hours in hardware-time-equivalent" default
+
 # --- Real hardware onboarding (firmware/HARDWARE_SETUP.md) ---
 # Once a real ESP32 is flashed and running firmware/main.py for a given
 # device_id, add that id here so device_simulator.py stops also publishing
@@ -243,6 +262,17 @@ STALE_AFTER_SECONDS = 20         # a device not heard from in this long is "stal
 PROCESS_STALE_AFTER_SECONDS = 20  # separate staleness clock for the Process Anomaly Score --
                                    # its VALUE is never touched on staleness, only this status
                                    # (docs/05_module4_continuous_verification.md Section 2.2)
+
+# Found live (RESULTS.md Section 13): trust_engine.is_stale()/
+# get_process_anomaly()'s staleness checks are lazily evaluated, but their
+# only call site in gateway.py always runs immediately after
+# update_process_anomaly() refreshes the very state being checked -- so in
+# a live gateway, staleness was never actually reachable without a
+# dedicated periodic check independent of message arrival. This is that
+# check's interval -- how often gateway.py's silence watchdog (its own
+# background thread, same pattern as the dashboard/HTTPS second
+# transport) sweeps every registered device.
+SILENCE_CHECK_INTERVAL_SECONDS = 5
 
 # --- Flood / rate-limit detection (Module 4 extension, IEC 62443 FR7
 # "Resource Availability") ---
@@ -418,6 +448,14 @@ RL_TRAINING_EPISODES = 20        # passes over the offline dataset during script
 # MODELS_DIR/DATA_COLLECTED_DIR's pattern above -- now correct regardless
 # of which directory a script is launched from.
 AUDIT_DB_PATH = os.path.join(_SRC_DIR, "data", "audit_log.db")
+
+# --- Decision-channel anti-replay (Module 2, RESULTS.md Section 14 item 3) ---
+# Same boot_id/seq pattern telemetry replay already uses (trust_engine.
+# check_boot_replay()), applied in the other direction: the GATEWAY is the
+# one whose "boot" can restart here, so gateway.py persists its own
+# incrementing boot id the same way firmware/main.py persists boot_id.txt
+# on the device side.
+GATEWAY_BOOT_ID_PATH = os.path.join(_SRC_DIR, "data", "gateway_boot_id.txt")
 
 # --- Hash-chained audit log + checkpoints (Module 7, docs/08 Section 3) ---
 # The in-DB hash chain alone only catches an attacker who edits an old row

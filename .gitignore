@@ -31,6 +31,11 @@ data/audit_log.db
 src/data/audit_log.db
 *.db
 
+# gateway.py's own boot_id counter (decision-channel anti-replay,
+# RESULTS.md Section 14 item 3) -- same treatment as firmware/main.py's
+# boot_id.txt on the device side: local runtime state, not source.
+src/data/gateway_boot_id.txt
+
 # Audit-log checkpoint HMAC key (audit_log.py) -- same category as the TLS
 # private keys above: real secret key material generated locally, never
 # committed. checkpoint_log.jsonl is derived from it (HMACs computed with

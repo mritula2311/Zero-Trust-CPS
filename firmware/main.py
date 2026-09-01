@@ -313,11 +313,50 @@ def _consteq(a, b):
 
 
 def verify_decision_signature(payload, signature_hex):
-    canonical = (
-        '{"decision": "%s", "device_id": "%s", "ts": %d}'
-    ) % (payload["decision"], payload["device_id"], payload["ts"])
+    # Reuses canonical_json() (the same generic sorted-keys builder telemetry
+    # uses) instead of a hand-rolled fixed-field format string, now that the
+    # gateway's payload carries 5 fields (decision, device_id, ts,
+    # gateway_boot_id, decision_seq), not 3 -- one canonicalisation
+    # implementation for both directions is less risk than two.
+    fields = {
+        "decision": '"%s"' % payload["decision"],
+        "device_id": '"%s"' % payload["device_id"],
+        "ts": str(payload["ts"]),
+        "gateway_boot_id": str(payload["gateway_boot_id"]),
+        "decision_seq": str(payload["decision_seq"]),
+    }
+    canonical = canonical_json(fields)
     expected = ubinascii.hexlify(hmac_sha256(DEVICE_SECRET.encode(), canonical.encode())).decode()
     return _consteq(expected, signature_hex)
+
+
+# Decision-channel anti-replay (RESULTS.md Section 14 item 3): mirrors
+# gateway.py's own check_boot_replay() logic for telemetry, applied here to
+# the gateway's OUTGOING decisions instead. RAM-only, not persisted to
+# flash like the device's own boot_id.txt -- a device reboot means
+# starting trust fresh anyway, and a captured-and-replayed old decision is
+# a much lower-stakes forgery than replayed sensor data (it's an ephemeral
+# access grant, not something feeding a trust score), so losing this state
+# across a device reboot is an accepted, deliberate simplification, not an
+# oversight.
+_last_decision_boot_id = None
+_last_decision_seq = 0
+
+
+def check_decision_replay(payload):
+    global _last_decision_boot_id, _last_decision_seq
+    boot_id = payload["gateway_boot_id"]
+    seq = payload["decision_seq"]
+    if _last_decision_boot_id is None or boot_id > _last_decision_boot_id:
+        _last_decision_boot_id = boot_id
+        _last_decision_seq = seq
+        return False  # not a replay -- first decision seen, or a fresh gateway restart supersedes everything before it
+    if boot_id < _last_decision_boot_id:
+        return True  # a lower boot_id is from a superseded gateway session -- always stale
+    if seq <= _last_decision_seq:
+        return True  # same gateway session, but this seq was already seen or is going backwards
+    _last_decision_seq = seq
+    return False
 
 
 _pending_step_up_nonce = None  # module-level: set by on_message(), consumed by the next build_and_sign() call
@@ -340,11 +379,16 @@ def on_message(topic, msg):
     except (ValueError, KeyError):
         print("[decision] malformed message, dropping")
         return
-    if verify_decision_signature(payload, signature):
-        print("[decision] << verified gateway decision:", payload["decision"])
-    else:
+    if not verify_decision_signature(payload, signature):
         print("[decision] !! REJECTED decision -- signature invalid (forged/tampered, or not really "
               "from the gateway) -- ignoring, NOT acting on it")
+        return
+    if check_decision_replay(payload):
+        print("[decision] !! REJECTED decision -- valid signature, but boot_id/seq indicates a replay "
+              "(gateway_boot_id=%s decision_seq=%s) -- ignoring, NOT acting on it" %
+              (payload["gateway_boot_id"], payload["decision_seq"]))
+        return
+    print("[decision] << verified gateway decision:", payload["decision"])
 
 
 def main():

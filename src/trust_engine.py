@@ -48,7 +48,80 @@ from config import (
     STEP_UP_SUCCESS_SCORE_BOOST,
     IDENTITY_TARGETING_RISK_THRESHOLD_60S,
     IDENTITY_TARGETING_COOLDOWN_SECONDS,
+    KEY_ROTATION_GRACE_SECONDS,
 )
+
+
+# ---------------------------------------------------------------------------
+# Module 1, docs/02_module1_device_identity.md Sections 2-3: key rotation /
+# device revocation. The schema (`status`, `key_version`, `secret_previous`,
+# `key_rotated_at`) lives on DEVICE_REGISTRY entries themselves
+# (config.py) -- these are the operations that mutate it, mirroring the
+# doc's register_device()/revoke_device()/rotate_key() spec. DEVICE_REGISTRY
+# is a plain, mutable, shared dict (the one object every module imports),
+# so mutating it here is visible everywhere immediately, no restart needed
+# -- the same "config.py holds all state, no separate database" pattern
+# Module 1 already uses (docs/02's AS-BUILT note).
+# ---------------------------------------------------------------------------
+
+def revoke_device(device_id: str) -> None:
+    """Sets status=revoked. gateway.py's process_telemetry() checks this
+    BEFORE HMAC verification and rejects unconditionally -- a hard
+    override regardless of signature validity, per the doc's spec that a
+    revoked device's messages are rejected 'regardless of HMAC validity'."""
+    if device_id in DEVICE_REGISTRY:
+        DEVICE_REGISTRY[device_id]["status"] = "revoked"
+
+
+def reinstate_device(device_id: str) -> None:
+    """Inverse of revoke_device() -- not in the original doc's spec, but a
+    revocation with no way back isn't operationally realistic (a device
+    pulled for suspected compromise that turns out clean needs a path back
+    in without re-provisioning a brand new secret)."""
+    if device_id in DEVICE_REGISTRY:
+        DEVICE_REGISTRY[device_id]["status"] = "active"
+
+
+def rotate_key(device_id: str, new_secret: str) -> None:
+    """Moves the current secret to secret_previous (valid for
+    KEY_ROTATION_GRACE_SECONDS, checked by verify_signature_with_rotation()
+    below), installs new_secret as current, and increments key_version.
+    Caller generates new_secret (e.g. secrets.token_hex(16), matching
+    src/secrets_local.example.py's own generation pattern) -- this
+    function only performs the swap, it does not generate key material
+    itself, so the caller controls exactly where the new secret is
+    distributed to the physical device out-of-band."""
+    info = DEVICE_REGISTRY.get(device_id)
+    if info is None:
+        return
+    info["secret_previous"] = info["secret"]
+    info["secret"] = new_secret
+    info["key_version"] = info.get("key_version", 1) + 1
+    info["key_rotated_at"] = time.time()
+
+
+def verify_signature_with_rotation(device_id: str, previous_check) -> bool:
+    """Grace-period check: is `previous_check(secret_previous)` true, AND
+    are we still within KEY_ROTATION_GRACE_SECONDS of the last rotation?
+    Called by gateway.py ONLY after the current-key check has already
+    failed -- this never widens acceptance beyond what the current key
+    already covers, it only extends a temporary second chance for a
+    device that hasn't yet picked up a just-rotated key. Once the grace
+    window elapses, secret_previous is cleared so it can't be checked
+    (and, incidentally, isn't leaked back out via config even if read)."""
+    info = DEVICE_REGISTRY.get(device_id, {})
+    previous = info.get("secret_previous")
+    rotated_at = info.get("key_rotated_at")
+    if previous is None or rotated_at is None:
+        return False
+    if time.time() - rotated_at > KEY_ROTATION_GRACE_SECONDS:
+        info["secret_previous"] = None  # grace period elapsed -- stop honoring it
+        return False
+    return previous_check(previous)
+
+
+def is_revoked(device_id: str) -> bool:
+    return DEVICE_REGISTRY.get(device_id, {}).get("status") == "revoked"
 
 
 def rule_range_score(device_id: str, reading) -> tuple[float, str]:

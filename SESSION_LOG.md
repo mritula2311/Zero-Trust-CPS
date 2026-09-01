@@ -2133,9 +2133,9 @@ reading back a previous merge, then appends every collected real session)
 — matching `generate_training_data.py`'s own documented intent that real
 `data/collected/*.json` should be swappable in without touching any
 `train_*.py` script. 5 collection sessions run (one caught 0 records,
-overlapping an ~11-minute real board outage — a WiFi/MQTT drop that
-didn't self-recover and needed a manual reset; root cause not identified,
-flagged as an open item), totaling 380 real records. Retrained
+overlapping an ~11-minute window where the board was manually
+disconnected by the user -- confirmed directly, not a mystery bug),
+totaling 380 real records. Retrained
 `train_isolation_forest.py` → `train_lstm_ae.py` → `train_gnn.py` →
 `train_fusion_meta_learner.py` (that dependency order — each stage loads
 the previous stage's freshly trained scorer) at two checkpoints (253 real
@@ -2219,3 +2219,110 @@ the dashboard as a background thread inside the gateway process rather
 than either a separate process (pre-§29) or absent entirely (§29).
 `README.md`, `RESULTS.md`, `docs/00_overview.md`'s deviation list, and
 `iec62443_mapping.py`'s zone description updated to match.
+
+---
+
+## 31. Closing RESULTS.md's Known Limitations table — three real gaps implemented, two stale entries corrected, and a sixth issue found along the way
+
+Asked to "solve all" five items in RESULTS.md Section 14. Checked the
+table against the current code FIRST rather than trusting it, since two
+dashboard-related staleness rounds (§29/§30) had already shown that table
+of claims can drift from reality:
+
+- **Item 2 (Level-2 explainability) and item 5 (`high_rate` Process-score
+  movement) were already stale** — item 2 was fully implemented (grepped
+  `level2_explain` across every scorer, confirmed real and wired up: not
+  a new build). Item 5 was root-caused, not previously investigated:
+  wrote `scripts/diagnose_high_rate_leak.py`, importing
+  `evaluate_trust_responsiveness.py`'s own `replay_with_state()` replay
+  logic (not reimplemented, so it can't silently diverge from the number
+  that flagged this) but keeping every sub-signal instead of just the
+  fused output. Every flagged row was `esp32-vib-001`, `rule_score`
+  passing cleanly, `lstm_score` floored at `0.0` -- and **17 of 18**
+  flagged rows sat *exactly 4 messages* after a real `anomalous_shock`,
+  inside `LSTM_SEQ_LEN=8`'s window (verified computationally: the one
+  exception, at distance 10, had by far the mildest score dip). Root
+  cause: `anomalous_shock` (`tick%12==7`) and `high_rate` (`tick%18==11`)
+  are fixed periodic patterns in the synthetic generator, so they
+  deterministically land near each other on a regular cadence -- the same
+  "window residue" effect already documented for the LSTM-AE/Transformer
+  comparison, just never checked against `high_rate` specifically. Not a
+  live rate-to-process leak; the two-score separation itself is intact.
+
+- **Item 1 (key rotation / device revocation) implemented for real**,
+  following the already-specified `docs/02_module1_device_identity.md`
+  schema but adapted to this project's actual architecture (additive
+  fields on the existing `DEVICE_REGISTRY` dict in `config.py`, not a new
+  SQLite `devices` table -- the original doc's schema assumed a table
+  this project never uses, per `docs/00_overview.md`'s deviation #3).
+  `trust_engine.py` gained `revoke_device()`/`reinstate_device()`/
+  `rotate_key()`/`is_revoked()`/`verify_signature_with_rotation()`;
+  `gateway.py` checks revocation before HMAC (a hard override) and tries
+  `secret_previous` as a grace-period fallback only after the current key
+  fails. Verified with a 7-assertion end-to-end test (revoke, reinstate,
+  rotate, old key inside grace period, new key, wrong key rejected, old
+  key correctly stops working once the grace period is aged past) plus a
+  live `process_telemetry()` call against a revoked device, confirmed
+  logged as `REJECTED (device_revoked)`.
+
+- **Item 3 (decision-channel replay) implemented for real**, the same
+  `boot_id`/`seq` pattern telemetry already uses, applied to the
+  gateway's outgoing decisions: `gateway.py` persists its own
+  `gateway_boot_id` (`src/data/gateway_boot_id.txt`, gitignored, same
+  treatment as the device's own `boot_id.txt`) and a per-device
+  `decision_seq` counter, signed into every decision. `firmware/main.py`'s
+  `verify_decision_signature()` was rebuilt on top of `canonical_json()`
+  (the same generic sorted-keys builder telemetry already uses) instead
+  of a hand-rolled fixed-field format string, specifically to not repeat
+  the earlier telemetry canonicalisation risk -- verified byte-for-byte
+  identical against Python's `json.dumps(payload, sort_keys=True)` for
+  the new 5-field payload, and the full HMAC signature verified to match
+  end to end. `check_decision_replay()` mirrors `check_boot_replay()`'s
+  logic (strictly-higher boot_id always wins; same boot_id needs a
+  strictly-higher seq).
+
+- **A sixth, unlisted issue found while verifying items 1 and 3**:
+  `trust_engine.is_stale()` (Security side) had zero call sites anywhere
+  in the codebase, and `get_process_anomaly()`'s staleness check (Process
+  side) had exactly one -- inside `gateway.py::process_telemetry()`,
+  always called immediately AFTER `update_process_anomaly()` refreshes
+  the very timestamp being checked. Verified against the REAL audit log
+  (not assumed): the genuine ~753-second silence in the actual board
+  session earlier this session shows the very first message after it
+  logged `process_status: 'FRESH'`, never `'STALE'` -- the staleness code
+  was correct in isolation but structurally unreachable via the live
+  message-triggered path. This directly answers the practical question
+  that same silence raised (was the board offline, disconnected, or
+  compromised? -- previously indistinguishable from "nothing happening"
+  at all). Fixed: `gateway.py` now runs a background silence watchdog
+  (`start_silence_watchdog()`, same thread pattern as the dashboard/HTTPS
+  transport, checking every `SILENCE_CHECK_INTERVAL_SECONDS=5`) that
+  exercises both staleness checks independent of message arrival, logs a
+  real audit row on the silence-start AND the return-to-normal
+  transition (`decision="SILENT"`, `reason_category="device_silent"`),
+  and alerts once per episode, not every sweep. Verified end to end:
+  simulated a device going silent, confirmed `is_stale()`/
+  `get_process_anomaly()` now correctly report stale with the score
+  frozen (not decayed, per the design's own stated philosophy), and
+  confirmed the resulting audit row writes correctly with the hash chain
+  staying intact afterward. (The real ~11-minute board silence itself was
+  confirmed with the user to be a manual disconnection, not a bug --
+  RESULTS.md's and this file's earlier "root cause not identified"
+  framing corrected accordingly.)
+
+- **One more real confirmation added while working through the above**:
+  the real board genuinely triggered a live `FLOOD -> BLOCK` response
+  (`rms=1.02 FLOOD | security=0.49 | process=0.40(FRESH) | BLOCK`) --
+  previously this exact response was only ever confirmed against
+  `device_simulator.py`'s synthetic flood scenario. Added to RESULTS.md's
+  confirmed-behaviours table as the first live confirmation against
+  genuine hardware, explicitly distinguished from Section 13.2's still-
+  pending Process Anomaly (physical fault) adversarial testing -- this is
+  a Security Trust (rate/timing) domain event, not a physical one.
+
+`RESULTS.md` Section 14 rewritten: all five original items now marked
+resolved (struck through, not deleted, so the roadmap's own history stays
+visible), plus the new sixth-issue writeup. Nothing left on that list
+requiring further engineering -- item 4 (stealthy in-range forged values)
+remains the one architecturally-capped item, not fixable by more
+modeling, per its own entry.
