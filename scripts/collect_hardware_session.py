@@ -20,6 +20,15 @@ schedule while it's running. It exits on its own once the schedule
 completes, writing:
   - data/collected/hardware_session_<timestamp>.json  (raw records)
   - firmware/HARDWARE_DATA_LOG.md                      (human-readable log)
+
+The first SETTLE_SECONDS of every phase (including the first) are
+received but excluded from the output, printed as [settling] rather than
+[collector] -- found live that handling the board right at a phase
+transition (picking it up, cable movement) disturbs the NEXT phase's
+readings more than the deliberate action does, which previously showed up
+as e.g. moderate_shake looking calmer than the at_rest phases around it.
+Phase labels are still approximate, not precise ground truth, even with
+this window -- see RESULTS.md Section 13.2's methodology caveat.
 """
 
 import datetime
@@ -71,17 +80,34 @@ PHASES_LONG = [
 
 PHASES = PHASES_LONG if "--long" in sys.argv else PHASES_SHORT
 
+# Excluded from recording at the START of every phase (including the very
+# first) -- found live that picking the board up / setting it down / cable
+# movement right at a phase transition produced more physical disturbance
+# than the deliberate action for the NEXT phase, contaminating that
+# phase's label (e.g. moderate_shake showing LESS variation than the
+# at_rest phases around it). Settling records are still received and
+# counted in the console log (as [settling], distinct from [collector]),
+# just not written to the output JSON.
+SETTLE_SECONDS = 5.0
+
 records = []
+settled_count = 0
 start_time = None
 
 
-def current_phase(elapsed):
+def phase_and_time_in_phase(elapsed):
+    """Returns (phase_name, seconds_since_this_phase_started) or (None, 0)
+    once the whole schedule has finished."""
     t = 0
     for name, duration, _ in PHASES:
         if elapsed < t + duration:
-            return name
+            return name, elapsed - t
         t += duration
-    return None  # schedule finished
+    return None, 0
+
+
+def current_phase(elapsed):
+    return phase_and_time_in_phase(elapsed)[0]
 
 
 def on_connect(client, userdata, flags, reason_code, properties=None):
@@ -90,11 +116,11 @@ def on_connect(client, userdata, flags, reason_code, properties=None):
 
 
 def on_message(client, userdata, msg):
-    global start_time
+    global start_time, settled_count
     if start_time is None:
         return  # schedule hasn't started yet
     elapsed = time.time() - start_time
-    phase = current_phase(elapsed)
+    phase, time_in_phase = phase_and_time_in_phase(elapsed)
     if phase is None:
         return  # schedule already finished, ignore stragglers
 
@@ -108,6 +134,11 @@ def on_message(client, userdata, msg):
 
     reading = {name: payload.get(name) for name in FEATURE_NAMES}
     if any(v is None for v in reading.values()):
+        return
+
+    if time_in_phase < SETTLE_SECONDS:
+        settled_count += 1
+        print(f"[settling]  [{phase:16s}] excluded (t+{time_in_phase:.1f}s < {SETTLE_SECONDS:g}s settle window)")
         return
 
     records.append({
@@ -204,6 +235,12 @@ def write_outputs(by_phase):
         f"from `audit_log.db` by timestamp ({matched}/{len(records)} records matched "
         f"within {FUSED_MATCH_TOLERANCE_S:g}s) -- not recomputed by this script.",
         "",
+        f"{settled_count} additional record(s) were excluded entirely (received during "
+        f"the first {SETTLE_SECONDS:g}s of their phase, when handling disturbance from "
+        f"the PREVIOUS phase's transition is still settling) -- not counted above and not "
+        f"in the raw JSON. Even with this window, phase labels remain approximate, not "
+        f"precise ground truth (RESULTS.md Section 13.2).",
+        "",
         "## Per-phase observed feature ranges + live gateway scoring",
         "",
         "| phase | n | rms (g) | peak (g) | crest_factor | kurtosis | dominant_freq (Hz) "
@@ -295,7 +332,8 @@ def main():
         time.sleep(0.5)
 
     session_end = time.time()
-    print("\n[collector] schedule complete, disconnecting...")
+    print(f"\n[collector] schedule complete ({settled_count} record(s) excluded by the "
+          f"{SETTLE_SECONDS:g}s settle window), disconnecting...")
     client.loop_stop()
     client.disconnect()
 
