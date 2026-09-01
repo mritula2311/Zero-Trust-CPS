@@ -8,11 +8,17 @@
 > alongside two legacy scalar devices (`sensor-002`, `actuator-001`) —
 > `src/config.py`'s `DEVICE_REGISTRY`. `firmware/main.py` implements
 > Section 5's firmware spec (boot_id persisted to a local file as the
-> flash-equivalent, NTP time sync, step-up echo) but **has not been
-> flashed to a real board** — verified in software only (canonicalisation/
-> HMAC round-trip tested against synthetic values), same status as every
-> prior session. See `00_overview.md`'s AS-BUILT callout for the full list
-> of deviations and `SESSION_LOG.md` for the narrative.
+> flash-equivalent, NTP time sync, step-up echo) and **has since been
+> flashed to a real ESP32 + MPU6050, authenticated, and run live** — no
+> longer software-only. Real bring-up surfaced bugs no amount of
+> synthetic-value checking could (a MicroPython epoch mismatch, an
+> `ussl`/`ssl` module rename, intermittent NTP timeouts, and — from
+> physically manipulating the board — an I2C-vs-MQTT exception-handling
+> bug and a missing `rms` rule-check floor), all found and fixed; see
+> `RESULTS.md` Section 13 for the full real-hardware results and
+> `firmware/HARDWARE_SETUP.md` for the current bring-up guide. See
+> `00_overview.md`'s AS-BUILT callout for the full list of deviations and
+> `SESSION_LOG.md` for the narrative.
 
 **Read this before implementing any of Modules 1–7.** This is the layer that makes the entire project buildable and testable today, with zero hardware, and lets the real ESP32 + MPU6050 slot in later without touching any downstream module.
 
