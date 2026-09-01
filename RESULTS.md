@@ -750,6 +750,58 @@ software-only pre-hardware verification structurally could not catch
 state), which is the whole reason this section exists separately from
 Sections 1–12.
 
+### 13.0.1 Why `process_trust_score` Initially Read Near-Zero — Investigated, Not Assumed
+
+Once telemetry was flowing and authenticated, the live gateway console
+showed a genuinely normal board scoring `process=0.00`, `gnn_score=0.00`,
+an identical-looking `SHAP=-6.45`, and a `security_trust_score` plateaued
+around 0.90–0.91 — enough overlapping oddities to warrant re-checking the
+whole scoring pipeline rather than assuming any one of them. Read
+`gnn_scorer.py`, `explainability.py`, `fusion_engine.py`, and
+`trust_engine.py` directly against the actual `audit_log.db` rows (not
+just the console text) to get a grounded answer for each:
+
+- **`gnn_score≈0.00`**: the GNN's node features are `[rule_score,
+  if_score, lstm_score]`, not raw sensor values, and it only forms graph
+  edges to devices active within `GNN_EDGE_WINDOW_SECONDS`. With
+  `sensor-002`/`actuator-001` not currently publishing, `esp32-vib-001`
+  had no active neighbors — its output was a function of only its own
+  inputs, landing deep in the trained model's saturated sigmoid tail for
+  that combination. Confirmed genuinely moving, not frozen: real DB values
+  ranged `4.6e-8` to `2.2e-7` — too small to print as anything but `0.00`.
+- **`SHAP=-6.45` looking identical across messages**: it wasn't — raw
+  values differed in the 6th decimal place, and the console rounds to 2
+  significant figures for display. The LSTM-AE's SHAP contribution *was*
+  briefly bit-identical every message (before the real-data retrain in
+  13.2), because `lstm_score` itself was exactly `0.0` every message —
+  legitimate `LinearExplainer` math (`coefficient × (x − background_mean)`
+  gives identical output for identical input), not a caching bug.
+- **`process_trust_score≈0.00`**: `fusion_engine.py`'s combine step is
+  additive in log-odds (a fitted `LogisticRegression`), not a
+  multiplicative crush by one bad signal. But three of the four inputs
+  (`if_score`, `lstm_score`, `gnn_score`) were independently reading this
+  device as anomalous at once, summing to roughly -13 to -15 log-odds;
+  `rule_score`'s SHAP contributed almost nothing because 0.9 (a passing
+  rule check) is also close to what the models consider "typical," so it
+  carries little marginal information either way. This is the same
+  train/serve mismatch Section 13.2's retraining directly addresses.
+- **`security_trust_score` plateaued ~0.90–0.91**: solved algebraically,
+  not just observed — `trust_engine.py::score_security_trust()`'s EWMA
+  (`α=0.35`, `TRUST_DECAY_PER_SECOND=0.01`, ~2.2s between messages,
+  observation=0.95 for "authenticated, normal rate") has a fixed point at
+  `0.35×0.95 + 0.65×(score − decay) = score` → **score ≈ 0.908**, matching
+  the observed 0.907–0.91 range exactly. Genuine steady-state convergence
+  for a consistently well-behaved device, not an artificial cap (the only
+  clamps in that function are 0/1 sanity bounds, never hit here).
+
+**Verdict, and the one real bug that surfaced along the way**: every
+low/plateaued number above is a real, mathematically-consistent
+consequence of feeding real hardware through models trained solely on
+synthetic data (Section 13.2 is the fix — more real training data) — not
+a computation bug. The one genuine bug this investigation *did* surface is
+already listed as item 4 in Section 13.0 above (the fake GNN neighbor
+attribution).
+
 ### 13.1 Device-Side Latency — still pending
 
 Not yet instrumented. Needs `time.ticks_ms()` added around the signing/
@@ -780,6 +832,20 @@ records**. Observed real feature ranges (combined across all sessions):
 
 All comfortably inside `DEVICE_REGISTRY["esp32-vib-001"]["expected_ranges"]`
 (Section 13.3) — no rule-based range false positives from real hardware.
+
+**Methodology caveat, noticed and worth stating plainly**: the per-phase
+labels in `firmware/HARDWARE_DATA_LOG.md` are approximate, not precise
+ground truth. In more than one session, the `moderate_shake` phase showed
+*less* feature variation than the `at_rest` phases surrounding it — almost
+certainly because picking the board up / setting it down / cable
+movement right at a phase boundary produced more physical disturbance
+than the deliberate "shake" itself. Harmless for this round's purpose
+(all of it is legitimate real-hardware data, correctly labeled `label=1`/
+`event_type="normal"` regardless of which specific phase it landed in —
+see `scripts/collect_hardware_session.py`'s docstring), but anyone using
+the per-phase breakdown for something that depends on the label being
+precise (e.g. training a model to distinguish rest vs. active states)
+should account for this rather than trust the phase column at face value.
 
 **Folding real data into the trained models** (`scripts/
 merge_real_hardware_data.py` + retraining `scripts/train_isolation_forest.py`
