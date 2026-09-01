@@ -61,21 +61,25 @@ forged/tampered/wrong-secret decision message is rejected by the device
 genuine gateway decision passes (`<< verified gateway decision: ALLOW`) —
 see `SESSION_LOG.md`.
 
-**A real, stated gap this does not close**: the decision channel has no
-replay check of its own — a captured, validly-signed old decision could in
-principle be replayed. Lower stakes than telemetry replay (decisions are
-ephemeral access grants, not sensor readings feeding trust scoring), but
-genuinely undone. A move to mTLS (once client certs are added to
-`coap_server.py`) is real, buildable future work beyond HMAC for this
-direction, as is ECC-based challenge-response for devices with a crypto
-accelerator ([21], [36]) — either would be a drop-in replacement behind the
-same `device_id, payload, signature -> auth_ok`-shaped interface, not a
-redesign.
+**This gap is now closed** (`RESULTS.md` Section 14 item 3): the decision
+channel has its own `boot_id`/`seq`-style anti-replay, exactly as this
+section originally proposed — `gateway.py` persists its own incrementing
+`gateway_boot_id` (`src/data/gateway_boot_id.txt`, gitignored, same
+treatment as a device's own `boot_id.txt`) and a per-device `decision_seq`
+counter, both signed into every decision payload;
+`firmware/main.py::check_decision_replay()` mirrors `check_boot_replay()`'s
+logic (strictly-higher boot_id always wins; same boot_id needs a
+strictly-higher seq). Verified byte-for-byte that the canonical string
+construction matches the gateway's `json.dumps(payload, sort_keys=True)`
+exactly, and that the full HMAC signature matches end to end.
 
-See `RESULTS.md` Section 14 for the concrete remediation plan: extending
-the `boot_id`/`seq` scheme already built for telemetry replay (this file,
-above) to decision messages is mechanically the same fix applied a second
-time, not a new mechanism.
+A move to mTLS (once client certs are added to `coap_server.py`) or
+ECC-based challenge-response for devices with a crypto accelerator
+([21], [36]) both remain real, buildable future work beyond HMAC+seq for
+this direction if a stronger mechanism is ever wanted — either would be a
+drop-in replacement behind the same
+`device_id, payload, signature -> auth_ok`-shaped interface, not a
+redesign.
 
 ## 2. What HMAC Does and Does Not Prove
 

@@ -9,7 +9,7 @@
 > two scores, never blended before the policy step — is now **actually
 > implemented**, along with this doc set's `boot_id`/`seq` anti-replay
 > scheme, `IdentityTargetingRisk` attribution fix, real step-up
-> challenge/response, and hash-chained audit log. Five deliberate
+> challenge/response, and hash-chained audit log. Eight deliberate
 > deviations from what follows, each with a stated reason, not an
 > oversight:
 > 1. **Process Anomaly Score stays trust-style (high = normal)**, not the
@@ -67,6 +67,26 @@
 >    dashboard (`dashboard.py`, Streamlit) referenced throughout the
 >    original docs was found during this work to never have existed in the
 >    repo at all — stale documentation, not a real feature that was removed.
+> 8. **All five of `RESULTS.md` Section 14's known limitations are now
+>    resolved**, plus a sixth found while closing them: key rotation/
+>    device revocation and decision-channel replay implemented (as
+>    additive `DEVICE_REGISTRY`/`gateway.py` state, not the SQLite
+>    `devices` table `02_module1_device_identity.md` originally specified
+>    — see that file's own AS-BUILT note); Level-2 explainability and the
+>    `high_rate` Process-score question were already resolved/explained,
+>    not new work; and `trust_engine.is_stale()`/`get_process_anomaly()`'s
+>    staleness checks, real in the design but never actually reachable in
+>    the live message-triggered path, now run on a genuine background
+>    watchdog thread (`05_module4_continuous_verification.md`'s own
+>    AS-BUILT note has the full story — this is the
+>    `background_decay_task()` that section's pseudocode always called
+>    for, previously skipped as an unnecessary simplification). Two
+>    further real hardware faults found by physically manipulating the
+>    board (MPU6050 disconnected; VCC removed entirely) each surfaced and
+>    closed one more real gap — an `rms` rule-bound floor and an I2C-vs-
+>    MQTT exception-handling bug — both re-verified live after fixing, not
+>    just fixed and assumed. Full detail in `RESULTS.md` Section 13.2/14
+>    and `SESSION_LOG.md`'s final entries.
 >
 > Read `SESSION_LOG.md`'s final entry for the full reconciliation
 > narrative. Everything else in this file describes the architecture as it

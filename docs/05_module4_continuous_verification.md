@@ -4,16 +4,28 @@
 > is implemented as specified —
 > `trust_engine.ProcessAnomalyState`/`update_process_anomaly()`/
 > `get_process_anomaly()` retains the Process Anomaly Score exactly and
-> only flips `FRESH`→`STALE` on silence. One deliberate simplification:
-> staleness is evaluated **lazily** (checked at read-time — on the next
-> incoming message, or whenever a dashboard queries it) rather than a
-> live-ticking background thread every `DECAY_TICK_SECONDS`. This gateway
-> is single-threaded with no prior background-task precedent; since the
-> score value itself never changes on silence either way, only correctness
-> of `status` at the moments it's actually read matters, not continuous
-> real-time updates between messages. Security Trust's decay
-> (`score_security_trust()`) works the same way — decay-since-last-update
-> is applied retroactively on the next message, not ticked live.
+> only flips `FRESH`→`STALE` on silence.
+>
+> **The lazy-evaluation reasoning below this line originally justified
+> NOT building the `background_decay_task()` this section's own pseudocode
+> calls for — that turned out to be a real bug, not a safe simplification,
+> found live against real hardware.** Staleness was evaluated lazily
+> (checked at read-time), but `get_process_anomaly()`'s only call site in
+> `gateway.py` always ran immediately AFTER `update_process_anomaly()`
+> refreshed the very timestamp being checked — so "whenever a dashboard
+> queries it" was never actually true (nothing else called it; `is_stale()`
+> on the Security side had zero call sites anywhere). Verified against a
+> genuine ~753-second silence in the real board's session: the first
+> message after it logged `process_status: 'FRESH'`, never `'STALE'`. The
+> gateway now runs exactly the background task this section originally
+> specified — `gateway.py::start_silence_watchdog()`, a background thread
+> (`SILENCE_CHECK_INTERVAL_SECONDS`, default 5s) checking every registered
+> device's staleness independent of message arrival, logging a real audit
+> row on both the silence-start and return-to-normal transition. Verified
+> end to end: simulated a device going silent, confirmed the score stayed
+> frozen (not decayed) while `status` correctly flipped to `STALE`, and
+> confirmed the resulting audit row and hash chain both check out. See
+> `RESULTS.md` Section 14's "sixth issue" writeup for the full story.
 
 ## 1. Purpose
 

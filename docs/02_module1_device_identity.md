@@ -7,14 +7,19 @@
 > Module 2), `mqtt_username`/`mqtt_password` (a deliberately separate
 > transport-layer credential, Module 6), and either `expected_range`
 > (scalar devices) or `expected_ranges` (the 5-feature vibration vector).
-> Key rotation and `secret_key_previous` grace-period handling described
-> below are **not implemented** — every device has exactly one active
-> secret; this is a real, smaller-scope gap relative to this file's design,
-> not yet built. `revoke_device()` is likewise not implemented (no
-> `status` field). See `00_overview.md`'s AS-BUILT callout for the full
-> deviation list, and `RESULTS.md` Section 14 for the concrete remediation
-> plan for this specific gap — the schema below is already fully specified,
-> so closing it is pure wiring, not new design.
+> **Key rotation and revocation ARE implemented** (`RESULTS.md` Section
+> 14 item 1) — additive `DEVICE_REGISTRY` fields (`status`, `key_version`,
+> `secret_previous`, `key_rotated_at`, `config.KEY_ROTATION_GRACE_SECONDS`)
+> rather than the SQLite `devices` table below, and `trust_engine.py`'s
+> `revoke_device()`/`reinstate_device()`/`rotate_key()`/`is_revoked()`
+> instead of the standalone functions this file specifies — same
+> semantics (a revoked device is rejected before HMAC regardless of
+> signature validity; `secret_previous` is honored only within the grace
+> window), different storage mechanism, consistent with this file's own
+> "Python dict, not a table" deviation above. Verified with a 7-assertion
+> end-to-end test plus a live rejection of a revoked device
+> (`SESSION_LOG.md`). See `00_overview.md`'s AS-BUILT callout for the
+> full deviation list.
 
 ## 1. Purpose
 

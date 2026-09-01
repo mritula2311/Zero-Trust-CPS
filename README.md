@@ -95,9 +95,13 @@ Two ways to feed it telemetry:
 See `SESSION_LOG.md` (append-only, read top-to-bottom) for the full,
 narrated status — every substitution made (CoAP/DTLS → HTTPS; GNN's graph
 choice; hand-rolled GCN vs. `torch-geometric`) and everything genuinely
-still TODO (flashing real hardware, a real physical adversarial-testing
-session) — and `docs/00_overview.md` onward for the as-built architecture
-reference.
+still TODO (a FORMAL, structured physical adversarial-testing session with
+human-labelled ground truth — real hardware is flashed and running, and
+two real faults have already been found and fixed by informally
+manipulating the board live, `RESULTS.md` Section 13.2, but a proper
+`scripts/collect_hardware_session.py`-style capture of deliberately
+induced faults hasn't been done yet) — and `docs/00_overview.md` onward
+for the as-built architecture reference.
 
 ## Setup
 
