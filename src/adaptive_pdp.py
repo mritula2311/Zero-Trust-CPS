@@ -1,22 +1,23 @@
 """
-Module 5, Phase 8: RL-Adaptive Access Control / Policy Decision Point.
+Module 5, RL-Adaptive Access Control / Policy Decision Point.
 
-CLAUDE.md Section 8 / implementation-docs/05_module_access_control.md
-Part B: training happens offline in scripts/train_adaptive_pdp.py, which
-runs the epsilon-greedy Q-learning updates against the labelled training
-session and saves the resulting Q-table to config.ADAPTIVE_PDP_MODEL_PATH.
-This file's `AdaptivePDP.choose_action()` only ever READS that Q-table
-(with epsilon-greedy action SELECTION, which is not the same as learning
--- no Q-VALUES are ever updated here); `update()` exists only for the
-training script to call.
+Training happens offline in scripts/train_adaptive_pdp.py, which runs the
+epsilon-greedy Q-learning updates against the labelled training session and
+saves the resulting Q-table to config.ADAPTIVE_PDP_MODEL_PATH. This file's
+AdaptivePDP.choose_action() only ever READS that Q-table (with
+epsilon-greedy action SELECTION, which is not the same as learning -- no
+Q-VALUES are ever updated here); update() exists only for the training
+script to call. greedy_action() (pure exploitation, no exploration at all)
+is the correct method for the live gateway and every evaluate_*.py script,
+since neither ever calls update() -- a policy that never updates itself
+live has no live-reward-signal problem to solve in the first place; see
+SESSION_LOG.md Section 7 for the bug this distinction fixed.
 
-State = (bucketed trust_score, bucketed confidence) -- synopsis Section
-5.8 / Figure 4.1: "a low trust score with high confidence is a very
-different situation from a low trust score the model itself is unsure
-about," which is exactly what the fusion engine's new `confidence` output
-(fusion_engine.py) lets this module react to, unlike the Phase 5 static
-thresholds which only ever see trust_score.
-Action = {ALLOW, STEP_UP, DENY}.
+TWO-SCORE REARCHITECTURE: state is now
+(security_trust_bucket, process_trust_bucket) instead of
+(trust_bucket, confidence_bucket), and the action space grows from
+{ALLOW, STEP_UP, DENY} to {ALLOW, STEP_UP, ALERT, BLOCK} to match
+policy_engine.decide()'s 2x2 table.
 """
 
 import json
@@ -24,21 +25,33 @@ import os
 import random
 
 from config import (
-    RL_TRUST_BUCKET_SIZE,
-    RL_CONFIDENCE_BUCKET_SIZE,
+    RL_SECURITY_BUCKET_SIZE,
+    RL_PROCESS_BUCKET_SIZE,
     RL_EPSILON,
     RL_ALPHA,
     ADAPTIVE_PDP_MODEL_PATH,
 )
-from policy_engine import decide  # Phase 5 static policy -- used only to seed a fresh Q-table state
+from policy_engine import decide  # static 2x2 policy -- used only to seed a fresh Q-table state
 
-ACTIONS = ["ALLOW", "STEP_UP", "DENY"]
+ACTIONS = ["ALLOW", "STEP_UP", "ALERT", "BLOCK"]
+
+# The four ground-truth situation classes from
+# docs/10_testing_and_attack_simulation.md Section 4.1's confusion matrix,
+# and which action is "correct" for each -- shared between reward_for()
+# below and scripts/evaluate_rl_policy.py's confusion-matrix table, so the
+# two never silently drift apart.
+CORRECT_ACTION_FOR_SITUATION = {
+    "normal": "ALLOW",
+    "physical_fault": "ALERT",
+    "security_concern": "STEP_UP",
+    "combined": "BLOCK",
+}
 
 
-def state_key(trust_score: float, confidence: float) -> str:
-    trust_bucket = int(trust_score / RL_TRUST_BUCKET_SIZE)
-    confidence_bucket = int(confidence / RL_CONFIDENCE_BUCKET_SIZE)
-    return f"{trust_bucket},{confidence_bucket}"
+def state_key(security_trust_score: float, process_trust_score: float) -> str:
+    security_bucket = int(security_trust_score / RL_SECURITY_BUCKET_SIZE)
+    process_bucket = int(process_trust_score / RL_PROCESS_BUCKET_SIZE)
+    return f"{security_bucket},{process_bucket}"
 
 
 class AdaptivePDP:
@@ -47,45 +60,58 @@ class AdaptivePDP:
         self._load()
 
     def _load(self):
-        if os.path.exists(ADAPTIVE_PDP_MODEL_PATH):
-            with open(ADAPTIVE_PDP_MODEL_PATH) as f:
-                self.q = json.load(f)
+        if not os.path.exists(ADAPTIVE_PDP_MODEL_PATH):
+            return
+        with open(ADAPTIVE_PDP_MODEL_PATH) as f:
+            loaded = json.load(f)
+        # A pre-two-score-rearchitecture Q-table used the SAME "int,int"
+        # key format (trust_bucket,confidence_bucket) this file now uses
+        # for (security_bucket,process_bucket) -- string-identical keys can
+        # exist for entirely different states, and the old action set
+        # {ALLOW, STEP_UP, DENY} is missing ALERT/BLOCK entirely. Loading
+        # it as-is would silently reuse stale, wrong-shaped entries (and
+        # KeyError the first time update()/greedy_action() touched a
+        # collided key expecting the new 4-action set). Any state dict that
+        # doesn't have exactly the current ACTIONS is treated as
+        # incompatible -- discard the WHOLE table rather than partially
+        # trust it, since a table mixing old- and new-semantics entries
+        # under colliding keys would be silently wrong, not just incomplete.
+        if loaded and any(set(qvals.keys()) != set(ACTIONS) for qvals in loaded.values()):
+            print(f"[adaptive_pdp] {ADAPTIVE_PDP_MODEL_PATH} is in the pre-two-score action format "
+                  f"-- discarding and starting fresh (run scripts/train_adaptive_pdp.py to rebuild it).")
+            return
+        self.q = loaded
 
-    def _get_q(self, trust_score: float, confidence: float) -> dict[str, float]:
-        key = state_key(trust_score, confidence)
+    def _get_q(self, security_trust_score: float, process_trust_score: float) -> dict[str, float]:
+        key = state_key(security_trust_score, process_trust_score)
         if key not in self.q:
-            seeded_action = decide(trust_score)
+            seeded_action = decide(security_trust_score, process_trust_score)
             self.q[key] = {a: (1.0 if a == seeded_action else 0.0) for a in ACTIONS}
         return self.q[key]
 
-    def choose_action(self, trust_score: float, confidence: float) -> str:
+    def choose_action(self, security_trust_score: float, process_trust_score: float) -> str:
         """TRAINING-PATH call: epsilon-greedy SELECTION, paired with
         update() in scripts/train_adaptive_pdp.py's training loop --
         exploration only earns its keep when it feeds back into learning.
-        Use greedy_action() instead for the live gateway / evaluation,
-        where no update() ever follows (CLAUDE.md Section 8's hard
-        constraint: no training in the live path) -- unlike the earlier
-        online-learning version of this project, where the live gateway
-        DID call update() and epsilon-exploration there was justified,
-        that's no longer true, so epsilon-noise at inference time is pure
-        downside with no corresponding benefit."""
-        q = self._get_q(trust_score, confidence)
+        Use greedy_action() for the live gateway / evaluation."""
+        q = self._get_q(security_trust_score, process_trust_score)
         if random.random() < RL_EPSILON:
             return random.choice(ACTIONS)
         return max(q, key=q.get)
 
-    def greedy_action(self, trust_score: float, confidence: float) -> str:
+    def greedy_action(self, security_trust_score: float, process_trust_score: float) -> str:
         """LIVE-PATH / EVALUATION call: always the best known action for
-        this state, no exploration. See choose_action()'s docstring for why
-        this -- not choose_action() -- is the correct method once training
-        is fully offline."""
-        q = self._get_q(trust_score, confidence)
+        this state, no exploration, no update() -- see choose_action()'s
+        docstring and this module's docstring for why this is the correct
+        method once training is fully offline."""
+        q = self._get_q(security_trust_score, process_trust_score)
         return max(q, key=q.get)
 
-    def update(self, trust_score: float, confidence: float, action: str, reward: float) -> None:
+    def update(self, security_trust_score: float, process_trust_score: float,
+               action: str, reward: float) -> None:
         """OFFLINE-TRAINING-ONLY. scripts/train_adaptive_pdp.py calls this;
-        the live gateway never does (CLAUDE.md Section 8's hard constraint)."""
-        q = self._get_q(trust_score, confidence)
+        the live gateway never does."""
+        q = self._get_q(security_trust_score, process_trust_score)
         q[action] += RL_ALPHA * (reward - q[action])
 
     def save(self, path: str = ADAPTIVE_PDP_MODEL_PATH) -> None:
@@ -94,14 +120,26 @@ class AdaptivePDP:
             json.dump(self.q, f, indent=1)
 
     @staticmethod
-    def reward_for(action: str, label: int) -> float:
-        """label: 1 = ground-truth legitimate, 0 = ground-truth suspicious.
-        ALLOW/DENY scored against it directly; STEP_UP is a neutral hedge."""
-        if action == "ALLOW":
-            return 1.0 if label == 1 else -1.0
-        if action == "DENY":
-            return 1.0 if label == 0 else -1.0
-        return 0.0  # STEP_UP
+    def reward_for(action: str, situation: str) -> float:
+        """`situation` is one of the four ground-truth classes from
+        docs/10_testing_and_attack_simulation.md Section 4.1's confusion
+        matrix, derived from the training data's event_type
+        (see scripts/train_adaptive_pdp.py::situation_for_event_type()):
+          "normal"            -> correct action is ALLOW
+          "physical_fault"    -> correct action is ALERT   (event_type: anomalous_shock,
+                                                              coordinated, out_of_range --
+                                                              all Process Anomaly evidence,
+                                                              no security concern)
+          "security_concern"  -> correct action is STEP_UP (event_type: forged_signature, replay --
+                                                              pure Security Trust evidence, physical
+                                                              reading itself is unaffected)
+          "combined"          -> correct action is BLOCK   (event_type: stealthy_forged_values --
+                                                              attack matrix row 11: a compromised
+                                                              device deliberately hiding an abnormal
+                                                              reading behind valid credentials)
+        Exact match: +1. Anything else: -1. No partial credit, matching
+        this project's existing reward_for() simplicity."""
+        return 1.0 if action == CORRECT_ACTION_FOR_SITUATION[situation] else -1.0
 
     def is_trained(self) -> bool:
         return os.path.exists(ADAPTIVE_PDP_MODEL_PATH)

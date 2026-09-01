@@ -13,7 +13,7 @@ Generate real random values instead of typing your own, e.g.:
 
 If you change MQTT_PASSWORDS or MQTT_GATEWAY_PASSWORD after
 `certs/mosquitto_passwd` already exists, regenerate that file to match --
-see docs/07_transport_zero_trust.md's "If you ever rotate credentials".
+see docs/07_module6_secure_communication.md Section 3.
 """
 
 DEVICE_SECRETS = {

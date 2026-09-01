@@ -113,3 +113,44 @@ class LSTMAEScorer:
 
     def is_trained(self) -> bool:
         return self.model is not None
+
+    def _error_to_score(self, error: float) -> float:
+        """Same rescaling score() uses -- factored out so level2_explain()'s
+        counterfactual error can be turned into a counterfactual SCORE on
+        the same scale, for the C.4 validation procedure
+        (scripts/evaluate_explainability_level2.py)."""
+        z = (error - self.baseline_error_mean) / self.baseline_error_std
+        return float(np.clip(0.9 - 0.25 * max(z, 0.0), 0.0, 1.0))
+
+    def level2_explain(self, device_id: str) -> tuple[str, float, float] | None:
+        """Module 3 Section C.3's perturbation-based Level-2 explanation
+        for this sub-signal: replace one input channel at a time (across
+        every timestep in the current window) with its training-mean
+        ("normal") value, re-run the autoencoder, and measure how much
+        reconstruction error DROPS. The channel whose replacement drops
+        the error the most is "responsible" for this window's anomaly
+        score -- exactly the method the design doc specifies, applied to
+        the actual live window this scorer already maintains (no new
+        plumbing needed: `self._history` is the same state `score()` uses).
+        Returns (feature_name, error_drop, counterfactual_score) for the
+        top channel -- counterfactual_score is what this sub-signal WOULD
+        have scored with that one channel replaced, feeding Section C.4's
+        validation procedure -- or None if there isn't a full window yet."""
+        window = self._history.get(device_id)
+        if self.model is None or not window or len(window) < LSTM_SEQ_LEN:
+            return None
+
+        arr = (np.array(window, dtype=np.float32) - self.mean) / self.std
+        x = torch.tensor(arr, dtype=torch.float32, device=_TORCH_DEVICE).unsqueeze(0)
+        with torch.no_grad():
+            base_error = float(((self.model(x) - x) ** 2).mean())
+
+            best_name, best_drop, best_cf_error = None, -1.0, base_error
+            for c, name in enumerate(FEATURE_NAMES):
+                perturbed = x.clone()
+                perturbed[:, :, c] = 0.0  # 0.0 in NORMALIZED space == this channel's own training mean
+                perturbed_error = float(((self.model(perturbed) - perturbed) ** 2).mean())
+                drop = base_error - perturbed_error
+                if drop > best_drop:
+                    best_name, best_drop, best_cf_error = name, drop, perturbed_error
+        return (best_name, best_drop, self._error_to_score(best_cf_error)) if best_name is not None else None

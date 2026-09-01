@@ -1,0 +1,2542 @@
+[
+  {
+    "tick": 0,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0523,
+      "peak": 0.0104,
+      "crest_factor": 0.0099,
+      "kurtosis": -0.6438,
+      "dominant_freq": 12.5
+    },
+    "auth_ok": true,
+    "ts": 1788247161000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 0.5,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.0832681238344044
+  },
+  {
+    "tick": 1,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0544,
+      "peak": 0.0111,
+      "crest_factor": 0.0106,
+      "kurtosis": -1.03,
+      "dominant_freq": 9.375
+    },
+    "auth_ok": true,
+    "ts": 1788247163000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 3.0,
+    "decision": "ALLOW",
+    "security_trust_score": 0.907,
+    "fused_score": 0.08926134493980228
+  },
+  {
+    "tick": 2,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0503,
+      "peak": 0.0227,
+      "crest_factor": 0.0216,
+      "kurtosis": -0.6993,
+      "dominant_freq": 6.25
+    },
+    "auth_ok": true,
+    "ts": 1788247165000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 4.9,
+    "decision": "ALLOW",
+    "security_trust_score": 0.91,
+    "fused_score": 0.07815666234695949
+  },
+  {
+    "tick": 3,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0519,
+      "peak": 0.0137,
+      "crest_factor": 0.0131,
+      "kurtosis": -0.0959,
+      "dominant_freq": 6.25
+    },
+    "auth_ok": true,
+    "ts": 1788247167000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 7.3,
+    "decision": "ALLOW",
+    "security_trust_score": 0.908,
+    "fused_score": 0.0828428023036075
+  },
+  {
+    "tick": 4,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0532,
+      "peak": 0.0118,
+      "crest_factor": 0.0112,
+      "kurtosis": -0.6915,
+      "dominant_freq": 6.25
+    },
+    "auth_ok": true,
+    "ts": 1788247170000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 9.5,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.08146697016480708
+  },
+  {
+    "tick": 5,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0523,
+      "peak": 0.0087,
+      "crest_factor": 0.0082,
+      "kurtosis": -0.4519,
+      "dominant_freq": 37.5
+    },
+    "auth_ok": true,
+    "ts": 1788247172000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 11.5,
+    "decision": "ALLOW",
+    "security_trust_score": 0.91,
+    "fused_score": 0.09514133497250357
+  },
+  {
+    "tick": 6,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0525,
+      "peak": 0.0154,
+      "crest_factor": 0.0146,
+      "kurtosis": 0.5757,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247174000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 14.1,
+    "decision": "ALLOW",
+    "security_trust_score": 0.907,
+    "fused_score": 0.09153785329785992
+  },
+  {
+    "tick": 7,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0539,
+      "peak": 0.0155,
+      "crest_factor": 0.0147,
+      "kurtosis": -0.7377,
+      "dominant_freq": 6.25
+    },
+    "auth_ok": true,
+    "ts": 1788247176000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 16.4,
+    "decision": "ALLOW",
+    "security_trust_score": 0.907,
+    "fused_score": 0.07897182865358066
+  },
+  {
+    "tick": 8,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0507,
+      "peak": 0.0189,
+      "crest_factor": 0.0179,
+      "kurtosis": -0.3021,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247178000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 18.2,
+    "decision": "ALLOW",
+    "security_trust_score": 0.91,
+    "fused_score": 0.07760242633576937
+  },
+  {
+    "tick": 9,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0523,
+      "peak": 0.0129,
+      "crest_factor": 0.0123,
+      "kurtosis": -1.1891,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247181000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 20.4,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.0963872034008804
+  },
+  {
+    "tick": 10,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0522,
+      "peak": 0.0181,
+      "crest_factor": 0.0172,
+      "kurtosis": 0.6797,
+      "dominant_freq": 9.375
+    },
+    "auth_ok": true,
+    "ts": 1788247183000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 22.6,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.08619874111990868
+  },
+  {
+    "tick": 11,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 2.2852,
+      "peak": 0.7875,
+      "crest_factor": 0.3446,
+      "kurtosis": -0.1301,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247185000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 24.8,
+    "decision": "ALERT",
+    "security_trust_score": 0.909,
+    "fused_score": 0.18278354404671385
+  },
+  {
+    "tick": 12,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 2.2955,
+      "peak": 0.1104,
+      "crest_factor": 0.0481,
+      "kurtosis": 0.08,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247187000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 27.3,
+    "decision": "ALERT",
+    "security_trust_score": 0.907,
+    "fused_score": 0.13122796793248934
+  },
+  {
+    "tick": 13,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.1943,
+      "peak": 0.234,
+      "crest_factor": 0.1959,
+      "kurtosis": -0.5154,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247190000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 29.2,
+    "decision": "ALERT",
+    "security_trust_score": 0.909,
+    "fused_score": 0.12642686276370801
+  },
+  {
+    "tick": 14,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.2289,
+      "peak": 0.5063,
+      "crest_factor": 0.412,
+      "kurtosis": -1.3715,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247192000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 31.5,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.06688022732051453
+  },
+  {
+    "tick": 15,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 0.9004,
+      "peak": 0.3428,
+      "crest_factor": 0.3807,
+      "kurtosis": -0.7244,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247194000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 33.6,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.09255834588861964
+  },
+  {
+    "tick": 16,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 2.5093,
+      "peak": 0.6832,
+      "crest_factor": 0.2723,
+      "kurtosis": -1.2757,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247196000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 35.8,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.05942652462627659
+  },
+  {
+    "tick": 17,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 3.2982,
+      "peak": 0.7048,
+      "crest_factor": 0.2137,
+      "kurtosis": -0.086,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247198000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 38.3,
+    "decision": "ALERT",
+    "security_trust_score": 0.907,
+    "fused_score": 0.14780668399778907
+  },
+  {
+    "tick": 18,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.195,
+      "peak": 0.4236,
+      "crest_factor": 0.3545,
+      "kurtosis": -1.3012,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247201000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 40.3,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.07440164951864157
+  },
+  {
+    "tick": 19,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 3.3765,
+      "peak": 0.6857,
+      "crest_factor": 0.2031,
+      "kurtosis": 2.8253,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247203000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 42.6,
+    "decision": "ALERT",
+    "security_trust_score": 0.908,
+    "fused_score": 0.13582019272902812
+  },
+  {
+    "tick": 20,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.3398,
+      "peak": 0.1676,
+      "crest_factor": 0.1251,
+      "kurtosis": -1.3262,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247205000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 45.3,
+    "decision": "ALERT",
+    "security_trust_score": 0.906,
+    "fused_score": 0.1457348455215297
+  },
+  {
+    "tick": 21,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 2.4775,
+      "peak": 0.2183,
+      "crest_factor": 0.0881,
+      "kurtosis": 0.1031,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247207000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 46.9,
+    "decision": "ALERT",
+    "security_trust_score": 0.91,
+    "fused_score": 0.11611440267285358
+  },
+  {
+    "tick": 22,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.1901,
+      "peak": 0.4948,
+      "crest_factor": 0.4157,
+      "kurtosis": -0.8166,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247209000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 49.1,
+    "decision": "ALLOW",
+    "security_trust_score": 0.91,
+    "fused_score": 0.07096362191222612
+  },
+  {
+    "tick": 23,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.105,
+      "peak": 0.2745,
+      "crest_factor": 0.2484,
+      "kurtosis": 1.4882,
+      "dominant_freq": 9.375
+    },
+    "auth_ok": true,
+    "ts": 1788247212000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 51.5,
+    "decision": "ALERT",
+    "security_trust_score": 0.908,
+    "fused_score": 0.11039322386820698
+  },
+  {
+    "tick": 24,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0263,
+      "peak": 0.021,
+      "crest_factor": 0.0205,
+      "kurtosis": 0.0139,
+      "dominant_freq": 12.5
+    },
+    "auth_ok": true,
+    "ts": 1788247214000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 53.6,
+    "decision": "ALERT",
+    "security_trust_score": 0.909,
+    "fused_score": 0.191622886692531
+  },
+  {
+    "tick": 25,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0302,
+      "peak": 0.0178,
+      "crest_factor": 0.0173,
+      "kurtosis": 0.0428,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247216000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 55.9,
+    "decision": "ALERT",
+    "security_trust_score": 0.909,
+    "fused_score": 0.1847816866106319
+  },
+  {
+    "tick": 26,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0355,
+      "peak": 0.0225,
+      "crest_factor": 0.0218,
+      "kurtosis": -0.2558,
+      "dominant_freq": 9.375
+    },
+    "auth_ok": true,
+    "ts": 1788247218000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 58.0,
+    "decision": "ALERT",
+    "security_trust_score": 0.91,
+    "fused_score": 0.1937962525129132
+  },
+  {
+    "tick": 27,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0313,
+      "peak": 0.018,
+      "crest_factor": 0.0174,
+      "kurtosis": 2.2394,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247220000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 60.5,
+    "decision": "BLOCK",
+    "security_trust_score": 0.908,
+    "fused_score": 0.3094472241449178
+  },
+  {
+    "tick": 28,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.029,
+      "peak": 0.0188,
+      "crest_factor": 0.0182,
+      "kurtosis": 1.2223,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247223000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 62.3,
+    "decision": "ALERT",
+    "security_trust_score": 0.911,
+    "fused_score": 0.13773678441426185
+  },
+  {
+    "tick": 29,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 0.9356,
+      "peak": 1.0478,
+      "crest_factor": 1.1199,
+      "kurtosis": -0.7125,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247225000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 64.8,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.04777890798054138
+  },
+  {
+    "tick": 30,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.2446,
+      "peak": 0.5752,
+      "crest_factor": 0.4621,
+      "kurtosis": -1.1238,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247227000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 66.8,
+    "decision": "ALLOW",
+    "security_trust_score": 0.91,
+    "fused_score": 0.06031507991904518
+  },
+  {
+    "tick": 31,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 0.8628,
+      "peak": 0.271,
+      "crest_factor": 0.3141,
+      "kurtosis": -1.2245,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247229000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 69.0,
+    "decision": "ALERT",
+    "security_trust_score": 0.91,
+    "fused_score": 0.14692740854774725
+  },
+  {
+    "tick": 32,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 0.8679,
+      "peak": 0.3067,
+      "crest_factor": 0.3533,
+      "kurtosis": -1.5845,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247231000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 71.5,
+    "decision": "ALERT",
+    "security_trust_score": 0.908,
+    "fused_score": 0.10620759307972286
+  },
+  {
+    "tick": 33,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 2.8898,
+      "peak": 0.1334,
+      "crest_factor": 0.0462,
+      "kurtosis": -0.8263,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247234000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 73.5,
+    "decision": "ALERT",
+    "security_trust_score": 0.91,
+    "fused_score": 0.12471940134092542
+  },
+  {
+    "tick": 34,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 0.8261,
+      "peak": 0.2242,
+      "crest_factor": 0.2714,
+      "kurtosis": -1.3614,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247236000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 75.7,
+    "decision": "ALERT",
+    "security_trust_score": 0.909,
+    "fused_score": 0.10806039679684315
+  },
+  {
+    "tick": 35,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 0.8355,
+      "peak": 0.4302,
+      "crest_factor": 0.515,
+      "kurtosis": -0.9904,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247238000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 77.9,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.07433429070036895
+  },
+  {
+    "tick": 36,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 2.0716,
+      "peak": 0.0498,
+      "crest_factor": 0.024,
+      "kurtosis": 3.7888,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247240000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 80.1,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.08146747923542855
+  },
+  {
+    "tick": 37,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 2.6775,
+      "peak": 1.0141,
+      "crest_factor": 0.3787,
+      "kurtosis": -1.4563,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247243000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 82.3,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.04704206136149909
+  },
+  {
+    "tick": 38,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 3.2294,
+      "peak": 0.6355,
+      "crest_factor": 0.1968,
+      "kurtosis": -1.6517,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247245000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 84.5,
+    "decision": "ALERT",
+    "security_trust_score": 0.909,
+    "fused_score": 0.14304799409328112
+  },
+  {
+    "tick": 39,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 2.6165,
+      "peak": 0.5243,
+      "crest_factor": 0.2004,
+      "kurtosis": 0.1155,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247247000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 86.7,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.0732685028026992
+  },
+  {
+    "tick": 40,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 2.9965,
+      "peak": 1.2595,
+      "crest_factor": 0.4203,
+      "kurtosis": -0.831,
+      "dominant_freq": 9.375
+    },
+    "auth_ok": true,
+    "ts": 1788247249000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 88.9,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.047296475962868435
+  },
+  {
+    "tick": 41,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 2.1748,
+      "peak": 0.0854,
+      "crest_factor": 0.0392,
+      "kurtosis": -1.1591,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247251000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 91.1,
+    "decision": "ALERT",
+    "security_trust_score": 0.909,
+    "fused_score": 0.11464017569276223
+  },
+  {
+    "tick": 42,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 2.6977,
+      "peak": 0.7328,
+      "crest_factor": 0.2716,
+      "kurtosis": -1.453,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247254000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 93.5,
+    "decision": "ALLOW",
+    "security_trust_score": 0.907,
+    "fused_score": 0.05646604451920513
+  },
+  {
+    "tick": 43,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 3.4386,
+      "peak": 0.1056,
+      "crest_factor": 0.0307,
+      "kurtosis": -0.2639,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247256000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 95.9,
+    "decision": "ALERT",
+    "security_trust_score": 0.907,
+    "fused_score": 0.27376126817275054
+  },
+  {
+    "tick": 44,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.1163,
+      "peak": 0.1865,
+      "crest_factor": 0.1671,
+      "kurtosis": -0.5492,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247258000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 97.7,
+    "decision": "ALERT",
+    "security_trust_score": 0.91,
+    "fused_score": 0.17644307973518256
+  },
+  {
+    "tick": 45,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.2167,
+      "peak": 0.3394,
+      "crest_factor": 0.279,
+      "kurtosis": -0.6464,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247260000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 99.9,
+    "decision": "ALLOW",
+    "security_trust_score": 0.91,
+    "fused_score": 0.09668792647225705
+  },
+  {
+    "tick": 46,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 0.988,
+      "peak": 0.1374,
+      "crest_factor": 0.139,
+      "kurtosis": 1.0703,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247262000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 102.1,
+    "decision": "ALERT",
+    "security_trust_score": 0.91,
+    "fused_score": 0.28242188043460437
+  },
+  {
+    "tick": 47,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.1343,
+      "peak": 0.5407,
+      "crest_factor": 0.4767,
+      "kurtosis": -0.1289,
+      "dominant_freq": 6.25
+    },
+    "auth_ok": true,
+    "ts": 1788247265000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 104.3,
+    "decision": "ALLOW",
+    "security_trust_score": 0.91,
+    "fused_score": 0.07354893389903445
+  },
+  {
+    "tick": 48,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0039,
+      "peak": 0.0747,
+      "crest_factor": 0.0744,
+      "kurtosis": -0.3892,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247267000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 106.6,
+    "decision": "ALERT",
+    "security_trust_score": 0.909,
+    "fused_score": 0.2855616555802582
+  },
+  {
+    "tick": 49,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 0.9461,
+      "peak": 0.1835,
+      "crest_factor": 0.1939,
+      "kurtosis": 1.2721,
+      "dominant_freq": 6.25
+    },
+    "auth_ok": true,
+    "ts": 1788247269000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 108.8,
+    "decision": "ALERT",
+    "security_trust_score": 0.909,
+    "fused_score": 0.14517379757557058
+  },
+  {
+    "tick": 50,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0528,
+      "peak": 0.218,
+      "crest_factor": 0.2071,
+      "kurtosis": 0.1711,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247271000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 111.1,
+    "decision": "ALERT",
+    "security_trust_score": 0.908,
+    "fused_score": 0.1446835714649835
+  },
+  {
+    "tick": 51,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0644,
+      "peak": 0.1978,
+      "crest_factor": 0.1858,
+      "kurtosis": 1.2604,
+      "dominant_freq": 12.5
+    },
+    "auth_ok": true,
+    "ts": 1788247273000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 113.2,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.05700565201243646
+  },
+  {
+    "tick": 52,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0389,
+      "peak": 0.0244,
+      "crest_factor": 0.0235,
+      "kurtosis": -0.3301,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247276000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 115.4,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.050362406670512484
+  },
+  {
+    "tick": 53,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0369,
+      "peak": 0.0215,
+      "crest_factor": 0.0208,
+      "kurtosis": -0.1721,
+      "dominant_freq": 6.25
+    },
+    "auth_ok": true,
+    "ts": 1788247278000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 117.6,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.05053506167466413
+  },
+  {
+    "tick": 54,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0594,
+      "peak": 0.0631,
+      "crest_factor": 0.0596,
+      "kurtosis": -0.8225,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247280000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 120.1,
+    "decision": "ALLOW",
+    "security_trust_score": 0.907,
+    "fused_score": 0.05262395160608572
+  },
+  {
+    "tick": 55,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0448,
+      "peak": 0.1972,
+      "crest_factor": 0.1888,
+      "kurtosis": -1.2144,
+      "dominant_freq": 9.375
+    },
+    "auth_ok": true,
+    "ts": 1788247282000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 122.2,
+    "decision": "ALLOW",
+    "security_trust_score": 0.908,
+    "fused_score": 0.082882512064303
+  },
+  {
+    "tick": 56,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.099,
+      "peak": 0.1171,
+      "crest_factor": 0.1065,
+      "kurtosis": -1.0278,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247285000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 124.2,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.06258682910766042
+  },
+  {
+    "tick": 57,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0464,
+      "peak": 0.079,
+      "crest_factor": 0.0755,
+      "kurtosis": 12.2369,
+      "dominant_freq": 6.25
+    },
+    "auth_ok": true,
+    "ts": 1788247287000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 126.5,
+    "decision": "BLOCK",
+    "security_trust_score": 0.909,
+    "fused_score": 0.3329841503076125
+  },
+  {
+    "tick": 58,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0208,
+      "peak": 0.0932,
+      "crest_factor": 0.0913,
+      "kurtosis": 0.2077,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247289000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 128.6,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.045157735640787934
+  },
+  {
+    "tick": 59,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0545,
+      "peak": 0.1944,
+      "crest_factor": 0.1844,
+      "kurtosis": 0.4076,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247291000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 131.1,
+    "decision": "ALERT",
+    "security_trust_score": 0.907,
+    "fused_score": 0.2524498271147867
+  },
+  {
+    "tick": 60,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0526,
+      "peak": 0.0391,
+      "crest_factor": 0.0371,
+      "kurtosis": -0.0363,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247293000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 133.3,
+    "decision": "ALERT",
+    "security_trust_score": 0.908,
+    "fused_score": 0.2689995912107169
+  },
+  {
+    "tick": 61,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0535,
+      "peak": 0.0296,
+      "crest_factor": 0.0281,
+      "kurtosis": 0.3732,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247296000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 135.3,
+    "decision": "ALERT",
+    "security_trust_score": 0.909,
+    "fused_score": 0.2837283494005456
+  },
+  {
+    "tick": 62,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0359,
+      "peak": 0.0147,
+      "crest_factor": 0.0142,
+      "kurtosis": -0.8576,
+      "dominant_freq": 15.625
+    },
+    "auth_ok": true,
+    "ts": 1788247298000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 137.9,
+    "decision": "ALLOW",
+    "security_trust_score": 0.907,
+    "fused_score": 0.0630778600304176
+  },
+  {
+    "tick": 63,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0443,
+      "peak": 0.041,
+      "crest_factor": 0.0393,
+      "kurtosis": 3.5362,
+      "dominant_freq": 6.25
+    },
+    "auth_ok": true,
+    "ts": 1788247300000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 140.0,
+    "decision": "ALERT",
+    "security_trust_score": 0.908,
+    "fused_score": 0.16276767780819845
+  },
+  {
+    "tick": 64,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.046,
+      "peak": 0.0199,
+      "crest_factor": 0.019,
+      "kurtosis": -0.1636,
+      "dominant_freq": 18.75
+    },
+    "auth_ok": true,
+    "ts": 1788247302000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 142.2,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.020592225245443
+  },
+  {
+    "tick": 65,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.045,
+      "peak": 0.0131,
+      "crest_factor": 0.0125,
+      "kurtosis": -0.1219,
+      "dominant_freq": 12.5
+    },
+    "auth_ok": true,
+    "ts": 1788247304000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 144.1,
+    "decision": "ALLOW",
+    "security_trust_score": 0.911,
+    "fused_score": 0.07597596656561954
+  },
+  {
+    "tick": 66,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.046,
+      "peak": 0.016,
+      "crest_factor": 0.0153,
+      "kurtosis": 0.4481,
+      "dominant_freq": 6.25
+    },
+    "auth_ok": true,
+    "ts": 1788247307000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 146.5,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.07858926503485417
+  },
+  {
+    "tick": 67,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0453,
+      "peak": 0.0151,
+      "crest_factor": 0.0144,
+      "kurtosis": 0.036,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247309000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 148.6,
+    "decision": "ALLOW",
+    "security_trust_score": 0.91,
+    "fused_score": 0.07896971369679266
+  },
+  {
+    "tick": 68,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0467,
+      "peak": 0.0231,
+      "crest_factor": 0.0221,
+      "kurtosis": -0.5097,
+      "dominant_freq": 12.5
+    },
+    "auth_ok": true,
+    "ts": 1788247311000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 150.8,
+    "decision": "ALLOW",
+    "security_trust_score": 0.91,
+    "fused_score": 0.07581239593547386
+  },
+  {
+    "tick": 69,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0471,
+      "peak": 0.017,
+      "crest_factor": 0.0162,
+      "kurtosis": -1.0412,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247313000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 153.0,
+    "decision": "ALLOW",
+    "security_trust_score": 0.91,
+    "fused_score": 0.08098853296708872
+  },
+  {
+    "tick": 70,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0438,
+      "peak": 0.0209,
+      "crest_factor": 0.02,
+      "kurtosis": 0.6137,
+      "dominant_freq": 6.25
+    },
+    "auth_ok": true,
+    "ts": 1788247315000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 155.2,
+    "decision": "ALLOW",
+    "security_trust_score": 0.91,
+    "fused_score": 0.08403417103161888
+  },
+  {
+    "tick": 71,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0443,
+      "peak": 0.0153,
+      "crest_factor": 0.0147,
+      "kurtosis": 0.0122,
+      "dominant_freq": 25.0
+    },
+    "auth_ok": true,
+    "ts": 1788247318000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 157.4,
+    "decision": "ALLOW",
+    "security_trust_score": 0.91,
+    "fused_score": 0.08860061152209577
+  },
+  {
+    "tick": 72,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0473,
+      "peak": 0.011,
+      "crest_factor": 0.0105,
+      "kurtosis": 0.2739,
+      "dominant_freq": 21.875
+    },
+    "auth_ok": true,
+    "ts": 1788247320000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 159.6,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.09328784314409341
+  },
+  {
+    "tick": 73,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0449,
+      "peak": 0.0104,
+      "crest_factor": 0.0099,
+      "kurtosis": -1.0614,
+      "dominant_freq": 6.25
+    },
+    "auth_ok": true,
+    "ts": 1788247322000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 161.8,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.083918352010011
+  },
+  {
+    "tick": 74,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0455,
+      "peak": 0.0159,
+      "crest_factor": 0.0152,
+      "kurtosis": -0.8567,
+      "dominant_freq": 6.25
+    },
+    "auth_ok": true,
+    "ts": 1788247324000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 164.0,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.07399218437900745
+  },
+  {
+    "tick": 75,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0437,
+      "peak": 0.018,
+      "crest_factor": 0.0173,
+      "kurtosis": -0.1823,
+      "dominant_freq": 12.5
+    },
+    "auth_ok": true,
+    "ts": 1788247327000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 166.3,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.0747654787992474
+  },
+  {
+    "tick": 76,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0454,
+      "peak": 0.0102,
+      "crest_factor": 0.0097,
+      "kurtosis": -1.2984,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247329000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 168.4,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.0923836860128138
+  },
+  {
+    "tick": 77,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0425,
+      "peak": 0.0166,
+      "crest_factor": 0.016,
+      "kurtosis": -0.3042,
+      "dominant_freq": 18.75
+    },
+    "auth_ok": true,
+    "ts": 1788247331000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 170.6,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.07889813371722894
+  },
+  {
+    "tick": 78,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0435,
+      "peak": 0.013,
+      "crest_factor": 0.0125,
+      "kurtosis": -0.9801,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247333000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 173.2,
+    "decision": "ALLOW",
+    "security_trust_score": 0.907,
+    "fused_score": 0.08553037911810954
+  },
+  {
+    "tick": 79,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0416,
+      "peak": 0.0106,
+      "crest_factor": 0.0102,
+      "kurtosis": -1.1433,
+      "dominant_freq": 12.5
+    },
+    "auth_ok": true,
+    "ts": 1788247335000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 175.1,
+    "decision": "ALLOW",
+    "security_trust_score": 0.91,
+    "fused_score": 0.08970936631557938
+  },
+  {
+    "tick": 80,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0445,
+      "peak": 0.0139,
+      "crest_factor": 0.0133,
+      "kurtosis": -0.8367,
+      "dominant_freq": 43.75
+    },
+    "auth_ok": true,
+    "ts": 1788247338000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 177.3,
+    "decision": "ALLOW",
+    "security_trust_score": 0.91,
+    "fused_score": 0.09621147277057428
+  },
+  {
+    "tick": 81,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0455,
+      "peak": 0.0101,
+      "crest_factor": 0.0096,
+      "kurtosis": -0.8385,
+      "dominant_freq": 18.75
+    },
+    "auth_ok": true,
+    "ts": 1788247340000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 179.5,
+    "decision": "ALLOW",
+    "security_trust_score": 0.91,
+    "fused_score": 0.08863941147953971
+  },
+  {
+    "tick": 82,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0423,
+      "peak": 0.0164,
+      "crest_factor": 0.0157,
+      "kurtosis": -0.4696,
+      "dominant_freq": 9.375
+    },
+    "auth_ok": true,
+    "ts": 1788247342000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 181.7,
+    "decision": "ALLOW",
+    "security_trust_score": 0.91,
+    "fused_score": 0.07105613132860168
+  },
+  {
+    "tick": 83,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0445,
+      "peak": 0.014,
+      "crest_factor": 0.0134,
+      "kurtosis": -0.6299,
+      "dominant_freq": 18.75
+    },
+    "auth_ok": true,
+    "ts": 1788247344000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 184.1,
+    "decision": "ALLOW",
+    "security_trust_score": 0.908,
+    "fused_score": 0.08127780375436075
+  },
+  {
+    "tick": 84,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0443,
+      "peak": 0.0181,
+      "crest_factor": 0.0173,
+      "kurtosis": 1.5938,
+      "dominant_freq": 12.5
+    },
+    "auth_ok": true,
+    "ts": 1788247346000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 186.1,
+    "decision": "ALLOW",
+    "security_trust_score": 0.91,
+    "fused_score": 0.0914893310619503
+  },
+  {
+    "tick": 85,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0438,
+      "peak": 0.0199,
+      "crest_factor": 0.0191,
+      "kurtosis": 1.8944,
+      "dominant_freq": 18.75
+    },
+    "auth_ok": true,
+    "ts": 1788247349000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 188.4,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.09614148066879077
+  },
+  {
+    "tick": 86,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0422,
+      "peak": 0.0164,
+      "crest_factor": 0.0157,
+      "kurtosis": -1.2247,
+      "dominant_freq": 12.5
+    },
+    "auth_ok": true,
+    "ts": 1788247351000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 190.8,
+    "decision": "ALLOW",
+    "security_trust_score": 0.908,
+    "fused_score": 0.08286844742509725
+  },
+  {
+    "tick": 87,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0433,
+      "peak": 0.0174,
+      "crest_factor": 0.0167,
+      "kurtosis": -0.3284,
+      "dominant_freq": 28.125
+    },
+    "auth_ok": true,
+    "ts": 1788247353000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 192.7,
+    "decision": "ALLOW",
+    "security_trust_score": 0.91,
+    "fused_score": 0.08134117199537871
+  },
+  {
+    "tick": 88,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0445,
+      "peak": 0.0154,
+      "crest_factor": 0.0148,
+      "kurtosis": 0.0892,
+      "dominant_freq": 6.25
+    },
+    "auth_ok": true,
+    "ts": 1788247355000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 194.9,
+    "decision": "ALLOW",
+    "security_trust_score": 0.91,
+    "fused_score": 0.07776437453023756
+  },
+  {
+    "tick": 89,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0432,
+      "peak": 0.0139,
+      "crest_factor": 0.0133,
+      "kurtosis": -0.4858,
+      "dominant_freq": 28.125
+    },
+    "auth_ok": true,
+    "ts": 1788247357000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 197.5,
+    "decision": "ALLOW",
+    "security_trust_score": 0.908,
+    "fused_score": 0.08486220770485318
+  },
+  {
+    "tick": 90,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0456,
+      "peak": 0.016,
+      "crest_factor": 0.0153,
+      "kurtosis": -0.1052,
+      "dominant_freq": 6.25
+    },
+    "auth_ok": true,
+    "ts": 1788247360000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 199.5,
+    "decision": "ALLOW",
+    "security_trust_score": 0.91,
+    "fused_score": 0.07348543903427911
+  },
+  {
+    "tick": 91,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0417,
+      "peak": 0.0177,
+      "crest_factor": 0.017,
+      "kurtosis": -0.1449,
+      "dominant_freq": 31.25
+    },
+    "auth_ok": true,
+    "ts": 1788247362000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 201.6,
+    "decision": "ALLOW",
+    "security_trust_score": 0.91,
+    "fused_score": 0.08403357589857413
+  },
+  {
+    "tick": 92,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0459,
+      "peak": 0.0183,
+      "crest_factor": 0.0175,
+      "kurtosis": 1.7577,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247364000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 203.9,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.09558902233568185
+  },
+  {
+    "tick": 93,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0453,
+      "peak": 0.0177,
+      "crest_factor": 0.017,
+      "kurtosis": -0.2321,
+      "dominant_freq": 21.875
+    },
+    "auth_ok": true,
+    "ts": 1788247366000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 206.0,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.08148616287872468
+  },
+  {
+    "tick": 94,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0445,
+      "peak": 0.0169,
+      "crest_factor": 0.0162,
+      "kurtosis": 1.0429,
+      "dominant_freq": 6.25
+    },
+    "auth_ok": true,
+    "ts": 1788247369000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 208.2,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.08267600183838854
+  },
+  {
+    "tick": 95,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0422,
+      "peak": 0.017,
+      "crest_factor": 0.0164,
+      "kurtosis": -0.6903,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247371000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 210.7,
+    "decision": "ALLOW",
+    "security_trust_score": 0.907,
+    "fused_score": 0.07495910619825566
+  },
+  {
+    "tick": 96,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.045,
+      "peak": 0.0127,
+      "crest_factor": 0.0121,
+      "kurtosis": -0.0127,
+      "dominant_freq": 6.25
+    },
+    "auth_ok": true,
+    "ts": 1788247373000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 212.7,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.08012142232468829
+  },
+  {
+    "tick": 97,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0444,
+      "peak": 0.0142,
+      "crest_factor": 0.0136,
+      "kurtosis": -0.8162,
+      "dominant_freq": 12.5
+    },
+    "auth_ok": true,
+    "ts": 1788247375000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 214.9,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.08006056706753693
+  },
+  {
+    "tick": 98,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0439,
+      "peak": 0.0153,
+      "crest_factor": 0.0146,
+      "kurtosis": 0.2463,
+      "dominant_freq": 9.375
+    },
+    "auth_ok": true,
+    "ts": 1788247377000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 217.1,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.08207082955282848
+  },
+  {
+    "tick": 99,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0438,
+      "peak": 0.0138,
+      "crest_factor": 0.0132,
+      "kurtosis": 0.4193,
+      "dominant_freq": 21.875
+    },
+    "auth_ok": true,
+    "ts": 1788247380000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 219.3,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.09336901418493622
+  },
+  {
+    "tick": 100,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0459,
+      "peak": 0.0173,
+      "crest_factor": 0.0166,
+      "kurtosis": 2.4268,
+      "dominant_freq": 25.0
+    },
+    "auth_ok": true,
+    "ts": 1788247382000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 221.7,
+    "decision": "ALLOW",
+    "security_trust_score": 0.907,
+    "fused_score": 0.09565353899700631
+  },
+  {
+    "tick": 101,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0443,
+      "peak": 0.0177,
+      "crest_factor": 0.017,
+      "kurtosis": -0.4048,
+      "dominant_freq": 6.25
+    },
+    "auth_ok": true,
+    "ts": 1788247384000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 223.9,
+    "decision": "ALLOW",
+    "security_trust_score": 0.908,
+    "fused_score": 0.07023106486369313
+  },
+  {
+    "tick": 102,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0446,
+      "peak": 0.0097,
+      "crest_factor": 0.0093,
+      "kurtosis": 0.369,
+      "dominant_freq": 9.375
+    },
+    "auth_ok": true,
+    "ts": 1788247386000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 225.9,
+    "decision": "ALLOW",
+    "security_trust_score": 0.91,
+    "fused_score": 0.08578964805777255
+  },
+  {
+    "tick": 103,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.042,
+      "peak": 0.0185,
+      "crest_factor": 0.0178,
+      "kurtosis": 0.6699,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247388000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 228.2,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.08495769499861565
+  },
+  {
+    "tick": 104,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0434,
+      "peak": 0.0154,
+      "crest_factor": 0.0147,
+      "kurtosis": -0.7124,
+      "dominant_freq": 9.375
+    },
+    "auth_ok": true,
+    "ts": 1788247391000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 230.3,
+    "decision": "ALLOW",
+    "security_trust_score": 0.91,
+    "fused_score": 0.07492587063406798
+  },
+  {
+    "tick": 105,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0429,
+      "peak": 0.0112,
+      "crest_factor": 0.0107,
+      "kurtosis": -0.6362,
+      "dominant_freq": 12.5
+    },
+    "auth_ok": true,
+    "ts": 1788247393000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 232.8,
+    "decision": "ALLOW",
+    "security_trust_score": 0.908,
+    "fused_score": 0.07914265151650106
+  },
+  {
+    "tick": 106,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0452,
+      "peak": 0.0174,
+      "crest_factor": 0.0167,
+      "kurtosis": -0.1334,
+      "dominant_freq": 21.875
+    },
+    "auth_ok": true,
+    "ts": 1788247395000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 235.0,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.08018398339111225
+  },
+  {
+    "tick": 107,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0443,
+      "peak": 0.0198,
+      "crest_factor": 0.019,
+      "kurtosis": 0.3868,
+      "dominant_freq": 6.25
+    },
+    "auth_ok": true,
+    "ts": 1788247397000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 237.0,
+    "decision": "ALLOW",
+    "security_trust_score": 0.91,
+    "fused_score": 0.08054027072941677
+  },
+  {
+    "tick": 108,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0449,
+      "peak": 0.0129,
+      "crest_factor": 0.0124,
+      "kurtosis": -0.5902,
+      "dominant_freq": 6.25
+    },
+    "auth_ok": true,
+    "ts": 1788247399000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 239.2,
+    "decision": "ALLOW",
+    "security_trust_score": 0.91,
+    "fused_score": 0.0756735601361048
+  },
+  {
+    "tick": 109,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 0.7803,
+      "peak": 1.5023,
+      "crest_factor": 1.9252,
+      "kurtosis": 1.0607,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247402000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 241.7,
+    "decision": "ALLOW",
+    "security_trust_score": 0.908,
+    "fused_score": 0.04408439144726884
+  },
+  {
+    "tick": 110,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 3.395,
+      "peak": 0.4139,
+      "crest_factor": 0.1219,
+      "kurtosis": 0.9734,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247404000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 243.6,
+    "decision": "ALERT",
+    "security_trust_score": 0.91,
+    "fused_score": 0.20072376801787684
+  },
+  {
+    "tick": 111,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 2.1865,
+      "peak": 0.5817,
+      "crest_factor": 0.266,
+      "kurtosis": -1.144,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247406000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 245.8,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.06140569525839238
+  },
+  {
+    "tick": 112,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0516,
+      "peak": 0.021,
+      "crest_factor": 0.02,
+      "kurtosis": -0.0312,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247408000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 248.2,
+    "decision": "ALERT",
+    "security_trust_score": 0.908,
+    "fused_score": 0.17101560236200086
+  },
+  {
+    "tick": 113,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.9604,
+      "peak": 2.8058,
+      "crest_factor": 1.4312,
+      "kurtosis": 0.7117,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247411000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 250.2,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.041967077449957424
+  },
+  {
+    "tick": 114,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0447,
+      "peak": 0.0258,
+      "crest_factor": 0.0247,
+      "kurtosis": -1.0532,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247413000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 252.5,
+    "decision": "ALERT",
+    "security_trust_score": 0.909,
+    "fused_score": 0.1606481377733586
+  },
+  {
+    "tick": 115,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0429,
+      "peak": 0.1167,
+      "crest_factor": 0.1119,
+      "kurtosis": 0.234,
+      "dominant_freq": 9.375
+    },
+    "auth_ok": true,
+    "ts": 1788247415000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 254.7,
+    "decision": "BLOCK",
+    "security_trust_score": 0.909,
+    "fused_score": 0.31878866546286105
+  },
+  {
+    "tick": 116,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0491,
+      "peak": 0.0234,
+      "crest_factor": 0.0223,
+      "kurtosis": -1.0145,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247417000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 256.8,
+    "decision": "ALERT",
+    "security_trust_score": 0.909,
+    "fused_score": 0.1659572215385901
+  },
+  {
+    "tick": 117,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0456,
+      "peak": 0.0209,
+      "crest_factor": 0.02,
+      "kurtosis": -0.1949,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247419000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 259.1,
+    "decision": "ALERT",
+    "security_trust_score": 0.909,
+    "fused_score": 0.186060697147249
+  },
+  {
+    "tick": 118,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0473,
+      "peak": 0.0131,
+      "crest_factor": 0.0125,
+      "kurtosis": -0.9624,
+      "dominant_freq": 28.125
+    },
+    "auth_ok": true,
+    "ts": 1788247422000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 261.7,
+    "decision": "ALERT",
+    "security_trust_score": 0.906,
+    "fused_score": 0.14596105549251634
+  },
+  {
+    "tick": 119,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0467,
+      "peak": 0.0142,
+      "crest_factor": 0.0136,
+      "kurtosis": -0.6263,
+      "dominant_freq": 9.375
+    },
+    "auth_ok": true,
+    "ts": 1788247424000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 263.5,
+    "decision": "ALERT",
+    "security_trust_score": 0.909,
+    "fused_score": 0.19291235345118551
+  },
+  {
+    "tick": 120,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0445,
+      "peak": 0.018,
+      "crest_factor": 0.0172,
+      "kurtosis": -0.6369,
+      "dominant_freq": 18.75
+    },
+    "auth_ok": true,
+    "ts": 1788247426000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 266.0,
+    "decision": "ALERT",
+    "security_trust_score": 0.907,
+    "fused_score": 0.18590397569432227
+  },
+  {
+    "tick": 121,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0445,
+      "peak": 0.0143,
+      "crest_factor": 0.0137,
+      "kurtosis": -0.9138,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788247428000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 268.0,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.08048701281812812
+  },
+  {
+    "tick": 122,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0452,
+      "peak": 0.0156,
+      "crest_factor": 0.0149,
+      "kurtosis": -0.9782,
+      "dominant_freq": 9.375
+    },
+    "auth_ok": true,
+    "ts": 1788247430000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 270.1,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.07879315614629122
+  },
+  {
+    "tick": 123,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0448,
+      "peak": 0.0175,
+      "crest_factor": 0.0168,
+      "kurtosis": -0.4184,
+      "dominant_freq": 9.375
+    },
+    "auth_ok": true,
+    "ts": 1788247433000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 272.3,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.07121115696631011
+  },
+  {
+    "tick": 124,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0451,
+      "peak": 0.0151,
+      "crest_factor": 0.0145,
+      "kurtosis": -0.3907,
+      "dominant_freq": 6.25
+    },
+    "auth_ok": true,
+    "ts": 1788247435000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 274.6,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.07303524678941417
+  },
+  {
+    "tick": 125,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0465,
+      "peak": 0.0158,
+      "crest_factor": 0.0151,
+      "kurtosis": 0.4205,
+      "dominant_freq": 21.875
+    },
+    "auth_ok": true,
+    "ts": 1788247437000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 276.7,
+    "decision": "ALLOW",
+    "security_trust_score": 0.909,
+    "fused_score": 0.09068824582655492
+  },
+  {
+    "tick": 126,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0457,
+      "peak": 0.0188,
+      "crest_factor": 0.018,
+      "kurtosis": 0.9294,
+      "dominant_freq": 12.5
+    },
+    "auth_ok": true,
+    "ts": 1788247439000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "free_form_mixed",
+    "elapsed_s": 279.2,
+    "decision": "ALLOW",
+    "security_trust_score": 0.907,
+    "fused_score": 0.08209960138542603
+  }
+]

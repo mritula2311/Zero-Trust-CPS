@@ -3,8 +3,8 @@
 **v2 — updated to incorporate real hardware, full algorithm detail, industry
 standards alignment, and a compressed 4-week timeline for a research-paper
 deliverable.** This replaces the earlier version of this file. Place it at
-the root of the repository (alongside `src/`, `docs/`, and
-`implementation-docs/`) so Claude Code reads it automatically every session.
+the root of the repository (alongside `src/` and `docs/`) so Claude Code
+reads it automatically every session.
 
 ---
 
@@ -135,7 +135,10 @@ from umqtt.simple import MQTTClient
 DEVICE_ID = "esp32-vib-001"
 SECRET = b"replace-with-a-real-shared-secret"   # provisioning: see Section 8
 MQTT_HOST = "192.168.x.x"     # your gateway machine's LAN IP
-MQTT_PORT = 1883               # switch to 8883 + TLS once docs/03_add_tls.md is applied
+MQTT_PORT = 1883               # switch to 8883 + TLS -- see docs/07_module6_secure_communication.md Section 3
+                                # (NOTE: this whole sketch is superseded by the real, already-implemented
+                                # firmware/main.py -- see that file, not this illustrative block, for the
+                                # actual boot_id/seq/step-up/TLS-aware firmware)
 TOPIC = b"cps/telemetry"
 
 # ---- WiFi ----
@@ -240,13 +243,22 @@ A working **core software implementation** (rule-based/static-threshold
 version of all seven modules) already exists in `src/`, currently driven
 by simulated telemetry only. Read, in this order, before writing new code:
 
-1. `implementation-docs/00_overview.md`
-2. `implementation-docs/08_integration_and_interactions.md` — the exact
-   per-message call sequence and a worked numeric example
-3. `implementation-docs/01` through `07` — one per module, each with a
-   "Part A: Core Implementation" and (Modules 3 and 5) a "Part B: Full
-   Design" with code sketches
-4. The source itself: `src/config.py`, `src/trust_engine.py`,
+1. `docs/00_overview.md` — the master as-built architecture overview
+2. `docs/13_system_architecture_and_workflow.md` — the whole-system
+   diagrams (layered architecture, message workflow, training pipeline,
+   deployment topology) — read this before the per-module files if you
+   want the shape of the system before its details
+3. `docs/09_integration_and_data_flow.md` — the exact per-message call
+   sequence, consolidated data schemas, and the module dependency graph
+4. `docs/02_module1_device_identity.md` through
+   `docs/08_module7_monitoring_and_audit.md` — one per module, each with
+   Design Rationale, Failure Modes, Configuration Parameters, and
+   Acceptance Criteria
+5. `docs/12_model_validation_and_justification.md` — why each model
+   (rule, Isolation Forest, LSTM-AE, Transformer, GNN, fusion, RL) earns
+   its place, from a research-methodology standpoint, once you've read
+   Module 3
+6. The source itself: `src/config.py`, `src/trust_engine.py`,
    `src/policy_engine.py`, `src/gateway.py`, `src/device_simulator.py`,
    `src/audit_log.py`
 
@@ -300,14 +312,45 @@ integration drift) before zone classification; using raw acceleration RMS
 directly is a documented simplification, not an error, as long as you say
 so.
 
-### 5.2 Rule-Based Trust Score (shipped, Module 3 Part A)
+### 5.2 Two-Score Architecture: Security Trust + Process Anomaly (shipped, Module 3/4/5 rearchitecture)
 
-Already implemented in `src/trust_engine.py`. Exponentially-weighted
-moving average over a per-message observation, with time-decay for
-staleness. See `implementation-docs/03_module_trust_evaluation.md` for the
-full walkthrough. Adapt the value-range rule to use `rms_accel_g` (or
-whichever feature you settle on) instead of the generic `value` field once
-real hardware is integrated.
+**Updated (see SESSION_LOG.md for the session that did this):** `src/trust_engine.py`
+no longer produces one blended trust score. It now owns two permanently-separate
+scores that are combined only inside `policy_engine.decide()`'s 2×2 table, never
+before:
+
+- **Security Trust Score** (`trust_engine.score_security_trust()`) — cyber-behaviour
+  evidence ONLY: message rate/flood (`check_flood()`), step-up challenge outcomes,
+  and time-decay for silence. EWMA over a per-message observation, same mechanism
+  as the original rule-based engine, just with physical values and auth-failure
+  counts removed from its inputs.
+- **Process Anomaly Score** — physical sensor evidence ONLY, still exactly
+  `fusion_engine.combine()`'s output (Sections 5.3–5.6 below, unchanged). Stored
+  per device via `trust_engine.update_process_anomaly()`/`get_process_anomaly()`,
+  retained exactly on silence (never decayed toward "normal" — only its
+  `FRESH`/`STALE` status changes).
+
+**Why this split exists — a real, fixed vulnerability, not a style preference:**
+the single-score design let a failed-auth message (someone claiming a device's ID
+without its secret) directly lower *that device's own* trust score — a
+trust-poisoning attack. The fix (`trust_engine.IdentityTargetingRisk`) tracks
+failed verification attempts per *claimed* device_id, completely separate from any
+registered device's own state; a rejected message never reaches either score. See
+`docs/03_module2_authentication.md` Section 5 for the full reasoning.
+
+**Also fixed in the same pass:** anti-replay moved from a ts-size heuristic
+(`REBOOT_TS_THRESHOLD_MS`, since removed) to a `boot_id`/`seq` scheme
+(`trust_engine.check_boot_replay()`) that closes a real blind spot — a captured
+pre-reboot message could previously be replayed after a legitimate reboot and
+still be accepted. And `STEP_UP` is now a real gateway-issued-nonce/device-echo
+challenge (`gateway.py::initiate_step_up()`/`trust_engine.check_step_up_response()`),
+not just a policy label.
+
+See `docs/04_module3_trust_evaluation.md`/`docs/05_module4_continuous_verification.md`
+for the full walkthrough. Adapt the value-range rule to use `rms_accel_g` (or
+whichever feature you settle on) instead of the generic `value` field once real
+hardware is integrated — unchanged by this rearchitecture, still lives in the
+Process Anomaly side (`rule_range_score()`).
 
 ### 5.3 Isolation Forest (Module 3, Phase 6a)
 
@@ -388,8 +431,16 @@ and is much better than rushing a broken implementation.
 ### 5.6 Stacking Meta-Learner Fusion (Module 3, Phase 7)
 
 **Purpose:** combines the four signals above (rule-based, IF, LSTM-AE,
-GNN) into one trust score by learning which signal to trust more in which
-situation, rather than hand-tuned averaging.
+GNN) into the **Process Anomaly Score** by learning which signal to trust
+more in which situation, rather than hand-tuned averaging. Updated (Section
+5.2): this is no longer "the" trust score — it is one of two permanently-
+separate scores, and never sees Security Trust's inputs (auth/rate/step-up)
+at all. Ground truth for training is `physical_label(event_type)`
+(`scripts/generate_training_data.py`), not the old blended `label` — a
+`high_rate` record's features are genuinely normal, and training against
+the blended label taught the meta-learner that ordinary-looking features
+sometimes mean "suspicious," a real, measured regression caught and fixed
+in the same session (see SESSION_LOG.md).
 **Library:** `scikit-learn.linear_model.LogisticRegression` (or a shallow
 `DecisionTreeClassifier` if you want the fused decision itself to be
 directly human-readable, which is a nice property to have for the paper's
@@ -416,14 +467,28 @@ justification for choosing SHAP over LIME, don't just assert it.
 
 ### 5.8 RL-Adaptive Access Control (Module 5, Phase 8)
 
-**Purpose:** replaces static ALLOW/STEP_UP/DENY thresholds with a policy
-that learns better thresholds from the outcomes of its own past decisions.
-**Recommended implementation:** an epsilon-greedy contextual bandit (state
-= bucketed trust score + confidence, action = {ALLOW, STEP_UP, DENY},
-reward = correctness against your labelled adversarial-test data) — see
-the full code sketch already in
-`implementation-docs/05_module_access_control.md`. Do not reach for a
-full deep-RL framework (Stable-Baselines3, PPO, etc.) — the state/action
+**Purpose:** replaces the static 2×2 table (Section 5.2 — ALLOW / ALERT /
+STEP_UP / BLOCK, reading Security Trust + Process Anomaly together) with a
+policy that learns better boundaries from the outcomes of its own past
+decisions.
+**Implementation:** an epsilon-greedy contextual bandit — state =
+`(bucketed security_trust_score, bucketed process_trust_score)`, action =
+`{ALLOW, STEP_UP, ALERT, BLOCK}`, reward = correctness against a
+`(situation)` ground truth derived from `event_type`
+(`normal`/`physical_fault`/`security_concern`/`combined` —
+`docs/10_testing_and_attack_simulation.md` Section 4.1), weighted by
+inverse class frequency (`scripts/train_adaptive_pdp.py::situation_weights()`,
+the direct RL analogue of 5.6's `class_weight="balanced"` fix — needed for
+the same underlying imbalance reason, verified empirically before adding
+it) — see `src/adaptive_pdp.py` and `scripts/train_adaptive_pdp.py`.
+**Why this is safe as the LIVE default, not just a stretch goal:**
+`AdaptivePDP.greedy_action()` (the only method the live gateway calls) is
+a frozen Q-table lookup with no exploration and no `update()` call — it
+needs no live reward signal at all, since it never learns online; only
+offline training (against known synthetic ground truth) ever calls
+`update()`. This is the property that makes `USE_RL_POLICY=True` the safe
+default (`src/config.py`), not a live-feedback-loop risk. Do not reach for
+a full deep-RL framework (Stable-Baselines3, PPO, etc.) — the state/action
 space here is small and simple enough that a hand-rolled bandit is both
 sufficient and considerably easier to explain and defend than a deep-RL
 black box would be.
@@ -442,8 +507,8 @@ of arbitrary constants.
 
 - **NIST SP 800-207** — Zero Trust Architecture. Already the project's
   governance backbone; every access decision should be traceable to a
-  specific tenet (see `implementation-docs/07_module_monitoring.md`'s
-  extension section for the mapping table pattern).
+  specific tenet (see `docs/08_module7_monitoring_and_audit.md` Section 5
+  for the mapping table pattern).
 - **IEC 62443** — the dominant industrial automation and control systems
   (IACS) security standard series. Specifically relevant: its
   zones-and-conduits security model maps naturally onto this project's
@@ -479,13 +544,13 @@ of arbitrary constants.
 
 | Phase | What | Primary doc |
 |---|---|---|
-| 0 (NEW) | Hardware bring-up: wire ESP32+MPU6050+vibration sensor, verify raw readings, write and test firmware per Section 3 | Section 3 above |
-| 6a | Isolation Forest trust signal | `implementation-docs/03_module_trust_evaluation.md`, Part B; Section 5.3 above |
+| 0 (NEW) | Hardware bring-up: wire ESP32+MPU6050+vibration sensor, verify raw readings, write and test firmware per Section 3 | Section 3 above, `firmware/HARDWARE_SETUP.md` |
+| 6a | Isolation Forest trust signal | `docs/04_module3_trust_evaluation.md` Section B.3; Section 5.3 above |
 | 6b | LSTM-Autoencoder trust signal | Section 5.4 above |
 | 6c | Graph Neural Network trust signal (scope per Section 2's two options; treat as highest-risk, first to descope if behind schedule) | Section 5.5 above |
 | 7 | Stacking meta-learner fusion + SHAP | Section 5.6, 5.7 above |
-| 8 | RL-adaptive Access Control | `implementation-docs/05_module_access_control.md`, Part B; Section 5.8 above |
-| 9 | Monitoring dashboard (Streamlit) + NIST 800-207 / IEC 62443 governance-mapping view | `implementation-docs/07_module_monitoring.md`, Extension Path |
+| 8 | RL-adaptive Access Control | `docs/06_module5_access_control.md` Section 4; Section 5.8 above |
+| 9 | Monitoring dashboard (Streamlit) + NIST 800-207 / IEC 62443 governance-mapping view | `docs/08_module7_monitoring_and_audit.md` Section 4-5 |
 
 Do not skip ahead — each phase's output is another phase's input (the
 fusion engine needs all four signals producing real output first; the RL
@@ -496,11 +561,30 @@ to).
 
 ## 8. Hard Constraints — Do Not Violate These
 
-- **Interface contracts stay stable.** `score_message(device_id, value,
-  auth_ok) -> (trust_score, reason)` and `decide(trust_score) -> decision`
-  are load-bearing (see the integration doc's Section 5 table). Extending
-  Module 3 should add at most one new field (`confidence`) to the call
-  site, not restructure it.
+- **Interface contracts stay stable, but the two-score split (Section 5.2)
+  was a deliberate, one-time exception to this rule, not a precedent for
+  casual restructuring.** The load-bearing shapes now are
+  `trust_engine.score_security_trust(device_id, is_flood, step_up_result)
+  -> (security_trust_score, reason)` and `policy_engine.decide(security_trust_score,
+  process_trust_score, process_status) -> decision`. This changed because
+  the single-score design had two real, exploitable vulnerabilities (see
+  Section 5.2) — that bar (a genuine, fixed vulnerability) is what
+  justifies breaking an interface contract; a design preference does not.
+- **A rejected message (unknown device, bad HMAC, boot/seq replay, stale
+  timestamp) never touches a registered device's own Security Trust or
+  Process Anomaly state.** It is routed to `trust_engine.IdentityTargetingRisk`,
+  keyed by the *claimed* device_id, exclusively. Do not reintroduce a path
+  where `auth_ok=False` (or a detected replay) feeds directly into a named
+  device's own score — that is precisely the trust-poisoning vulnerability
+  Section 5.2 fixed.
+- **Every evaluation/training script that redirects `audit_log.AUDIT_DB_PATH`
+  to a throwaway database must ALSO redirect `CHECKPOINT_STORE_PATH` and
+  `AUDIT_KEY_PATH`.** Found live, not theorized: a script that redirected
+  only `AUDIT_DB_PATH` left its checkpoint writes going to the real,
+  shared checkpoint file, silently poisoning the live audit log's
+  tamper-detection with checkpoints that describe an unrelated throwaway
+  database (`scripts/evaluate_latency.py`'s comment documents the exact
+  failure mode this caused).
 - **Train offline, infer at the gateway.** GNN/LSTM-AE/meta-learner
   training happens in standalone scripts (`scripts/train_*.py`) producing
   saved model artifacts; `gateway.py` only ever loads and runs inference,
@@ -569,12 +653,17 @@ presentation slides.
 
 ## 10. Verification and Evaluation
 
+**`RESULTS.md`** is the current, populated version of the deliverables
+list below — every synthetic-data figure requested here has already been
+produced, written up with explanations and caveats, and includes a
+reserved Section 13 for the real-hardware items still outstanding.
+
 Manual verification after every phase (run `gateway.py` +
 `device_simulator.py` + the real ESP32, confirm no exceptions, confirm
 trust scores react sensibly to both simulated and real physically-induced
-anomalies, confirm audit log rows look right) — see the original
-verification steps in `implementation-docs/08_integration_and_interactions.md`
-Section 6, now extended to include the real device.
+anomalies, confirm audit log rows look right) — see the verification
+steps in `docs/09_integration_and_data_flow.md` Section 3.1, now extended
+to include the real device.
 
 For the paper, per report Section 10, produce:
 - Ablation: fused score vs. each individual signal's standalone accuracy
@@ -598,11 +687,15 @@ Same as before, plus:
   (`firmware/main.py`, plus any driver helper modules).
 - New `scripts/` directory for offline training scripts, one per model
   (`scripts/train_isolation_forest.py`, `scripts/train_lstm_ae.py`,
-  `scripts/train_gnn.py`, `scripts/train_fusion_meta_learner.py`).
+  `scripts/train_gnn.py`, `scripts/train_fusion_meta_learner.py`, plus
+  `scripts/train_transformer.py` — a fifth, ablation-only Process Anomaly
+  candidate, not part of the trained-model set `train_fusion_meta_learner.py`
+  actually consumes; see `docs/04_module3_trust_evaluation.md` Section
+  B.5b and `RESULTS.md` Section 2.2).
 - New scorer files in `src/`: `isolation_forest_scorer.py`,
-  `lstm_ae_scorer.py`, `gnn_scorer.py`, `fusion_engine.py`,
-  `adaptive_pdp.py`, `dashboard.py` — one model, one file, matching the
-  existing per-module file convention.
+  `lstm_ae_scorer.py`, `gnn_scorer.py`, `transformer_scorer.py`,
+  `fusion_engine.py`, `adaptive_pdp.py`, `dashboard.py` — one model, one
+  file, matching the existing per-module file convention.
 - Data collected from the real hardware (baseline + adversarial sessions)
   goes in a new `data/collected/` directory, checked into version control
   if small enough, or documented with a collection script if not — either

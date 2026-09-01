@@ -1,63 +1,54 @@
 # firmware/main.py -- runs on the ESP32 under MicroPython (CLAUDE.md Section 3).
 #
-# Replaces the earlier Arduino/C++ firmware (hardware/esp32_zt_device.ino) --
-# CLAUDE.md Section 3 calls for MicroPython specifically: it shares almost
-# identical logic (HMAC construction, JSON message shape) with the Python
-# gateway/simulator, and iterates far faster than a C/Arduino compile-flash
-# cycle. Publishes as ONE logical device, "esp32-vib-001" (feature_vector
-# kind in src/config.py's DEVICE_REGISTRY) -- unlike the old two-identity
-# Arduino firmware, this board is one physical device with one identity,
-# per CLAUDE.md Section 2's hardware inventory.
+# TWO-SCORE REARCHITECTURE additions (mirrors src/device_simulator.py --
+# see that file and src/trust_engine.py for the full rationale). NONE of
+# this has been run on real hardware yet (no board has been flashed at the
+# time of writing -- see SESSION_LOG.md); it is verified only the way the
+# rest of this file's HMAC/canonicalisation logic was originally verified,
+# by hand-checking the string-building logic against the Python-side
+# equivalent, not by a live board round trip. Budget real debugging time
+# for this on first flash, same as every other integration point this file
+# already flags.
 #
-# ALL FIVE Section-5.1 features (rms, peak, crest_factor, kurtosis,
-# dominant_freq) are computed HERE, on-device, rather than shipping a raw
-# 32-sample window over the signed MQTT channel. That's a deliberate
-# departure from a literal reading of CLAUDE.md's firmware skeleton (which
-# only computes rms/peak on-device and implies the gateway does the rest
-# from a raw window): signing a 32-element float array would mean
-# reproducing Python's exact json.dumps array-of-floats formatting across
-# every element, multiplying the float-canonicalisation risk that was
-# already the single trickiest part of the predecessor firmware. Computing
-# all 5 scalars here keeps the signed payload flat (one canonicalisation
-# concern per field, already verified against 6000+ random values in this
-# project's build log -- see docs/06_hardware_setup.md) and doesn't need
-# scikit-learn/numpy equivalents on the microcontroller: RMS/peak/crest
-# factor are a few lines of arithmetic, kurtosis is one more pass over the
-# window, and the DFT for dominant_freq is a direct O(N^2) sum (N=32,
-# trivially fast on an ESP32, no FFT library needed).
+#   - boot_id: read the persisted counter from a local file (this board's
+#     flash-equivalent of docs/01_simulation_and_hardware_abstraction.md
+#     Section 5.1 point 1's "flash storage"), increment by 1, write back
+#     immediately -- ONE flash write per boot, not per message. seq starts
+#     at 1 each boot and is NOT persisted (boot_id already makes that safe
+#     -- see trust_engine.check_boot_replay()).
+#   - ts is now WALL-CLOCK epoch milliseconds, not ms-since-boot as before
+#     -- the gateway's secondary freshness check (check_timestamp_freshness)
+#     compares against its own time.time(), so this board now syncs its
+#     clock via NTP at startup (best-effort; if it fails, ts freshness will
+#     fail until it's retried, but boot_id/seq is the PRIMARY anti-replay
+#     mechanism and doesn't depend on wall-clock time at all).
+#   - subscribes to cps/challenge/<device_id> and echoes a received nonce
+#     as step_up_nonce_echo in the NEXT published message (Module 2
+#     Section 7) -- included in the signed canonical payload like every
+#     other field.
 #
-# Required libraries: none beyond what ships with MicroPython's ESP32
-# port (network, time, ujson, ubinascii, uhashlib, machine, umqtt.simple
-# is bundled with most ESP32 MicroPython builds; if yours doesn't have it,
-# `mip.install("umqtt.simple")` from the REPL).
-#
-# BEFORE trusting this end to end: verify the HMAC signature this board
-# computes actually matches what gateway.py's verify_signature() expects,
-# by publishing one test message and checking the gateway logs `auth=OK`.
-# The float-formatting routine below (format_py_float) was verified in
-# this project's Python-side build (docs/06_hardware_setup.md) against
-# thousands of random values with zero mismatches at 4-decimal precision --
-# MicroPython's own number formatting should match CPython's for this
-# range, but budget real debugging time for this integration point rather
-# than assuming it works on the first try; it's genuinely the part most
-# likely to need a second look on real hardware.
+# Required libraries: as before, plus `ntptime` (bundled with standard
+# MicroPython ESP32 builds).
 
 import network
 import time
 import ujson
 import ubinascii
 import uhashlib
-import ussl
-from machine import I2C, Pin, ADC
+try:
+    import ussl
+except ImportError:
+    import ssl as ussl  # newer MicroPython builds dropped the 'u' prefix
+from machine import I2C, Pin
 from umqtt.simple import MQTTClient
 
 # ==================== CONFIGURE BEFORE FLASHING ====================
+
 WIFI_SSID = "YOUR_WIFI_SSID"
 WIFI_PASSWORD = "YOUR_WIFI_PASSWORD"
-MQTT_HOST = "192.168.x.x"          # your gateway machine's LAN IP -- see docs/06_hardware_setup.md
+MQTT_HOST = "192.168.x.x"          # your gateway machine's LAN IP -- see firmware/HARDWARE_SETUP.md
 MQTT_TLS_PORT = 8883               # matches config.MQTT_TLS_PORT; switches on automatically once certs/ exists
 MQTT_USE_TLS = True                # set False only for initial bring-up/debugging over plaintext 1883
-
 DEVICE_ID = "esp32-vib-001"
 # Must exactly match src/secrets_local.py's DEVICE_SECRETS["esp32-vib-001"]
 # (payload HMAC) -- that file is gitignored and holds the real value; copy
@@ -66,24 +57,24 @@ DEVICE_SECRET = "CHANGE-ME-match-secrets_local.py-DEVICE_SECRETS"
 # MQTT broker login (separate from DEVICE_SECRET above -- transport layer,
 # not application layer, IEC 62443 FR5). Must exactly match
 # src/secrets_local.py's MQTT_PASSWORDS["esp32-vib-001"] and
-# certs/mosquitto_passwd. Only used if the broker has auth enabled
-# (certs/mosquitto_passwd exists) -- see docs/07_transport_zero_trust.md.
+# certs/mosquitto_passwd. Only used if the broker has auth enabled.
 MQTT_USE_AUTH = True
 MQTT_USERNAME = "esp32-vib-001"
 MQTT_PASSWORD = "CHANGE-ME-match-secrets_local.py-MQTT_PASSWORDS"
 
-VIBRATION_ADC_PIN = 34             # any ADC1 pin (32-39) -- avoid ADC2, it conflicts with WiFi
 MPU6050_I2C_ADDR = 0x68            # default address when AD0 is tied to GND
 
 TELEMETRY_TOPIC = b"cps/telemetry"
-DECISION_TOPIC = ("cps/decisions/" + DEVICE_ID).encode()   # Module 2 mutual-auth extension, see below
+DECISION_TOPIC = ("cps/decisions/" + DEVICE_ID).encode()
+CHALLENGE_TOPIC = ("cps/challenge/" + DEVICE_ID).encode()   # Module 2 Section 7 step-up
+BOOT_ID_FILE = "boot_id.txt"                                 # flash-equivalent persisted counter
 SAMPLE_RATE_HZ = 100                # matches config.FEATURE_SAMPLE_RATE_HZ
 WINDOW_SIZE = 32                    # matches config.FEATURE_WINDOW_SIZE
 PUBLISH_INTERVAL_MS = 2000
 # =====================================================================
 
 
-# ---------- WiFi / MQTT plumbing ----------
+# ---------- WiFi / MQTT / time plumbing ----------
 
 def connect_wifi():
     wlan = network.WLAN(network.STA_IF)
@@ -96,6 +87,48 @@ def connect_wifi():
     print("[wifi] connected, ip=", wlan.ifconfig()[0])
 
 
+def sync_time():
+    # Best-effort: the gateway's secondary timestamp-freshness check needs
+    # this board's clock to be roughly wall-clock-correct. boot_id/seq
+    # (Module 2 Check 4) is the PRIMARY anti-replay mechanism and does not
+    # depend on this succeeding -- if NTP fails (no internet route to an
+    # NTP server, blocked port, etc.), telemetry will still be accepted or
+    # rejected correctly on the replay dimension, only the independent
+    # freshness-window check would misbehave until this is retried.
+    #
+    # Retries a few times with a short pause -- observed live that a single
+    # NTP attempt right after WiFi association intermittently times out
+    # (ETIMEDOUT) even though a retry a couple seconds later succeeds, so
+    # one-shot was leaving the board on an un-synced clock for its whole
+    # session more often than it should.
+    import ntptime
+    for attempt in range(1, 4):
+        try:
+            ntptime.settime()
+            print("[time] synced via NTP")
+            return
+        except Exception as e:
+            print("[time] NTP sync attempt %d/3 failed:" % attempt, e)
+            if attempt < 3:
+                time.sleep_ms(2000)
+    print("[time] NTP sync failed after 3 attempts (non-fatal, see comment above)")
+
+
+def load_and_increment_boot_id():
+    # Read the persisted counter, increment by 1, write back immediately --
+    # ONE flash write per boot (docs/01 Section 5.1 point 1), not per
+    # message, which is what makes this cheap on flash wear compared to
+    # persisting `seq` itself instead.
+    try:
+        with open(BOOT_ID_FILE) as f:
+            boot_id = int(f.read().strip()) + 1
+    except (OSError, ValueError):
+        boot_id = 1
+    with open(BOOT_ID_FILE, "w") as f:
+        f.write(str(boot_id))
+    return boot_id
+
+
 def connect_mqtt():
     client_id = DEVICE_ID + "-" + ubinascii.hexlify(machine_unique_id()).decode()
     user = MQTT_USERNAME if MQTT_USE_AUTH else None
@@ -103,14 +136,6 @@ def connect_mqtt():
     if MQTT_USE_TLS:
         client = MQTTClient(client_id, MQTT_HOST, port=MQTT_TLS_PORT, user=user, password=pw,
                              ssl=True, ssl_params={"cert_reqs": ussl.CERT_NONE})
-        # NOTE: cert_reqs=CERT_NONE skips CA verification -- acceptable for
-        # this prototype's self-signed CA (see certs/ca.crt) on a private
-        # testbed network; MicroPython's CA-verification support varies by
-        # build/port, and getting cadata=<embedded CA bytes> working is a
-        # real task, not a one-liner -- documented here as a stated
-        # simplification (CLAUDE.md Section 8's "secret provisioning" note
-        # applies the same spirit here: acceptable for a prototype, name it
-        # explicitly rather than silently skipping it).
         print("[mqtt] connecting over TLS to", MQTT_HOST, MQTT_TLS_PORT)
     else:
         client = MQTTClient(client_id, MQTT_HOST, port=1883, user=user, password=pw)
@@ -118,6 +143,8 @@ def connect_mqtt():
     client.connect()
     print("[mqtt] connected", "with broker credentials" if MQTT_USE_AUTH else "anonymously")
     return client
+
+
 
 
 def machine_unique_id():
@@ -152,21 +179,6 @@ def read_accel_magnitude_g():
     return (ax * ax + ay * ay + az * az) ** 0.5
 
 
-# ---------- Vibration sensor (analog) ----------
-
-vib_adc = None
-
-
-def vibration_init():
-    global vib_adc
-    vib_adc = ADC(Pin(VIBRATION_ADC_PIN))
-    vib_adc.atten(ADC.ATTN_11DB)
-
-
-def read_vibration_raw():
-    return vib_adc.read()  # 0-4095 on the ESP32's 12-bit ADC
-
-
 # ---------- Feature extraction (Section 5.1, all computed on-device) ----------
 
 def extract_features(window):
@@ -194,14 +206,10 @@ def extract_features(window):
 
 
 def _dominant_frequency(window, mean, sample_rate_hz):
-    # Direct O(N^2) DFT magnitude spectrum -- N=32 is trivially fast on an
-    # ESP32, no FFT library needed. Matches feature_engineering.py's
-    # dominant_frequency() (excludes the DC bin, same as there).
     n = len(window)
     centered = [v - mean for v in window]
     best_mag_sq = -1.0
     best_freq = 0.0
-    # bins 1 .. n//2 (bin 0 is DC, excluded -- mirrors np.fft.rfft + spectrum[0]=0)
     for k in range(1, n // 2 + 1):
         re = 0.0
         im = 0.0
@@ -217,10 +225,6 @@ def _dominant_frequency(window, mean, sample_rate_hz):
 
 
 def _sin(x):
-    # Minimal Taylor-series sine/cosine -- avoids depending on `math` being
-    # a full C-accelerated build on every MicroPython port. Good enough
-    # precision for a spectral-peak search (not for anything requiring
-    # tight numerical accuracy).
     x = x % (2 * 3.14159265358979)
     if x > 3.14159265358979:
         x -= 2 * 3.14159265358979
@@ -250,13 +254,7 @@ def hmac_sha256(key: bytes, message: bytes) -> bytes:
 
 
 # ---------- Python-compatible float formatting ----------
-#
-# The gateway recomputes the HMAC over json.dumps(payload, sort_keys=True)
-# on the PARSED payload -- so this only needs to reproduce Python's
-# shortest-round-trip decimal rendering for values already rounded to 4
-# decimals (round(x, 4) above), which was verified against 6000+ random
-# values (including negatives, for kurtosis) with zero mismatches. See
-# docs/06_hardware_setup.md.
+
 def format_py_float(v, decimals=4):
     s = "%.*f" % (decimals, v)
     if "." in s:
@@ -267,38 +265,44 @@ def format_py_float(v, decimals=4):
     return s
 
 
+def canonical_json(fields: dict) -> str:
+    """Generic replacement for the old hand-interpolated fixed-field
+    template -- needed now that the field set is variable
+    (step_up_nonce_echo only appears some of the time). Each value in
+    `fields` must ALREADY be a JSON-literal string (numbers unquoted,
+    strings pre-quoted) -- same philosophy as format_py_float() above, just
+    generalized, so this still never depends on a general-purpose
+    MicroPython JSON encoder matching Python's exact number formatting.
+    Separators (", " between pairs, ": " within a pair) match Python's
+    json.dumps(payload, sort_keys=True) default (no separators= override)."""
+    parts = ['"%s": %s' % (k, fields[k]) for k in sorted(fields.keys())]
+    return "{" + ", ".join(parts) + "}"
+
+
 # ---------- Build + sign + publish ----------
-#
-# Canonical key order MUST match json.dumps(payload, sort_keys=True)'s
-# alphabetical ordering exactly: crest_factor, device_id, dominant_freq,
-# kurtosis, peak, rms, ts, vibration_raw.
-def build_and_sign(features, vibration_raw, ts_ms):
-    canonical = (
-        '{"crest_factor": %s, "device_id": "%s", "dominant_freq": %s, '
-        '"kurtosis": %s, "peak": %s, "rms": %s, "ts": %d, "vibration_raw": %d}'
-    ) % (
-        format_py_float(features["crest_factor"]),
-        DEVICE_ID,
-        format_py_float(features["dominant_freq"]),
-        format_py_float(features["kurtosis"]),
-        format_py_float(features["peak"]),
-        format_py_float(features["rms"]),
-        ts_ms,
-        vibration_raw,
-    )
+def build_and_sign(features, boot_id, seq, ts_ms, pending_nonce):
+    fields = {
+        "boot_id": str(boot_id),
+        "crest_factor": format_py_float(features["crest_factor"]),
+        "device_id": '"%s"' % DEVICE_ID,
+        "dominant_freq": format_py_float(features["dominant_freq"]),
+        "kurtosis": format_py_float(features["kurtosis"]),
+        "peak": format_py_float(features["peak"]),
+        "rms": format_py_float(features["rms"]),
+        "seq": str(seq),
+        "ts": str(ts_ms),
+    }
+    if pending_nonce is not None:
+        fields["step_up_nonce_echo"] = '"%s"' % pending_nonce
+    canonical = canonical_json(fields)
     signature = ubinascii.hexlify(hmac_sha256(DEVICE_SECRET.encode(), canonical.encode())).decode()
     envelope = '{"payload": %s, "signature": "%s"}' % (canonical, signature)
     return envelope
 
 
-# ---------- Mutual authentication: verify the gateway's signed decisions ----------
-#
-# Module 2 mutual-authentication extension (device side). The decision
-# payload is just {"decision": str, "device_id": str, "ts": int} -- no
-# floats -- so, unlike build_and_sign() above, reconstructing the exact
-# canonical string Python's json.dumps(payload, sort_keys=True) produced
-# needs no float-formatting care at all; plain %s/%d string interpolation
-# already matches it exactly for these three field types.
+
+# ---------- Mutual authentication + step-up challenge handling ----------
+
 def _consteq(a, b):
     if len(a) != len(b):
         return False
@@ -316,7 +320,19 @@ def verify_decision_signature(payload, signature_hex):
     return _consteq(expected, signature_hex)
 
 
-def on_decision(topic, msg):
+_pending_step_up_nonce = None  # module-level: set by on_message(), consumed by the next build_and_sign() call
+
+
+def on_message(topic, msg):
+    global _pending_step_up_nonce
+    if topic == CHALLENGE_TOPIC:
+        try:
+            body = ujson.loads(msg)
+            _pending_step_up_nonce = body["nonce"]
+            print("[challenge] received step-up nonce, will echo on next publish")
+        except (ValueError, KeyError):
+            print("[challenge] malformed challenge message, dropping")
+        return
     try:
         envelope = ujson.loads(msg)
         payload = envelope["payload"]
@@ -332,33 +348,44 @@ def on_decision(topic, msg):
 
 
 def main():
+    global _pending_step_up_nonce
     connect_wifi()
+    sync_time()
     mpu6050_init()
-    vibration_init()
     client = connect_mqtt()
-    client.set_callback(on_decision)
+    client.set_callback(on_message)
     client.subscribe(DECISION_TOPIC)
+    client.subscribe(CHALLENGE_TOPIC)
 
-    boot_ms = time.ticks_ms()
-    print("[main] publishing esp32-vib-001 telemetry every", PUBLISH_INTERVAL_MS, "ms")
+    boot_id = load_and_increment_boot_id()
+    seq = 0
+    print("[main] boot_id =", boot_id, "-- publishing", DEVICE_ID, "telemetry every", PUBLISH_INTERVAL_MS, "ms")
 
     while True:
         try:
             window = sample_window()
             features = extract_features(window)
-            vibration_raw = read_vibration_raw()
-            ts_ms = time.ticks_diff(time.ticks_ms(), boot_ms)  # ms since boot -- see trust_engine.py's replay-check note
+            # MicroPython's time.time() counts seconds since 2000-01-01, not the
+            # Unix epoch (1970-01-01) the gateway's time.time() uses -- NTP sync
+            # sets the RTC correctly but doesn't change that reference point, so
+            # the fixed 946684800s gap must be added here or every message looks
+            # ~30 years stale to check_timestamp_freshness().
+            ts_ms = int((time.time() + 946684800) * 1000)
+            seq += 1
 
-            envelope = build_and_sign(features, vibration_raw, ts_ms)
+            nonce_to_echo = _pending_step_up_nonce
+            _pending_step_up_nonce = None  # consumed -- only echoed once
+            envelope = build_and_sign(features, boot_id, seq, ts_ms, nonce_to_echo)
             client.publish(TELEMETRY_TOPIC, envelope)
             print("[publish]", envelope)
-            client.check_msg()  # non-blocking: process any pending decision message
+            client.check_msg()  # non-blocking: process any pending decision/challenge message
         except OSError as e:
             print("[main] connection error, reconnecting:", e)
             try:
                 client = connect_mqtt()
-                client.set_callback(on_decision)
+                client.set_callback(on_message)
                 client.subscribe(DECISION_TOPIC)
+                client.subscribe(CHALLENGE_TOPIC)
             except OSError:
                 connect_wifi()
 
@@ -367,3 +394,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

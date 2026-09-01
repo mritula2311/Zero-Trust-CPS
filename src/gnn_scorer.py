@@ -125,3 +125,54 @@ class GNNScorer:
 
     def is_trained(self) -> bool:
         return self.model is not None
+
+    def level2_explain(self, device_id: str) -> tuple[str, float, float] | None:
+        """Module 3 Section C.3's perturbation-based Level-2 explanation
+        for the GNN: mask one NODE's features at a time (replace with the
+        neutral 0.9 fallback every scorer uses for "no evidence yet"), and
+        measure the change in THIS device's own output score. The masked
+        node causing the largest change is "responsible" -- i.e. which
+        other device's current state is most driving this device's GNN
+        score, the relational signal no single-device sub-signal can
+        produce. Returns (device_id, score_change, counterfactual_score)
+        for the top contributor -- counterfactual_score is what THIS
+        device's own GNN score would have been with that neighbor masked,
+        feeding Section C.4's validation procedure
+        (scripts/evaluate_explainability_level2.py) -- never `device_id`
+        itself (masking a node's own features and
+        asking "how much did that change this same node's score" answers a
+        different, less useful question than "which OTHER node matters
+        most", the one this signal specifically exists for)."""
+        i = self._index[device_id]
+        if self.model is None:
+            return None
+
+        now = time.time()
+        active = (now - self.last_seen) <= GNN_EDGE_WINDOW_SECONDS
+        a_hat = normalized_adjacency(active).to(_TORCH_DEVICE)
+        x = torch.tensor(self.last_features, dtype=torch.float32, device=_TORCH_DEVICE)
+        with torch.no_grad():
+            base_score = float(self.model(x, a_hat)[i].item())
+
+            best_device, best_change, best_cf_score = None, -1.0, base_score
+            for j, other_id in enumerate(self.device_ids):
+                if j == i:
+                    continue
+                perturbed = x.clone()
+                perturbed[j] = 0.9
+                perturbed_score = float(self.model(perturbed, a_hat)[i].item())
+                change = abs(base_score - perturbed_score)
+                if change > best_change:
+                    best_device, best_change, best_cf_score = other_id, change, perturbed_score
+
+        # A masked node with no active edge to `i` cannot route any signal
+        # through a_hat, so its perturbation changes nothing (change==0.0
+        # exactly) -- with NO active neighbors at all, every candidate ties
+        # at 0.0 and the loop above would otherwise "pick" the first one in
+        # device_ids purely by iteration order, reporting a fake
+        # attribution (e.g. always "sensor-002") even though nothing is
+        # actually influencing this device's score. Treat that as no
+        # attribution rather than a misleading one.
+        if best_device is None or best_change <= 1e-6:
+            return None
+        return (best_device, best_change, best_cf_score)

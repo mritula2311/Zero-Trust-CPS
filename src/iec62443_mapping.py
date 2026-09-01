@@ -33,7 +33,7 @@ from config import NIST_TENETS, MQTT_USE_AUTH  # NIST_TENETS kept for symmetry/r
 ZONES = {
     "Device/Edge Zone": "ESP32 (firmware/main.py) + simulated devices (device_simulator.py) -- Modules 1, 2, 3-feature-extraction, 6 (client side). Deliberately minimal: identity, auth handshake, TLS/HTTPS termination only -- no model inference here (synopsis Section 7.1).",
     "Gateway Zone": "gateway.py + every src/*.py it imports -- Modules 1 (registry), 2 (verification), 3 (all 4 trust signals + fusion), 4, 5, 6 (server side). All computational cost of Zero Trust is absorbed here (synopsis Section 7.2).",
-    "Monitoring/Governance Zone": "audit_log.py, nist_mapping.py, iec62443_mapping.py (this file), dashboard.py -- Module 7 (synopsis Section 7.3).",
+    "Monitoring/Governance Zone": "audit_log.py, nist_mapping.py, iec62443_mapping.py (this file) -- Module 7 (synopsis Section 7.3). design/zero-trust-cps-command-center.html is a static visual artifact only, not part of this zone's live data path (no server, no live audit_log wiring -- see firmware/HARDWARE_SETUP.md).",
 }
 
 CONDUITS = {
@@ -62,7 +62,9 @@ FOUNDATIONAL_REQUIREMENTS = {
     "FR3": {
         "name": "System Integrity",
         "status": "implemented",
-        "where": "Modules 3/4 -- the 4-signal fusion trust score + replay/freshness check (trust_engine.check_replay())",
+        "where": "Modules 3/4 -- the 4-signal Process Anomaly fusion + boot_id/seq anti-replay "
+                 "(trust_engine.check_boot_replay()) + secondary timestamp-freshness check "
+                 "(trust_engine.check_timestamp_freshness())",
     },
     "FR4": {
         "name": "Data Confidentiality",
@@ -83,7 +85,7 @@ FOUNDATIONAL_REQUIREMENTS = {
     "FR7": {
         "name": "Resource Availability",
         "status": "partial",
-        "where": "Module 4 -- trust_engine.check_flood() (per-device message-rate anomaly detection, config.MIN_MESSAGE_INTERVAL_SECONDS) + Mosquitto max_connections/message_size_limit (docs/07_transport_zero_trust.md) + scripts/run_gateway_supervised.py (restart-on-crash process supervision)",
+        "where": "Module 4 -- trust_engine.check_flood() (per-device message-rate anomaly detection, config.MIN_MESSAGE_INTERVAL_SECONDS) + trust_engine.IdentityTargetingRisk's gateway-level cooldown (drops further attempts against a claimed device_id once IDENTITY_TARGETING_RISK_THRESHOLD_60S is crossed, before they even reach verification) + Mosquitto max_connections/message_size_limit (docs/07_transport_zero_trust.md) + scripts/run_gateway_supervised.py (restart-on-crash process supervision)",
         "note": "What's still genuinely NOT done: true redundancy/failover in the multi-instance sense -- this is still ONE gateway process (now automatically restarted if it crashes, but not load-balanced across multiple instances) and the rate-limiting is connection/message-count based, not a sophisticated per-client token-bucket. A production deployment would need multiple gateway instances behind a broker that can route around a dead one. State this boundary explicitly: crash-resilience and basic flood/connection limits are real; horizontal redundancy is not.",
     },
 }
@@ -97,17 +99,20 @@ means with low resources, generic skills, low motivation").
 
 Evidence FOR SL-2: HMAC-SHA256 authentication (FR1) defeats a naive
 device-impersonation attempt; TLS/HTTPS (FR4) defeats passive network
-sniffing; the replay/freshness check (FR3) defeats a captured-message
-replay attack; per-device MQTT broker credentials + topic ACLs (FR5,
-certs/mosquitto_acl) now ALSO defeat a naive attacker who has network
-access but no device credentials -- previously such an attacker could
-connect to the broker anonymously and either eavesdrop on every device's
-telemetry or forge a plausible-looking `cps/decisions` message, neither
-of which required breaking the HMAC scheme at all; the flood/rate-limit
-check (FR7, trust_engine.check_flood()) defeats a naive message-flood
-attempt. All of this is exactly the "simple means, low resources" attack
-profile SL-2 is scoped to. scripts/evaluate_ablation.py's real result
-(fusion detects anomalies at 97% accuracy on held-out data) is additional
+sniffing; the boot_id/seq anti-replay check (FR3) defeats a
+captured-message replay attack, including a replay of an entire pre-reboot
+session (closing the earlier ts-heuristic's documented blind spot -- see
+SESSION_LOG.md); IdentityTargetingRisk (FR3/FR7) closes a real
+trust-poisoning vulnerability the earlier single-score design had -- a
+device's own Security Trust Score can no longer be lowered by anyone who
+merely CLAIMS its device_id without knowing its secret; per-device MQTT
+broker credentials + topic ACLs (FR5, certs/mosquitto_acl) defeat a naive
+attacker who has network access but no device credentials; the
+flood/rate-limit check plus the Identity Targeting Risk cooldown (FR7)
+defeat a naive message-flood or credential-guessing attempt. All of this
+is exactly the "simple means, low resources" attack profile SL-2 is
+scoped to. scripts/evaluate_ablation.py's real result (fusion detects
+process anomalies at 97% accuracy on held-out data) is additional
 evidence the system detects low-sophistication behavioural attacks it
 wasn't explicitly told to look for.
 
@@ -117,16 +122,20 @@ verification (firmware/main.py's cert_reqs=CERT_NONE, see
 docs/06_hardware_setup.md) -- an attacker who already has valid MQTT
 credentials (e.g. extracted from a captured device) can still connect
 without the broker verifying ITS identity back; no hardware secure
-element for key storage (shared secrets, including the new MQTT
-passwords, are plaintext constants in firmware/main.py and config.py --
-CLAUDE.md Section 8 explicitly names this an accepted prototype
-simplification for the HMAC secret, and the same reasoning applies to the
-MQTT credentials); FR5/FR7 are "partial" not "implemented" -- no physical
-network segmentation, no multi-instance redundancy (see those FRs' `note`
-fields for the exact boundary); the replay check has a documented narrow
-blind spot (config.REBOOT_TS_THRESHOLD_MS). A moderately-resourced
-attacker with IACS-specific skills, or one with physical access to a
-device's flash memory, could plausibly defeat one or more of these.
+element for key storage (shared secrets, including the MQTT passwords,
+are plaintext constants in firmware/main.py and config.py -- CLAUDE.md
+Section 8 explicitly names this an accepted prototype simplification for
+the HMAC secret, and the same reasoning applies to the MQTT credentials);
+FR5/FR7 are "partial" not "implemented" -- no physical network
+segmentation, no multi-instance redundancy (see those FRs' `note` fields
+for the exact boundary); a compromised device that still holds valid
+credentials and deliberately reports plausible, in-range fabricated
+sensor values (the `stealthy_forged_values` scenario) is explicitly
+acknowledged as not reliably detectable by this single-node design (see
+docs/04_module3_trust_evaluation.md Section B.8) -- this is a stated,
+measured limitation, not a fixed gap. A moderately-resourced attacker with
+IACS-specific skills, or one with physical access to a device's flash
+memory, could plausibly defeat one or more of these.
 
 State this SL-2 target explicitly in the paper rather than claiming a
 higher level the evidence doesn't support -- an honest, evidenced SL-2

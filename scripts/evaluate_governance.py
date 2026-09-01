@@ -2,10 +2,9 @@
 Synopsis Section 10.1/10.2: "Governance completeness: proportion of NIST
 SP 800-207 tenets for which the system produces a traceable, logged
 artefact" / "A governance-ready audit report mapping implemented controls
-... to NIST SP 800-207 tenets." This is the standalone, paper-ready
-version of the same report dashboard.py's "NIST SP 800-207 governance
-completeness" section shows live -- run this for a point-in-time snapshot
-you can paste into the report, rather than a screenshot of the dashboard.
+... to NIST SP 800-207 tenets." Run this for a point-in-time,
+paper-ready snapshot of the same completeness metric `nist_mapping.py`
+computes.
 
 Reads the LIVE audit_log.db (not a held-out test set -- governance
 completeness is about what the deployed system actually produced, not a

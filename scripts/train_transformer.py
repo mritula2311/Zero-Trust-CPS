@@ -1,0 +1,117 @@
+"""
+Offline training for the Transformer ablation candidate (Module 3,
+Phase 6 -- see transformer_scorer.py's docstring for why this is not
+wired into the live fusion inputs).
+
+CLAUDE.md Section 8: training happens here; transformer_scorer.py's
+TransformerScorer only ever loads the resulting artifacts and runs
+inference. Imports the SAME TransformerAutoencoder class
+transformer_scorer.py uses at inference time, so there's exactly one
+architecture definition -- same pattern as train_lstm_ae.py.
+
+Trains on esp32-vib-001's NORMAL feature-vector time series only, using
+overlapping sliding windows of length SEQ_LEN (== LSTM_SEQ_LEN) as
+training sequences. Denoising objective: Gaussian noise is added to the
+NORMALIZED input window; the loss is reconstruction error against the
+CLEAN window. This is what actually prevents the self-attention shortcut
+described in transformer_scorer.py's docstring -- without it, the model
+can partially learn to just copy neighboring positions instead of
+learning the underlying normal pattern.
+"""
+
+import json
+import os
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+
+import numpy as np
+import torch
+import torch.nn as nn
+
+from config import (
+    DATA_COLLECTED_DIR,
+    MODELS_DIR,
+    TRANSFORMER_MODEL_PATH,
+    TRANSFORMER_META_PATH,
+    TRANSFORMER_EPOCHS,
+    TRANSFORMER_LEARNING_RATE,
+    TRANSFORMER_NOISE_STD,
+    LSTM_SEQ_LEN,
+    FEATURE_NAMES,
+)
+import feature_engineering as fe
+from transformer_scorer import TransformerAutoencoder, _TORCH_DEVICE
+
+SESSION_PATH = os.path.join(DATA_COLLECTED_DIR, "training_session.json")
+SEQ_LEN = LSTM_SEQ_LEN
+
+
+def main():
+    torch.manual_seed(0)
+    with open(SESSION_PATH) as f:
+        records = json.load(f)
+
+    normal = [
+        r for r in records
+        if r["device_id"] == "esp32-vib-001" and r["label"] == 1 and r["auth_ok"]
+    ]
+    normal.sort(key=lambda r: r["tick"])
+    if len(normal) < SEQ_LEN + 10:
+        raise SystemExit(f"only {len(normal)} normal examples -- need more, re-run generate_training_data.py")
+
+    raw = np.array([fe.feature_vector(r["reading"]) for r in normal], dtype=np.float32)
+    mean = raw.mean(axis=0)
+    std = raw.std(axis=0)
+    std[std < 1e-6] = 1.0
+    normalized = (raw - mean) / std
+
+    windows = np.stack([normalized[i:i + SEQ_LEN] for i in range(len(normalized) - SEQ_LEN + 1)])
+    print(f"training device: {_TORCH_DEVICE}")
+    clean = torch.tensor(windows, dtype=torch.float32, device=_TORCH_DEVICE)
+
+    model = TransformerAutoencoder().to(_TORCH_DEVICE)
+    n_params = sum(p.numel() for p in model.parameters())
+    print(f"{len(windows)} training windows, {n_params} model parameters")
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=TRANSFORMER_LEARNING_RATE)
+    loss_fn = nn.MSELoss()
+    model.train()
+    for epoch in range(TRANSFORMER_EPOCHS):
+        optimizer.zero_grad()
+        noisy = clean + torch.randn_like(clean) * TRANSFORMER_NOISE_STD
+        recon = model(noisy)
+        loss = loss_fn(recon, clean)  # denoise: reconstruct the CLEAN window from the noisy one
+        loss.backward()
+        optimizer.step()
+        if epoch % 20 == 0 or epoch == TRANSFORMER_EPOCHS - 1:
+            print(f"  epoch {epoch}: loss={loss.item():.5f}")
+
+    # Baseline error stats computed on the CLEAN windows (no noise) -- this
+    # must match what score() does at inference time (transformer_scorer.py
+    # never adds noise), or the z-score rescaling below would be calibrated
+    # against the wrong distribution.
+    model.eval()
+    with torch.no_grad():
+        recon = model(clean)
+        per_window_error = ((recon - clean) ** 2).mean(dim=(1, 2)).cpu().numpy()
+    baseline_error_mean = float(per_window_error.mean())
+    baseline_error_std = float(per_window_error.std()) or 1e-3
+
+    os.makedirs(MODELS_DIR, exist_ok=True)
+    torch.save(model.state_dict(), TRANSFORMER_MODEL_PATH)
+    with open(TRANSFORMER_META_PATH, "w") as f:
+        json.dump({
+            "mean": mean.tolist(),
+            "std": std.tolist(),
+            "baseline_error_mean": baseline_error_mean,
+            "baseline_error_std": baseline_error_std,
+            "feature_names": FEATURE_NAMES,
+        }, f, indent=1)
+
+    print(f"trained Transformer-AE on {len(windows)} windows ({len(normal)} normal readings), saved to {TRANSFORMER_MODEL_PATH}")
+    print(f"baseline (clean) reconstruction error: mean={baseline_error_mean:.5f} std={baseline_error_std:.5f}")
+
+
+if __name__ == "__main__":
+    main()

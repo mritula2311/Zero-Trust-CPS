@@ -31,6 +31,14 @@ data/audit_log.db
 src/data/audit_log.db
 *.db
 
+# Audit-log checkpoint HMAC key (audit_log.py) -- same category as the TLS
+# private keys above: real secret key material generated locally, never
+# committed. checkpoint_log.jsonl is derived from it (HMACs computed with
+# this key) and is local runtime state tied to this specific key instance,
+# not source -- excluded alongside it for the same reason.
+data/audit_key.bin
+data/checkpoint_log.jsonl
+
 # OS / editor
 .DS_Store
 Thumbs.db

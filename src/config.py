@@ -56,6 +56,10 @@ TELEMETRY_TOPIC = "cps/telemetry"      # devices publish sensor readings here
 # (least privilege / IEC 62443 FR5 "Restricted Data Flow") -- a flat shared
 # topic couldn't be scoped per-device with topic-based ACLs at all.
 DECISION_TOPIC = "cps/decisions"
+# Gateway -> device step-up challenge nonce (Module 2 Section 7). Same
+# per-device-suffix pattern as DECISION_TOPIC, for the same least-privilege
+# reason -- each device only needs to read its own challenge topic.
+CHALLENGE_TOPIC = "cps/challenge"
 
 _CERTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "certs")
 MQTT_USE_TLS = os.path.exists(os.path.join(_CERTS_DIR, "ca.crt"))   # auto-on once certs exist -- see docs/03_add_tls.md
@@ -99,41 +103,68 @@ COAP_CERT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", 
 COAP_KEY_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "certs", "coap_server.key")
 COAP_ENABLED = os.path.exists(COAP_CERT_PATH) and os.path.exists(COAP_KEY_PATH)  # auto-on once certs exist
 
-# --- Replay protection (Module 4 / synopsis Stage 6 adversarial testing) ---
-# `ts` (ms) must strictly increase per device -- a captured-and-replayed
-# message (identical value + identical signature) is now rejected the same
-# way a bad signature is. Distinguishing a genuine device REBOOT (the real
-# firmware's ts is millis()-since-boot, so it resets toward 0) from a REPLAY
-# is done by looking at the incoming ts's absolute size, not the size of the
-# backward jump: a backward jump could be small (attacker replays a message
-# from seconds ago) or large (replays one from an hour ago) regardless of
-# whether it's a reboot, so jump size alone can't disambiguate the two. A ts
-# below REBOOT_TS_THRESHOLD_MS means the device itself claims to be within
-# the first few seconds of its own uptime -- overwhelmingly more likely to
-# be a real reboot than an attacker choosing to replay a message that
-# happens to carry a near-zero timestamp. Anything else non-increasing is
-# rejected as a replay.
+# --- Replay protection (Module 2/4, boot_id + seq scheme) ---
+# SUPERSEDES the old REBOOT_TS_THRESHOLD_MS heuristic (a ts-size guess at
+# "is this a reboot" that had a documented blind spot: a message captured
+# from within a device's first few seconds of uptime could still be
+# replayed later and be accepted, since it would look like a fresh boot).
 #
-# KNOWN LIMITATION (worth stating explicitly in the paper, not hiding): a
-# message captured from within a device's first REBOOT_TS_THRESHOLD_MS of
-# uptime is a blind spot -- replaying THAT specific message later would
-# still fall under the reboot-grace window and be accepted. Closing this
-# fully needs a monotonic hardware counter or a synced wall-clock + nonce,
-# which is out of scope for this prototype; ts-only replay detection closes
-# the general case (replaying any message from normal operation) but not
-# this specific early-boot edge case.
-REBOOT_TS_THRESHOLD_MS = 5000
+# Every device now carries two extra fields: `boot_id` (a small counter,
+# incremented exactly once per boot -- on real hardware this would be
+# persisted to flash; here, firmware/main.py persists it to a local file as
+# the flash-equivalent, and device_simulator.py just keeps it in memory)
+# and `seq` (resets to 1 every boot, strictly increasing within a boot
+# session). The gateway's rule (trust_engine.check_boot_replay()):
+#   boot_id strictly higher than last seen  -> ACCEPT, new session, seq
+#                                               baseline resets to this seq
+#   boot_id equal to last seen              -> ACCEPT only if seq is
+#                                               strictly higher than last seen
+#   boot_id lower than last seen            -> REJECT unconditionally --
+#                                               this session has already
+#                                               been superseded by a higher
+#                                               one, closing exactly the
+#                                               blind spot above: an
+#                                               attacker who captured a
+#                                               whole pre-reboot session
+#                                               cannot replay any message
+#                                               from it after a legitimate
+#                                               reboot has moved the device
+#                                               onto a new boot_id.
+# `ts` (still carried, still int ms) is now a SECONDARY freshness check --
+# REPLAY_WINDOW_SECONDS below -- independent of the boot/seq check, per
+# docs/03_module2_authentication.md Section 4 Check 5.
+REPLAY_WINDOW_SECONDS = 30
+
+# --- Step-up authentication (Module 2 Section 7 / Module 5) ---
+# Real gateway-issued-nonce / device-echo challenge-response, closing the
+# "not literal interactive challenge-response" gap
+# docs/03_module2_authentication.md Section 1.2 names. See gateway.py's
+# initiate_step_up() / check_step_up_response().
+STEP_UP_CHALLENGE_TIMEOUT_SECONDS = 10
+STEP_UP_SUCCESS_SCORE_BOOST = 0.1   # bounded -- does not fully reset a bad score
+
+# --- Identity Targeting Risk (Module 2 Section 5 attribution fix) ---
+# Tracked per CLAIMED device_id (registered or not) from REJECTED
+# verification attempts only -- deliberately never allowed to touch a real
+# device's own SecurityTrustState. See trust_engine.IdentityTargetingRisk
+# and gateway.py's _reject() path. Crossing this threshold within 60s
+# triggers a temporary gateway-level cooldown on further attempts against
+# that specific claimed id, dropped before they even reach verification --
+# a defence against the traffic, not a judgement about a real device.
+IDENTITY_TARGETING_RISK_THRESHOLD_60S = 20
+IDENTITY_TARGETING_COOLDOWN_SECONDS = 30
 
 # --- Device Identity Registry (Module 1) ---
 # In a real deployment each device would hold its own secret in a secure
 # element (ATECC608A or similar). Here we keep a simple in-memory registry on
 # the gateway so you can see the identity + authentication logic clearly.
 #
-# `kind: "feature_vector"` -- the real ESP32 (firmware/main.py). Payload
-# carries all 5 Section-5.1 features (rms, peak, crest_factor, kurtosis,
-# dominant_freq) plus vibration_raw, computed on-device (see firmware/main.py's
-# docstring for why the FFT etc. moved on-device rather than shipping a raw
-# sample window over the signed channel). `expected_ranges` is a plausible
+# `kind: "feature_vector"` -- the real ESP32 (firmware/main.py), one MPU6050
+# over I2C, no separate vibration sensor. Payload carries all 5 Section-5.1
+# features (rms, peak, crest_factor, kurtosis, dominant_freq), computed
+# on-device (see firmware/main.py's docstring for why the FFT etc. moved
+# on-device rather than shipping a raw sample window over the signed
+# channel). `expected_ranges` is a plausible
 # per-feature PHYSICAL range for the Part A rule check -- deliberately wide
 # (a hard override -- see trust_engine.py's "physically-out-of-range is
 # absolute" comment -- so it should rarely trigger; the fine-grained "is
@@ -181,15 +212,32 @@ DEVICE_REGISTRY = {
     },
 }
 
+# --- Real hardware onboarding (firmware/HARDWARE_SETUP.md) ---
+# Once a real ESP32 is flashed and running firmware/main.py for a given
+# device_id, add that id here so device_simulator.py stops also publishing
+# under the same identity -- two publishers sharing one device_id would
+# race on boot_id/seq (trust_engine.check_boot_replay()) and the real
+# board's messages would intermittently get rejected as replays of the
+# simulator's, or vice versa. Empty by default (pure simulation mode).
+REAL_HARDWARE_DEVICE_IDS: set = {"esp32-vib-001"}
+
 # --- Feature Engineering (Module 3, CLAUDE.md Section 5.1) ---
 FEATURE_NAMES = ["rms", "peak", "crest_factor", "kurtosis", "dominant_freq"]
 FEATURE_SAMPLE_RATE_HZ = 100.0   # matches firmware/main.py's dt_ms=10 sampling loop
 FEATURE_WINDOW_SIZE = 32         # samples per on-device window, matches firmware/main.py
 
-# --- Trust Evaluation (Module 3) ---
+# --- Trust Evaluation (Module 3, Section A: Security Behaviour Engine) ---
+# Two-score rearchitecture: these now apply ONLY to the Security Trust
+# Score (cyber-behaviour evidence -- rate/flood, silence). They are no
+# longer touched by auth failures (see IdentityTargetingRisk above) or by
+# physical sensor values (that's the Process Anomaly Score, Section B,
+# entirely owned by fusion_engine.py's already-trained stack, unchanged).
 TRUST_EWMA_ALPHA = 0.35          # weight given to the newest observation
-TRUST_DECAY_PER_SECOND = 0.01    # trust drifts down slowly if a device goes quiet
-STALE_AFTER_SECONDS = 20         # a device not heard from in this long is "stale"
+TRUST_DECAY_PER_SECOND = 0.01    # security trust drifts down slowly if a device goes quiet
+STALE_AFTER_SECONDS = 20         # a device not heard from in this long is "stale" (Security side)
+PROCESS_STALE_AFTER_SECONDS = 20  # separate staleness clock for the Process Anomaly Score --
+                                   # its VALUE is never touched on staleness, only this status
+                                   # (docs/05_module4_continuous_verification.md Section 2.2)
 
 # --- Flood / rate-limit detection (Module 4 extension, IEC 62443 FR7
 # "Resource Availability") ---
@@ -216,6 +264,8 @@ ISOLATION_FOREST_MODEL_PATH = os.path.join(MODELS_DIR, "isolation_forest.joblib"
 LSTM_AE_MODEL_PATH = os.path.join(MODELS_DIR, "lstm_ae.pt")
 LSTM_AE_META_PATH = os.path.join(MODELS_DIR, "lstm_ae_meta.json")   # normalization stats, baseline error stats
 GNN_MODEL_PATH = os.path.join(MODELS_DIR, "gnn.pt")
+TRANSFORMER_MODEL_PATH = os.path.join(MODELS_DIR, "transformer_ae.pt")
+TRANSFORMER_META_PATH = os.path.join(MODELS_DIR, "transformer_ae_meta.json")
 FUSION_MODEL_PATH = os.path.join(MODELS_DIR, "fusion_meta_learner.joblib")
 FUSION_BACKGROUND_PATH = os.path.join(MODELS_DIR, "fusion_background.npy")   # SHAP background sample
 ADAPTIVE_PDP_MODEL_PATH = os.path.join(MODELS_DIR, "adaptive_pdp_qtable.json")
@@ -251,6 +301,39 @@ LSTM_NUM_LAYERS = 1              # dialled back from an initial 32-hidden/2-laye
 LSTM_EPOCHS = 100
 LSTM_LEARNING_RATE = 0.01
 
+# --- Transformer sub-signal (ablation candidate, NOT wired into the live
+# fusion meta-learner -- same keep/drop precedent as the GNN in Section
+# B.5 of docs/04_module3_trust_evaluation.md: prove it earns its place in
+# scripts/evaluate_ablation.py against the same held-out set before ever
+# folding it into fusion_engine.py's inputs). Reuses LSTM_SEQ_LEN (not a
+# separate constant) so the window length is held constant between the
+# LSTM-AE and this signal -- the ablation comparison should isolate
+# ARCHITECTURE as the only variable, not window size too.
+#
+# Denoising autoencoder, not plain reconstruction: self-attention gives
+# every position direct access to every other position in the window, so
+# a naive reconstruction transformer can partially "shortcut" -- attend to
+# neighboring true values and copy, reconstructing anomalies too well and
+# under-scoring them. Training against noise-corrupted input (this
+# script) while scoring against the CLEAN window at inference time
+# (transformer_scorer.py) removes the trivial-copy path without changing
+# the task framing (still "reconstruct the window", directly comparable
+# to the LSTM-AE's own framing).
+TRANSFORMER_D_MODEL = 32          # kept small deliberately -- same "not a case that needs a
+                                   # large model" reasoning documented for the GNN below;
+                                   # 5 input features over an 8-step window has little room
+                                   # for a bigger model to exploit before it starts overfitting.
+TRANSFORMER_NHEAD = 4
+TRANSFORMER_NUM_LAYERS = 2
+TRANSFORMER_DIM_FEEDFORWARD = 64
+TRANSFORMER_DROPOUT = 0.2          # higher than a typical NLP transformer -- regularization
+                                    # matters more given the still-modest training set size.
+TRANSFORMER_NOISE_STD = 0.15       # Gaussian noise std added to normalized input during
+                                    # training only (denoising objective above).
+TRANSFORMER_EPOCHS = 150
+TRANSFORMER_LEARNING_RATE = 0.001  # lower than LSTM_LEARNING_RATE -- transformers are more
+                                    # sensitive to a too-high LR than an LSTM at this scale.
+
 # --- GNN (Module 3, Phase 6c) ---
 # Sensor-channel graph vs. hybrid device-graph (CLAUDE.md Section 2 offers
 # both as legitimate options): this build uses the HYBRID DEVICE-GRAPH --
@@ -285,20 +368,36 @@ GNN_NODE_FEATURE_DIM = 3
 AUTH_FAIL_SENTINEL_SCORE = 0.1
 FUSION_SHAP_BACKGROUND_SIZE = 50
 
-# --- Access Control / Policy Decision Point (Module 5, Phase 8: RL) ---
-# Static thresholds remain available as Phase 5's fallback/baseline -- set
+# --- Access Control / Policy Decision Point (Module 5) ---
+# Two-score 2x2 table (docs/06_module5_access_control.md Section 2), NOT a
+# single trust threshold anymore -- both scores are "trust-style" (high =
+# good) internally, so "process high" means "process anomaly LOW":
+#   security_high  and  process_high  -> ALLOW
+#   security_high  and !process_high  -> ALERT    (pass through + flag ops --
+#                                                    likely a REAL physical
+#                                                    problem, not an attack)
+#   !security_high and  process_high  -> STEP_UP
+#   !security_high and !process_high  -> BLOCK
+# Static thresholds remain available as the fallback/baseline -- set
 # USE_RL_POLICY=True to switch the gateway to the offline-trained
-# epsilon-greedy contextual bandit in adaptive_pdp.AdaptivePDP instead.
-THRESHOLD_ALLOW = 0.70
-THRESHOLD_STEP_UP = 0.40
-# trust >= THRESHOLD_ALLOW      -> ALLOW
-# THRESHOLD_STEP_UP <= trust <  THRESHOLD_ALLOW -> STEP_UP (re-authenticate)
-# trust <  THRESHOLD_STEP_UP    -> DENY
+# epsilon-greedy contextual bandit in adaptive_pdp.AdaptivePDP instead
+# (state = (security_bucket, process_bucket), actions =
+# {ALLOW, STEP_UP, ALERT, BLOCK}).
+SECURITY_THRESHOLD = 0.6
+PROCESS_THRESHOLD = 0.6
 
 USE_RL_POLICY = True
-RL_TRUST_BUCKET_SIZE = 0.1       # trust score discretized into buckets of this width -> the bandit's "state"
-RL_CONFIDENCE_BUCKET_SIZE = 0.5  # confidence discretized into 2 buckets (low/high) -> second state dimension
-RL_EPSILON = 0.1                 # exploration rate
+# AdaptivePDP.greedy_action() (the live/eval path) is a pure, frozen Q-table
+# lookup -- no exploration, no update() call -- so it needs no live reward
+# signal at all; update() only ever runs offline in
+# scripts/train_adaptive_pdp.py against known synthetic ground truth. This
+# is what makes RL safe as the live default: see SESSION_LOG.md Section 7's
+# epsilon-at-inference bug/fix for why choose_action() (WITH exploration) is
+# the training-only method and greedy_action() is the only one the live
+# gateway/evaluation scripts should ever call.
+RL_SECURITY_BUCKET_SIZE = 0.1    # security trust score discretized into buckets of this width
+RL_PROCESS_BUCKET_SIZE = 0.1     # process trust score discretized the same way -> second state dimension
+RL_EPSILON = 0.1                 # exploration rate (training only)
 RL_ALPHA = 0.2                   # Q-value learning rate
 RL_TRAINING_EPISODES = 20        # passes over the offline dataset during scripts/train_adaptive_pdp.py
 
@@ -307,13 +406,25 @@ RL_TRAINING_EPISODES = 20        # passes over the offline dataset during script
 # depending on the CURRENT WORKING DIRECTORY a script happened to be
 # launched from, not the repo layout. Silently masked as long as every
 # script that touched it was launched from src/ (gateway.py,
-# device_simulator.py, dashboard.py always were, per every doc's
+# device_simulator.py, webapp_server.py always were, per every doc's
 # instructions) -- surfaced as a real "no such table" error the first time
 # scripts/evaluate_governance.py (run from the repo root, like the other
 # scripts/*.py) tried to read it. Made absolute, anchored to src/, matching
 # MODELS_DIR/DATA_COLLECTED_DIR's pattern above -- now correct regardless
 # of which directory a script is launched from.
 AUDIT_DB_PATH = os.path.join(_SRC_DIR, "data", "audit_log.db")
+
+# --- Hash-chained audit log + checkpoints (Module 7, docs/08 Section 3) ---
+# The in-DB hash chain alone only catches an attacker who edits an old row
+# and does NOT also recompute every subsequent hash -- one who does both
+# leaves the chain internally consistent. The checkpoint file below is
+# stored SEPARATELY from audit_log.db (a different file, HMAC'd with a
+# separate key never shared with any device's registry entry) specifically
+# so that class of attacker still gets caught: their recomputed in-DB chain
+# won't match the independently-stored checkpoint's hash for the same row.
+CHECKPOINT_INTERVAL_ROWS = 100
+CHECKPOINT_STORE_PATH = os.path.join(_SRC_DIR, "..", "data", "checkpoint_log.jsonl")
+AUDIT_KEY_PATH = os.path.join(_SRC_DIR, "..", "data", "audit_key.bin")
 
 # --- NIST SP 800-207 tenet mapping (Module 7, synopsis Sections 4.3/7.3/10.1) ---
 # The synopsis calls this a PRIMARY deliverable, not a discussion point:

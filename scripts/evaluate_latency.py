@@ -35,20 +35,48 @@ N_MEASURED = 200
 # CLAUDE.md Section 8: "Use a separate test database during offline
 # training/evaluation runs so you don't pollute the live audit log."
 # gateway.process_telemetry() calls audit_log.log_decision() internally;
-# audit_log.py's functions read the module-level AUDIT_DB_PATH on every
-# call (not a value frozen at import time), so reassigning it here redirects
-# every write this script triggers without touching config.py itself.
+# audit_log.py's functions read the module-level AUDIT_DB_PATH/
+# CHECKPOINT_STORE_PATH/AUDIT_KEY_PATH on every call (not values frozen at
+# import time), so reassigning them here redirects every write this script
+# triggers without touching config.py itself.
+#
+# ALL THREE must be redirected, not just AUDIT_DB_PATH -- found live, not
+# theorized: an earlier version of this script only redirected
+# AUDIT_DB_PATH, leaving log_decision()'s checkpoint writes
+# (_maybe_write_checkpoint()) going to the SAME SHARED
+# data/checkpoint_log.jsonl file the real gateway uses. This throwaway
+# run's row 100 (in its own, unrelated EVAL_DB_PATH) got a checkpoint
+# entry appended to that shared file claiming "row 100 has hash X" -- a
+# hash that has nothing to do with the real audit_log.db's actual row 100.
+# The next verify_against_checkpoints() call against the REAL audit log
+# then failed on a completely untampered database, because it was
+# comparing the real row 100 against a checkpoint written for a different
+# database entirely.
 EVAL_DB_PATH = os.path.join(DATA_COLLECTED_DIR, "..", "eval_audit_log.db")
+EVAL_CHECKPOINT_PATH = os.path.join(DATA_COLLECTED_DIR, "..", "eval_checkpoint_log.jsonl")
+EVAL_AUDIT_KEY_PATH = os.path.join(DATA_COLLECTED_DIR, "..", "eval_audit_key.bin")
 audit_log.AUDIT_DB_PATH = EVAL_DB_PATH
+audit_log.CHECKPOINT_STORE_PATH = EVAL_CHECKPOINT_PATH
+audit_log.AUDIT_KEY_PATH = EVAL_AUDIT_KEY_PATH
 
 
 def build_envelopes(n):
     """Real, validly-signed envelopes for esp32-vib-001 -- exercises the
-    full feature_vector code path, the one with the most work per message."""
+    full feature_vector code path, the one with the most work per message.
+
+    `ts` MUST be real wall-clock epoch ms now (Module 2's secondary
+    freshness check compares against time.time()*1000 directly -- unlike
+    the old ms-since-boot scheme, an arbitrary small constant here would
+    make every single envelope fail as stale_timestamp). `boot_id`/`seq`
+    are required fields too (Module 2 Check 4) -- one constant boot
+    session, strictly increasing seq, so every envelope passes the
+    boot-aware replay check and actually reaches the full pipeline this
+    script means to measure."""
     envelopes = []
+    now_ms = int(time.time() * 1000)
     for i in range(n):
         reading = ds.make_reading("esp32-vib-001", anomalous=(i % 10 == 0))
-        payload = {"device_id": "esp32-vib-001", "ts": 10_000_000 + i * 2000, **reading}
+        payload = {"device_id": "esp32-vib-001", "ts": now_ms + i, "boot_id": 1, "seq": i + 1, **reading}
         sig = ds.sign(DEVICE_REGISTRY["esp32-vib-001"]["secret"], payload)
         envelopes.append({"payload": payload, "signature": sig})
     return envelopes
@@ -100,8 +128,9 @@ def main():
         "time.ticks_ms() instrumentation in firmware/main.py on real hardware (TODO)."
     )
 
-    if os.path.exists(EVAL_DB_PATH):
-        os.remove(EVAL_DB_PATH)  # throwaway -- the numbers above are the deliverable, not this file
+    for throwaway_path in (EVAL_DB_PATH, EVAL_CHECKPOINT_PATH, EVAL_AUDIT_KEY_PATH):
+        if os.path.exists(throwaway_path):
+            os.remove(throwaway_path)  # throwaway -- the numbers above are the deliverable, not these files
 
 
 if __name__ == "__main__":

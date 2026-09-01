@@ -27,7 +27,11 @@ OUTPUT_PATH = os.path.join(DATA_COLLECTED_DIR, "test_session.json")
 
 def main():
     os.makedirs(DATA_COLLECTED_DIR, exist_ok=True)
-    records = generate(ticks=200, seed=999)  # different seed and size from training_session.json
+    records = generate(ticks=1000, seed=999)  # different seed and size from training_session.json --
+                                               # scaled up alongside TICKS in generate_training_data.py
+                                               # (same ratio preserved) for a held-out set big enough to
+                                               # give stable per-event-type recall numbers on the rarer
+                                               # scenarios (e.g. 'coordinated', 'stealthy_forged_values').
     with open(OUTPUT_PATH, "w") as f:
         json.dump(records, f, indent=1)
     by_event = {}

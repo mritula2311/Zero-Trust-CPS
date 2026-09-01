@@ -11,12 +11,14 @@ scenarios") and saves it + a SHAP background sample to
 config.FUSION_MODEL_PATH / FUSION_BACKGROUND_PATH. This file only ever
 loads those and calls .predict_proba() -- it never calls .fit().
 
-Combines the four Module 3 signals into one Unified Trust Score with an
-attached CONFIDENCE measure (synopsis Section 4.4 / Figure 4.1) -- the
-one new field CLAUDE.md's Section 8 hard constraint permits adding to the
-score_message() interface. A SHAP explainability layer (grounded in
-[33]-[36]) is applied to every fused decision, generating a machine-
-readable reason code.
+Combines the four Module 3 Section B signals into the PROCESS ANOMALY
+SCORE (trust-style: high = normal, see trust_engine.py's module docstring
+for why this scale was kept rather than inverted), with an attached
+CONFIDENCE measure. This output is never blended with the Security Trust
+Score (trust_engine.score_security_trust()) -- gateway.py reads both
+independently and combines them only through policy_engine.decide()'s 2x2
+table. A SHAP explainability layer (grounded in [33]-[36]) is applied to
+every fused decision, generating a machine-readable reason code.
 """
 
 import os

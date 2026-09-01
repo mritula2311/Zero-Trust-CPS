@@ -7,10 +7,25 @@ access decisions, demonstrating the explainability layer functions as
 governance evidence, not just a technical add-on."
 
 Replays data/collected/test_session.json through the trained fusion
-engine, and for each SUSPICIOUS (label=0) message, checks whether the
-SHAP-identified top contributing feature matches what actually caused
+engine, and for each event with a genuine PHYSICAL anomaly, checks whether
+the SHAP-identified top contributing feature matches what actually caused
 that specific event_type -- a quantitative "does the explanation make
 physical sense" check, not just eyeballing example strings.
+
+TWO-SCORE REARCHITECTURE: `forged_signature` and `replay` records are
+EXCLUDED entirely (auth_ok=False, or event_type=="replay") -- Module 2
+rejects them before they ever reach the Process Anomaly Engine / fusion
+SHAP in the live architecture, so there's no SHAP reason to check for
+them at all now. `high_rate` is excluded for the same underlying reason
+in reverse: its physical reading is genuinely normal (a pure Security
+Trust concern), so the Process Anomaly Engine correctly has nothing
+physically-anomalous to explain. `stealthy_forged_values` is also
+excluded from this table on purpose -- by design nothing in its telemetry
+looks wrong, so there is no "physically sensible top feature" for it to
+match; its detection rate (expected to be low, see
+docs/04_module3_trust_evaluation.md Section B.8) is measured honestly
+elsewhere (scripts/evaluate_rl_policy.py's confusion matrix, "combined"
+row), not forced into this table.
 """
 
 import json
@@ -29,17 +44,11 @@ from fusion_engine import FusionEngine
 
 TEST_PATH = os.path.join(DATA_COLLECTED_DIR, "test_session.json")
 
-# Which SHAP top-feature is "physically sensible" for each injected event
-# type -- the ground truth this script checks against. A forged signature
-# means auth_ok=False, so if_score/lstm_score get the AUTH_FAIL_SENTINEL
-# (0.1) -- rule_score is often still fine (the attacker's claimed value can
-# be plausible), so isolation_forest_score/lstm_ae_score are the sensible
-# top-feature candidates for that case, not rule_score.
+# Which SHAP top-feature is "physically sensible" for each injected PHYSICAL
+# anomaly event type -- the ground truth this script checks against.
 EXPECTED_TOP_FEATURE = {
     "anomalous_shock": {"isolation_forest_score", "lstm_ae_score", "gnn_score"},
     "out_of_range": {"rule_score"},
-    "forged_signature": {"isolation_forest_score", "lstm_ae_score", "gnn_score"},
-    "replay": {"rule_score", "isolation_forest_score", "lstm_ae_score", "gnn_score"},  # replay bypasses fusion entirely in the live gateway; included for completeness
     # Individually in-range on every device (rule_score stays high on
     # purpose -- see device_simulator.py's module docstring), so rule_score
     # is deliberately EXCLUDED here: a sensible explanation has to come from
@@ -72,9 +81,12 @@ def main():
         device_id = r["device_id"]
         rule_score, _ = rule_range_score(device_id, r["reading"])
 
-        if not r["auth_ok"]:
-            if_score = lstm_score = 0.1
-        elif device_id == "esp32-vib-001":
+        # Every record reaching here has auth_ok=True and event_type in
+        # EXPECTED_TOP_FEATURE (physical-anomaly types only) -- see the
+        # filter above and this file's module docstring for why
+        # forged_signature/replay/high_rate/stealthy_forged_values are
+        # excluded before ever reaching this point.
+        if device_id == "esp32-vib-001":
             fv = fe.feature_vector(r["reading"])
             if_score = if_scorer.score(fv)
             lstm_score = lstm_scorer.score(device_id, fv)

@@ -1,0 +1,185 @@
+# 06 — Module 5: Access Control
+
+> **AS-BUILT NOTE:** the 2×2 table (Section 2) is implemented exactly in
+> `src/policy_engine.py::decide()`, on the trust-style Process Anomaly
+> scale (see `04`'s AS-BUILT note — "process high" means "process anomaly
+> LOW" throughout this file). Section 3's `STEP_UP` behaviour (hold, call
+> `initiate_step_up()`, bounded score boost on success, escalate to BLOCK
+> on timeout/mismatch) is implemented in `gateway.py`, not this file's
+> module — same logic, split across `gateway.py`/`trust_engine.py` rather
+> than one `access_control.py`. **Section 4's "optional stretch goal" is
+> not optional here — it is the live default** (`config.USE_RL_POLICY =
+> True`). This is deliberate, not a scope-creep accident: the reward-signal
+> concern Section 4 raises ("a live deployment may not always have an
+> immediate, reliable signal telling it whether a past decision was
+> actually correct") is resolved by construction — `adaptive_pdp.AdaptivePDP.greedy_action()`,
+> the ONLY method the live gateway calls, is a frozen Q-table lookup with
+> no exploration and no `update()` call; it needs no live reward signal at
+> all, since it never learns online. Training (`scripts/train_adaptive_pdp.py`)
+> happens entirely offline against known synthetic ground truth
+> (`situation_for_event_type()`, weighted by inverse class frequency —
+> the RL analogue of Module 3's `class_weight="balanced"` fix). Measured
+> result on held-out data (re-measured after the dataset scale-up,
+> `RESULTS.md` Section 12): RL macro-F1 0.583 vs. the static table's 0.269
+> — see `10_testing_and_attack_simulation.md`'s confusion matrix.
+
+## 1. Purpose
+
+Read the Security Trust Score and Process Anomaly Score together and decide what happens to the message: Allow, Step-Up Authentication, Alert, or Block. This is the **only** place in the whole system where the two scores are combined — and even here, they are combined through a lookup table, not blended into a single number.
+
+**Literature grounding:** [5] (Zero-Trust access control as a core pillar), [7] (Federici et al.'s fine-grained, least-privilege industrial access control design).
+
+## 2. The 2×2 Policy Table
+
+| Security Trust | Process Anomaly | Recommended Result |
+|---|---|---|
+| High | Low | Allow |
+| High | High | Allow data through + Alert operations team (likely a real physical/process problem) |
+| Low | Low | Step-up authentication → restrict if step-up fails |
+| Low | High | Block / quarantine + priority security review |
+
+These four rows are mutually exclusive and collectively exhaustive over `{High, Low} × {High, Low}` — there is no fifth case and no overlap between rows.
+
+```
+DecisionOutcome = enum(ALLOW, STEP_UP, ALERT, BLOCK)
+
+decide(security_trust_score: float, process_anomaly_score: float,
+       process_anomaly_status: FRESH | STALE) -> DecisionOutcome:
+
+    security_high = security_trust_score  >= SECURITY_THRESHOLD    # default 0.6
+    anomaly_high  = process_anomaly_score  >= ANOMALY_THRESHOLD     # default 0.6
+
+    if security_high and not anomaly_high:
+        return ALLOW
+    if security_high and anomaly_high:
+        return ALERT      # likely a REAL physical/process problem — do not block,
+                            # this is exactly the case a single-score design would
+                            # have wrongly silenced
+    if not security_high and not anomaly_high:
+        return STEP_UP     # device behaviour looks off; sensor data looks fine —
+                            # ask for extra proof before deciding further
+    if not security_high and anomaly_high:
+        return BLOCK        # highest-risk combination: possibly compromised device
+                            # ALSO reporting abnormal data
+```
+
+Note this is a simplified two-level (high/low) table for clarity; if the tuned thresholds during Phase 5 suggest a third tier (e.g., "borderline" between high and low) is useful, extend to a 3×3 table using the same structure — document any such change and the validation-set evidence that motivated it.
+
+### 2.1 Staleness Overrides the Naive Table Lookup
+
+`process_anomaly_status` (from `05_module4_continuous_verification.md` Section 2.2) is a required input to `decide()`, not an afterthought, because feeding a stale score into the table above as if it were fresh can produce exactly the wrong answer. Apply this rule **before** the table lookup:
+
+```
+if process_anomaly_status == STALE and process_anomaly_score >= ANOMALY_THRESHOLD:
+    # The last known physical state was concerning, and we have not heard
+    # from the device since — do NOT let this quietly resolve to ALLOW as
+    # connectivity is lost. Treat it as at least as serious as the fresh
+    # high-anomaly case, and additionally flag the connectivity loss itself.
+    outcome = ALERT if security_high else BLOCK
+    log_additional_flag(device_id, "STALE_HIGH_ANOMALY_UNRESOLVED")
+    return outcome
+
+# Otherwise, proceed with the normal table lookup above using whatever
+# process_anomaly_score is currently stored (a STALE-but-low score is treated
+# as low, since there is no outstanding concern to preserve).
+```
+
+## 3. What Each Outcome Actually Does
+
+```
+ALLOW:
+    - Message is passed through to whatever consumes telemetry downstream
+      (e.g., the dashboard's live feed).
+    - Logged normally (Module 7).
+
+STEP_UP:
+    - Message's telemetry payload is HELD, not yet passed through, pending
+      step-up result.
+    - Module 2's initiate_step_up(device_id) is called.
+    - On STEP_UP_SUCCESS (Module 2 Section 6): release the held message,
+      treat as ALLOW, and apply a small positive adjustment to
+      security_trust_score (bounded, does not let step-up alone fully
+      restore a badly compromised score).
+    - On STEP_UP_TIMEOUT or STEP_UP_MISMATCH: escalate to BLOCK, and this
+      failure count feeds back into Module 3's SecurityFeatureVector
+      (step_up_failures_total) for future scoring.
+
+ALERT:
+    - Message IS passed through (the data is real and needed — see the
+      2x2 table's ALERT reasoning above).
+    - A distinct, high-visibility audit log entry and dashboard notification
+      is raised, tagged for operations/maintenance attention rather than
+      security attention.
+
+BLOCK:
+    - Message is dropped entirely — not passed through to any downstream
+      consumer.
+    - Logged with full detail (both scores, both Level-1/Level-2
+      explanations from Module 3) for security review.
+```
+
+## 4. Optional Stretch Goal — Adaptive Policy
+
+**This section is explicitly optional.** No paper in the project's literature review directly builds or validates a reinforcement-learning-style access policy for this kind of system, and a live deployment may not always have an immediate, reliable signal telling it whether a past decision was actually correct. Attempt this only after Sections 1–3 are fully working and tested.
+
+```
+Epsilon-greedy bandit sketch:
+
+  state = (security_bucket, anomaly_bucket)   # discretized score buckets
+  actions = [ALLOW, STEP_UP, ALERT, BLOCK]
+  Q_table[state][action] initialized from the fixed-threshold policy's behaviour
+
+  On each decision:
+    with probability epsilon: choose a random action (explore)
+    otherwise: choose argmax(Q_table[state])                (exploit)
+
+  Reward signal (this is the hard part — be honest about where it comes from):
+    In simulation, ground truth is known (we injected the scenario), so
+    reward = +1 if the action matched the correct response for that
+    injected scenario, -1 otherwise. In a real deployment, there usually is
+    no equivalent ground-truth signal on every message — this is precisely
+    why this component is a stretch goal and not part of the core system.
+
+  Evaluation: replay the held-out test set through both the fixed-threshold
+  policy and the trained bandit policy; compare F1-score / mistake count.
+  Report the result honestly — "the bandit did not beat the fixed policy"
+  is a valid, useful finding.
+```
+
+## 4.1 Failure Modes (RL Policy)
+
+| Scenario | Static table (Section 2) | RL policy (Section 4, live default) |
+|---|---|---|
+| Both scores exactly at a threshold/bucket boundary | Deterministic, always the same decision | Depends on the trained Q-values for that bucket — a decision may differ from the static table's for a borderline state; log these distinctly for evaluation since the RL policy is meant to have learned a genuinely different, better boundary here, not to be arbitrary |
+| A `(security_bucket, process_bucket)` state that was rare or absent in training | N/A | Q-values for that state are unreliable (few or no updates ever touched it) — `situation_weights()`'s inverse-frequency weighting (Section 4 above) mitigates but does not eliminate this; worth checking which states are sparsely covered before trusting the policy's behaviour there |
+| Live reward signal | N/A | Not a live concern by construction — `greedy_action()` is the only method the live gateway calls, and it never updates online (Section 4 above) |
+
+## 5. Interface Contract
+
+| Consumer | What It Reads | What It Writes |
+|----------|---------------|-----------------|
+| Module 4 | `security_trust_score`, `process_anomaly_score`, `process_anomaly_status` | — |
+| Module 2 | — | Calls `initiate_step_up()` when outcome is `STEP_UP` |
+| Module 7 | — | Every decision, with both scores, `process_anomaly_status`, and both explanation levels, written to audit log |
+| Module 3 | — | `step_up_failures_total` incremented on step-up failure (feeds back into next scoring pass, via `AuthenticatedBehaviourState` — see `03_module2_authentication.md` Section 5) |
+
+## 6. Configuration Parameters
+
+```yaml
+access_control:
+  security_threshold: 0.6
+  anomaly_threshold: 0.6
+  step_up_success_score_boost: 0.1   # bounded positive adjustment, not a full reset
+  adaptive_policy_enabled: false      # stretch goal, off by default
+```
+
+## 7. Acceptance Criteria
+
+- All four outcomes (Allow, Step-Up, Alert, Block) are reachable and independently testable by feeding the four score-quadrant combinations directly into `decide()`.
+- A simulated physical-fault scenario (high security score, high anomaly score) results in `ALERT`, and the message is confirmed to still reach the downstream consumer — not silently dropped, which is exactly the failure mode this design exists to prevent.
+- A simulated compromised-device-plus-abnormal-data scenario results in `BLOCK`, and the message is confirmed to be dropped.
+- **Stale-high-anomaly regression test:** drive a device to a high Process Anomaly Score, then let it go silent long enough for `process_anomaly_status` to become `STALE` (per `05_module4_continuous_verification.md`). Confirm `decide()` still returns `ALERT` or `BLOCK` (matching the current Security Trust Score) and does **not** fall back to `ALLOW`, and confirm `STALE_HIGH_ANOMALY_UNRESOLVED` is flagged.
+- A manual step-up test end-to-end: `STEP_UP` outcome → challenge issued → correct echo → message released and logged as effectively allowed.
+- (If attempted) the adaptive policy comparison against the fixed policy is recorded, whichever way it comes out.
+
+Continue to `07_module6_secure_communication.md`.

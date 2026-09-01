@@ -26,6 +26,7 @@ from trust_engine import rule_range_score
 from isolation_forest_scorer import IsolationForestScorer
 from lstm_ae_scorer import LSTMAEScorer
 from gnn_scorer import GNNScorer
+from generate_training_data import physical_label
 
 SESSION_PATH = os.path.join(DATA_COLLECTED_DIR, "training_session.json")
 
@@ -74,45 +75,62 @@ def build_dataset(records):
     # training set entirely rather than forcing them into either class --
     # this removes the wrong-sign-teaching examples without inflating the
     # suspicious class or disturbing the balance class_weight="balanced"
-    # was tuned around. Does NOT change `r["label"]` itself, which stays
-    # the true per-message ground truth used everywhere else
-    # (evaluate_*.py's attack-detection metrics, train_adaptive_pdp.py's
-    # RL reward, train_gnn.py) -- only affects which rows this function
-    # contributes to X/y. The scorers still see and are updated by EVERY
-    # record in tick order regardless (excluding a row from training must
-    # not skip advancing lstm_scorer's/gnn_scorer's own internal state, or
-    # every score computed after an excluded row would be wrong).
+    # was tuned around. Only affects which rows this function contributes
+    # to X/y. The scorers still see and are updated by EVERY record that
+    # actually reaches this replay in tick order (excluding a row from
+    # training must not skip advancing lstm_scorer's/gnn_scorer's own
+    # internal state, or every score computed after an excluded row would
+    # be wrong).
+    #
+    # TWO-SCORE REARCHITECTURE: two further fixes on top of the above.
+    # (1) The ground-truth target is physical_label(event_type), not the
+    #     old blended `label` -- a `high_rate` record's features are
+    #     genuinely normal (only the message RATE is suspicious, a
+    #     Security Trust concern), so pairing them with label=0 injected
+    #     pure noise: examples where every one of the four input features
+    #     looked completely ordinary, paired with a "suspicious" target the
+    #     features gave no reason to predict. This alone caused a real,
+    #     measured regression when first discovered (fused aggregate
+    #     accuracy on the held-out test set dropped to ~0.68, 'coordinated'
+    #     recall to ~0.30) -- see SESSION_LOG.md for the numbers.
+    # (2) `auth_ok=False` and `event_type=="replay"` records are SKIPPED
+    #     entirely (no scorer calls, no state advancement, no X/y row) --
+    #     Module 2 rejects both before they ever reach Module 3 live, so
+    #     there is no live analogue of "what would fusion see right after
+    #     a rejected message" for the meta-learner to train against. The
+    #     old AUTH_FAIL_SENTINEL_SCORE injection made sense under the
+    #     single-score architecture (every message, rejected or not, fed
+    #     the one trust score); it does not under this one.
     label_window: dict[str, list[int]] = {}
 
     X, y = [], []
     for r in sorted(records, key=lambda r: r["tick"]):
+        if not r["auth_ok"] or r["event_type"] == "replay":
+            continue  # rejected at Module 2 -- never reaches Module 3 live
         device_id = r["device_id"]
         rule_score, _ = rule_range_score(device_id, r["reading"])
+        target = physical_label(r["event_type"])
         window_compromised = False
 
-        if not r["auth_ok"]:
-            if_score = lstm_score = 0.1  # AUTH_FAIL_SENTINEL_SCORE, matches gateway.py's live handling
-        elif device_id == "esp32-vib-001":
+        if device_id == "esp32-vib-001":
             fv = fe.feature_vector(r["reading"])
             if_score = if_scorer.score(fv)
             lstm_score = lstm_scorer.score(device_id, fv)
             lw = label_window.setdefault(device_id, [])
             window_compromised = any(l == 0 for l in lw)
-            lw.append(r["label"])
+            lw.append(target)
             if len(lw) > LSTM_SEQ_LEN:
                 del lw[0]
         else:
             if_score = lstm_score = rule_score
 
-        # ALWAYS call gnn_scorer.score() to advance its internal state,
-        # even for a row we're about to exclude from X/y below.
         gnn_score = gnn_scorer.score(device_id, rule_score, if_score, lstm_score)
 
-        if r["label"] == 1 and window_compromised:
+        if target == 1 and window_compromised:
             continue  # ambiguous residue -- excluded, not relabelled (see above)
 
         X.append([rule_score, if_score, lstm_score, gnn_score])
-        y.append(r["label"])
+        y.append(target)
 
     return np.array(X), np.array(y)
 

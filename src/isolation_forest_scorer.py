@@ -19,7 +19,7 @@ import os
 import joblib
 import numpy as np
 
-from config import ISOLATION_FOREST_MODEL_PATH
+from config import ISOLATION_FOREST_MODEL_PATH, FEATURE_NAMES
 
 
 class IsolationForestScorer:
@@ -29,6 +29,7 @@ class IsolationForestScorer:
 
     def __init__(self):
         self.model = None
+        self._explainer = None  # lazy: shap.TreeExplainer, only built if level2_explain() is ever called
         self._load()
 
     def _load(self):
@@ -43,3 +44,31 @@ class IsolationForestScorer:
 
     def is_trained(self) -> bool:
         return self.model is not None
+
+    def level2_explain(self, feature_vec: list[float]) -> tuple[str, float] | None:
+        """Module 3 Section C.3's Level-2 explanation for this sub-signal:
+        `shap.TreeExplainer` directly on the ProcessFeatureVector inputs
+        (not the fusion meta-learner's 4-signal inputs -- Level 1 already
+        covers that). Returns (feature_name, abs_shap_value) for the
+        dominant raw feature, or None if the model isn't trained yet.
+
+        Deliberately does NOT compute a counterfactual score itself, unlike
+        LSTMAEScorer/TransformerScorer/GNNScorer's level2_explain() --
+        those need internal state (a rolling window / graph snapshot) the
+        caller can't easily rebuild, so THEY compute their own
+        counterfactual forward pass. This scorer is stateless (`score()`
+        takes a feature vector and returns a value, nothing else) --
+        building a perturbed vector and calling `score()` again is exactly
+        as easy for a caller to do directly, and doing it here too would
+        just be a second, redundant place to get the replacement value
+        wrong. See scripts/evaluate_explainability_level2.py for where the
+        counterfactual vector (training-median substitution) is built."""
+        if self.model is None:
+            return None
+        if self._explainer is None:
+            import shap
+            self._explainer = shap.TreeExplainer(self.model)
+        x = np.asarray([feature_vec], dtype=np.float64)
+        shap_values = np.array(self._explainer.shap_values(x))[0]
+        idx = int(np.argmax(np.abs(shap_values)))
+        return FEATURE_NAMES[idx], float(shap_values[idx])

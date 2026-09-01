@@ -23,8 +23,8 @@ torch>=2.0           # Phase 6b (LSTM-Autoencoder) + Phase 6c (GNN, hand-rolled 
                       # fix -- GPU vs CPU timing for it is close either way at this data size.
 shap>=0.52           # Phase 7 explainability -- must be >=0.46 or so for NumPy 2.x compatibility;
                       # 0.44.1 (an old cached install) crashes on import under NumPy 2, see docs/05_phase_status.md
-streamlit>=1.35       # Phase 9 live dashboard (dashboard.py)
-pandas>=2.0           # dashboard.py table/chart data wrangling (installed as a streamlit dependency already)
+matplotlib>=3.7       # scripts/generate_evaluation_graphs.py -- individual PNG figures for every
+                      # ML-model evaluation comparison (docs/figures/); not otherwise a runtime dependency
 
 # NOT required: aiocoap. coap_server.py (Module 6's second secured
 # transport) was originally built on aiocoap's CoAP-over-TLS transport,

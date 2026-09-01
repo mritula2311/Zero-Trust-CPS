@@ -16,13 +16,40 @@ same JSON shape, so swapping in real data doesn't require touching them.
 
 Output: data/collected/training_session.json -- a list of records:
 {tick, device_id, reading (float or feature dict), auth_ok, ts, label,
-event_type}. `label` (1=legitimate, 0=suspicious) is the ground truth
-this synthetic session KNOWS because it generated the anomalies itself --
-this is qualitatively different from (and more defensible than) the live
-gateway's pseudo-label heuristic, which only ever gets to *guess* at
-ground truth from auth+range checks. See CLAUDE.md Section 8's "no
-external labelled datasets" constraint -- this is the labelled set that
-satisfies it.
+event_type, simulated_flood}. `label` (1=legitimate, 0=suspicious) is the
+ground truth this synthetic session KNOWS because it generated the
+anomalies itself. `event_type` also maps to one of the four
+docs/10_testing_and_attack_simulation.md Section 4.1 ground-truth
+situation classes (normal / physical_fault / security_concern / combined)
+via EVENT_TYPE_TO_SITUATION below -- used by
+scripts/train_adaptive_pdp.py's reward mapping and
+scripts/evaluate_rl_policy.py's confusion matrix.
+
+TWO-SCORE REARCHITECTURE additions:
+  - `high_rate`: auth_ok=True, reading is a normal in-range value, but
+    `simulated_flood=True` -- represents attack-matrix row 5 (an abnormal
+    message rate from a GENUINELY AUTHENTICATED device), the one scenario
+    that legitimately lowers a device's own Security Trust Score (see
+    trust_engine.score_security_trust()). This offline generator doesn't
+    simulate real message-arrival timing, so the flag stands in directly
+    for what a live check_flood()=True would produce.
+  - `stealthy_forged_values`: auth_ok=True, correctly "signed" (this
+    generator doesn't sign anything -- it's downstream of that concern --
+    but represents a message that WOULD pass HMAC/boot/seq/timestamp
+    checks), reading deliberately looks completely normal despite ground
+    truth being suspicious. Attack-matrix row 11 -- see
+    docs/04_module3_trust_evaluation.md Section B.8: this is NOT expected
+    to be reliably caught, and its low recall in evaluation is the
+    intended, honest result, not a bug to chase.
+
+  Note what is deliberately NOT changed: `forged_signature` and `replay`
+  records (auth_ok=False) still represent messages Module 2 REJECTS
+  outright in the live architecture -- they never reach Security Trust
+  scoring, Process Anomaly scoring, or the policy layer at all (see
+  gateway.py's _reject() path and trust_engine.IdentityTargetingRisk).
+  scripts/train_adaptive_pdp.py excludes them from the RL training set for
+  exactly this reason, using `high_rate` instead as the sole representative
+  of the "security_concern" ground-truth class.
 """
 
 import json
@@ -36,7 +63,50 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 from config import DEVICE_REGISTRY, DATA_COLLECTED_DIR
 import device_simulator as ds
 
-TICKS = 400            # 400 ticks * 3 devices ~= enough history for every scorer's min-training-size
+EVENT_TYPE_TO_SITUATION = {
+    "normal": "normal",
+    "anomalous_shock": "physical_fault",
+    "coordinated": "physical_fault",
+    "out_of_range": "physical_fault",
+    "forged_signature": "security_concern",
+    "replay": "security_concern",
+    "high_rate": "security_concern",
+    "stealthy_forged_values": "combined",
+}
+
+
+def situation_for_event_type(event_type: str) -> str:
+    return EVENT_TYPE_TO_SITUATION.get(event_type, "normal")
+
+
+def physical_label(event_type: str) -> int:
+    """1 = physically legitimate, 0 = physically anomalous -- the ground
+    truth every Module 3 Section B (Process Anomaly) training/evaluation
+    script should use, NOT the blended `label` field on each record. A
+    `security_concern` event's physical reading is genuinely unaffected
+    (e.g. `high_rate`'s reported values are normal -- only the message RATE
+    is suspicious); pairing those normal-looking features with label=0
+    would inject pure label noise into any model that only ever sees
+    physical features, since there is nothing in the features themselves
+    to justify a 'suspicious' target. Used by
+    scripts/train_fusion_meta_learner.py, scripts/train_gnn.py, and
+    scripts/evaluate_ablation.py -- all three used to (bug, now fixed) use
+    the raw `label` field directly, which silently taught those models
+    that normal-looking `high_rate` feature vectors sometimes mean
+    "suspicious", with no informative signal to justify it."""
+    return 0 if situation_for_event_type(event_type) in ("physical_fault", "combined") else 1
+
+
+TICKS = 5000            # was 400 (~345 normal esp32-vib-001 readings) -- raised 12.5x so a
+                         # higher-capacity model (e.g. a Transformer sub-signal, which has less
+                         # inductive bias than the LSTM-AE and is more prone to overfitting a
+                         # small window count) has enough training windows to generalize.
+                         # Still purely synthetic (no physical hardware needed to produce more
+                         # of it): every tick is another draw from the same generator, i.e. more
+                         # repetitions of the same scenario cycle with fresh random noise, not a
+                         # duplicated copy of existing data. GPU-scale-up rationale for the LSTM
+                         # (src/config.py) applies in reverse here: that experiment showed adding
+                         # MODEL capacity without more DATA overfits -- so grow the data first.
 OUTPUT_PATH = os.path.join(DATA_COLLECTED_DIR, "training_session.json")
 
 
@@ -45,12 +115,17 @@ def generate(ticks: int = TICKS, seed: int = 42) -> list[dict]:
     records = []
     base_ts = 60_000  # start at 60s of simulated uptime, matches the "past the reboot grace window" realistic case
     for tick in range(ticks):
-        coordinated_tick = tick % 25 == 3  # mirrors device_simulator.py's live cadence exactly
+        coordinated_tick = tick % 25 == 3   # mirrors device_simulator.py's live cadence exactly
+        high_rate_tick = tick % 18 == 11    # attack-matrix row 5: abnormal rate from an AUTHENTICATED device
+        stealthy_tick = tick % 30 == 22     # attack-matrix row 11, see module docstring
+
         for device_id, info in DEVICE_REGISTRY.items():
             anomalous = device_id == "esp32-vib-001" and tick % 12 == 7
-            coordinated = coordinated_tick and not anomalous
+            stealthy = device_id == "esp32-vib-001" and stealthy_tick and not anomalous
+            coordinated = coordinated_tick and not anomalous and not stealthy
+            high_rate = high_rate_tick and not anomalous and not stealthy
             auth_ok = not (device_id == "actuator-001" and tick % 15 == 9)
-            reading = ds.make_reading(device_id, anomalous=anomalous, coordinated=coordinated)
+            reading = ds.make_reading(device_id, anomalous=anomalous, coordinated=coordinated, stealthy=stealthy)
             ts = base_ts + tick * 2000 + (0 if device_id != "esp32-vib-001" else 5)
 
             label = 1
@@ -58,6 +133,13 @@ def generate(ticks: int = TICKS, seed: int = 42) -> list[dict]:
             if not auth_ok:
                 label = 0
                 event_type = "forged_signature"
+            elif stealthy:
+                # Fully authenticated, values deliberately innocuous --
+                # ground truth is suspicious but NOTHING in the telemetry
+                # itself says so. See module docstring: low recall here is
+                # the honest, expected result, not a bug.
+                label = 0
+                event_type = "stealthy_forged_values"
             elif anomalous:
                 label = 0
                 event_type = "anomalous_shock"
@@ -69,6 +151,12 @@ def generate(ticks: int = TICKS, seed: int = 42) -> list[dict]:
                 # attack signature.
                 label = 0
                 event_type = "coordinated"
+            elif high_rate:
+                # Physical reading itself is unaffected -- this is PURELY a
+                # security/rate signal (Security Trust Score), not a
+                # process anomaly.
+                label = 0
+                event_type = "high_rate"
             elif device_id != "esp32-vib-001":
                 lo, hi = info["expected_range"]
                 if not (lo <= reading <= hi):
@@ -83,6 +171,7 @@ def generate(ticks: int = TICKS, seed: int = 42) -> list[dict]:
                 "ts": ts,
                 "label": label,
                 "event_type": event_type,
+                "simulated_flood": high_rate,
             })
 
         # occasional replay event, mirroring device_simulator.py's live replay injection
@@ -93,6 +182,7 @@ def generate(ticks: int = TICKS, seed: int = 42) -> list[dict]:
                 replayed["tick"] = tick
                 replayed["label"] = 0
                 replayed["event_type"] = "replay"
+                replayed["simulated_flood"] = False
                 records.append(replayed)
 
     return records

@@ -1,68 +1,104 @@
 # Zero-Trust CPS Starter Kit
 
 A working implementation of the full Zero-Trust pipeline from
-`docs/Zero_Trust_CPS_Project_Synopsis.docx` (the citable academic record)
-and `CLAUDE.md` (the governing engineering brief). This is not a mockup —
-real MQTT/TLS + a second secured transport, real **mutual** HMAC
-authentication (device→gateway and gateway→device, both independently
-verified), four real ML trust signals (rule-based, Isolation Forest,
-LSTM-Autoencoder, GNN — GPU-accelerated when available) fused by a real
-stacking meta-learner with a full per-signal SHAP breakdown, a real
-offline-trained RL-adaptive policy, NIST SP 800-207 + IEC 62443 governance
-mapping, and two real live dashboards — all logged to SQLite.
+`docs/Zero_Trust_CPS_Project_Synopsis.docx` (the citable academic record),
+`CLAUDE.md` (the governing engineering brief), and `docs/00_overview.md`
+onward (the low-level design set). This is not a mockup — real MQTT/TLS +
+a second secured transport, real **mutual** HMAC authentication
+(device→gateway and gateway→device, both independently verified,
+gateway→device now with a genuine step-up nonce/echo challenge round
+trip), boot_id/seq anti-replay, **two permanently-separate scores**
+(Security Trust + Process Anomaly — never blended into one number until
+the final policy step), four real ML Process Anomaly signals (rule-based,
+Isolation Forest, LSTM-Autoencoder, GNN — GPU-accelerated when available)
+fused by a real stacking meta-learner with a full per-signal SHAP
+breakdown, a real offline-trained RL-adaptive policy over the two-score
+state, a hash-chained + independently-checkpointed audit log, NIST SP
+800-207 + IEC 62443 governance mapping, and a static visual reference
+dashboard — all logged to SQLite.
 
-**First time here? Read `docs/09_project_report.md`** for the complete,
-polished project report (architecture, methodology, results, governance,
-and what's still pending real hardware), or **`SESSION_LOG.md`** for the
-full blow-by-blow story of how this project got to its current state, in
-order — including every bug found and fixed along the way. This README is
-the quick-start; `docs/05_phase_status.md` is the point-in-time
-architecture/compliance status.
+**First time here? Read `docs/00_overview.md`** for the master overview of
+the as-built architecture (start there, then the module files in numeric
+order), **`RESULTS.md`** for every real measured number this project has
+produced (with a reserved, clearly-marked section for hardware-in-the-loop
+results once the physical board is flashed), or **`SESSION_LOG.md`** for
+the full blow-by-blow story of how this project got to its current state,
+in order — including every bug found and fixed along the way, most
+recently the two-score rearchitecture. This README is the quick-start.
 
 ## What this does right now
 
 Three devices — one real (`esp32-vib-001`, MicroPython firmware on an
-ESP32 + MPU6050 + vibration sensor) and two simulated (`sensor-002`,
-`actuator-001`, carried over from the original starter kit) — publish
-signed telemetry. The gateway verifies identity and signature, checks
-message freshness (replay protection), runs the reading through three ML
-anomaly scorers plus a rule-based check, fuses all four via a stacking
-meta-learner (every signal's real SHAP contribution logged, not just the
-top one, with a `confidence` measure), blends the result into a
-continuously-updated trust score via EWMA, and makes an ALLOW / STEP_UP /
-DENY decision using either static thresholds or an offline-trained RL
-bandit — logging every step, tagged with which NIST SP 800-207 tenets and
-IEC 62443 Foundational Requirements it's evidence for, to SQLite and two
-live dashboards (Streamlit and a from-scratch local web dashboard). The
-gateway signs its decisions back to the device too, so authentication is
-genuinely mutual, not just device→gateway.
+ESP32 + MPU6050, one physical sensor, no separate vibration sensor) and
+two simulated (`sensor-002`, `actuator-001`, carried over from the
+original starter kit) — publish
+signed telemetry, each with a `boot_id`/`seq` pair for anti-replay. The
+gateway checks identity, HMAC, boot/seq freshness, and a secondary
+timestamp window; anything that fails is REJECTED and routed to a
+per-claimed-device `IdentityTargetingRisk` counter, never to that device's
+own trust state (the fix for a real trust-poisoning vulnerability — see
+`docs/03_module2_authentication.md` Section 5). Everything that passes is
+scored on **two independent axes**: a lightweight rule-based **Security
+Trust Score** (cyber-behaviour evidence only — rate/flood, step-up
+outcomes, silence) and a **Process Anomaly Score** (physical sensor
+evidence only — rule-based range check + Isolation Forest + LSTM-
+Autoencoder + GNN, fused by a stacking meta-learner with a full per-signal
+SHAP breakdown). The two scores meet **only** inside a 2×2 policy table
+(static, or an offline-trained RL bandit reading the same two-dimensional
+state) producing `ALLOW` / `ALERT` / `STEP_UP` / `BLOCK` — `STEP_UP` now
+triggers a real gateway-issued nonce the device must echo back, not just a
+label. Every step is logged, hash-chained (with a separately-stored,
+separately-keyed checkpoint catching an attacker who rewrites the in-DB
+chain consistently), and tagged with which NIST SP 800-207 tenets and IEC
+62443 Foundational Requirements it's evidence for — to SQLite, queryable
+directly (`audit_log.recent()`) or via `scripts/evaluate_governance.py`/
+`evaluate_iec62443.py`.
 
 **Everything in Module 3's ML pipeline (Isolation Forest, LSTM-AE, GNN,
 fusion, RL policy) is trained OFFLINE** (`scripts/train_*.py`) and only
 ever runs inference at the gateway — this is a hard constraint, not a
-suggestion (see `CLAUDE.md` Section 8). LSTM-AE and GNN training/inference
-auto-detect and use a CUDA GPU if one is present (`torch.cuda.is_available()`
-in `lstm_ae_scorer.py`/`gnn_scorer.py`), falling back to CPU cleanly if
-not — no code changes needed either way.
+suggestion (see `CLAUDE.md` Section 8). LSTM-AE, GNN, and the Transformer
+ablation candidate (below) training/inference auto-detect and use a CUDA
+GPU if one is present (`torch.cuda.is_available()` in
+`lstm_ae_scorer.py`/`gnn_scorer.py`/`transformer_scorer.py`), falling back
+to CPU cleanly if not — no code changes needed either way.
+
+A fifth Process Anomaly candidate, a small Transformer encoder
+(`transformer_scorer.py`/`train_transformer.py`), was added, fairly
+evaluated against the LSTM-AE, and genuinely wins by a small margin — but
+is **not** wired into the live fusion inputs; see `RESULTS.md` Section 2.2
+for the full comparison and the reasoning for not adopting it.
 
 Two ways to feed it telemetry:
 
 - **Software simulation** (`src/device_simulator.py`) — no hardware
   needed, fastest way to see it work. Injects a forged signature, an
-  out-of-range value, an in-range-but-anomalous shock, and a replayed
-  message on a rotation, so you can watch the trust score react to each.
-- **Real hardware** — one ESP32 + MPU6050 + vibration sensor running
-  `firmware/main.py` (MicroPython), publishing as `esp32-vib-001`. See
-  `docs/06_hardware_setup.md` for a complete beginner's guide (Thonny,
-  wiring diagrams, everything).
+  out-of-range value, an in-range-but-anomalous shock, a replayed
+  message, a device reboot, a rapid-fire flood burst (triggers a real
+  step-up challenge), and a "stealthy" fully-valid-but-fabricated reading
+  on a rotation, so you can watch both scores react (or, for the stealthy
+  case, honestly fail to react — see
+  `docs/04_module3_trust_evaluation.md` Section B.8).
+- **Real hardware** — one ESP32 + MPU6050 running `firmware/main.py`
+  (MicroPython), publishing as `esp32-vib-001`. **Flashed, authenticated,
+  and running live** (not just software-verified) — `config.
+  REAL_HARDWARE_DEVICE_IDS = {"esp32-vib-001"}` is set, so
+  `device_simulator.py` skips this device and the real board is the sole
+  source of its telemetry. **`firmware/HARDWARE_SETUP.md`** is the
+  complete, step-by-step bring-up guide (parts list, wiring, Thonny
+  flashing, secret provisioning, the critical first HMAC integration test,
+  and folding real captured data back into the trained models via
+  `scripts/collect_hardware_session.py`/`merge_real_hardware_data.py`) —
+  see `RESULTS.md`'s hardware-in-the-loop section for the real measured
+  before/after retraining numbers, and `SESSION_LOG.md` for the full
+  bring-up story (every bug hit and fixed along the way).
 
-See `docs/05_phase_status.md` for the full phase-by-phase status,
-including the four documented substitutions (CoAP/DTLS → HTTPS; GNN's
-graph choice; hand-rolled GCN vs. `torch-geometric`; mutual-but-not-
-interactive-challenge-response authentication) and what's genuinely still
-TODO (flashing real hardware, a real physical adversarial-testing
-session) — see `docs/09_project_report.md`'s "Pending Hardware
-Validation" section for the complete, explicitly-marked list of gaps.
+See `SESSION_LOG.md` (append-only, read top-to-bottom) for the full,
+narrated status — every substitution made (CoAP/DTLS → HTTPS; GNN's graph
+choice; hand-rolled GCN vs. `torch-geometric`) and everything genuinely
+still TODO (flashing real hardware, a real physical adversarial-testing
+session) — and `docs/00_overview.md` onward for the as-built architecture
+reference.
 
 ## Setup
 
@@ -70,10 +106,11 @@ Validation" section for the complete, explicitly-marked list of gaps.
 `certs/mosquitto_passwd`/`mosquitto_acl` are already generated and the
 code auto-detects them — one manual step remains, needing your admin
 PowerShell to edit `mosquitto.conf` itself. See
-`docs/07_transport_zero_trust.md` for the exact diff and verification
-steps. Everything below works with or without that step done; it's the
-difference between the broker being *capable* of enforcing "no implicit
-trust" at the transport layer and actually *doing* it.
+`docs/07_module6_secure_communication.md` Section 3 for the exact
+`mosquitto.conf` shape and verification steps. Everything below works with
+or without that step done; it's the difference between the broker being
+*capable* of enforcing "no implicit trust" at the transport layer and
+actually *doing* it.
 
 **1. Install a local MQTT broker** (one-time, on your own machine):
 
@@ -99,16 +136,17 @@ pip install -r requirements.txt
 ```
 
 **3. TLS certs** (needed for MQTT/TLS and the HTTPS second transport —
-see `docs/03_add_tls.md` for the exact `openssl` commands; both transports
-share the same self-signed CA in `certs/`). Both `config.MQTT_USE_TLS` and
+see `docs/07_module6_secure_communication.md` Section 3 for the exact
+`openssl` commands; both transports share the same self-signed CA in
+`certs/`). Both `config.MQTT_USE_TLS` and
 `config.COAP_ENABLED` auto-detect based on whether `certs/` is populated —
 nothing to toggle manually once the certs exist.
 
 **4. Train the offline models** (one-time, or whenever you regenerate
 training data — takes under a minute either way; a CUDA GPU speeds up
-LSTM-AE/GNN training if present, but is entirely optional — both fall
-back to CPU automatically, see `requirements.txt`'s GPU install note if
-you have an NVIDIA card and want it):
+LSTM-AE/GNN/Transformer training if present, but is entirely optional —
+all fall back to CPU automatically, see `requirements.txt`'s GPU install
+note if you have an NVIDIA card and want it):
 
 ```bash
 cd src   # scripts/ imports assume this
@@ -119,11 +157,13 @@ python train_lstm_ae.py
 python train_gnn.py
 python train_fusion_meta_learner.py
 python train_adaptive_pdp.py
+python train_transformer.py   # optional -- ablation candidate only, see RESULTS.md Section 2.2;
+                                # not a dependency of any other script, can be run in any order
 ```
 
-Run them in that exact order — each later script replays the training
-session through the previously-trained models to build its own training
-set (e.g. the fusion meta-learner needs Isolation Forest/LSTM-AE/GNN's
+Run the first six in that exact order — each later script replays the
+training session through the previously-trained models to build its own
+training set (e.g. the fusion meta-learner needs Isolation Forest/LSTM-AE/GNN's
 outputs as its own input features).
 
 ## Run it
@@ -138,15 +178,21 @@ python gateway.py
 python device_simulator.py
 ```
 
-Watch Terminal 1. Every ~2 seconds you'll see a line per device. Every
-~12-15 ticks you'll see the simulator inject a bad reading, a forged
-signature, or a replayed message — watch the trust score and decision
-react. Stop both with Ctrl+C whenever you like.
+Watch Terminal 1. Every ~2 seconds you'll see a line per device, showing
+both the Security Trust and Process Anomaly scores independently. Every
+few ticks you'll see the simulator inject a bad reading, a forged
+signature, a replayed message, a reboot, a flood burst (watch it trigger a
+real step-up challenge), or a stealthy fabricated reading — watch both
+scores and the decision react. Stop both with Ctrl+C whenever you like.
 
-Have real hardware? Skip `device_simulator.py` and flash `firmware/main.py`
-instead — see `docs/06_hardware_setup.md`. The gateway doesn't change
-either way; `device_simulator.py` still simulates `sensor-002`/`actuator-001`
-fine alongside your real board.
+Have real hardware? Follow `firmware/HARDWARE_SETUP.md` end to end, then
+add `esp32-vib-001` to `config.REAL_HARDWARE_DEVICE_IDS` so
+`device_simulator.py` stops also publishing under that same identity (the
+two would otherwise race on `boot_id`/`seq` and intermittently reject each
+other's messages as replays) — `device_simulator.py` keeps simulating
+`sensor-002`/`actuator-001` fine alongside your real board either way. The
+gateway itself needs zero changes either way (not yet flashed to a real
+board as of this writing — see `SESSION_LOG.md`).
 
 Check what got logged:
 
@@ -154,36 +200,30 @@ Check what got logged:
 python -c "import audit_log; [print(r) for r in audit_log.recent(10)]"
 ```
 
-Or watch it live in a browser (Terminal 3, while the gateway + a telemetry
-source are running):
+For a NIST SP 800-207 governance-completeness view (which proportion of
+logged decisions are traceable evidence for each of the 7 tenets,
+currently 100%/7-of-7) and an IEC 62443-3-3 Foundational Requirements
+coverage view (FR1-FR7; FR1-4/6 implemented, FR5/FR7 honestly marked
+**partial** — real transport-layer controls exist for both, but full
+physical segmentation/redundancy don't), run:
 
 ```bash
-streamlit run dashboard.py
+cd scripts
+python evaluate_governance.py
+python evaluate_iec62443.py
 ```
 
-The dashboard also shows a live NIST SP 800-207 governance-completeness
-view (which proportion of logged decisions are traceable evidence for
-each of the 7 tenets, currently 100%/7-of-7) and an IEC 62443-3-3
-Foundational Requirements coverage view (FR1-FR7; FR1-4/6 implemented,
-FR5/FR7 honestly marked **partial** — real transport-layer controls exist
-for both, but full physical segmentation/redundancy don't, see that
-view's gap notes) right below it, plus the SL-2 security-level
-self-assessment.
-
-**Prefer a more polished visual demo?** `webapp_server.py` (Terminal 3
-instead of Streamlit) serves a from-scratch local rebuild of the earlier
-Claude Design mockup — same dark cyan/amber aesthetic, but reading 100%
-real live data instead of the mockup's client-side fake numbers (that
-page was a claude.ai artifact, which can't reach `localhost` at all — see
-`SESSION_LOG.md` §10 for why):
-
-```bash
-python webapp_server.py
-```
-
-Then open `http://localhost:8600`. It shows everything Streamlit's does,
-plus the real trained RL Q-table. Both dashboards read the same
-`audit_log.db` — run either one, or both side by side.
+**`design/zero-trust-cps-command-center.html`** is a static visual
+reference mockup (a Claude Design canvas export) — open it directly in a
+browser, no server needed. It is **not** wired to live data: its device
+names/numbers are a static export snapshot predating the current device
+registry, and there is deliberately no backend serving it live values (a
+prior version of this project injected a live-data overlay via a small
+Python server; that approach was removed in favor of keeping this to a
+single static file — see `firmware/HARDWARE_SETUP.md`'s changelog note if
+you're looking for it in project history). For live monitoring, use the
+`audit_log.recent()` one-liner above, watch the gateway's own console
+output, or query `src/data/audit_log.db` directly.
 
 Note the ML scorers need `models/` populated (see Setup step 4) — without
 trained artifacts, every scorer falls back to a neutral default and the
@@ -192,43 +232,73 @@ before training, not a bug.
 
 ## Evaluate it (for the report)
 
-Once the models are trained, `scripts/evaluate_*.py` produce the
-synopsis Section 10.1 evaluation deliverables against a held-out test set:
+**`RESULTS.md`** already has every number below, with full explanations,
+caveats, and a reserved section for hardware results — read that first.
+To reproduce or regenerate them yourself, once the models are trained,
+`scripts/evaluate_*.py` produce the evaluation deliverables against a
+held-out test set:
 
 ```bash
 cd scripts
 python generate_test_data.py       # held-out set, different seed from training data
-python evaluate_ablation.py        # fused score vs. each individual signal's accuracy
+python evaluate_ablation.py        # fused Process Anomaly score vs. each individual signal's accuracy
 python evaluate_latency.py         # HMAC + full-pipeline latency on this machine
-python evaluate_explainability.py  # SHAP top-feature vs. ground-truth cause
-python evaluate_rl_policy.py       # static vs. RL reward, convergence trend
+python evaluate_explainability.py  # Level 1: SHAP top-feature vs. ground-truth cause
+python evaluate_explainability_level2.py  # Level 2: perturb the named feature, does the score recover?
+python evaluate_rl_policy.py       # static vs. RL reward, multi-class confusion matrix, convergence trend
 python evaluate_governance.py      # NIST SP 800-207 completeness report
 python evaluate_iec62443.py        # IEC 62443-3-3 FR coverage + SL self-assessment
-python evaluate_trust_responsiveness.py   # how fast the EWMA trust score reacts to each attack type
+python evaluate_trust_responsiveness.py   # how fast each of the two scores reacts to each attack type
+python generate_evaluation_graphs.py      # 20 individual PNG figures covering every comparison
+                                            # above, plus governance coverage, RL convergence,
+                                            # dataset balance, threshold sensitivity, and training
+                                            # loss curves -> docs/figures/ (see RESULTS.md's Figure
+                                            # Index for what each one is and which section it's from)
 ```
+
+Read `docs/12_model_validation_and_justification.md` for a research-
+methodology writeup of every model above (purpose, why that architecture,
+what the validation actually establishes, what it doesn't) and
+`docs/13_system_architecture_and_workflow.md` for the whole-system
+diagrams. The generated PNGs themselves live in `docs/figures/` — open
+them directly, no gallery server needed.
 
 ## Project structure
 
 ```
 zt-cps-starter/
-├── SESSION_LOG.md          <- the full story, in order (19 entries)
-├── README.md               <- you are here
-├── CLAUDE.md                <- governing engineering brief
-├── requirements.txt          <- incl. GPU install note
+├── SESSION_LOG.md          <- the full story, in order (24+ entries)
+├── RESULTS.md               <- every real measured result, with explanations + a reserved hardware section
+├── README.md                 <- you are here
+├── CLAUDE.md                  <- governing engineering brief
+├── requirements.txt            <- incl. GPU install note
 ├── docs/
 │   ├── Zero_Trust_CPS_Project_Synopsis.docx   <- the citable academic record
-│   ├── 01_getting_started.md
-│   ├── 02_understand_the_pipeline.md
-│   ├── 03_add_tls.md
-│   ├── 04_next_phases.md          <- original Phase 6-9 plan (superseded, kept for reference)
-│   ├── 05_phase_status.md         <- authoritative architecture/compliance status
-│   ├── 06_hardware_setup.md       <- complete beginner's guide (Thonny, wiring, everything)
-│   ├── 07_transport_zero_trust.md <- MQTT broker hardening (FR5/FR7), admin PowerShell steps
-│   ├── 08_results_and_evaluation.md <- every real measured result, paper-ready
-│   └── 09_project_report.md       <- READ THIS FIRST — the complete project report
-├── implementation-docs/    <- module-by-module reference (Part A core + Part B design)
+│   │                                              (not yet updated for the two-score
+│   │                                              rearchitecture — see SESSION_LOG.md)
+│   ├── 00_overview.md             <- START HERE — master as-built architecture overview
+│   ├── 01_simulation_and_hardware_abstraction.md
+│   ├── 02_module1_device_identity.md
+│   ├── 03_module2_authentication.md
+│   ├── 04_module3_trust_evaluation.md
+│   ├── 05_module4_continuous_verification.md
+│   ├── 06_module5_access_control.md
+│   ├── 07_module6_secure_communication.md
+│   ├── 08_module7_monitoring_and_audit.md
+│   ├── 09_integration_and_data_flow.md
+│   ├── 10_testing_and_attack_simulation.md
+│   ├── 11_project_structure_and_config.md   <- read its AS-BUILT note; real layout is below, not what it recommends
+│   ├── 12_model_validation_and_justification.md   <- every model's purpose/why/validation, research-methodology writeup
+│   ├── 13_system_architecture_and_workflow.md      <- whole-system diagrams (architecture, sequence, training pipeline)
+│   └── figures/                              <- scripts/generate_evaluation_graphs.py's PNG output
+├── design/
+│   ├── zero-trust-cps-command-center.html   <- static visual reference dashboard (open directly, no server; not live-wired)
+│   ├── Main.dc.html                          <- editable source (can't run standalone, missing runtime)
+│   └── canvas.json
 ├── firmware/
-│   └── main.py              <- MicroPython, runs on the real ESP32 (mutual-auth verified in software)
+│   ├── main.py               <- MicroPython, runs on the real ESP32 (flashed, authenticated, running live)
+│   ├── HARDWARE_SETUP.md      <- step-by-step bring-up guide: parts, wiring, flashing, secrets, first-boot test
+│   └── HARDWARE_DATA_LOG.md   <- latest real-data collection session summary (scripts/collect_hardware_session.py output)
 ├── certs/                   <- self-signed CA + server cert + mosquitto_passwd/acl
 ├── models/                  <- offline-trained artifacts (scripts/train_*.py output)
 ├── data/collected/          <- training/test sessions (scripts/generate_*.py output)
@@ -236,27 +306,37 @@ zt-cps-starter/
     ├── config.py                    <- all tunable settings
     ├── device_simulator.py          <- Modules 1, 2, 6 (software device stand-in, verifies mutual auth)
     ├── gateway.py                   <- ties everything together (run this first)
-    ├── trust_engine.py              <- Module 3 (rule-based) + 4 (EWMA/continuous + replay/flood checks)
+    ├── trust_engine.py              <- Module 2 (boot/seq replay, IdentityTargetingRisk, step-up) +
+    │                                    Module 3 Section A (Security Trust) + Module 4 (both scores' state store)
     ├── feature_engineering.py       <- Section 5.1's 5-feature vibration vector
     ├── isolation_forest_scorer.py   <- Module 3, Phase 6a (inference-only)
     ├── lstm_ae_scorer.py            <- Module 3, Phase 6b (inference-only, GPU-capable)
     ├── gnn_scorer.py                <- Module 3, Phase 6c (inference-only, GPU-capable)
-    ├── fusion_engine.py             <- Module 3, Phase 7 — stacking + full per-signal SHAP (inference-only)
-    ├── policy_engine.py             <- Module 5, Phase 5 static thresholds
-    ├── adaptive_pdp.py              <- Module 5, Phase 8 RL bandit (inference-only)
+    ├── transformer_scorer.py        <- Module 3, Section B.5b -- ABLATION CANDIDATE ONLY, not a
+    │                                    fusion_engine.py input (inference-only, GPU-capable)
+    ├── fusion_engine.py             <- Module 3 Section B — stacking + full per-signal SHAP (Level 1) -> Process Anomaly Score (inference-only)
+    ├── explainability.py            <- Module 3 Section C.3/C.4 — Level-2 (per-signal feature/node) drill-down,
+    │                                    orchestrates each scorer's level2_explain(), called from gateway.py
+    ├── policy_engine.py             <- Module 5 — static 2x2 table (security_trust, process_trust -> ALLOW/ALERT/STEP_UP/BLOCK)
+    ├── adaptive_pdp.py              <- Module 5 — RL bandit over the same 2x2 state (inference-only, live default)
     ├── nist_mapping.py              <- NIST SP 800-207 tenet mapping
     ├── iec62443_mapping.py          <- IEC 62443-3-3 zones/conduits + FR coverage + SL assessment
     ├── audit_log.py                 <- Module 7
-    ├── dashboard.py                 <- Phase 9 live dashboard (Streamlit) + governance view
-    ├── webapp_server.py             <- Phase 9, second live dashboard (stdlib HTTP + webapp/index.html)
     └── coap_server.py               <- Module 6's second secured transport (HTTPS)
 └── scripts/
     ├── generate_training_data.py / generate_test_data.py
+    ├── collect_hardware_session.py  <- captures a real esp32-vib-001 session (5 short phases or one long
+    │                                    free-form window via --long), joins in gateway.py's live scoring
+    ├── merge_real_hardware_data.py  <- folds all collected real sessions into training_session.json
+    │                                    alongside the synthetic data, idempotent, safe to re-run
     ├── train_isolation_forest.py / train_lstm_ae.py / train_gnn.py
     ├── train_fusion_meta_learner.py / train_adaptive_pdp.py
-    └── evaluate_ablation.py / evaluate_latency.py / evaluate_explainability.py
-        / evaluate_rl_policy.py / evaluate_governance.py / evaluate_iec62443.py
-        / evaluate_trust_responsiveness.py
+    ├── train_transformer.py   <- ablation candidate only, RESULTS.md Section 2.2
+    ├── evaluate_ablation.py / evaluate_latency.py
+    ├── evaluate_explainability.py / evaluate_explainability_level2.py   <- Level 1 / Level 2
+    ├── evaluate_rl_policy.py / evaluate_governance.py / evaluate_iec62443.py
+    ├── evaluate_trust_responsiveness.py
+    └── generate_evaluation_graphs.py   <- individual PNG figures -> docs/figures/
 ```
 
 ## How this maps to your report
@@ -265,15 +345,16 @@ zt-cps-starter/
 |---|---|
 | 4.3 Module 1 — Device Identity | `config.DEVICE_REGISTRY` (hybrid: 1 real + 2 simulated), checked in `gateway.verify_signature()` |
 | 4.3 Module 2 — Authentication | HMAC-SHA256, **mutual**: `device_simulator.sign()`/`firmware/main.py` (device→gateway) + `gateway._sign_decision()` verified by `device_simulator.verify_decision_signature()`/`firmware/main.py`'s `verify_decision_signature()` (gateway→device) |
-| 4.3 Module 3 — Trust Evaluation | `trust_engine.rule_range_score()` + `isolation_forest_scorer` (6a) + `lstm_ae_scorer` (6b) + `gnn_scorer` (6c), combined by `fusion_engine.FusionEngine` (7) |
-| 4.3 Module 4 — Continuous Verification | EWMA + time-decay + replay/freshness + flood checks, all in `trust_engine.score_message()`/`check_replay()`/`check_flood()` |
-| 4.3 Module 5 — Access Control | `policy_engine.decide()` (Phase 5) or `adaptive_pdp.AdaptivePDP` (Phase 8) — toggle via `config.USE_RL_POLICY` |
-| 4.3 Module 6 — Secure Communication | MQTT/TLS (+ per-device broker credentials/ACLs) + HTTPS (`coap_server.py` — see its docstring for why HTTPS substitutes for CoAP/DTLS) |
-| 4.3 Module 7 — Monitoring | `audit_log.py` + `nist_mapping.py` + `iec62443_mapping.py` + `dashboard.py`/`webapp_server.py` |
-| Figure 4.1 — Fusion Engine + SHAP | `fusion_engine.py` (full per-signal SHAP breakdown, not just the top feature) |
-| Section 7.3 — Governance mapping | `nist_mapping.py` + `iec62443_mapping.py`, both dashboards' governance views, `scripts/evaluate_governance.py`/`evaluate_iec62443.py` |
-| Section 10.1 — Evaluation | `scripts/evaluate_*.py` — results written up in `docs/08_results_and_evaluation.md` |
+| 4.3 Module 2 (cont.) — boot/seq replay + attribution | `trust_engine.check_boot_replay()`/`check_timestamp_freshness()`; `trust_engine.IdentityTargetingRisk` (failed attempts routed away from any device's own score, `gateway.py::_reject()`) |
+| 4.3 Module 3 — Trust Evaluation | **Two independent scores.** Security Trust: `trust_engine.score_security_trust()` (rate/flood/step-up only). Process Anomaly: `trust_engine.rule_range_score()` + `isolation_forest_scorer` + `lstm_ae_scorer` + `gnn_scorer`, combined by `fusion_engine.FusionEngine` |
+| 4.3 Module 4 — Continuous Verification | Security Trust: EWMA + time-decay in `score_security_trust()`. Process Anomaly: retained exactly on silence, only `FRESH`/`STALE` status changes (`update_process_anomaly()`/`get_process_anomaly()`) |
+| 4.3 Module 5 — Access Control | `policy_engine.decide(security_trust, process_trust, process_status)` (2×2 table) or `adaptive_pdp.AdaptivePDP` (RL, live default) — toggle via `config.USE_RL_POLICY`; `STEP_UP` now triggers a real step-up challenge (`gateway.py::initiate_step_up()`) |
+| 4.3 Module 6 — Secure Communication | MQTT/TLS (+ per-device broker credentials/ACLs, now including `cps/challenge/*`) + HTTPS (`coap_server.py` — see its docstring for why HTTPS substitutes for CoAP/DTLS) |
+| 4.3 Module 7 — Monitoring | `audit_log.py` (hash-chained + independently checkpointed) + `nist_mapping.py` + `iec62443_mapping.py` |
+| Figure 4.1 — Fusion Engine + SHAP | `fusion_engine.py` (full per-signal SHAP breakdown, not just the top feature) — feeds the Process Anomaly Score only |
+| Section 7.3 — Governance mapping | `nist_mapping.py` + `iec62443_mapping.py`, `scripts/evaluate_governance.py`/`evaluate_iec62443.py` |
+| Section 10.1 — Evaluation | `scripts/evaluate_*.py` produce the numbers; **`RESULTS.md`** is the written-up, paper-ready record of all of them, including the hardware-in-the-loop results section |
 
-Next: **`docs/09_project_report.md`** for the complete report, or
-`SESSION_LOG.md` for the full story, then `docs/05_phase_status.md` for
-exact current status.
+Next: **`docs/00_overview.md`** for the complete as-built architecture
+reference, or **`SESSION_LOG.md`** for the full narrated story and exact
+current status.

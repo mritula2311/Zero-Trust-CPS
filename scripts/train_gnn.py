@@ -32,6 +32,7 @@ from trust_engine import rule_range_score
 from isolation_forest_scorer import IsolationForestScorer
 from lstm_ae_scorer import LSTMAEScorer
 from gnn_scorer import _GCN, normalized_adjacency, _TORCH_DEVICE
+from generate_training_data import physical_label
 
 SESSION_PATH = os.path.join(DATA_COLLECTED_DIR, "training_session.json")
 DEVICE_IDS = list(DEVICE_REGISTRY.keys())
@@ -59,7 +60,19 @@ def build_snapshots(records):
     snapshot (the last record processed that tick) with the full true
     joint target [0, 0, 0] -- the training signal the GCN actually needs
     to learn "simultaneously-mild-across-neighbors is worse than any one
-    alone" instead of being told the opposite."""
+    alone" instead of being told the opposite.
+
+    TWO-SCORE REARCHITECTURE: records with auth_ok=False or
+    event_type=="replay" are SKIPPED entirely -- no feature/label/
+    active-tick update, no snapshot produced for that row -- because
+    Module 2 rejects both before they ever reach Module 3 in the live
+    architecture, so there is no live analogue of "what would the graph
+    snapshot look like right after a rejected message" to train against.
+    The label target is physical_label(event_type), not the old blended
+    `label` -- a `high_rate` record's features are genuinely normal, and
+    pairing them with label=0 (the bug this replaced) taught the GNN that
+    ordinary-looking feature vectors sometimes mean "suspicious" with
+    nothing in the features to justify it."""
     if_scorer = IsolationForestScorer()
     lstm_scorer = LSTMAEScorer()
 
@@ -70,24 +83,23 @@ def build_snapshots(records):
 
     records = sorted(records, key=lambda r: r["tick"])
     for r in records:
+        if not r["auth_ok"] or r["event_type"] == "replay":
+            continue  # rejected at Module 2 -- never reaches Module 3 live
         device_id = r["device_id"]
         i = INDEX[device_id]
-        auth_ok = r["auth_ok"]
         rule_score, _ = rule_range_score(device_id, r["reading"])
 
-        if auth_ok and device_id == "esp32-vib-001":
+        if device_id == "esp32-vib-001":
             fv = fe.feature_vector(r["reading"])
             if_score = if_scorer.score(fv)
             lstm_score = lstm_scorer.score(device_id, fv)
-        elif auth_ok:
+        else:
             # scalar devices have no independent IF/LSTM-AE model -- mirror
             # rule_score into those slots (documented in gnn_scorer.py)
             if_score = lstm_score = rule_score
-        else:
-            if_score = lstm_score = 0.1  # AUTH_FAIL_SENTINEL_SCORE, matches gateway.py's live handling
 
         last_features[i] = [rule_score, if_score, lstm_score]
-        last_label[i] = float(r["label"])
+        last_label[i] = float(physical_label(r["event_type"]))
         last_active_tick[device_id] = r["tick"]
 
         active = np.array([

@@ -5,8 +5,8 @@ of tenets for which the system produces a traceable, logged artefact" is
 one of the report's named evaluation metrics (Section 10.1), not a
 discussion point. This module decides, per message, which of the 7 tenets
 (config.NIST_TENETS) that specific decision is evidence for, so
-audit_log.log_decision() can store it and dashboard.py / a governance
-report can compute real completeness numbers rather than assert them.
+audit_log.log_decision() can store it and scripts/evaluate_governance.py
+can compute real completeness numbers rather than assert them.
 """
 
 from config import NIST_TENETS
@@ -42,7 +42,7 @@ def completeness_report(rows: list[dict]) -> dict:
     """Given a list of audit_log rows (each with a 'nist_tenets' string
     field), returns {tenet_number: coverage_fraction} -- the "governance
     completeness" metric the synopsis's Section 10.1 evaluation plan names
-    explicitly. Used by dashboard.py's governance view."""
+    explicitly. Used by scripts/evaluate_governance.py."""
     if not rows:
         return {t: 0.0 for t in NIST_TENETS}
     counts = {t: 0 for t in NIST_TENETS}

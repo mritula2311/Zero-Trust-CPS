@@ -1269,32 +1269,324 @@ this same doc's original instructions could plausibly hit either one.
 
 ---
 
+## 23. Two-score rearchitecture: reconciling a freshly-written LLD doc set against this working, evaluated codebase
+
+User replaced the entire `docs/` folder with a new 12-file low-level design
+set (`docs/00_overview.md` … `11_project_structure_and_config.md`), written
+as a from-scratch build guide assuming no existing code — deleting the old
+`docs/01_getting_started.md` … `09_project_report.md` in the process (which
+broke nine links in `README.md`, fixed this session). Asked to "go through
+each and every file... and finetune the entire architecture and pipeline."
+
+**The real conflict, found by actually reading both sides before touching
+anything**: the new LLD's central, repeated architectural rule — a
+**Security Trust Score** (cyber-behaviour evidence) and a **Process
+Anomaly Score** (physical sensor evidence) must never be blended into one
+number before the final policy step — was violated by every session up to
+this point. `trust_engine.RuleBasedTrustEngine.score_message()` fed
+auth/replay/flood signal AND `fusion_engine`'s physical-anomaly output
+into one EWMA `trust_score`. The new docs also named two concrete,
+real vulnerabilities in the existing design: (1) a failed-auth message fed
+straight into the CLAIMED device's own `score_message()` call — anyone who
+didn't know a device's secret could still lower that device's own trust
+score by sending it garbage HMACs (trust-poisoning); (2) the replay check
+(`REBOOT_TS_THRESHOLD_MS`, a ts-size heuristic) had a documented,
+never-closed blind spot — a message captured just after a reboot could be
+replayed later and still look like a fresh boot.
+
+**Decision, after presenting the conflict and the user's detailed
+response**: don't discard 22 sessions of evaluated work to match a
+docs-first spec written assuming a green field, and don't discard the new
+docs' real, correct architectural fixes either. Fix the two vulnerabilities,
+re-plumb the existing (already-trained) IF/LSTM-AE/GNN/fusion stack into
+the two-score architecture, add three things the new docs asked for that
+were real, closeable gaps (a genuine step-up challenge/response, a
+hash-chained + independently-checkpointed audit log, a multi-class
+confusion matrix), keep RL and the GNN as live defaults (both already
+justified — RL's live path is a frozen, no-exploration Q-table lookup with
+no live reward-signal dependency at all; GNN's `coordinated` recall is the
+best of any single signal), leave the file layout/`config.py` alone
+(cosmetic, no functional benefit), and rewrite every doc to describe the
+resulting system honestly.
+
+**What actually got built** (`src/trust_engine.py`'s module docstring has
+the full architectural rationale):
+
+- **`IdentityTargetingRisk`** (Module 2 Section 5's fix) — a rolling
+  60s failure counter keyed by the CLAIMED device_id, completely separate
+  storage from any registered device's own state. `gateway.py::_reject()`
+  is now the ONLY path a failed verification takes; it never calls
+  anything that touches a device's own Security Trust or Process Anomaly
+  state. Verified live: 50+ forged-signature attempts against
+  `actuator-001` left its own score completely untouched, and
+  `identity_targeting_risk_60s` climbed instead.
+- **`boot_id`/`seq` anti-replay** (`trust_engine.check_boot_replay()`) —
+  every device now carries a boot counter (persisted to flash-equivalent
+  in `firmware/main.py`, in-memory in `device_simulator.py`) plus a
+  per-boot sequence number. A higher `boot_id` always accepts and resets
+  the baseline; a repeated `boot_id` needs a strictly higher `seq`; a
+  LOWER `boot_id` is unconditionally rejected as
+  `replay_of_superseded_boot_session` — closing the exact blind spot
+  `REBOOT_TS_THRESHOLD_MS` (now removed) had. `ts` is now a SECONDARY
+  freshness check only. Verified live: a simulated reboot
+  (`boot_id`→2, `seq`→1) was accepted, not rejected; the very next replay
+  of a pre-reboot message was correctly rejected.
+- **Real Security Trust Score** (`score_security_trust()`) — fed only by
+  rate/flood (`check_flood()`, now genuinely exercised live via a new
+  high-rate burst scenario in `device_simulator.py`, not just an offline
+  flag) and step-up outcomes. Never by auth failures or physical values.
+- **Process Anomaly Score** — literally `fusion_engine.combine()`'s
+  existing output, kept in its original trust-style scale (high = normal)
+  rather than inverted to the new docs' literal "high = anomalous"
+  wording, specifically so the already-trained, already-ablation-verified
+  meta-learner's coefficients didn't need to change sign. A deliberate,
+  documented deviation from the LLD's literal scale, not an oversight.
+- **Real step-up challenge/response** (Module 2 Section 7 — closes the
+  "not literal interactive challenge-response" gap §13 left open) —
+  `gateway.py::initiate_step_up()` publishes a nonce to
+  `cps/challenge/<device_id>`; the device echoes it in its next message
+  (`step_up_nonce_echo`, inside the signed payload). **Two real bugs found
+  by actually running this live, not by reading the code back**: (1)
+  `check_step_up_response()` never cleared the pending nonce on a
+  mismatch, so ONE unanswered challenge kept re-comparing against every
+  subsequent unrelated message and escalating to `BLOCK` repeatedly until
+  the 10s timeout — fixed to clear on every terminal outcome, and to treat
+  "no echo yet" as "still waiting," not an immediate mismatch, since the
+  challenge arrives async and the device's very next scheduled publish may
+  predate it. (2) `certs/mosquitto_acl` had no `cps/challenge/*` rules at
+  all — the broker was silently denying every device's subscribe to its
+  own challenge topic, so no device could ever receive one regardless of
+  the echo logic being correct. Fixed the ACL file; **still needs the
+  user's admin PowerShell to restart the Mosquitto service** for it to
+  take effect (same pattern as every other `mosquitto.conf`/ACL change in
+  this project) — a genuine SUCCESS-path demonstration is blocked on that
+  one manual step, not on remaining code.
+- **Hash-chained + independently-checkpointed audit log**
+  (`audit_log.py`) — `prev_hash`/`this_hash` per row,
+  `verify_chain_integrity()`; a separate `data/checkpoint_log.jsonl` file
+  (different file, different HMAC key, never shared with any device's
+  registry entry) written every 100 rows, `verify_against_checkpoints()`.
+  Verified the specific two-step attack this design exists to catch:
+  editing one old row alone is caught by `verify_chain_integrity()`
+  alone; editing a row AND recomputing every subsequent hash to stay
+  internally consistent fools `verify_chain_integrity()` (correctly, that
+  is its known limit) but is caught by the separately-stored checkpoint
+  mismatch. **Found and fixed a real bug during this exact verification**:
+  `scripts/evaluate_latency.py` redirected `AUDIT_DB_PATH` to a throwaway
+  database but not `CHECKPOINT_STORE_PATH`/`AUDIT_KEY_PATH` — its
+  throwaway run's row 100 wrote a checkpoint entry into the SAME shared
+  checkpoint file the real gateway uses, so the very next
+  `verify_against_checkpoints()` against the real, completely untampered
+  audit log failed, comparing the real row 100 against a checkpoint that
+  described a different, unrelated database. Confirmed the fix in
+  isolation (a clean 150-row synthetic run passes both checks) before
+  re-confirming against a fresh live gateway+simulator run.
+- **RL retrained for the new 2D state/4-action space**
+  (`src/adaptive_pdp.py`, `scripts/train_adaptive_pdp.py`) — state
+  `(security_bucket, process_bucket)`, actions
+  `{ALLOW, STEP_UP, ALERT, BLOCK}`. **Found and fixed a real bug on
+  first load**: the old, pre-rearchitecture Q-table file used the SAME
+  `"int,int"` key format for entirely different state semantics
+  (`trust_bucket,confidence_bucket`, 3 actions) — string-identical keys
+  collided with the new format's keys, and loading it as-is `KeyError`'d
+  the first time `update()` touched a collided state expecting the new
+  4-action set. Fixed by validating the loaded table's action set on
+  load and discarding it wholesale if it doesn't match, rather than
+  partially trusting a table that could silently mix old- and
+  new-semantics entries under the same key.
+- **A real, measured methodology bug found via the confusion matrix**:
+  adding `high_rate` (a pure Security Trust event — genuinely normal
+  physical reading) to the training data generator, then naively reusing
+  the OLD blended `label` field as ground truth for `train_fusion_meta_learner.py`
+  and `train_gnn.py`, injected label noise — examples where every one of
+  the four Process Anomaly input features looked completely ordinary,
+  paired with a "suspicious" target the features gave no reason to
+  predict. Measured effect before the fix: fused aggregate accuracy on
+  held-out data dropped to ~0.68, `coordinated` recall to ~0.30. Fixed
+  with `physical_label(event_type)` (`scripts/generate_training_data.py`)
+  as the ground truth for every Process Anomaly training/eval script, and
+  by excluding `auth_ok=False`/`event_type=="replay"` records from those
+  same scripts entirely (they never reach Module 3 live either). After
+  the fix: `coordinated` recall back to 1.000, `stealthy_forged_values`
+  (attack-matrix row 11, expected to be hard) measured at a real,
+  non-zero-but-still-low recall — reported honestly, not tuned toward a
+  target number.
+- **A second real imbalance bug, found the same way**: unweighted RL
+  training left `physical_fault` recall at 0.125 — WORSE than the static
+  table's trivial 1.000 — even though the underlying Process Anomaly
+  signal cleanly separates those events (1.000 ablation recall). Root
+  cause: `normal` outnumbers the rarer situations ~10-20x, and a
+  discretized Q-table bucket shared between a `normal` example and a
+  rarer situation's example gets dominated by whichever reward sign
+  visits it more often. Fixed with the same `class_weight="balanced"`-style
+  inverse-frequency reward weighting already used for the fusion
+  meta-learner (`situation_weights()`) — `physical_fault` recall recovered
+  to 0.475, macro-F1 rose from 0.280 (static) / 0.526 (RL, unweighted) to
+  0.553 (RL, weighted).
+- **`stealthy_forged_values`** (attack-matrix row 11) added to
+  `device_simulator.py`/`scripts/generate_training_data.py` — a fully
+  valid, correctly-signed message whose values are deliberately fabricated
+  to look normal. Not tuned to be caught; its honestly-low, honestly-
+  reported detection rate is the intended result
+  (`docs/04_module3_trust_evaluation.md` Section B.8).
+
+Full retrain was required for ALL FIVE models, not just the RL bandit as
+first scoped — adding new scenarios to the data generator shifts the fixed
+random seed's entire downstream sequence, so "the training data is
+unchanged" stopped being true the moment `stealthy_forged_values`/`high_rate`
+were added to it. Verified via a live gateway+simulator run afterward
+(reboot accepted, post-reboot replay rejected, forged-id isolated to
+`IdentityTargetingRisk`, flood→STEP_UP with a single clean resolution
+instead of the pre-fix repeated-mismatch bug) and every `scripts/evaluate_*.py`
+re-run against the regenerated held-out set.
+
+**Known, disclosed limitation carried forward from this session**: the
+step-up challenge's SUCCESS path (not just its TIMEOUT path) is unverified
+live pending the mosquitto_acl restart above — the code path is exercised
+and correct by inspection and by the TIMEOUT path's correct behavior, but
+a live SUCCESS round trip has not been directly observed.
+
+## 24. Second live dashboard switched from a from-scratch rebuild to the actual design-folder file, plus a real accuracy sanity-check
+
+User asked three things in one message: (1) use `design/`'s actual dashboard
+file instead of the from-scratch `webapp/index.html` rebuild §10 built, (2)
+explain how §23's 1.000/100% figures are possible, (3) delete the webapp
+folder entirely once the design-folder approach was confirmed feasible.
+
+**Investigated §10's claim directly before acting on it, rather than
+trusting the summary**: confirmed `design/Main.dc.html` still can't run
+standalone (42 DSL-pattern occurrences, `support.js` genuinely absent
+anywhere in the repo) and that `design/zero-trust-cps-command-center.html`
+(the 2.2MB bundled export) has zero occurrences of the current device IDs
+(`esp32-vib-001`/`sensor-002`/`actuator-001`) but 11-12 each of the old,
+pre-hybrid-architecture names (`vibration-001`/`mpu6050-001`) — confirming
+the export is a flattened, static snapshot with no live-binding
+infrastructure left to reconnect, not something that can be safely
+"wired up" by patching the minified bundle. Presented this via
+AskUserQuestion; user initially picked "keep webapp/index.html," then
+explicitly overrode that a message later ("delete the entire webapp
+folder and use the design folder... proceed") after I'd already started
+enhancing it — followed the later, more explicit instruction.
+
+**What was built**: `src/webapp/` deleted entirely. `webapp_server.py`
+rewritten to serve `design/zero-trust-cps-command-center.html`
+byte-for-byte (the actual design-folder artifact, unmodified) with one
+injected, clearly-labelled live overlay bar spliced in via `str.rfind("</body>")`
+-- verified this file specifically has 6 literal `"</body>"` occurrences
+(embedded license/template text inside its own minified JS), confirmed the
+LAST one is the real document tag before checking this in rather than
+assuming a naive first-match replace would be safe. The overlay polls the
+same real `/api/*` endpoints (unchanged from §10): per-device Security
+Trust/Process Anomaly/decision, chain-verification status, NIST/IEC
+coverage, and the two features from this session's dashboard work that
+would otherwise have been lost when `webapp/index.html` was deleted --
+Identity Targeting Risk count and Step-Up challenge activity. Verified
+live: served page is 2,268,536 bytes (original 2,264,835 + the injected
+overlay), `/api/*` endpoints return real data, and a live gateway+simulator
+run populated the overlay with real per-device scores and decisions.
+
+**The accuracy question, answered directly rather than reassured away**:
+the two families of "100%" numbers in §23's output are different KINDS of
+metric, and conflating them is the natural source of the suspicion.
+- **NIST 100%/7-of-7 governance completeness is a coverage metric, not a
+  detection-accuracy metric.** `nist_mapping.tenets_for_decision()` marks
+  tenets 1/3/4/5/6 as satisfied for EVERY decision *by construction* --
+  they describe structural properties of the pipeline itself (every
+  decision has an auth verdict, came from a fresh per-message policy call,
+  etc.), not something a model has to get right. Tenet 2 is 100% only
+  because every message in this environment actually arrives over
+  MQTT/TLS or HTTPS; tenet 7 only because the fusion model is trained.
+  100% here means "the governance evidence-logging mechanism is switched
+  on and running," which is a binary, not a percentage that could
+  meaningfully be 87% instead -- expected, not suspicious.
+- **The 1.000 recall figures (GNN/fused on `anomalous_shock`/`coordinated`)
+  ARE real detection-accuracy numbers, correctly computed, with real
+  caveats worth stating explicitly rather than hidden.** `anomalous_shock`
+  injects a magnitude-3.0-4.5g spike against a ~1.0g±0.03 baseline -- a
+  large, cleanly-separable synthetic signal by construction, so a
+  well-trained detector reaching ~100% on it is expected, not remarkable.
+  `coordinated` is the exact pattern the GNN's class-weighted loss was
+  specifically tuned to catch, on a held-out split from the SAME synthetic
+  generator family (different random seed, same distributions) as
+  training, with a relatively small held-out count for that event type
+  (n=23 in the 610-record test set). None of that makes the number wrong
+  -- it's a real, reproducible measurement of this specific
+  held-out-synthetic-data pipeline -- but it is a different, weaker claim
+  than "this would catch 100% of real-world attacks," and CLAUDE.md/docs
+  already state the honest reason why (no real physical adversarial-
+  testing session has been recorded yet). Told the user this directly
+  rather than either dismissing the question or overclaiming the result.
+
+**Also this session**: `docs/Zero_Trust_CPS_Project_Synopsis.docx` updated
+-- user asked directly, and `python-docx` (not previously installed) was
+installed to do this safely rather than hand-writing OOXML. Read the whole
+document first rather than assuming what kind of document it was: it's a
+forward-looking Synopsis/proposal (Objectives -> Threat Model -> Proposed
+Solution -> Implementation Plan -> Evaluation *Plan*, not a results
+report), and Section 6.4/6.4.1/6.4.2/6.7/6.8 already describe the exact
+two-score/staleness/attribution/boot-replay/hash-chain design this session
+implemented -- this docx and the new `docs/00-11` LLD set were evidently
+written together, describing the same target architecture. Rather than
+rewrite existing prose (real corruption/misrepresentation risk on a
+364-paragraph academic document with no way to visually re-render and
+check it), appended a new, clearly-dated "15. Implementation Status
+Addendum" section: what's implemented and verified, real measured numbers
+per the existing Section 13 evaluation plan's own structure, the two
+stated deviations (trust-style Process Anomaly scale, flat `src/` layout),
+and what's still outstanding (hardware not flashed, no real physical
+adversarial session yet, one pending broker restart). Backed up the
+original file before editing; hit and fixed a real `python-docx` quirk
+along the way (by-name style lookup, e.g. `document.add_heading(level=1)`,
+raised `KeyError: "no style with name 'Heading 1'"` despite existing
+paragraphs correctly reporting that exact style name via `.style.name` --
+worked around by capturing the actual style OBJECTS off existing
+paragraphs and assigning those directly, `paragraph.style = existing_style`,
+rather than looking anything up by name string). Verified by reopening the
+saved file fresh (364 -> 394 paragraphs, zero exceptions, all new headings/
+bullets present with the correct styles and text, the bullet character's
+codepoint confirmed as U+2022 rather than trusting a terminal's garbled
+display of it). **Known follow-up for the user**: Word's Table of Contents
+is a field, not static text -- opening the file and doing Right-click ->
+Update Field (or Ctrl+A then F9) will be needed to make Section 15 appear
+in it; this isn't something safely automatable from outside Word itself.
+
 ## Current state (as of this entry)
 
-**Done, tested, verified**: all 7 modules, all 9 phases, offline training
-hard constraint satisfied, real ground-truth training labels, MQTT/TLS
+**Done, tested, verified**: all 7 modules, offline training hard
+constraint satisfied, real ground-truth training labels (now
+`physical_label`/`situation`-based, not the old blended `label`), MQTT/TLS
 live, a working second secured transport, NIST + IEC 62443 governance
-mapping (both live in the dashboard and as standalone `evaluate_*.py`
-scripts, with the underlying conditional logic directly proven — not just
-its printed output — in §-level probes throughout this log), replay
-protection, MicroPython firmware protocol-verified in software, **genuine
-mutual authentication** (§13), a **fully corrected fusion pipeline** with
-all four signal coefficients correctly signed and SHAP mathematically
-verified down to the log-odds/probability-space distinction (§16-17),
-**real GPU acceleration** on an RTX 5060 with a verified ~17x training
-speedup from batching (§18), and a **deliberately-verified capacity
-increase** for LSTM-AE/GNN that was checked against both overfitting and
-underfitting rather than assumed safe (§19 and this entry's own
-train-vs-held-out proof).
+mapping, **two permanently-separate Security Trust / Process Anomaly
+scores** meeting only inside a 2×2 policy table (§23), **boot_id/seq
+anti-replay** closing the old ts-heuristic's blind spot (§23),
+**IdentityTargetingRisk** closing a real trust-poisoning vulnerability
+(§23), a **genuine step-up challenge/response with BOTH outcomes now
+verified live** (§23 got the TIMEOUT/failure path; the user restarted the
+Mosquitto broker after §23/§24's `mosquitto_acl` fix, and the SUCCESS path
+was then observed directly in the gateway log: `FLOOD detected` →
+`STEP_UP` → `step-up SUCCESS (bounded trust boost applied)` → `ALLOW`,
+security_trust_score visibly rising 0.66→0.76 across the exchange),
+a **hash-chained + independently-checkpointed audit log** (§23),
+MicroPython firmware protocol-verified in software, **genuine mutual
+authentication** (§13, now with real step-up on top), a **fully corrected
+fusion pipeline** with all four signal coefficients correctly signed and
+SHAP mathematically verified down to the log-odds/probability-space
+distinction (§16-17), **real GPU acceleration** on an RTX 5060, and a
+**deliberately-verified capacity increase** for LSTM-AE/GNN checked
+against both overfitting and underfitting (§19).
 
-**Four documented, deliberate substitutions remain** (not gaps — each has
-a verified reason, full list in `docs/05_phase_status.md`): CoAP/DTLS →
-HTTPS (blocked on an upstream `aiocoap` defect + an unavailable sudo/
-autoreconf toolchain); GNN uses the hybrid device-graph, not the
-sensor-channel graph; GNN is a hand-rolled GCN, not `torch-geometric`;
-Module 2 authentication is mutual (§13 closed the one-directional gap)
-but still not literal interactive challenge-response (no gateway-issued
-nonce inside a session handshake).
+**Documented, deliberate substitutions remain** (not gaps — each has a
+verified reason): CoAP/DTLS → HTTPS (blocked on an upstream `aiocoap`
+defect + an unavailable sudo/autoreconf toolchain); GNN uses the hybrid
+device-graph, not the sensor-channel graph; GNN is a hand-rolled GCN, not
+`torch-geometric`; the Process Anomaly Score is kept trust-style (high =
+normal) rather than the new docs' literal anomaly-style scale, to avoid
+retraining the already-verified fusion meta-learner (§23); flat `src/` +
+`config.py` kept instead of the new docs' package/`config.yaml` layout
+(cosmetic, no functional benefit); `stealthy_forged_values` (attack-matrix
+row 11) is explicitly, honestly not reliably detectable by this
+single-node design — that is the intended result of including it, not an
+unfixed bug.
 
 **Not done — needs the user's physical hardware, not more code**:
 1. `firmware/main.py` has never been flashed to a real ESP32.
@@ -1303,12 +1595,14 @@ nonce inside a session handshake).
    session (`scripts/generate_training_data.py`).
 3. ESP32-side signing/feature-extraction latency (needs `time.ticks_ms()`
    instrumentation on real hardware, flagged as TODO in
-   `docs/08_results_and_evaluation.md`, not estimated).
+   `scripts/evaluate_latency.py`'s own printed output, not estimated).
 
-These three are the ONLY remaining gaps, and they're explicitly carried
-forward as placeholders in `docs/09_project_report.md`'s "Pending Hardware
-Validation" section, to be filled in once the physical board is wired up
-— not silently skipped, not estimated in their place.
+These three are the ONLY remaining gaps — not silently skipped, not
+estimated in their place — to be filled in once the physical board is
+wired up. (The fourth item that used to be here — the step-up SUCCESS
+path pending a broker restart — is closed: user restarted the Mosquitto
+service after the `mosquitto_acl` fix, and the SUCCESS path was then
+observed live, see above.)
 
 **See it running right now** (no hardware needed — everything below works
 with the software simulator standing in for the real ESP32):
@@ -1334,8 +1628,7 @@ out-of-range, and replay scenarios). This is the "complete integrated
 project" demo — it has been tested end-to-end many times across this
 session, including after every retrain in §17-19, with zero errors. Run
 `scripts/evaluate_*.py` from the repo root afterward for the printed,
-paper-ready numbers behind what the dashboard shows live —
-`docs/09_project_report.md` is the polished write-up of all of them.
+paper-ready numbers behind what the dashboard shows live.
 
 **Model sizes, for anyone re-running `scripts/train_*.py` from scratch**:
 LSTM-Autoencoder is 16 hidden units / 1 layer; GNN is 32 hidden units / 3
@@ -1346,10 +1639,534 @@ held-out comparisons to be neither overfitting nor underfitting (§19).
 
 ---
 
+**Post-broker-restart follow-up**: user asked to (1) skip further docx edits
+for now, (2) sweep every markdown file for anything still describing the
+step-up SUCCESS path as unverified (it no longer is, per above), and (3)
+create a new, separate `RESULTS.md` with full explanations/descriptions of
+every measured result, with a clearly reserved place for hardware results.
+Swept `docs/`, `implementation-docs/`, `CLAUDE.md`, `README.md` for stale
+"unverified"/"pending broker restart" language (found and fixed two:
+`docs/03_module2_authentication.md`'s AS-BUILT note and
+`implementation-docs/02_module_authentication.md`'s honesty note — both
+now state both step-up outcomes as live-verified). Built `RESULTS.md` at
+the repo root: live-verification checklist (Section 1), the real ablation/
+confusion-matrix/explainability/governance/latency/responsiveness/audit-
+integrity numbers already produced during this session (Sections 2-8, all
+traceable to a specific `scripts/evaluate_*.py`, none re-run for this --
+the underlying models and held-out test data are unchanged since they
+were last measured), the real bugs found along the way and why they matter
+to how the numbers should be read (Section 9), stated deviations (Section
+10), the acknowledged stealthy-device detection limit (Section 11),
+explicit methodology notes (Section 12), and a clearly-separated,
+explicitly-empty "13. Hardware-in-the-Loop Results (Reserved)" section
+structured with the exact subsections (device latency, real adversarial
+session, real sensor calibration, physical deployment overhead) that
+should be filled in once hardware exists, rather than a vague "TODO."
+Linked from `README.md` (three places), `CLAUDE.md` Section 10, and this
+file's own file-map below.
+
+**The docx addendum's step-up wording took two attempts, worth recording
+why**: the first attempt (appending "15. Implementation Status Addendum")
+saved successfully while the file was closed. The follow-up edit (fixing
+Section 15.1/15.4's step-up bullets to say SUCCESS was confirmed, not
+pending) failed with a `PermissionError` because the user had since opened
+the file in Word. After the user confirmed Word was closed, re-running that
+same follow-up script found **zero** matching paragraphs and the document
+had silently reverted to 365 paragraphs — Section 15 was gone entirely.
+Diagnosed directly rather than guessed: Word had the file open with its
+OWN in-memory copy from before either edit; closing it (with or without an
+explicit Save) wrote that stale in-memory state back to disk, clobbering
+both edits that had happened out-of-band on the file underneath it. Fixed
+by merging the corrected step-up wording directly into the original
+addendum script (one clean append, not append-then-patch) and re-running
+it once against the reverted file — verified by reopening afterward
+(365→395 paragraphs, both target bullets present with the final wording).
+**Lesson for next time**: an external editor holding a `.docx` open is a
+real, silent data-loss risk for any out-of-band script edit, not just a
+write-permission inconvenience — safest pattern is to make one complete,
+correct edit while the file is confirmed closed, rather than several
+smaller passes that assume it stays closed in between.
+
 **File map for anyone catching up**:
 - `CLAUDE.md` — the governing engineering brief (read this first if working from spec).
-- `docs/Zero_Trust_CPS_Project_Synopsis.docx` — the citable academic record.
-- `docs/05_phase_status.md` — current architecture/compliance status, module by module.
-- `docs/06_hardware_setup.md` — MicroPython flashing instructions.
+- `RESULTS.md` — every real measured result, with explanations and a reserved,
+  clearly-marked section for hardware-in-the-loop results once the board is flashed.
+- `docs/Zero_Trust_CPS_Project_Synopsis.docx` — the citable academic record; has a
+  "15. Implementation Status Addendum" appended, including the confirmed-live
+  step-up SUCCESS wording (see the note below on why this took two attempts).
+- `docs/00_overview.md` onward — the as-built low-level design reference, module by module.
 - `implementation-docs/` — module-by-module reference (Part A core + Part B extension design).
-- `src/` — the live pipeline. `scripts/` — offline training. `models/` — trained artifacts. `firmware/` — MicroPython. `data/collected/` — training data.
+- `src/` — the live pipeline. `scripts/` — offline training. `models/` — trained artifacts. `firmware/` — MicroPython + `HARDWARE_SETUP.md` bring-up guide. `data/collected/` — training data.
+
+## 25. ESP32 hardware bring-up guide, plus a coexistence mechanism for running real hardware alongside the simulator
+
+User asked for the actual hardware side of this project to be finished: a
+step-by-step implementation guide, kept inside `firmware/` (not `docs/`),
+matching `firmware/main.py`'s already-implemented code exactly.
+
+**`firmware/main.py` itself needed no code changes** — re-read in full
+first to confirm: boot_id persistence via a local file
+(`load_and_increment_boot_id()`), NTP sync, step-up nonce echo
+(`_pending_step_up_nonce`, subscribed to `cps/challenge/{device_id}`),
+manual HMAC-SHA256, register-level MPU6050 driver, and
+`canonical_json()`/`build_and_sign()` matching the gateway's own
+canonicalisation were all already in place from earlier in this session
+(§13, §23). Only the guide was missing.
+
+**Wrote `firmware/HARDWARE_SETUP.md`** (Thonny-based — no `esptool`/
+`mpremote` CLI required, consistent with this project's established
+beginner-friendly flashing convention): parts list, an MPU6050 I2C wiring
+table (SDA→GPIO21, SCL→GPIO22, AD0→GND for address `0x68`) and a vibration
+sensor ADC table (GPIO34, explicitly called out as ADC1 — ADC2 pins
+conflict with WiFi and silently fail to read while WiFi is active, a real
+ESP32 gotcha worth flagging up front rather than letting someone discover
+it via a confusing failure), Thonny install + firmware flash, LAN-IP/
+broker-reachability checks, secret provisioning (mirrors
+`secrets_local.example.py`'s existing `DEVICE_SECRETS`/`MQTT_PASSWORDS`
+pattern, including the `mosquitto_passwd -b` regeneration + service
+restart this project already established is required), the
+`CONFIGURE BEFORE FLASHING` block walkthrough, uploading via Thonny's
+"Save As → MicroPython device → main.py" (relying on MicroPython's
+auto-run-`main.py`-on-boot behaviour), expected first-boot Shell output,
+a troubleshooting table for the five most likely first-boot failures, and
+a dedicated "Critical First Integration Test" section explaining
+specifically what an `hmac_mismatch` rejection on the very first real
+message means and how to bisect it (print the canonical string, diff it
+character-by-character against Python's own `json.dumps(..., sort_keys=True)`
+for the same fields) — flagged as the step most likely to need real
+debugging time, not assumed to just work.
+
+**Added a real coexistence mechanism, not just a doc note**: today,
+`device_simulator.py` publishes `esp32-vib-001` in software regardless of
+whether a real board exists. Once a real board is flashed and running, a
+second publisher under the identical `device_id` would race with it on
+`boot_id`/`seq` (`trust_engine.check_boot_replay()`) and each would
+intermittently get rejected as a replay of the other's messages. Fixed by
+adding `config.REAL_HARDWARE_DEVICE_IDS: set = set()` (empty by default —
+pure simulation mode, zero behaviour change for anyone not using real
+hardware) and filtering `device_simulator.py::run()`'s device loop
+(`SIMULATED_DEVICES = {d: info for d, info in DEVICE_REGISTRY.items() if
+d not in REAL_HARDWARE_DEVICE_IDS}`), with existence guards added around
+the two device-specific scenario injections (`esp32-vib-001`'s replay
+scenario, `sensor-002`'s flood burst) so nothing crashes if a device is
+excluded. Compile-checked and import-smoke-tested (`REAL_HARDWARE_DEVICE_IDS`
+correctly defaults to `set()`, `SIMULATED_DEVICES` correctly excludes a
+test id when added). The guide's own Section 11 documents the one-line
+opt-in (`REAL_HARDWARE_DEVICE_IDS = {"esp32-vib-001"}`) once Step 10's
+integration test passes.
+
+**Also fixed**: `secrets_local.example.py` referenced
+`docs/07_transport_zero_trust.md`, a file deleted earlier this session
+when `docs/` was replaced (§23) — corrected to
+`docs/07_module6_secure_communication.md` Section 3.
+
+**Updated `README.md`** (three spots): the "Real hardware" bullet under
+"What this does right now," the "Have real hardware?" paragraph under
+"Run it" (now also mentions the `REAL_HARDWARE_DEVICE_IDS` opt-in and why
+it's needed), and the project-structure tree, all now pointing at
+`firmware/HARDWARE_SETUP.md` instead of the old scattered references
+(`firmware/main.py`'s own docstring + `docs/01_simulation_and_hardware_abstraction.md`
+Section 5).
+
+**Still true, unchanged by this entry**: the board itself has not been
+physically flashed — this entry closes the "no guide exists" gap, not the
+"hardware not yet run" gap (§ "Current state," items 1-3, above, still
+stand as the only remaining gaps).
+
+## 26. Two documentation folders consolidated into one — `implementation-docs/` merged into `docs/`, then deleted
+
+User asked why two documentation folders (`docs/` and `implementation-docs/`)
+existed and asked for one, reorganised, matching the current implementation.
+
+**Why there were two in the first place**: `implementation-docs/` (9
+files) predated this session's two-score rearchitecture — it was written
+as a module-by-module build log, each file structured Design Rationale →
+Implementation Walkthrough (real code excerpts) → Interface Contract →
+Failure Modes → Extension Path, with Modules 3 and 5 split into a literal
+"Part A: Core (shipped)" / "Part B: Full Design (extension target)"
+narrative reflecting the order things actually got built in. `docs/` (12
+files, 00-11) was written later, from scratch, as a formal from-zero LLD
+spec, then reconciled against the working codebase (§23) with an AS-BUILT
+callout added to the top of each file. `docs/` was already the more
+complete set — it covers four topics `implementation-docs/` never had as
+standalone files at all (hardware/simulation abstraction, testing/attack-
+simulation methodology, integration/data-flow, project structure/config)
+— and every module file already carried an accurate, current AS-BUILT
+note, where `implementation-docs/`'s Part A/B split had gone stale (its
+own files needed patch-style "AS-BUILT REARCHITECTURE NOTE" boxes bolted
+onto the top explaining what no longer applied).
+
+**Decision: keep `docs/` as the single folder.** Read both files for
+every one of the eight module/overview pairs in full (not summarized) and
+folded forward whatever was still accurate and not already present in
+`docs/` — mostly Design Rationale narrative, Failure Modes tables, and a
+few genuinely-missing architectural pieces:
+- `docs/02_module1_device_identity.md`: real code excerpts from
+  `gateway.py` (the actual `verify_signature()`/unknown-device gate,
+  replacing stale pseudocode), a Failure Modes table, and two further-
+  extension ideas (secret hashing, gateway-held PKI relationship).
+- `docs/03_module2_authentication.md`: **a real gap, not just missing
+  prose** — this file covered device→gateway authentication in full but
+  never mentioned the *other* direction: the gateway also signs its
+  `cps/decisions/<device_id>` messages with the same per-device secret
+  and the device verifies them (`gateway.py::_sign_decision()` /
+  `device_simulator.py::verify_decision_signature()`, confirmed still
+  real via grep before writing this). Added as new Section 1.2, along
+  with the stated open gap (decision channel has no replay check of its
+  own) and the HMAC-vs-transport-layer design rationale.
+- `docs/04_module3_trust_evaluation.md`: a Design Rationale subsection for
+  why the Security Behaviour Engine is rule-based, not learned, and a
+  Failure Modes table (cold start per sub-signal, a missing signal
+  treated as neutral not a crash, disagreeing signals as a designated
+  eval category).
+- `docs/05_module4_continuous_verification.md`: the "this isn't a session-
+  token architecture" framing, and a Failure Modes table.
+- `docs/06_module5_access_control.md`: a Failure Modes table specific to
+  the live RL policy (threshold-boundary states, sparsely-trained state
+  buckets).
+- `docs/07_module6_secure_communication.md`: **found and fixed a real
+  accuracy bug while merging, not just added content** — this file's
+  topic-design table claimed telemetry uses a per-device-suffixed topic
+  (`cps/telemetry/{device_id}`), but `config.py`/`gateway.py` (checked
+  directly, not assumed) show telemetry actually uses one shared
+  `cps/telemetry` topic for every device; only the two gateway-initiated
+  channels (`cps/decisions`, `cps/challenge`) are per-device-suffixed.
+  Corrected the table and explained why the asymmetry is intentional.
+  Also added the `paho-mqtt` concurrency note and the HMAC-vs-TLS threat
+  model table from `implementation-docs`, and a Failure Modes section.
+- `docs/08_module7_monitoring_and_audit.md`: a Design Rationale subsection
+  (why SQLite, parameterised queries, UTC timestamps, "Module 7 is a pure
+  sink"), and a Failure Modes table including a real, still-open gap:
+  `log_decision()`'s insert isn't wrapped in a try/except at any call
+  site, so a disk-full/write-failure would crash the gateway rather than
+  degrade gracefully (confirmed by reading `audit_log.py` directly — the
+  only try/except in that file guards the schema-migration `ALTER TABLE`
+  calls, not the insert).
+- `docs/09_integration_and_data_flow.md`: the dependency-graph's
+  explanatory bullets, the serial-processing concurrency note, and a
+  "seven modules, one sentence each" cheat-sheet (rewritten for the
+  two-score reality, e.g. Module 3's line now names both scores).
+- `docs/00_overview.md` and `docs/11_project_structure_and_config.md`
+  needed no content merged in (already fully superseding), but `11` got
+  two more AS-BUILT corrections while in there: the "when hardware
+  arrives" section pointed at a `device_mode` config flag that doesn't
+  exist (real mechanism is `config.REAL_HARDWARE_DEVICE_IDS`, §25) and
+  didn't yet know `firmware/HARDWARE_SETUP.md` (§25) exists.
+
+**What was deliberately NOT carried forward**: `implementation-docs/03`'s
+old EWMA-blend code sketch and worked numeric trace (both for the
+single-score architecture §23 replaced), `implementation-docs/04`'s
+"Missing Piece" background-decay-sweep code (contradicts `docs/05`'s own,
+more current AS-BUILT reasoning for why lazy staleness evaluation is a
+deliberate design, not an unfixed gap), and every Part A/B interface
+signature that no longer exists (`decide(trust_score) -> str`,
+`score_message(device_id, value, auth_ok)`) — carrying these forward
+would have reintroduced exactly the kind of stale, contradictory
+documentation this consolidation was meant to remove.
+
+**Then deleted `implementation-docs/` entirely** and repointed every
+reference: `CLAUDE.md` (7 places — the file-layout comment, Section 4's
+reading order, Section 5.2's cross-reference, Section 6's NIST citation,
+Section 7's phase-plan table twice, Section 10's verification-steps
+pointer), `README.md`'s project-structure tree, and
+`src/config.py`'s one code comment (pointed at
+`docs/03_module2_authentication.md` Section 1.2 instead). Verified with a
+final repo-wide case-insensitive grep for `implementation-docs` — zero
+matches outside this file's own historical entries (§13, §20, etc., left
+untouched, since this log is append-only and those entries were accurate
+descriptions of the repo at the time they were written).
+
+## 27. Transformer sub-signal added as a fifth ablation candidate, tuned, and a real evaluation-methodology bug found along the way
+
+User asked for a recommendation on using a Transformer for the Process
+Anomaly Engine, comparable against the existing ML/DL/RL signals; then to
+actually implement it using the RTX 5060 (idle until this session — GPU
+support already existed per §18/19 but had never been exercised beyond
+the LSTM-AE/GNN scale-up); then to fine-tune it; then to verify every
+model's architecture and fold everything into the docs.
+
+**Dataset scale-up first** (`scripts/generate_training_data.py`/
+`generate_test_data.py`): `TICKS` 400→5,000 / 200→1,000 — purely
+synthetic (same generator, more repetitions with fresh random noise), but
+~345→~3,967 normal esp32-vib-001 training readings, specifically so a
+higher-capacity Transformer wouldn't be penalized for a small-dataset
+artifact the way the LSTM-AE's own 32-hidden/2-layer attempt was (§19).
+Every existing model (Isolation Forest, LSTM-AE, GNN, fusion) was
+retrained on the larger set before any Transformer comparison, so the
+comparison is apples-to-apples on data volume too.
+
+**Transformer sub-signal** (`src/transformer_scorer.py` +
+`scripts/train_transformer.py`, new): encoder-only, full bidirectional
+self-attention (`nn.TransformerEncoder`, no decoder/causal mask — BERT/ViT
+family, not GPT or T5-style seq2seq), 2 layers/4 heads/`d_model=32`,
+17,701 params. Same window (`LSTM_SEQ_LEN`, shared, not duplicated) and
+same 5-feature input as the LSTM-AE, deliberately, so any ablation
+difference is architecture, not setup. Trained as a **denoiser** (noise
+added to input, loss against the clean window), not plain reconstruction
+— a plain reconstruction transformer can shortcut via direct attention to
+neighboring true values in a way an LSTM's recurrent bottleneck can't,
+under-scoring real anomalies; denoising removes that shortcut. Wired into
+`scripts/evaluate_ablation.py` as a 6th column, NOT into
+`fusion_engine.py`'s inputs (ablation-candidate-only, same bar the GNN
+had to clear first).
+
+**First ablation run tied the LSTM-AE almost exactly** (0.753 vs 0.753
+accuracy, 0.851 vs 0.851 F1) — looked like a clean "no improvement"
+result. Fine-tuning (a 7-config sweep: pre-LN vs post-LN, ReLU vs GELU,
+6x capacity, up to 400 epochs, varied noise/LR/weight decay) reproduced
+that same tie on EVERY config, which was the tell something was off — a
+real architectural difference should show *some* spread across such a
+wide sweep.
+
+**Real bug found**: `evaluate_ablation.py`'s `lstm_ae_score`/
+`transformer_score` columns blend rule_score for sensor-002/actuator-001
+(66% of rows, since only esp32-vib-001 has a trained sequence model) with
+the real model score for esp32-vib-001 (34%) — diluting any real
+difference between the two architectures with an identical, unrelated
+number for most rows. Isolating esp32-vib-001 rows exposed a second, more
+consequential issue: on that isolated subset, BOTH models flagged ~75% of
+genuinely normal test messages as suspicious (74.9%/74.7%, nearly
+identical between architectures — the actual tell). Root cause:
+`train_lstm_ae.py`/`train_transformer.py` build training windows only
+from `label==1` rows with anomalies filtered OUT (gaps skipped in the
+tick sequence) — the model never sees a window shaped like "a few
+messages after a real anomaly." Live/eval replay of the raw interleaved
+stream produces exactly that shape for any nominally-normal message within
+`LSTM_SEQ_LEN` messages of a recent anomalous_shock/coordinated/
+stealthy_forged_values/high_rate event. `train_fusion_meta_learner.py`
+already excludes exactly these rows (`window_compromised`) for its own
+training target (§17) — this exclusion had just never been applied when
+judging the LSTM-AE/Transformer signals on their own. Fixed by adding the
+same exclusion to `evaluate_ablation.py`, in a new "FAIR COMPARISON"
+block (esp32-vib-001 only, residue rows excluded: 746 of 1,000 rows,
+confirming the attack-injection schedule is dense enough relative to an
+8-message window that most nominally-"normal" esp32 test messages are
+actually recovery-period messages, not steady-state baseline).
+
+**Corrected result**: LSTM-AE 0.933 acc / 0.920 F1 vs Transformer 0.941
+acc / 0.930 F1 — the Transformer genuinely wins, by a small but real
+margin (+0.010 F1), reproduced identically across all 7 hyperparameter
+configs (confirming it's a real effect, not one lucky run, and that the
+original, cheapest config was already at the ceiling — no config change
+kept). **Decision: still not adopted into fusion** — the margin doesn't
+justify ~6x the parameters and the downstream retraining cost (GNN node
+features + fusion meta-learner both take `lstm_score` as an input; adding
+a 5th signal isn't a free change) for a gain that doesn't move per-event
+recall on `anomalous_shock`/`coordinated`/`stealthy_forged_values` at all.
+
+**Confirms `stealthy_forged_values` is a data-limit, not a model-limit,
+with direct evidence, not just argument**: the Transformer, genuinely
+more capable, scores this scenario identically to the LSTM-AE (0.606
+recall both). A different, larger architecture moved nothing.
+
+**Documentation pass**: verified every scorer's actual architecture
+against its own docstring and against `docs/04_module3_trust_evaluation.md`
+(found and fixed real staleness pre-dating this session: the doc's config
+yaml block still said LSTM `hidden_size=24`/`window_size=20` and
+`feature_window_size=20` against `config.py`'s real 16/8/32, and
+`gnn.enabled: false` against the GNN being a live default per
+`00_overview.md` deviation 4; B.1's `ProcessFeatureVector` spec still
+listed the original 12-field raw-6-channel-plus-variance schema against
+the AS-BUILT 5-feature vibration vector actually implemented in
+`feature_engineering.py` and consumed by every scorer). Added B.5b for the
+Transformer, cross-referenced it from B.8 and `RESULTS.md` Section 11,
+added deviation 6 to `00_overview.md`, and added `RESULTS.md` Section 14
+consolidating five acknowledged gaps (key rotation/revocation, Level-2
+explainability, decision-channel replay, stealthy compromised devices,
+the unexplained `high_rate` Process-score movement from §7) with a
+verified-not-assumed remediation plan for each — confirmed via direct
+`grep` that key rotation/revocation is fully specified in
+`docs/02_module1_device_identity.md`/`03_module2_authentication.md` but
+genuinely absent from `src/*.py` (zero hits for `key_version`/
+`secret_key_previous`/`revoked`), so that gap is pure wiring, not missing
+design.
+
+## 28. Level-2 explainability implemented, individual evaluation figures generated, two new documentation files, and a real hash-chain migration bug found along the way
+
+User asked for four more things: validate every model from a research
+perspective (with need/purpose/justification, not just what it is),
+create a new doc with the full system architecture and workflow,
+integrate the design folder's live overlay more deeply, enhance SHAP, and
+generate individual comparison graphs for every ML model evaluation.
+
+**Level-2 explainability** (`docs/04_module3_trust_evaluation.md` Section
+C.3, previously an acknowledged gap): implemented as `src/explainability.py`
+(orchestration) plus a `level2_explain()` method on each scorer —
+`shap.TreeExplainer` for Isolation Forest, leave-one-channel-out
+perturbation for LSTM-AE/Transformer, leave-one-node-out perturbation for
+the GNN, the existing `rule_range_score()` reason string for the trivial
+rule case. Wired into `gateway.py` right after `fusion_engine.combine()`
+and logged to two new `audit_log` columns. `scripts/evaluate_explainability_level2.py`
+implements Section C.4's validation procedure (perturb → rescore → does
+the fused score recover). **Real, honestly-reported result: 36% overall
+flip rate against a 70% target — but split 100% (GNN) / 2% (Isolation
+Forest) / 0% (LSTM-AE)**, not adjusted to look better. The split has a
+mechanistic explanation, not just a number: masking one neighboring
+device genuinely IS the GNN's whole causal story, but Isolation
+Forest/LSTM-AE's anomaly score depends on several correlated features
+jointly (`rms`/`peak`/`crest_factor` all derive from the same raw window),
+so fixing one feature, even the SHAP-top-ranked one, doesn't collapse a
+multi-feature-correlated anomaly back to normal. Found via a bug along
+the way: `shap.TreeExplainer.shap_values()` needed a numpy array, not a
+plain list — fixed after a live crash during multi-device smoke testing.
+
+**A second, more consequential bug found while cleaning up after that
+smoke testing**: the smoke tests wrote ~225 real rows into the actual
+`data/audit_log.db` (not a throwaway path — exactly the mistake
+`CLAUDE.md` Section 8 already warns about and `evaluate_latency.py` had
+to fix once before, §8/RESULTS.md item 8). Deleting those rows to restore
+the genuine 31,670-row history (found via a timestamp-gap scan — a
+125,432-second gap cleanly separates 2026-08-29's real data from
+2026-08-31's test rows) then surfaced a REAL, previously-latent
+architecture bug, not just cleanup: `verify_chain_integrity()` recomputes
+each row's hash from `SELECT *` — i.e. whatever columns exist NOW, not
+what existed when a given historical row was inserted. Adding the two new
+Level-2 columns therefore broke chain verification for EVERY row starting
+from row 1, immediately, regardless of the smoke-test cleanup. Fixed with
+a one-time re-baseline: recomputed `this_hash`/`prev_hash` for all 31,670
+rows and regenerated all 316 checkpoints against the new schema; both
+`verify_chain_integrity()` and `verify_against_checkpoints()` pass cleanly
+again. A warning comment is now in `audit_log.py` itself so the next
+column addition doesn't silently repeat this — a real gap in the original
+hash-chain design (any future migration breaks it the same way) that
+nothing surfaced until a column actually got added and the DB actually
+had history to break.
+
+**Individual evaluation figures**: `scripts/generate_evaluation_graphs.py`
+(new), calling the SAME functions each `evaluate_*.py` script already
+uses (not reimplementing any metric), produces 9 PNGs in `docs/figures/`
+— per-signal accuracy/precision/recall/F1, per-event-type recall, the
+fair LSTM-AE vs. Transformer comparison, a capacity-vs-accuracy scatter,
+RL vs. static reward and confusion matrices, macro-F1, and latency.
+
+**Two new docs**: `docs/12_model_validation_and_justification.md` (every
+model's purpose, research motivation, validated evidence, and threats to
+validity, written to the standard Section 1 of that file states up
+front — held-out only, earn-your-place, negative results reported as-is)
+and `docs/13_system_architecture_and_workflow.md` (layered architecture,
+module map, message sequence, training pipeline, deployment topology,
+and explainability data-flow diagrams, all in Mermaid). Both linked from
+`docs/00_overview.md`'s reading order and `CLAUDE.md` Section 4.
+
+**Design folder integration**: `webapp_server.py`'s live overlay (same
+"never patch the 2.2MB bundle" principle as before) gained a second thin
+bar showing each device's most recent Level-2 explanation, and a
+`/figures` route serving a standalone gallery page of every PNG above —
+linked from the overlay, not spliced into the canvas.
+
+---
+
+## 29. Real ESP32 hardware flashed for the first time — genuine bring-up bugs found and fixed, real data collected, models retrained, second dashboard removed
+
+The board from §25's guide was actually flashed and run for the first
+time this session (everything before this was software-only
+verification). Four real integration bugs surfaced that no amount of
+additional synthetic-value checking could have caught, because they're
+about firmware runtime behavior and real network timing, not
+canonicalisation logic:
+
+1. **`ImportError: no module named 'ussl'`** — this board's MicroPython
+   build renamed the module to `ssl`. Fixed with `try: import ussl /
+   except ImportError: import ssl as ussl`.
+2. **MQTT `MQTTException: 5` (not authorized)** — root-caused, not
+   guessed: independently recomputed the broker's stored PBKDF2 password
+   hash in Python against the plaintext from `secrets_local.py` and
+   confirmed it matched, which proved the mismatch was firmware-side.
+   Added a temporary `len(MQTT_PASSWORD)`/`len(DEVICE_SECRET)` debug print
+   (never the value itself) and found both a mistyped `MQTT_PASSWORD`
+   (47 chars instead of 24) and later a mistyped `DEVICE_SECRET` (47
+   instead of 32) — both copy/paste artifacts, both caught by the length
+   check rather than by eye.
+3. **`REJECTED (stale_timestamp)` despite `[time] synced via NTP`
+   printing successfully** — MicroPython's `time.time()` counts seconds
+   since 2000-01-01, not the Unix epoch (1970-01-01) the gateway's
+   `time.time()` uses; NTP sets the RTC correctly but doesn't change that
+   reference point. Every `ts` looked ~30 years stale. Fixed by adding the
+   fixed 946,684,800-second offset when building `ts_ms`. Confirmed via a
+   direct computation that the raw pre-fix `ts` value, interpreted under
+   the 2000-epoch assumption, landed on today's actual date.
+4. **Intermittent NTP `ETIMEDOUT` on a fresh boot** — happened twice,
+   both times right after a physical reset, self-resolving on manual
+   retry. `sync_time()` now retries up to 3 times, 2s apart, before giving
+   up non-fatally, instead of one-shot.
+
+**Design simplification, user-requested**: the original two-sensor design
+(MPU6050 + a separate vibration sensor) was dropped in favor of MPU6050
+only — the user's board only had 2 GND pins available, and all 5
+Section-5.1 features were already derived entirely from the MPU6050's
+accelerometer (`extract_features()`); the vibration sensor's `raw` ADC
+reading was carried in the payload but never consumed by
+`rule_range_score()`/the ML scorers/`gateway._extract_reading()` (grepped
+and confirmed before removing it), so dropping it was a clean removal, not
+a scoring-logic change. `device_simulator.py`'s matching synthetic
+`vibration_raw` field removed too, for consistency.
+
+**Once telemetry was flowing and authenticated, `process_trust_score` read
+near-zero (~3e-6) for a genuinely normal board** — investigated properly
+(a dedicated subagent read `gnn_scorer.py`, `fusion_engine.py`,
+`trust_engine.py`, `explainability.py` against the actual `audit_log.db`
+rows, not just the console text) rather than assumed. Verdict: genuine,
+mathematically-expected train/serve mismatch (IF/LSTM-AE/GNN all trained
+solely on `device_simulator.py`'s synthetic distribution; `lstm_score`
+was hitting an exact `0.0` floor because real reconstruction error blew
+past the synthetic-only baseline's tight `std=0.277`), not a scoring bug.
+One REAL bug found along the way, though: `gnn_scorer.py::level2_explain()`
+picks whichever perturbed neighbor changes the score most, but with zero
+currently-active neighbors every candidate ties at `change=0.0` and the
+loop's `>` comparison silently "won" on the first device in iteration
+order every time — always reporting `"GNN score most driven by
+neighboring device 'sensor-002' (score change=0.000)"`, a fake
+attribution, regardless of the real device's actual behavior. Fixed:
+`level2_explain()` now returns `None` when the best change is ≤1e-6, and
+`explainability.py` reports an honest "no other device is currently
+active in the graph" instead. Verified directly against the live trained
+model with a single-active-device input, not just read.
+
+**Real data collection + retraining, built from scratch this session**:
+`scripts/collect_hardware_session.py` (read-only MQTT subscriber, safe
+alongside a live `gateway.py`, walks the operator through either 5 short
+labeled phases or one long free-form window via `--long`, joins in
+`gateway.py`'s own live scoring from `audit_log.db` by timestamp) and
+`scripts/merge_real_hardware_data.py` (idempotent — always regenerates a
+fresh synthetic base via `generate_training_data.generate()` rather than
+reading back a previous merge, then appends every collected real session)
+— matching `generate_training_data.py`'s own documented intent that real
+`data/collected/*.json` should be swappable in without touching any
+`train_*.py` script. 5 collection sessions run (one caught 0 records,
+overlapping an ~11-minute real board outage — a WiFi/MQTT drop that
+didn't self-recover and needed a manual reset; root cause not identified,
+flagged as an open item), totaling 380 real records. Retrained
+`train_isolation_forest.py` → `train_lstm_ae.py` → `train_gnn.py` →
+`train_fusion_meta_learner.py` (that dependency order — each stage loads
+the previous stage's freshly trained scorer) at two checkpoints (253 real
+records, then the final 380), each time backing up and restoring
+`models/*` around a controlled A/B run of `scripts/evaluate_ablation.py`
+against the untouched held-out `test_session.json` for a clean
+before/after. Result, monotonic across both checkpoints: deployed
+`fused_score` accuracy 0.707→0.745→0.748, recall 0.684→0.728→0.732, F1
+0.811→0.840→0.843, precision cost negligible (0.996→0.993→0.992). One
+honestly-reported, also-monotonic trade-off: LSTM-AE's undiluted F1
+0.910→0.871→0.867 and `fused_score`'s `stealthy_forged_values` recall
+0.788→0.576→0.515, both from the LSTM-AE's error baseline necessarily
+widening to stop misreading real hardware as anomalous — full writeup in
+`RESULTS.md` Section 13.
+
+**Second dashboard removed, on explicit user instruction**: investigating
+the design-folder dashboard surfaced that `dashboard.py` (Streamlit),
+referenced throughout `README.md`/`RESULTS.md` as one of "two live
+dashboards," **does not exist anywhere in the repo** — grepped for it and
+for any Streamlit code, found nothing; stale documentation for a feature
+that was apparently never actually committed, not a real second UI. The
+user then asked to remove `webapp_server.py` too and keep only
+`design/zero-trust-cps-command-center.html`, after being shown the real
+consequence first (that file has zero live-data wiring on its own — its
+device names are a hardcoded stale export snapshot, `vibration-001`/
+`mpu6050-001`, predating the current registry entirely) and confirming
+that tradeoff explicitly. `webapp_server.py` deleted (`git rm -f`, had
+uncommitted local changes); `README.md`, `RESULTS.md`, and
+`iec62443_mapping.py`'s zone description updated to describe the design
+file as a static visual reference only, with live monitoring now via
+`audit_log.recent()`/`scripts/evaluate_governance.py`/`evaluate_iec62443.py`
+directly. `firmware/HARDWARE_SETUP.md` rewritten in full to match the
+MPU6050-only design, the four bugs above, and the real data-collection
+workflow.

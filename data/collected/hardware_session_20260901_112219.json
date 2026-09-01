@@ -1,0 +1,954 @@
+[
+  {
+    "tick": 0,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0503,
+      "peak": 0.1033,
+      "crest_factor": 0.0983,
+      "kurtosis": -0.4232,
+      "dominant_freq": 12.5
+    },
+    "auth_ok": true,
+    "ts": 1788261617000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "moderate_shake",
+    "elapsed_s": 104.2
+  },
+  {
+    "tick": 1,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0457,
+      "peak": 0.0114,
+      "crest_factor": 0.0109,
+      "kurtosis": -1.2281,
+      "dominant_freq": 21.875
+    },
+    "auth_ok": true,
+    "ts": 1788261619000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "moderate_shake",
+    "elapsed_s": 106.1
+  },
+  {
+    "tick": 2,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0489,
+      "peak": 0.0168,
+      "crest_factor": 0.016,
+      "kurtosis": 0.1257,
+      "dominant_freq": 6.25
+    },
+    "auth_ok": true,
+    "ts": 1788261622000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "moderate_shake",
+    "elapsed_s": 108.5
+  },
+  {
+    "tick": 3,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0468,
+      "peak": 0.014,
+      "crest_factor": 0.0133,
+      "kurtosis": -0.6874,
+      "dominant_freq": 9.375
+    },
+    "auth_ok": true,
+    "ts": 1788261624000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "moderate_shake",
+    "elapsed_s": 110.6
+  },
+  {
+    "tick": 4,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0477,
+      "peak": 0.0151,
+      "crest_factor": 0.0144,
+      "kurtosis": -0.6708,
+      "dominant_freq": 6.25
+    },
+    "auth_ok": true,
+    "ts": 1788261626000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "moderate_shake",
+    "elapsed_s": 112.7
+  },
+  {
+    "tick": 5,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0486,
+      "peak": 0.0145,
+      "crest_factor": 0.0138,
+      "kurtosis": -1.4185,
+      "dominant_freq": 12.5
+    },
+    "auth_ok": true,
+    "ts": 1788261628000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "moderate_shake",
+    "elapsed_s": 114.9
+  },
+  {
+    "tick": 6,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0481,
+      "peak": 0.0154,
+      "crest_factor": 0.0147,
+      "kurtosis": -0.2075,
+      "dominant_freq": 12.5
+    },
+    "auth_ok": true,
+    "ts": 1788261630000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "moderate_shake",
+    "elapsed_s": 117.1
+  },
+  {
+    "tick": 7,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0474,
+      "peak": 0.0132,
+      "crest_factor": 0.0126,
+      "kurtosis": -0.8411,
+      "dominant_freq": 6.25
+    },
+    "auth_ok": true,
+    "ts": 1788261633000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "moderate_shake",
+    "elapsed_s": 119.5
+  },
+  {
+    "tick": 8,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.048,
+      "peak": 0.0142,
+      "crest_factor": 0.0136,
+      "kurtosis": 0.3275,
+      "dominant_freq": 6.25
+    },
+    "auth_ok": true,
+    "ts": 1788261635000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "moderate_shake",
+    "elapsed_s": 121.5
+  },
+  {
+    "tick": 9,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0484,
+      "peak": 0.0116,
+      "crest_factor": 0.0111,
+      "kurtosis": -0.5314,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788261637000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "moderate_shake",
+    "elapsed_s": 123.7
+  },
+  {
+    "tick": 10,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0483,
+      "peak": 0.0145,
+      "crest_factor": 0.0138,
+      "kurtosis": -0.1752,
+      "dominant_freq": 9.375
+    },
+    "auth_ok": true,
+    "ts": 1788261639000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "moderate_shake",
+    "elapsed_s": 125.9
+  },
+  {
+    "tick": 11,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0487,
+      "peak": 0.0132,
+      "crest_factor": 0.0126,
+      "kurtosis": 0.0099,
+      "dominant_freq": 18.75
+    },
+    "auth_ok": true,
+    "ts": 1788261641000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "moderate_shake",
+    "elapsed_s": 128.1
+  },
+  {
+    "tick": 12,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0482,
+      "peak": 0.0149,
+      "crest_factor": 0.0142,
+      "kurtosis": 0.7473,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788261644000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "moderate_shake",
+    "elapsed_s": 130.3
+  },
+  {
+    "tick": 13,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0493,
+      "peak": 0.0208,
+      "crest_factor": 0.0198,
+      "kurtosis": -0.7164,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788261646000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "moderate_shake",
+    "elapsed_s": 132.5
+  },
+  {
+    "tick": 14,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0474,
+      "peak": 0.025,
+      "crest_factor": 0.0239,
+      "kurtosis": -0.2481,
+      "dominant_freq": 9.375
+    },
+    "auth_ok": true,
+    "ts": 1788261648000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "moderate_shake",
+    "elapsed_s": 134.7
+  },
+  {
+    "tick": 15,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.048,
+      "peak": 0.0147,
+      "crest_factor": 0.014,
+      "kurtosis": 0.1458,
+      "dominant_freq": 50.0
+    },
+    "auth_ok": true,
+    "ts": 1788261650000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "elapsed_s": 137.0
+  },
+  {
+    "tick": 16,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0481,
+      "peak": 0.0194,
+      "crest_factor": 0.0186,
+      "kurtosis": -0.859,
+      "dominant_freq": 12.5
+    },
+    "auth_ok": true,
+    "ts": 1788261652000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "elapsed_s": 139.1
+  },
+  {
+    "tick": 17,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0497,
+      "peak": 0.0148,
+      "crest_factor": 0.0141,
+      "kurtosis": 1.1093,
+      "dominant_freq": 6.25
+    },
+    "auth_ok": true,
+    "ts": 1788261655000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "elapsed_s": 141.3
+  },
+  {
+    "tick": 18,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0501,
+      "peak": 0.016,
+      "crest_factor": 0.0152,
+      "kurtosis": -0.1561,
+      "dominant_freq": 6.25
+    },
+    "auth_ok": true,
+    "ts": 1788261657000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "elapsed_s": 143.5
+  },
+  {
+    "tick": 19,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0479,
+      "peak": 0.0171,
+      "crest_factor": 0.0164,
+      "kurtosis": -0.0449,
+      "dominant_freq": 6.25
+    },
+    "auth_ok": true,
+    "ts": 1788261659000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "elapsed_s": 145.7
+  },
+  {
+    "tick": 20,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0487,
+      "peak": 0.019,
+      "crest_factor": 0.0181,
+      "kurtosis": 0.0643,
+      "dominant_freq": 9.375
+    },
+    "auth_ok": true,
+    "ts": 1788261661000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "elapsed_s": 148.1
+  },
+  {
+    "tick": 21,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0495,
+      "peak": 0.0139,
+      "crest_factor": 0.0133,
+      "kurtosis": -0.9158,
+      "dominant_freq": 12.5
+    },
+    "auth_ok": true,
+    "ts": 1788261663000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "elapsed_s": 150.2
+  },
+  {
+    "tick": 22,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.048,
+      "peak": 0.0164,
+      "crest_factor": 0.0156,
+      "kurtosis": -0.0943,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788261666000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "elapsed_s": 152.3
+  },
+  {
+    "tick": 23,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0971,
+      "peak": 0.1948,
+      "crest_factor": 0.1775,
+      "kurtosis": -0.9981,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788261668000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "elapsed_s": 154.5
+  },
+  {
+    "tick": 24,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0374,
+      "peak": 0.0228,
+      "crest_factor": 0.022,
+      "kurtosis": -0.5722,
+      "dominant_freq": 6.25
+    },
+    "auth_ok": true,
+    "ts": 1788261670000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "elapsed_s": 156.7
+  },
+  {
+    "tick": 25,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0354,
+      "peak": 0.0165,
+      "crest_factor": 0.0159,
+      "kurtosis": -0.5286,
+      "dominant_freq": 9.375
+    },
+    "auth_ok": true,
+    "ts": 1788261672000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "elapsed_s": 158.9
+  },
+  {
+    "tick": 26,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.037,
+      "peak": 0.019,
+      "crest_factor": 0.0183,
+      "kurtosis": 0.1586,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788261674000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "elapsed_s": 161.3
+  },
+  {
+    "tick": 27,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.039,
+      "peak": 0.0168,
+      "crest_factor": 0.0162,
+      "kurtosis": -0.1658,
+      "dominant_freq": 6.25
+    },
+    "auth_ok": true,
+    "ts": 1788261677000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "elapsed_s": 163.4
+  },
+  {
+    "tick": 28,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0327,
+      "peak": 0.0166,
+      "crest_factor": 0.0161,
+      "kurtosis": -0.4078,
+      "dominant_freq": 6.25
+    },
+    "auth_ok": true,
+    "ts": 1788261679000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "elapsed_s": 165.5
+  },
+  {
+    "tick": 29,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0396,
+      "peak": 0.0136,
+      "crest_factor": 0.0131,
+      "kurtosis": -1.2904,
+      "dominant_freq": 12.5
+    },
+    "auth_ok": true,
+    "ts": 1788261681000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "elapsed_s": 167.7
+  },
+  {
+    "tick": 30,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0379,
+      "peak": 0.0189,
+      "crest_factor": 0.0182,
+      "kurtosis": -0.1587,
+      "dominant_freq": 25.0
+    },
+    "auth_ok": true,
+    "ts": 1788261683000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "elapsed_s": 169.9
+  },
+  {
+    "tick": 31,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0376,
+      "peak": 0.0177,
+      "crest_factor": 0.0171,
+      "kurtosis": -0.3931,
+      "dominant_freq": 9.375
+    },
+    "auth_ok": true,
+    "ts": 1788261685000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "elapsed_s": 172.4
+  },
+  {
+    "tick": 32,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0364,
+      "peak": 0.0167,
+      "crest_factor": 0.0161,
+      "kurtosis": -0.2276,
+      "dominant_freq": 9.375
+    },
+    "auth_ok": true,
+    "ts": 1788261688000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "elapsed_s": 174.3
+  },
+  {
+    "tick": 33,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0357,
+      "peak": 0.0218,
+      "crest_factor": 0.0211,
+      "kurtosis": -0.1503,
+      "dominant_freq": 9.375
+    },
+    "auth_ok": true,
+    "ts": 1788261690000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "elapsed_s": 176.5
+  },
+  {
+    "tick": 34,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0379,
+      "peak": 0.0186,
+      "crest_factor": 0.0179,
+      "kurtosis": -0.2163,
+      "dominant_freq": 12.5
+    },
+    "auth_ok": true,
+    "ts": 1788261692000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "elapsed_s": 178.8
+  },
+  {
+    "tick": 35,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0372,
+      "peak": 0.0157,
+      "crest_factor": 0.0151,
+      "kurtosis": -0.8518,
+      "dominant_freq": 21.875
+    },
+    "auth_ok": true,
+    "ts": 1788261694000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest_2",
+    "elapsed_s": 180.9
+  },
+  {
+    "tick": 36,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0346,
+      "peak": 0.0179,
+      "crest_factor": 0.0173,
+      "kurtosis": -0.5654,
+      "dominant_freq": 9.375
+    },
+    "auth_ok": true,
+    "ts": 1788261696000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest_2",
+    "elapsed_s": 183.1
+  },
+  {
+    "tick": 37,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.037,
+      "peak": 0.0184,
+      "crest_factor": 0.0177,
+      "kurtosis": -0.3196,
+      "dominant_freq": 15.625
+    },
+    "auth_ok": true,
+    "ts": 1788261699000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest_2",
+    "elapsed_s": 185.3
+  },
+  {
+    "tick": 38,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.038,
+      "peak": 0.0153,
+      "crest_factor": 0.0148,
+      "kurtosis": -0.925,
+      "dominant_freq": 15.625
+    },
+    "auth_ok": true,
+    "ts": 1788261701000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest_2",
+    "elapsed_s": 187.5
+  },
+  {
+    "tick": 39,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0362,
+      "peak": 0.0172,
+      "crest_factor": 0.0166,
+      "kurtosis": 0.213,
+      "dominant_freq": 12.5
+    },
+    "auth_ok": true,
+    "ts": 1788261703000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest_2",
+    "elapsed_s": 189.9
+  },
+  {
+    "tick": 40,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0372,
+      "peak": 0.0177,
+      "crest_factor": 0.0171,
+      "kurtosis": -0.8068,
+      "dominant_freq": 15.625
+    },
+    "auth_ok": true,
+    "ts": 1788261705000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest_2",
+    "elapsed_s": 191.9
+  },
+  {
+    "tick": 41,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0372,
+      "peak": 0.0231,
+      "crest_factor": 0.0223,
+      "kurtosis": 0.413,
+      "dominant_freq": 21.875
+    },
+    "auth_ok": true,
+    "ts": 1788261707000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest_2",
+    "elapsed_s": 194.1
+  },
+  {
+    "tick": 42,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0385,
+      "peak": 0.0152,
+      "crest_factor": 0.0146,
+      "kurtosis": -0.1509,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788261710000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest_2",
+    "elapsed_s": 196.3
+  },
+  {
+    "tick": 43,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0378,
+      "peak": 0.0173,
+      "crest_factor": 0.0167,
+      "kurtosis": -0.2268,
+      "dominant_freq": 12.5
+    },
+    "auth_ok": true,
+    "ts": 1788261712000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest_2",
+    "elapsed_s": 198.5
+  },
+  {
+    "tick": 44,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.037,
+      "peak": 0.0182,
+      "crest_factor": 0.0176,
+      "kurtosis": -0.2927,
+      "dominant_freq": 12.5
+    },
+    "auth_ok": true,
+    "ts": 1788261714000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest_2",
+    "elapsed_s": 200.7
+  },
+  {
+    "tick": 45,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0366,
+      "peak": 0.0139,
+      "crest_factor": 0.0134,
+      "kurtosis": -1.1957,
+      "dominant_freq": 6.25
+    },
+    "auth_ok": true,
+    "ts": 1788261716000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest_2",
+    "elapsed_s": 202.9
+  },
+  {
+    "tick": 46,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0371,
+      "peak": 0.0171,
+      "crest_factor": 0.0165,
+      "kurtosis": -0.8771,
+      "dominant_freq": 12.5
+    },
+    "auth_ok": true,
+    "ts": 1788261718000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest_2",
+    "elapsed_s": 205.1
+  },
+  {
+    "tick": 47,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0348,
+      "peak": 0.0284,
+      "crest_factor": 0.0275,
+      "kurtosis": -0.36,
+      "dominant_freq": 6.25
+    },
+    "auth_ok": true,
+    "ts": 1788261721000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest_2",
+    "elapsed_s": 207.4
+  },
+  {
+    "tick": 48,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0375,
+      "peak": 0.0173,
+      "crest_factor": 0.0166,
+      "kurtosis": -1.0625,
+      "dominant_freq": 9.375
+    },
+    "auth_ok": true,
+    "ts": 1788261723000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest_2",
+    "elapsed_s": 209.5
+  },
+  {
+    "tick": 49,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0382,
+      "peak": 0.013,
+      "crest_factor": 0.0126,
+      "kurtosis": -1.2455,
+      "dominant_freq": 12.5
+    },
+    "auth_ok": true,
+    "ts": 1788261725000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest_2",
+    "elapsed_s": 211.7
+  },
+  {
+    "tick": 50,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0376,
+      "peak": 0.0178,
+      "crest_factor": 0.0172,
+      "kurtosis": -0.7641,
+      "dominant_freq": 15.625
+    },
+    "auth_ok": true,
+    "ts": 1788261727000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest_2",
+    "elapsed_s": 214.1
+  },
+  {
+    "tick": 51,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0372,
+      "peak": 0.0167,
+      "crest_factor": 0.0161,
+      "kurtosis": -0.9997,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788261729000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest_2",
+    "elapsed_s": 216.1
+  },
+  {
+    "tick": 52,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0349,
+      "peak": 0.0164,
+      "crest_factor": 0.0158,
+      "kurtosis": -0.8699,
+      "dominant_freq": 6.25
+    },
+    "auth_ok": true,
+    "ts": 1788261732000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest_2",
+    "elapsed_s": 218.3
+  },
+  {
+    "tick": 53,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0363,
+      "peak": 0.0159,
+      "crest_factor": 0.0154,
+      "kurtosis": -0.7509,
+      "dominant_freq": 6.25
+    },
+    "auth_ok": true,
+    "ts": 1788261734000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest_2",
+    "elapsed_s": 220.5
+  },
+  {
+    "tick": 54,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0396,
+      "peak": 0.0123,
+      "crest_factor": 0.0119,
+      "kurtosis": -0.997,
+      "dominant_freq": 9.375
+    },
+    "auth_ok": true,
+    "ts": 1788261736000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest_2",
+    "elapsed_s": 222.7
+  },
+  {
+    "tick": 55,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.0373,
+      "peak": 0.0173,
+      "crest_factor": 0.0167,
+      "kurtosis": -0.7733,
+      "dominant_freq": 3.125
+    },
+    "auth_ok": true,
+    "ts": 1788261738000,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest_2",
+    "elapsed_s": 224.9
+  }
+]
