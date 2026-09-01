@@ -2384,3 +2384,26 @@ and the confirmed-behaviours table (Section 1) both updated -- this is
 real evidence toward the still-open formal adversarial-testing item, not
 a substitute for it (it was an incidental discovery, not a structured,
 human-labelled session).
+
+**A second real fault, minutes later -- a genuine firmware bug this
+time**: the user removed the MPU6050's VCC entirely (not just SDA/SCL).
+Different failure mode from the SDA/SCL-only case above: a fully
+unpowered sensor can't ACK the I2C bus at all, so `sample_window()`
+raises a real `OSError` (`ETIMEDOUT`) instead of silently returning zero
+bytes. `main()`'s loop wrapped its ENTIRE per-message body (sensor read
+AND MQTT publish) in one `except OSError` -- written for MQTT
+reconnection, so an I2C failure was misdiagnosed as a network problem:
+reconnect MQTT (never actually broken, succeeds every time) -> hit the
+same I2C failure again next cycle -> repeat forever, printing
+`[main] connection error, reconnecting` / `[mqtt] connected with broker
+credentials` in an infinite loop that never addressed or even correctly
+named the real problem. Confirmed by reading the exact code, not
+guessed. Fixed: split the sensor read into its own `try`/`except`,
+separate from the MQTT publish/reconnect block -- on an I2C failure it
+now re-runs `mpu6050_init()` (same retry philosophy as `sync_time()`'s
+NTP retries, so power being restored is picked up automatically) and
+`continue`s straight to the next cycle without touching MQTT, with a
+correctly-labelled message (`MPU6050 read failed`, not `connection
+error`). Not yet re-verified live -- needs the user to remove VCC again
+against the fixed firmware to confirm the new path actually recovers;
+flagged as such in `RESULTS.md`, not claimed as confirmed.

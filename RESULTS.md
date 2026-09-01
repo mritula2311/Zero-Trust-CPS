@@ -971,6 +971,29 @@ synthetic-attack numbers be re-run against genuine physical faults instead
 of the generator's model of one — the sensor-disconnect finding above is
 real evidence in that direction, not a substitute for it.
 
+**A second real fault, a genuine firmware bug this time**: the user then
+removed the MPU6050's VCC entirely (not just SDA/SCL). This raises an
+`OSError` (`ETIMEDOUT`) from the I2C read inside `sample_window()` —
+different failure mode from the SDA/SCL-only disconnect above, which read
+back zero bytes without erroring; a fully unpowered sensor can't ACK the
+bus at all. The firmware's `main()` loop wrapped its ENTIRE per-message
+body (sensor read AND MQTT publish) in one `except OSError`, written for
+MQTT reconnection — so an I2C failure was misdiagnosed as a network
+problem every time: it reconnected MQTT (which was never broken,
+succeeding every time), then immediately hit the same I2C failure again
+next cycle, looping `[main] connection error, reconnecting` /
+`[mqtt] connected with broker credentials` forever, never actually
+addressing or even correctly naming the real problem. **Fixed**: the
+sensor read now has its own `try`/`except`, separate from the MQTT
+publish/reconnect block — on an I2C failure it re-runs `mpu6050_init()`
+(so power being restored is picked up automatically, same retry
+philosophy as `sync_time()`'s NTP retries) and skips straight to the next
+cycle without touching MQTT at all, with a correctly-labelled console
+message (`MPU6050 read failed`, not `connection error`). Not yet
+re-verified on real hardware (needs a live re-run with VCC removed again
+to confirm the new path actually recovers cleanly) — flagged here rather
+than claimed as confirmed.
+
 ### 13.3 Real Sensor Calibration — checked, no change needed (yet)
 
 `expected_ranges` in `src/config.py`'s `DEVICE_REGISTRY["esp32-vib-001"]`

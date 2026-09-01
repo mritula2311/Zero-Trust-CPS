@@ -434,12 +434,38 @@ def main():
     print("[main] boot_id =", boot_id, "-- publishing", DEVICE_ID, "telemetry every", PUBLISH_INTERVAL_MS, "ms")
 
     while True:
+        # Sensor read is its OWN try/except, separate from the MQTT
+        # publish/reconnect block below. Found live (RESULTS.md Section
+        # 13.2): removing the MPU6050's VCC raises an OSError (I2C bus
+        # timeout, ETIMEDOUT) from sample_window() -- previously this was
+        # caught by the same broad `except OSError` the MQTT reconnect
+        # logic used, which always assumed a NETWORK problem and tried to
+        # reconnect MQTT (which was never broken), succeeding every time,
+        # then immediately failing the SAME I2C read again next loop --
+        # an infinite loop of pointless MQTT reconnects that never
+        # diagnosed or attempted to recover from the actual problem.
+        # Correctly identified and retried here instead: on an I2C
+        # failure, re-run mpu6050_init() (so power being restored is
+        # picked up automatically, same retry philosophy as sync_time()'s
+        # NTP retries) and skip straight to the next cycle without
+        # touching MQTT at all.
         try:
             t_sample_start = time.ticks_ms()
             window = sample_window()
             t_sample_done = time.ticks_ms()
             features = extract_features(window)
             t_features_done = time.ticks_ms()
+        except OSError as e:
+            print("[main] MPU6050 read failed (sensor disconnected, unpowered, or wired "
+                  "incorrectly?):", e, "-- re-initializing I2C and retrying next cycle")
+            try:
+                mpu6050_init()
+            except OSError:
+                pass  # still not there -- next cycle will report the same failure, not silently hang
+            time.sleep_ms(PUBLISH_INTERVAL_MS)
+            continue
+
+        try:
             # MicroPython's time.time() counts seconds since 2000-01-01, not the
             # Unix epoch (1970-01-01) the gateway's time.time() uses -- NTP sync
             # sets the RTC correctly but doesn't change that reference point, so
@@ -468,7 +494,7 @@ def main():
             ))
             client.check_msg()  # non-blocking: process any pending decision/challenge message
         except OSError as e:
-            print("[main] connection error, reconnecting:", e)
+            print("[main] MQTT/network error, reconnecting:", e)
             try:
                 client = connect_mqtt()
                 client.set_callback(on_message)
