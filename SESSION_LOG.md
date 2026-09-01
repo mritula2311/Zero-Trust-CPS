@@ -2326,3 +2326,19 @@ visible), plus the new sixth-issue writeup. Nothing left on that list
 requiring further engineering -- item 4 (stealthy in-range forged values)
 remains the one architecturally-capped item, not fixable by more
 modeling, per its own entry.
+
+**Same round, RESULTS.md Section 13.1/13.4 (device-side latency/
+footprint) also addressed** -- `firmware/main.py` now measures, per
+message via `time.ticks_ms()`/`time.ticks_diff()` (the MicroPython-
+correct wraparound-safe way, not plain subtraction): sampling time (the
+32-reading I2C window), feature-extraction time (RMS/peak/crest-factor/
+kurtosis + the on-device DFT), and signing time (canonicalisation +
+HMAC-SHA256), printed every message as `[latency] ...`. A new
+`print_deployment_footprint()` prints real `gc.mem_free()`/
+`gc.mem_alloc()` and `os.statvfs("/")` RAM/flash numbers once at boot,
+right after full initialization. Code verified (syntax-checked,
+import-safe) but **no real numbers recorded yet** -- this genuinely needs
+a live run, unlike the six items above which were all resolvable through
+code/investigation alone. `firmware/HARDWARE_SETUP.md`'s Step 9 example
+output and `RESULTS.md` Sections 13.1/13.4 updated to describe the new
+output format and its still-pending status.

@@ -35,6 +35,8 @@ import time
 import ujson
 import ubinascii
 import uhashlib
+import gc
+import os
 try:
     import ussl
 except ImportError:
@@ -153,6 +155,31 @@ def machine_unique_id():
         return machine.unique_id()
     except Exception:
         return b"\x00\x00\x00\x00"
+
+
+# ---------- Deployment footprint (RESULTS.md Section 13.1/13.4) ----------
+# Real measurements, not synthetic-device-process proxies. Printed once at
+# boot (RAM/flash are near-static after init) so they land in Thonny's
+# Shell where they can be copied back and recorded in RESULTS.md -- this
+# file has no way to phone the numbers home itself, since the whole point
+# is to observe the REAL constrained device, not add a reporting
+# dependency that costs its own RAM/flash.
+
+def print_deployment_footprint():
+    gc.collect()
+    free = gc.mem_free()
+    alloc = gc.mem_alloc()
+    print("[footprint] RAM: %d bytes free, %d bytes allocated (%d total)" %
+          (free, alloc, free + alloc))
+    try:
+        stat = os.statvfs("/")
+        block_size, frag_size, blocks, free_blocks = stat[0], stat[1], stat[2], stat[3]
+        total = blocks * frag_size
+        free_flash = free_blocks * frag_size
+        print("[footprint] Flash filesystem: %d bytes free, %d bytes used (%d total)" %
+              (free_flash, total - free_flash, total))
+    except Exception as e:
+        print("[footprint] flash stat unavailable:", e)
 
 
 # ---------- MPU6050 (minimal register-level driver, no external lib) ----------
@@ -400,6 +427,7 @@ def main():
     client.set_callback(on_message)
     client.subscribe(DECISION_TOPIC)
     client.subscribe(CHALLENGE_TOPIC)
+    print_deployment_footprint()  # RAM/flash after full init, RESULTS.md Section 13.4
 
     boot_id = load_and_increment_boot_id()
     seq = 0
@@ -407,8 +435,11 @@ def main():
 
     while True:
         try:
+            t_sample_start = time.ticks_ms()
             window = sample_window()
+            t_sample_done = time.ticks_ms()
             features = extract_features(window)
+            t_features_done = time.ticks_ms()
             # MicroPython's time.time() counts seconds since 2000-01-01, not the
             # Unix epoch (1970-01-01) the gateway's time.time() uses -- NTP sync
             # sets the RTC correctly but doesn't change that reference point, so
@@ -419,9 +450,22 @@ def main():
 
             nonce_to_echo = _pending_step_up_nonce
             _pending_step_up_nonce = None  # consumed -- only echoed once
+            t_sign_start = time.ticks_ms()
             envelope = build_and_sign(features, boot_id, seq, ts_ms, nonce_to_echo)
+            t_sign_done = time.ticks_ms()
             client.publish(TELEMETRY_TOPIC, envelope)
             print("[publish]", envelope)
+            # RESULTS.md Section 13.1 -- real on-device latency, not the
+            # simulated-device-process proxy used everywhere else in this
+            # project. time.ticks_diff() (not plain subtraction) is the
+            # MicroPython-correct way to measure this: ticks_ms() wraps
+            # around periodically, and ticks_diff() handles that wraparound
+            # correctly where naive subtraction would not.
+            print("[latency] sampling=%dms feature_extraction=%dms sign=%dms" % (
+                time.ticks_diff(t_sample_done, t_sample_start),
+                time.ticks_diff(t_features_done, t_sample_done),
+                time.ticks_diff(t_sign_done, t_sign_start),
+            ))
             client.check_msg()  # non-blocking: process any pending decision/challenge message
         except OSError as e:
             print("[main] connection error, reconnecting:", e)

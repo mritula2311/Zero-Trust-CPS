@@ -709,10 +709,11 @@ actually take to close.
 
 **Status: real board flashed, authenticated, and running live; real data
 collected across multiple sessions and folded into the trained models
-with a controlled, measured before/after comparison. True physical
-adversarial testing (Section 13.2) and device-side latency/footprint
-instrumentation (Sections 13.1/13.4) are still outstanding** — everything
-below is what has actually been measured, not aspirational. Results in
+with a controlled, measured before/after comparison. Device-side latency/
+footprint instrumentation (Sections 13.1/13.4) is now in place, awaiting
+a live run to record real numbers. True physical adversarial testing
+(Section 13.2) is the one item still requiring new physical action** —
+everything below is what has actually been measured, not aspirational. Results in
 Sections 1–12 above remain simulator-only; this section is the real-world
 counterpart, kept separate rather than blended in, so every number's
 provenance stays unambiguous.
@@ -816,11 +817,19 @@ a computation bug. The one genuine bug this investigation *did* surface is
 already listed as item 4 in Section 13.0 above (the fake GNN neighbor
 attribution).
 
-### 13.1 Device-Side Latency — still pending
+### 13.1 Device-Side Latency — instrumented, real numbers still pending
 
-Not yet instrumented. Needs `time.ticks_ms()` added around the signing/
-feature-extraction sections of `firmware/main.py`, same as
-`scripts/evaluate_latency.py`'s own TODO already flagged.
+`firmware/main.py` now measures, per message, using `time.ticks_ms()`/
+`time.ticks_diff()` (the MicroPython-correct way — handles the periodic
+tick-counter wraparound a naive subtraction would get wrong): sampling
+time (the 32-reading I2C accelerometer window), feature-extraction time
+(RMS/peak/crest-factor/kurtosis + the on-device DFT for `dominant_freq`),
+and signing time (canonicalisation + HMAC-SHA256). Printed to Thonny's
+Shell every message as `[latency] sampling=...ms feature_extraction=...ms
+sign=...ms`. **Code verified (syntax + import-safe), but no real numbers
+recorded yet** — needs a live run with the printed values copied back in.
+Comparison against the gateway-side figures in Section 6 still pending
+until then.
 
 ### 13.2 Real Physical Data Collection — baseline done, adversarial testing still pending
 
@@ -925,12 +934,18 @@ retraining discussion). ISO 10816/20816 zone-boundary comparison
 (`CLAUDE.md` Section 6) still needs real vibration-velocity data, not the
 raw-acceleration proxy used throughout — untouched by this round.
 
-### 13.4 Physical Deployment Overhead — still pending
+### 13.4 Physical Deployment Overhead — RAM/flash instrumented, network latency still pending
 
-- RAM/flash actually used by `firmware/main.py` on the ESP32 (vs. the
-  simulated-device-process proxy used implicitly until now).
+- **RAM/flash**: `firmware/main.py::print_deployment_footprint()` now
+  prints real `gc.mem_free()`/`gc.mem_alloc()` and `os.statvfs("/")`
+  numbers once at boot, right after full initialization (WiFi, MQTT,
+  MPU6050) — `[footprint] RAM: ... | Flash filesystem: ...` in Thonny's
+  Shell. **Code verified, no real numbers recorded yet** — needs a live
+  run.
 - Real WiFi/MQTT round-trip latency in a physical network, vs. the
-  loopback-network figures in Section 6.
+  loopback-network figures in Section 6 — still not instrumented (would
+  need a timestamped ping/ack round trip, not just one-way publish
+  timing, which the Section 13.1 instrumentation above doesn't cover).
 
 ---
 

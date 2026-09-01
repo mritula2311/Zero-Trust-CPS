@@ -234,9 +234,18 @@ Thonny's **Shell** panel. A working boot looks like:
 [time] synced via NTP
 [mqtt] connecting over TLS to 192.168.1.xxx 8883
 [mqtt] connected with broker credentials
+[footprint] RAM: ... bytes free, ... bytes allocated (... total)
+[footprint] Flash filesystem: ... bytes free, ... bytes used (... total)
 [main] boot_id = 1 -- publishing esp32-vib-001 telemetry every 2000 ms
 [publish] {"payload": {"boot_id": 1, "crest_factor": ..., ...}, "signature": "..."}
+[latency] sampling=...ms feature_extraction=...ms sign=...ms
 ```
+
+The `[footprint]` lines print once at boot (RESULTS.md Section 13.4);
+`[latency]` prints every message (Section 13.1) — both are real
+on-device measurements, not the simulated-device-process proxy used
+elsewhere in this project. If you're recording numbers for RESULTS.md,
+copy a few representative lines back.
 
 If you see this, the board is publishing. Check the gateway's own console
 (a separate terminal running `python src/gateway.py` — **not** Thonny's
