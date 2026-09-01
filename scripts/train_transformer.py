@@ -32,12 +32,13 @@ import torch.nn as nn
 from config import (
     DATA_COLLECTED_DIR,
     MODELS_DIR,
-    TRANSFORMER_MODEL_PATH,
-    TRANSFORMER_META_PATH,
+    transformer_path,
+    transformer_meta_path,
     TRANSFORMER_EPOCHS,
     TRANSFORMER_LEARNING_RATE,
     TRANSFORMER_NOISE_STD,
     LSTM_SEQ_LEN,
+    FEATURE_VECTOR_DEVICE_IDS,
     FEATURE_NAMES,
 )
 import feature_engineering as fe
@@ -47,18 +48,19 @@ SESSION_PATH = os.path.join(DATA_COLLECTED_DIR, "training_session.json")
 SEQ_LEN = LSTM_SEQ_LEN
 
 
-def main():
+def train_one(records, device_id) -> bool:
+    """Trains ONE device's Transformer-AE + stats on ITS OWN normal readings,
+    saved to that device's per-device paths. Returns True if trained, False
+    if too few examples (skipped, not fatal)."""
     torch.manual_seed(0)
-    with open(SESSION_PATH) as f:
-        records = json.load(f)
-
     normal = [
         r for r in records
-        if r["device_id"] == "esp32-vib-001" and r["label"] == 1 and r["auth_ok"]
+        if r["device_id"] == device_id and r["label"] == 1 and r["auth_ok"]
     ]
     normal.sort(key=lambda r: r["tick"])
     if len(normal) < SEQ_LEN + 10:
-        raise SystemExit(f"only {len(normal)} normal examples -- need more, re-run generate_training_data.py")
+        print(f"[skip] {device_id}: only {len(normal)} normal examples -- no model trained")
+        return False
 
     raw = np.array([fe.feature_vector(r["reading"]) for r in normal], dtype=np.float32)
     mean = raw.mean(axis=0)
@@ -67,12 +69,11 @@ def main():
     normalized = (raw - mean) / std
 
     windows = np.stack([normalized[i:i + SEQ_LEN] for i in range(len(normalized) - SEQ_LEN + 1)])
-    print(f"training device: {_TORCH_DEVICE}")
     clean = torch.tensor(windows, dtype=torch.float32, device=_TORCH_DEVICE)
 
     model = TransformerAutoencoder().to(_TORCH_DEVICE)
     n_params = sum(p.numel() for p in model.parameters())
-    print(f"{len(windows)} training windows, {n_params} model parameters")
+    print(f"[{device_id}] {len(windows)} training windows, {n_params} model parameters")
 
     optimizer = torch.optim.Adam(model.parameters(), lr=TRANSFORMER_LEARNING_RATE)
     loss_fn = nn.MSELoss()
@@ -85,7 +86,7 @@ def main():
         loss.backward()
         optimizer.step()
         if epoch % 20 == 0 or epoch == TRANSFORMER_EPOCHS - 1:
-            print(f"  epoch {epoch}: loss={loss.item():.5f}")
+            print(f"  [{device_id}] epoch {epoch}: loss={loss.item():.5f}")
 
     # Baseline error stats computed on the CLEAN windows (no noise) -- this
     # must match what score() does at inference time (transformer_scorer.py
@@ -99,8 +100,8 @@ def main():
     baseline_error_std = float(per_window_error.std()) or 1e-3
 
     os.makedirs(MODELS_DIR, exist_ok=True)
-    torch.save(model.state_dict(), TRANSFORMER_MODEL_PATH)
-    with open(TRANSFORMER_META_PATH, "w") as f:
+    torch.save(model.state_dict(), transformer_path(device_id))
+    with open(transformer_meta_path(device_id), "w") as f:
         json.dump({
             "mean": mean.tolist(),
             "std": std.tolist(),
@@ -109,8 +110,19 @@ def main():
             "feature_names": FEATURE_NAMES,
         }, f, indent=1)
 
-    print(f"trained Transformer-AE on {len(windows)} windows ({len(normal)} normal readings), saved to {TRANSFORMER_MODEL_PATH}")
-    print(f"baseline (clean) reconstruction error: mean={baseline_error_mean:.5f} std={baseline_error_std:.5f}")
+    print(f"[{device_id}] trained Transformer-AE on {len(windows)} windows -> {transformer_path(device_id)} "
+          f"(baseline clean err mean={baseline_error_mean:.5f} std={baseline_error_std:.5f})")
+    return True
+
+
+def main():
+    print(f"training device: {_TORCH_DEVICE}")
+    with open(SESSION_PATH) as f:
+        records = json.load(f)
+    trained = sum(train_one(records, d) for d in FEATURE_VECTOR_DEVICE_IDS)
+    if trained == 0:
+        raise SystemExit("no feature_vector device had enough normal examples -- re-run generate_training_data.py")
+    print(f"trained {trained}/{len(FEATURE_VECTOR_DEVICE_IDS)} per-device Transformer-AE model(s)")
 
 
 if __name__ == "__main__":

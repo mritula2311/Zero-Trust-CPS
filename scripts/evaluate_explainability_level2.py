@@ -31,7 +31,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 import numpy as np
 
-from config import DATA_COLLECTED_DIR
+from config import DATA_COLLECTED_DIR, is_feature_vector
 import feature_engineering as fe
 from trust_engine import rule_range_score
 from isolation_forest_scorer import IsolationForestScorer
@@ -85,9 +85,9 @@ def main():
         rule_score, rule_reason = rule_range_score(device_id, r["reading"])
 
         fv = None
-        if device_id == "esp32-vib-001":
+        if is_feature_vector(device_id):
             fv = fe.feature_vector(r["reading"])
-            if_score = if_scorer.score(fv)
+            if_score = if_scorer.score(device_id, fv)
             lstm_score = lstm_scorer.score(device_id, fv)
         else:
             if_score = lstm_score = rule_score
@@ -111,13 +111,13 @@ def main():
         if dominant == "rule_score":
             cf_rule = 0.9  # trivial per C.3 -- "fixing" the violated channel means the rule check passes outright
         elif dominant == "isolation_forest_score" and fv is not None:
-            result = if_scorer.level2_explain(fv)
+            result = if_scorer.level2_explain(device_id, fv)
             if result is None:
                 continue
             name, _shap_val = result
             perturbed = list(fv)
             perturbed[fe.FEATURE_NAMES.index(name)] = medians[name]
-            cf_if = if_scorer.score(perturbed)
+            cf_if = if_scorer.score(device_id, perturbed)
         elif dominant == "lstm_ae_score":
             result = lstm_scorer.level2_explain(device_id)
             if result is None:

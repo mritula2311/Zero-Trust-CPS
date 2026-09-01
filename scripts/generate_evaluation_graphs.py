@@ -45,7 +45,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from config import DATA_COLLECTED_DIR
+from config import DATA_COLLECTED_DIR, is_feature_vector
 
 FIGURES_DIR = os.path.join(os.path.dirname(__file__), "..", "docs", "figures")
 os.makedirs(FIGURES_DIR, exist_ok=True)
@@ -366,9 +366,9 @@ def fig_level1_explainability():
             continue
         device_id = r["device_id"]
         rule_score, _ = ee.rule_range_score(device_id, r["reading"])
-        if device_id == "esp32-vib-001":
+        if is_feature_vector(device_id):
             fv = ee.fe.feature_vector(r["reading"])
-            if_score = if_scorer.score(fv)
+            if_score = if_scorer.score(device_id, fv)
             lstm_score = lstm_scorer.score(device_id, fv)
         else:
             if_score = lstm_score = rule_score
@@ -410,9 +410,9 @@ def fig_level2_explainability():
         device_id = r["device_id"]
         rule_score, rule_reason = el2.rule_range_score(device_id, r["reading"])
         fv = None
-        if device_id == "esp32-vib-001":
+        if is_feature_vector(device_id):
             fv = el2.fe.feature_vector(r["reading"])
-            if_score = if_scorer.score(fv)
+            if_score = if_scorer.score(device_id, fv)
             lstm_score = lstm_scorer.score(device_id, fv)
         else:
             if_score = lstm_score = rule_score
@@ -427,13 +427,13 @@ def fig_level2_explainability():
         if dominant == "rule_score":
             cf_rule = 0.9
         elif dominant == "isolation_forest_score" and fv is not None:
-            result = if_scorer.level2_explain(fv)
+            result = if_scorer.level2_explain(device_id, fv)
             if result is None:
                 continue
             name, _ = result
             perturbed = list(fv)
             perturbed[el2.fe.FEATURE_NAMES.index(name)] = medians[name]
-            cf_if = if_scorer.score(perturbed)
+            cf_if = if_scorer.score(device_id, perturbed)
         elif dominant == "lstm_ae_score":
             result = lstm_scorer.level2_explain(device_id)
             if result is None:
@@ -481,6 +481,12 @@ def fig_rl_convergence():
     train_triples = er._load_triples(er.TRAIN_PATH)
     weights = situation_weights(train_triples)
     pdp = AdaptivePDP()
+    # AdaptivePDP() loads the deployed adaptive_pdp_qtable.json in its
+    # constructor -- reset to empty so this genuinely trains from scratch, or
+    # the plotted curve (titled "Fresh Bandit Trained From Scratch") would
+    # start already-converged and misrepresent convergence. Mirrors the same
+    # fix in evaluate_rl_policy.convergence_trend().
+    pdp.q = {}
     rewards = []
     for episode in range(25):
         total_reward = 0.0

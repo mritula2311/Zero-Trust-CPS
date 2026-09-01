@@ -20,7 +20,7 @@ import numpy as np
 import joblib
 from sklearn.linear_model import LogisticRegression
 
-from config import DATA_COLLECTED_DIR, MODELS_DIR, FUSION_MODEL_PATH, FUSION_BACKGROUND_PATH, FUSION_SHAP_BACKGROUND_SIZE, LSTM_SEQ_LEN
+from config import DATA_COLLECTED_DIR, MODELS_DIR, FUSION_MODEL_PATH, FUSION_BACKGROUND_PATH, FUSION_SHAP_BACKGROUND_SIZE, LSTM_SEQ_LEN, is_feature_vector
 import feature_engineering as fe
 from trust_engine import rule_range_score
 from isolation_forest_scorer import IsolationForestScorer
@@ -112,9 +112,9 @@ def build_dataset(records):
         target = physical_label(r["event_type"])
         window_compromised = False
 
-        if device_id == "esp32-vib-001":
+        if is_feature_vector(device_id):
             fv = fe.feature_vector(r["reading"])
-            if_score = if_scorer.score(fv)
+            if_score = if_scorer.score(device_id, fv)
             lstm_score = lstm_scorer.score(device_id, fv)
             lw = label_window.setdefault(device_id, [])
             window_compromised = any(l == 0 for l in lw)

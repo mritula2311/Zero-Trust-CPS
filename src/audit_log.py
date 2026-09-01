@@ -31,11 +31,24 @@ import hmac
 import json
 import os
 import sqlite3
+import threading
 from datetime import datetime, timezone
 
 from config import AUDIT_DB_PATH, CHECKPOINT_INTERVAL_ROWS, CHECKPOINT_STORE_PATH, AUDIT_KEY_PATH
 
 GENESIS_HASH = "GENESIS"
+
+# The hash chain's read-then-insert (get last row's this_hash -> compute this
+# row's hash against it -> INSERT) must be atomic: log_decision() is called
+# from several threads at once in a live gateway (the MQTT loop, the HTTPS
+# second transport in coap_server.py, and the silence watchdog -- see
+# gateway.py's run()). Without this lock two concurrent callers can read the
+# SAME prev_hash before either inserts, forking the chain into two rows that
+# both point at the same predecessor -- verify_chain_integrity() then reports
+# a false BROKEN even though nothing was tampered with. SQLite's file lock
+# serializes the INSERTs themselves but NOT the preceding read, so it cannot
+# prevent this on its own.
+_chain_lock = threading.Lock()
 
 
 def init_db():
@@ -206,7 +219,6 @@ def log_decision(
     trust_score_alias = security_trust_score if security_trust_score is not None else 0.0
 
     conn = sqlite3.connect(AUDIT_DB_PATH)
-    prev_hash = _get_last_row_hash(conn)
     fields = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "device_id": device_id,
@@ -235,17 +247,22 @@ def log_decision(
         "level2_dominant_feature": level2_dominant_feature,
         "level2_summary": level2_summary,
     }
-    this_hash = compute_row_hash(fields, prev_hash)
-
     columns = list(fields.keys()) + ["prev_hash", "this_hash"]
     placeholders = ",".join("?" for _ in columns)
-    cur = conn.execute(
-        f"INSERT INTO audit_log ({','.join(columns)}) VALUES ({placeholders})",
-        [*fields.values(), prev_hash, this_hash],
-    )
-    row_id = cur.lastrowid
-    _maybe_write_checkpoint(conn, row_id, this_hash)
-    conn.commit()
+
+    # Read the predecessor's hash, chain onto it, and INSERT as one atomic
+    # unit -- see _chain_lock's definition above for why the read cannot be
+    # left outside the lock.
+    with _chain_lock:
+        prev_hash = _get_last_row_hash(conn)
+        this_hash = compute_row_hash(fields, prev_hash)
+        cur = conn.execute(
+            f"INSERT INTO audit_log ({','.join(columns)}) VALUES ({placeholders})",
+            [*fields.values(), prev_hash, this_hash],
+        )
+        row_id = cur.lastrowid
+        _maybe_write_checkpoint(conn, row_id, this_hash)
+        conn.commit()
     conn.close()
 
 

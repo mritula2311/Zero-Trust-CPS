@@ -131,6 +131,15 @@ def confusion_matrix(triples, policy_fn, label: str):
 
 
 def convergence_trend(triples):
+    # Mirrors scripts/train_adaptive_pdp.py's deployed training procedure exactly,
+    # INCLUDING its exclusion of the unlearnable 'combined'/stealthy_forged_values
+    # class (see the long comment there). Without this the convergence figure would
+    # be charting a bandit trained differently from the one actually deployed --
+    # precisely the figure-vs-script drift this project's figures are supposed to
+    # be immune to. The CONFUSION MATRICES above deliberately still score
+    # 'combined', because not detecting it is a result worth reporting honestly;
+    # it is only excluded from what the policy TRAINS on.
+    triples = [t for t in triples if t[2] != "combined"]
     print(f"\nConvergence trend -- training a FRESH bandit from scratch on "
           f"{len(triples)} training messages (does not touch the deployed "
           f"models/adaptive_pdp_qtable.json), {RL_TRAINING_EPISODES} episodes, "
@@ -138,6 +147,13 @@ def convergence_trend(triples):
           f"uses for the deployed model -- see situation_weights()'s docstring):\n")
     weights = situation_weights(triples)
     pdp = AdaptivePDP()
+    # AdaptivePDP() loads the already-deployed adaptive_pdp_qtable.json in its
+    # constructor, so without this reset the "fresh" bandit would actually be
+    # warm-started from the fully-trained table -- episode 0 would already
+    # show near-optimal reward and the from-scratch convergence claim in this
+    # function's docstring/header would be false. Start from an empty Q-table
+    # so the trend genuinely demonstrates learning rather than asserting it.
+    pdp.q = {}
     for episode in range(RL_TRAINING_EPISODES):
         total_reward = 0.0
         for security, process, situation in triples:

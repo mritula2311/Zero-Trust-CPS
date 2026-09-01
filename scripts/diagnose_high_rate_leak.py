@@ -20,7 +20,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from config import DATA_COLLECTED_DIR, PROCESS_THRESHOLD
+from config import DATA_COLLECTED_DIR, PROCESS_THRESHOLD, is_feature_vector
 from trust_engine import RuleBasedTrustEngine, rule_range_score
 import trust_engine as trust_engine_module
 from isolation_forest_scorer import IsolationForestScorer
@@ -75,9 +75,9 @@ def replay_with_subscores(records):
             engine.score_security_trust(device_id, is_flood, step_up_result=None)
 
             rule_score, rule_reason = rule_range_score(device_id, reading)
-            if device_id == "esp32-vib-001":
+            if is_feature_vector(device_id):
                 fv = fe.feature_vector(reading)
-                if_score = if_scorer.score(fv)
+                if_score = if_scorer.score(device_id, fv)
                 lstm_score = lstm_scorer.score(device_id, fv)
             else:
                 if_score = lstm_score = rule_score

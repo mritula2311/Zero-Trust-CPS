@@ -71,6 +71,7 @@ from config import (
     DEVICE_REGISTRY,
     USE_RL_POLICY,
     FEATURE_NAMES,
+    is_feature_vector,
     COAP_ENABLED,
     COAP_TLS_PORT,
     SECURITY_THRESHOLD,
@@ -105,6 +106,19 @@ gnn_scorer = GNNScorer()
 fusion_engine = FusionEngine()
 adaptive_pdp = AdaptivePDP()
 
+# Serializes the whole telemetry pipeline. run() starts several threads that
+# reach the same UNLOCKED mutable state -- the MQTT loop and the HTTPS second
+# transport (coap_server.py) both call process_telemetry(), and the silence
+# watchdog reads/mutates trust_engine's per-device state -- so the
+# "single-threaded pipeline" assumption documented in fusion_engine.py and
+# trust_engine.py does not actually hold. Without this lock two in-flight
+# messages can interleave and corrupt shared state: FusionEngine.last_shap
+# (read by process_telemetry right after combine() to log it), LSTMAEScorer's
+# per-device rolling window, GNNScorer's last_features/last_seen arrays, and
+# check_boot_replay()'s last_seen_seq. Held pipeline -> chain (audit_log's
+# own lock) and never the reverse, so the two locks cannot deadlock.
+_pipeline_lock = threading.Lock()
+
 DECISION_ICON = {
     "ALLOW": "\033[92mALLOW  \033[0m",
     "STEP_UP": "\033[93mSTEP_UP\033[0m",
@@ -138,8 +152,7 @@ def verify_signature(device_id: str, payload: dict, signature: str) -> bool:
 def _extract_reading(device_id: str, payload: dict):
     """Module 1's `kind` field decides the shape: a plain float for scalar
     devices, or a dict of Section-5.1 features for feature_vector devices."""
-    kind = DEVICE_REGISTRY.get(device_id, {}).get("kind", "scalar")
-    if kind == "feature_vector":
+    if is_feature_vector(device_id):
         return {name: payload.get(name) for name in FEATURE_NAMES}
     return payload.get("value")
 
@@ -179,7 +192,14 @@ def _reject(device_id: str, reason: str, transport: str) -> None:
 def process_telemetry(envelope: dict, transport: str, transport_secured: bool) -> None:
     """Shared processing path for one telemetry envelope, regardless of
     which transport delivered it (MQTT in on_message below, or CoAP in
-    coap_server.py's resource handler)."""
+    coap_server.py's resource handler). Serialized under _pipeline_lock so
+    the MQTT and HTTPS transport threads can't interleave and corrupt the
+    shared scorer/trust state -- see that lock's definition."""
+    with _pipeline_lock:
+        _process_telemetry(envelope, transport, transport_secured)
+
+
+def _process_telemetry(envelope: dict, transport: str, transport_secured: bool) -> None:
     try:
         payload = envelope["payload"]
         signature = envelope["signature"]
@@ -257,9 +277,9 @@ def process_telemetry(envelope: dict, transport: str, transport_secured: bool) -
     rule_score, rule_reason = rule_range_score(device_id, reading) if reading is not None else (0.15, "missing reading")
 
     fv = None
-    if device_id == "esp32-vib-001" and isinstance(reading, dict) and all(v is not None for v in reading.values()):
+    if is_feature_vector(device_id) and isinstance(reading, dict) and all(v is not None for v in reading.values()):
         fv = fe.feature_vector(reading)
-        if_score = if_scorer.score(fv)
+        if_score = if_scorer.score(device_id, fv)
         lstm_score = lstm_scorer.score(device_id, fv)
     else:
         if_score = lstm_score = rule_score
@@ -684,10 +704,14 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(b"design/zero-trust-cps-command-center.html not found")
             return
+        # design/zero-trust-cps-command-center.html is now a single, fully-live
+        # dashboard that polls the /api/* endpoints itself and fills the whole
+        # page -- served byte-for-byte, no overlay injection. The old 2.2MB
+        # flattened canvas export it replaced has been deleted; the canvas
+        # SOURCE it was exported from is still in design/canvas.json and
+        # design/Main.dc.html if it ever needs regenerating.
         with open(DASHBOARD_DESIGN_HTML_PATH, "r", encoding="utf-8") as f:
             html = f.read()
-        idx = html.rfind("</body>")
-        html = (html[:idx] + _DASHBOARD_OVERLAY + html[idx:]) if idx != -1 else (html + _DASHBOARD_OVERLAY)
         body = html.encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -792,27 +816,36 @@ def _silence_watchdog_loop() -> None:
     while True:
         time.sleep(SILENCE_CHECK_INTERVAL_SECONDS)
         for device_id in DEVICE_REGISTRY:
-            security_stale = trust_engine.is_stale(device_id)
-            _, process_status = trust_engine.get_process_anomaly(device_id)
-            currently_silent = security_stale or process_status == "STALE"
+            # Hold the pipeline lock across the ENTIRE per-device block, not
+            # just the staleness read: get_process_anomaly() mutates
+            # process_state[device].status (FRESH->STALE), and get_security_trust()
+            # reads security_state[device] concurrently with score_security_trust()'s
+            # writes on the MQTT/HTTPS path. Holding it through the log_decision()
+            # call too means a device's SILENT row can never be observed or written
+            # against a half-updated snapshot of its own scores -- maximal
+            # strictness, matching process_telemetry()'s own whole-pipeline lock.
+            with _pipeline_lock:
+                security_stale = trust_engine.is_stale(device_id)
+                _, process_status = trust_engine.get_process_anomaly(device_id)
+                currently_silent = security_stale or process_status == "STALE"
 
-            if currently_silent and device_id not in _silence_alerted:
-                _silence_alerted.add(device_id)
-                security_trust_score = trust_engine.get_security_trust(device_id)
-                print(f"{device_id:14s} | SILENT | no message in over "
-                      f"{SILENCE_CHECK_INTERVAL_SECONDS}s-checked staleness window -- "
-                      f"last known scores frozen, not decayed toward normal or spiked toward anomalous")
-                audit_log.log_decision(
-                    device_id, auth_ok=True, decision="SILENT",
-                    reason="no message received within the staleness window -- device offline, "
-                           "disconnected, or possibly silenced/compromised; indistinguishable from here",
-                    security_trust_score=security_trust_score, process_trust_score=None, process_status="STALE",
-                    policy_source="", nist_tenets=nist_mapping.tenets_for_decision(True, MQTT_USE_TLS, fusion_engine.is_trained()),
-                    transport="", reason_category="device_silent",
-                )
-            elif not currently_silent and device_id in _silence_alerted:
-                _silence_alerted.discard(device_id)
-                print(f"{device_id:14s} | back online after a silence episode")
+                if currently_silent and device_id not in _silence_alerted:
+                    _silence_alerted.add(device_id)
+                    security_trust_score = trust_engine.get_security_trust(device_id)
+                    print(f"{device_id:14s} | SILENT | no message in over "
+                          f"{SILENCE_CHECK_INTERVAL_SECONDS}s-checked staleness window -- "
+                          f"last known scores frozen, not decayed toward normal or spiked toward anomalous")
+                    audit_log.log_decision(
+                        device_id, auth_ok=True, decision="SILENT",
+                        reason="no message received within the staleness window -- device offline, "
+                               "disconnected, or possibly silenced/compromised; indistinguishable from here",
+                        security_trust_score=security_trust_score, process_trust_score=None, process_status="STALE",
+                        policy_source="", nist_tenets=nist_mapping.tenets_for_decision(True, MQTT_USE_TLS, fusion_engine.is_trained()),
+                        transport="", reason_category="device_silent",
+                    )
+                elif not currently_silent and device_id in _silence_alerted:
+                    _silence_alerted.discard(device_id)
+                    print(f"{device_id:14s} | back online after a silence episode")
 
 
 def start_silence_watchdog() -> threading.Thread:

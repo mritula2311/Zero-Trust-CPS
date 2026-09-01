@@ -41,7 +41,7 @@ def level2_explain(
         return "rule_range_violation", rule_reason
 
     if dominant_signal == "isolation_forest_score" and feature_vec is not None:
-        result = if_scorer.level2_explain(feature_vec)
+        result = if_scorer.level2_explain(device_id, feature_vec)
         if result:
             name, shap_val = result
             return name, f"Isolation Forest flagged mainly due to '{name}' (SHAP={shap_val:.3f})"

@@ -138,7 +138,12 @@ COAP_ENABLED = os.path.exists(COAP_CERT_PATH) and os.path.exists(COAP_KEY_PATH) 
 # `ts` (still carried, still int ms) is now a SECONDARY freshness check --
 # REPLAY_WINDOW_SECONDS below -- independent of the boot/seq check, per
 # docs/03_module2_authentication.md Section 4 Check 5.
-REPLAY_WINDOW_SECONDS = 30
+REPLAY_WINDOW_SECONDS = 600   # DEMO ACCOMMODATION (isolated hotspot, no NTP route): widened
+                               # from 30s so a manually-set board RTC that's a few minutes off
+                               # still passes the SECONDARY freshness check. boot_id/seq
+                               # (check_boot_replay) remains the PRIMARY anti-replay mechanism and
+                               # is unaffected. Revert to 30 once the board gets real NTP time
+                               # (share the laptop's internet to the hotspot / enable ICS).
 
 # --- Step-up authentication (Module 2 Section 7 / Module 5) ---
 # Real gateway-issued-nonce / device-echo challenge-response, closing the
@@ -247,6 +252,30 @@ for _device_id, _info in DEVICE_REGISTRY.items():
     _info.setdefault("key_rotated_at", None)        # time.time() of the last rotation, None if never rotated
 del _device_id, _info
 
+
+def is_feature_vector(device_id: str) -> bool:
+    """Single source of truth for 'does this device publish the 5-feature
+    vibration vector (feature_vector kind) rather than a single scalar?'.
+    Every place that decides whether to run the feature-vector ML scorers
+    (Isolation Forest / LSTM-AE / Transformer) vs. mirror rule_score into
+    those slots -- the live gateway AND every offline train_*/evaluate_*
+    script -- keys off THIS, not a hardcoded "esp32-vib-001" string, so the
+    live and offline paths can never disagree about a device's shape and a
+    second feature_vector device (simulated or real hardware) is handled
+    identically everywhere without touching each call site."""
+    return DEVICE_REGISTRY.get(device_id, {}).get("kind") == "feature_vector"
+
+
+# Every device that carries its OWN per-device Isolation Forest / LSTM-AE /
+# Transformer model (see the per-device model-path helpers below). A device's
+# raw vibration distribution is physics-specific, so these three scorers are
+# trained per device rather than shared -- adding a second real board only
+# means capturing its data and re-running the trainers, no code change. The
+# GNN (a graph over ALL devices) and the fusion meta-learner (operates on the
+# four already-normalised [0,1] sub-scores, not raw features) stay SHARED --
+# they are device-agnostic by construction.
+FEATURE_VECTOR_DEVICE_IDS = [d for d, i in DEVICE_REGISTRY.items() if i.get("kind") == "feature_vector"]
+
 KEY_ROTATION_GRACE_SECONDS = 24 * 3600   # docs/02 Section 3's "24 hours in hardware-time-equivalent" default
 
 # --- Real hardware onboarding (firmware/HARDWARE_SETUP.md) ---
@@ -308,12 +337,34 @@ MIN_MESSAGE_INTERVAL_SECONDS = 0.5
 # "not enough history yet" state, just decided at deploy time instead of
 # runtime. ---
 MODELS_DIR = os.path.join(_SRC_DIR, "..", "models")
-ISOLATION_FOREST_MODEL_PATH = os.path.join(MODELS_DIR, "isolation_forest.joblib")
-LSTM_AE_MODEL_PATH = os.path.join(MODELS_DIR, "lstm_ae.pt")
-LSTM_AE_META_PATH = os.path.join(MODELS_DIR, "lstm_ae_meta.json")   # normalization stats, baseline error stats
+
+# Per-device model artifacts (Isolation Forest / LSTM-AE / Transformer). One
+# model file PER feature_vector device -- the filename carries the device_id
+# so a second real board never silently reuses (or gets scored by) another
+# device's model. A device with no trained file yet makes its scorer return
+# the neutral "not trained" fallback (0.9), exactly as a missing single file
+# did before, so an un-onboarded device fails SAFE rather than being scored
+# by the wrong model.
+def isolation_forest_path(device_id: str) -> str:
+    return os.path.join(MODELS_DIR, f"isolation_forest_{device_id}.joblib")
+
+def isolation_forest_meta_path(device_id: str) -> str:   # decision_function -> [0,1] calibration anchors
+    return os.path.join(MODELS_DIR, f"isolation_forest_{device_id}_meta.json")
+
+def lstm_ae_path(device_id: str) -> str:
+    return os.path.join(MODELS_DIR, f"lstm_ae_{device_id}.pt")
+
+def lstm_ae_meta_path(device_id: str) -> str:            # normalization + baseline-error stats
+    return os.path.join(MODELS_DIR, f"lstm_ae_{device_id}_meta.json")
+
+def transformer_path(device_id: str) -> str:
+    return os.path.join(MODELS_DIR, f"transformer_ae_{device_id}.pt")
+
+def transformer_meta_path(device_id: str) -> str:
+    return os.path.join(MODELS_DIR, f"transformer_ae_{device_id}_meta.json")
+
+# Shared, device-agnostic artifacts (see FEATURE_VECTOR_DEVICE_IDS' comment).
 GNN_MODEL_PATH = os.path.join(MODELS_DIR, "gnn.pt")
-TRANSFORMER_MODEL_PATH = os.path.join(MODELS_DIR, "transformer_ae.pt")
-TRANSFORMER_META_PATH = os.path.join(MODELS_DIR, "transformer_ae_meta.json")
 FUSION_MODEL_PATH = os.path.join(MODELS_DIR, "fusion_meta_learner.joblib")
 FUSION_BACKGROUND_PATH = os.path.join(MODELS_DIR, "fusion_background.npy")   # SHAP background sample
 ADAPTIVE_PDP_MODEL_PATH = os.path.join(MODELS_DIR, "adaptive_pdp_qtable.json")
@@ -391,6 +442,21 @@ TRANSFORMER_LEARNING_RATE = 0.001  # lower than LSTM_LEARNING_RATE -- transforme
 # purpose (relational/coordinated anomaly detection across devices). State
 # this choice explicitly in the paper (Section 2 asks you to).
 GNN_EDGE_WINDOW_SECONDS = 5.0
+
+# Weight of a node's OWN features relative to each neighbour's, inside the
+# GCN's normalized adjacency (gnn_scorer.normalized_adjacency: A = wI + edges,
+# then the usual D^-1/2 A D^-1/2). With the textbook w=1 and all 3 devices
+# active, symmetric normalization gives a node's own evidence only 1/3 of its
+# representation and its two neighbours the other 2/3 -- so a device's Process
+# Anomaly score moved with whether UNRELATED devices happened to be publishing
+# inside the edge window, measured at fused 0.02 (alone) vs 0.58 (3 active) for
+# one identical ESP32 reading. It also made the isolated topology (a real board
+# publishing with the simulator stopped -- the normal single-device deployment)
+# a different activation scale than anything training emphasised. w=3 keeps the
+# relational term that the GNN exists for (a neighbour still moves the score,
+# which is what catches the 'coordinated' event type) while making a node's own
+# physical evidence the majority of its own verdict, as it should be.
+GNN_SELF_LOOP_WEIGHT = 3.0
 # GPU-scale-up (SESSION_LOG.md): previously 8 hidden units, 2-layer GCN,
 # same "no GPU available" reasoning as LSTM_HIDDEN_SIZE above. Raised to
 # 32 hidden units and a 3rd GCN layer (GNN_NUM_LAYERS) for real added
@@ -446,7 +512,10 @@ USE_RL_POLICY = True
 RL_SECURITY_BUCKET_SIZE = 0.1    # security trust score discretized into buckets of this width
 RL_PROCESS_BUCKET_SIZE = 0.1     # process trust score discretized the same way -> second state dimension
 RL_EPSILON = 0.1                 # exploration rate (training only)
-RL_ALPHA = 0.2                   # Q-value learning rate
+# RL_ALPHA (a fixed 0.2 Q-value learning rate) was removed: AdaptivePDP.update()
+# now uses an incremental SAMPLE AVERAGE (alpha = 1/N per (state, action) visit),
+# which is the correct estimator for this stationary contextual bandit -- see that
+# method's docstring for the measured failure the fixed rate caused.
 RL_TRAINING_EPISODES = 20        # passes over the offline dataset during scripts/train_adaptive_pdp.py
 
 # --- Monitoring / Audit Log (Module 7) ---

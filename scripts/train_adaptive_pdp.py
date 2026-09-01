@@ -18,11 +18,12 @@ if they did.
 
 import json
 import os
+import random
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from config import DATA_COLLECTED_DIR, RL_TRAINING_EPISODES
+from config import DATA_COLLECTED_DIR, RL_TRAINING_EPISODES, is_feature_vector
 import feature_engineering as fe
 from trust_engine import RuleBasedTrustEngine, rule_range_score
 from isolation_forest_scorer import IsolationForestScorer
@@ -59,9 +60,9 @@ def build_training_triples(records: list[dict]) -> list[tuple[float, float, str]
         device_id = r["device_id"]
         rule_score, _ = rule_range_score(device_id, r["reading"])
 
-        if device_id == "esp32-vib-001":
+        if is_feature_vector(device_id):
             fv = fe.feature_vector(r["reading"])
-            if_score = if_scorer.score(fv)
+            if_score = if_scorer.score(device_id, fv)
             lstm_score = lstm_scorer.score(device_id, fv)
         else:
             if_score = lstm_score = rule_score
@@ -110,11 +111,45 @@ def main():
     excluded = sum(1 for r in records if not r["auth_ok"] or r["event_type"] == "replay")
     print(f"built {len(triples)} triples (excluded {excluded} rejected/auth_ok=False/replay records)")
 
+    # UNLEARNABLE-CLASS EXCLUSION. 'combined' is the stealthy_forged_values
+    # scenario: a compromised device reporting deliberately innocuous, fully
+    # in-range values behind valid credentials. docs/04_module3_trust_
+    # evaluation.md Section B.8 states plainly that this is NOT detectable
+    # from telemetry -- its feature vectors are, by construction, drawn from
+    # the same distribution as genuinely normal ones. A policy keyed on
+    # (security_trust, process_trust) therefore cannot separate it from
+    # normal traffic, and training against it does not teach detection: it
+    # only teaches the policy to BLOCK the region where normal traffic lives.
+    # With inverse-frequency weighting that effect was severe -- measured on
+    # state 9,8 (security 0.9-1.0, process 0.8-0.9): 3295 genuinely normal
+    # messages vs 69 stealthy ones, a 48:1 legitimate majority, which the
+    # 22.66x 'combined' weight flipped to 1564 vs 948 of weighted reward mass.
+    # The trained policy answered BLOCK for a healthy device at security=0.91
+    # / process=0.87, where the static 2x2 table (policy_engine.decide())
+    # correctly answers ALLOW. Excluding the class restores a monotonic policy
+    # (ALERT while the process score is low, ALLOW once it recovers) and keeps
+    # inverse-frequency weighting for physical_fault/security_concern, which
+    # ARE separable in this state space and still drive ALERT/STEP_UP.
+    # BLOCK remains reachable: the static table still returns it for the
+    # low-security/low-process quadrant, and gateway.py forces it outright on
+    # a failed step-up challenge.
+    triples = [t for t in triples if t[2] != "combined"]
+    print(f"excluded 'combined'/stealthy_forged_values triples as unlearnable from this "
+          f"state space (see comment above) -- {len(triples)} triples remain")
+
     weights = situation_weights(triples)
     print(f"situation weights (inverse-frequency, mirrors train_fusion_meta_learner.py's "
           f"class_weight='balanced'): {dict(sorted(weights.items()))}")
 
+    # Reproducible, from-scratch training. AdaptivePDP() loads any existing
+    # adaptive_pdp_qtable.json in its constructor -- reset to empty so a
+    # re-run trains fresh against the current dataset instead of accumulating
+    # onto a stale prior table (whose states may no longer even be reachable
+    # if the data changed). random.seed() pins epsilon-greedy exploration so
+    # the committed Q-table is reproducible from the same inputs.
+    random.seed(0)
     pdp = AdaptivePDP()
+    pdp.q = {}
     for episode in range(RL_TRAINING_EPISODES):
         total_reward = 0.0
         for security_trust, process_trust, situation in triples:

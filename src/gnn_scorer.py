@@ -31,7 +31,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from config import DEVICE_REGISTRY, GNN_EDGE_WINDOW_SECONDS, GNN_HIDDEN_SIZE, GNN_NUM_LAYERS, GNN_NODE_FEATURE_DIM, GNN_MODEL_PATH
+from config import DEVICE_REGISTRY, GNN_EDGE_WINDOW_SECONDS, GNN_HIDDEN_SIZE, GNN_NUM_LAYERS, GNN_NODE_FEATURE_DIM, GNN_MODEL_PATH, GNN_SELF_LOOP_WEIGHT
 
 torch.manual_seed(0)
 
@@ -71,9 +71,10 @@ class _GCN(nn.Module):
 
 
 def normalized_adjacency(active_mask: np.ndarray) -> torch.Tensor:
-    """A_hat = D^-1/2 (A+I) D^-1/2, edge between any two ACTIVE devices."""
+    """A_hat = D^-1/2 (A + wI) D^-1/2, edge between any two ACTIVE devices.
+    w is config.GNN_SELF_LOOP_WEIGHT -- see there for why it is not 1."""
     n = len(active_mask)
-    a = np.eye(n)
+    a = np.eye(n) * GNN_SELF_LOOP_WEIGHT
     for i in range(n):
         for j in range(n):
             if i != j and active_mask[i] and active_mask[j]:

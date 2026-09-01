@@ -4,7 +4,8 @@ Module 3, Phase 6b: LSTM-Autoencoder anomaly scorer -- INFERENCE ONLY.
 CLAUDE.md Section 8: training happens offline in scripts/train_lstm_ae.py,
 which imports `LSTMAutoencoder` from this file (one architecture
 definition, not two copies) and saves a trained state dict + normalization
-stats to config.LSTM_AE_MODEL_PATH / LSTM_AE_META_PATH. This file's
+stats per feature_vector device to config.lstm_ae_path(device_id) /
+lstm_ae_meta_path(device_id). This file's
 `LSTMAEScorer` only ever loads those artifacts and runs a forward pass --
 it never calls `.fit()` or updates weights in the live gateway path.
 
@@ -23,7 +24,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from config import LSTM_SEQ_LEN, LSTM_HIDDEN_SIZE, LSTM_NUM_LAYERS, LSTM_AE_MODEL_PATH, LSTM_AE_META_PATH, FEATURE_NAMES
+from config import LSTM_SEQ_LEN, LSTM_HIDDEN_SIZE, LSTM_NUM_LAYERS, lstm_ae_path, lstm_ae_meta_path, FEATURE_VECTOR_DEVICE_IDS, FEATURE_NAMES
 
 torch.manual_seed(0)
 
@@ -68,27 +69,34 @@ class LSTMAEScorer:
     at construction; `score()` is a pure forward pass, no training."""
 
     def __init__(self):
-        self.model: LSTMAutoencoder | None = None
-        self.mean = np.zeros(INPUT_DIM)
-        self.std = np.ones(INPUT_DIM)
-        self.baseline_error_mean = 0.0
-        self.baseline_error_std = 1.0
+        # Per-device registry: one trained model + one set of normalization/
+        # baseline-error stats PER feature_vector device (keyed by device_id).
+        # A device's raw feature scale and its normal reconstruction-error
+        # distribution are both device-specific, so BOTH the model and its
+        # stats must be per device -- sharing either would misjudge a second
+        # board. `_history` was already per-device.
+        self.models: dict[str, LSTMAutoencoder] = {}
+        self.stats: dict[str, dict] = {}     # device_id -> {mean, std, baseline_error_mean, baseline_error_std}
         self._history: dict[str, list] = {}  # per-device rolling window of feature vectors
         self._load()
 
     def _load(self):
-        if not (os.path.exists(LSTM_AE_MODEL_PATH) and os.path.exists(LSTM_AE_META_PATH)):
-            return  # not trained yet -- score() will defer to the neutral fallback
-        model = LSTMAutoencoder()
-        model.load_state_dict(torch.load(LSTM_AE_MODEL_PATH, map_location=_TORCH_DEVICE, weights_only=True))
-        model.eval()
-        self.model = model.to(_TORCH_DEVICE)
-        with open(LSTM_AE_META_PATH) as f:
-            meta = json.load(f)
-        self.mean = np.array(meta["mean"])
-        self.std = np.array(meta["std"])
-        self.baseline_error_mean = meta["baseline_error_mean"]
-        self.baseline_error_std = meta["baseline_error_std"]
+        for device_id in FEATURE_VECTOR_DEVICE_IDS:
+            model_path, meta_path = lstm_ae_path(device_id), lstm_ae_meta_path(device_id)
+            if not (os.path.exists(model_path) and os.path.exists(meta_path)):
+                continue  # no model for this device yet -- score() defers to the neutral fallback
+            model = LSTMAutoencoder()
+            model.load_state_dict(torch.load(model_path, map_location=_TORCH_DEVICE, weights_only=True))
+            model.eval()
+            self.models[device_id] = model.to(_TORCH_DEVICE)
+            with open(meta_path) as f:
+                meta = json.load(f)
+            self.stats[device_id] = {
+                "mean": np.array(meta["mean"]),
+                "std": np.array(meta["std"]),
+                "baseline_error_mean": meta["baseline_error_mean"],
+                "baseline_error_std": meta["baseline_error_std"],
+            }
 
     def score(self, device_id: str, feature_vec: list[float]) -> float:
         """Feeds one new feature vector into this device's rolling window
@@ -99,27 +107,29 @@ class LSTMAEScorer:
         if len(window) > LSTM_SEQ_LEN:
             del window[0]
 
-        if self.model is None or len(window) < LSTM_SEQ_LEN:
-            return 0.9  # not trained yet, or not enough history for this device -- defer
+        model = self.models.get(device_id)
+        if model is None or len(window) < LSTM_SEQ_LEN:
+            return 0.9  # no model for this device, or not enough history yet -- defer
 
-        arr = (np.array(window, dtype=np.float32) - self.mean) / self.std
+        st = self.stats[device_id]
+        arr = (np.array(window, dtype=np.float32) - st["mean"]) / st["std"]
         x = torch.tensor(arr, dtype=torch.float32, device=_TORCH_DEVICE).unsqueeze(0)  # (1, seq_len, input_dim)
         with torch.no_grad():
-            recon = self.model(x)
+            recon = model(x)
             error = float(((recon - x) ** 2).mean())
 
-        z = (error - self.baseline_error_mean) / self.baseline_error_std
-        return float(np.clip(0.9 - 0.25 * max(z, 0.0), 0.0, 1.0))
+        return self._error_to_score(device_id, error)
 
-    def is_trained(self) -> bool:
-        return self.model is not None
+    def is_trained(self, device_id: str | None = None) -> bool:
+        return bool(self.models) if device_id is None else device_id in self.models
 
-    def _error_to_score(self, error: float) -> float:
+    def _error_to_score(self, device_id: str, error: float) -> float:
         """Same rescaling score() uses -- factored out so level2_explain()'s
         counterfactual error can be turned into a counterfactual SCORE on
-        the same scale, for the C.4 validation procedure
+        the same (per-device) scale, for the C.4 validation procedure
         (scripts/evaluate_explainability_level2.py)."""
-        z = (error - self.baseline_error_mean) / self.baseline_error_std
+        st = self.stats[device_id]
+        z = (error - st["baseline_error_mean"]) / st["baseline_error_std"]
         return float(np.clip(0.9 - 0.25 * max(z, 0.0), 0.0, 1.0))
 
     def level2_explain(self, device_id: str) -> tuple[str, float, float] | None:
@@ -137,20 +147,22 @@ class LSTMAEScorer:
         have scored with that one channel replaced, feeding Section C.4's
         validation procedure -- or None if there isn't a full window yet."""
         window = self._history.get(device_id)
-        if self.model is None or not window or len(window) < LSTM_SEQ_LEN:
+        model = self.models.get(device_id)
+        if model is None or not window or len(window) < LSTM_SEQ_LEN:
             return None
 
-        arr = (np.array(window, dtype=np.float32) - self.mean) / self.std
+        st = self.stats[device_id]
+        arr = (np.array(window, dtype=np.float32) - st["mean"]) / st["std"]
         x = torch.tensor(arr, dtype=torch.float32, device=_TORCH_DEVICE).unsqueeze(0)
         with torch.no_grad():
-            base_error = float(((self.model(x) - x) ** 2).mean())
+            base_error = float(((model(x) - x) ** 2).mean())
 
             best_name, best_drop, best_cf_error = None, -1.0, base_error
             for c, name in enumerate(FEATURE_NAMES):
                 perturbed = x.clone()
                 perturbed[:, :, c] = 0.0  # 0.0 in NORMALIZED space == this channel's own training mean
-                perturbed_error = float(((self.model(perturbed) - perturbed) ** 2).mean())
+                perturbed_error = float(((model(perturbed) - perturbed) ** 2).mean())
                 drop = base_error - perturbed_error
                 if drop > best_drop:
                     best_name, best_drop, best_cf_error = name, drop, perturbed_error
-        return (best_name, best_drop, self._error_to_score(best_cf_error)) if best_name is not None else None
+        return (best_name, best_drop, self._error_to_score(device_id, best_cf_error)) if best_name is not None else None

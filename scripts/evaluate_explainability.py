@@ -34,7 +34,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from config import DATA_COLLECTED_DIR
+from config import DATA_COLLECTED_DIR, is_feature_vector
 import feature_engineering as fe
 from trust_engine import rule_range_score
 from isolation_forest_scorer import IsolationForestScorer
@@ -86,9 +86,9 @@ def main():
         # filter above and this file's module docstring for why
         # forged_signature/replay/high_rate/stealthy_forged_values are
         # excluded before ever reaching this point.
-        if device_id == "esp32-vib-001":
+        if is_feature_vector(device_id):
             fv = fe.feature_vector(r["reading"])
-            if_score = if_scorer.score(fv)
+            if_score = if_scorer.score(device_id, fv)
             lstm_score = lstm_scorer.score(device_id, fv)
         else:
             if_score = lstm_score = rule_score

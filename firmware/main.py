@@ -1,14 +1,17 @@
 # firmware/main.py -- runs on the ESP32 under MicroPython (CLAUDE.md Section 3).
 #
 # TWO-SCORE REARCHITECTURE additions (mirrors src/device_simulator.py --
-# see that file and src/trust_engine.py for the full rationale). NONE of
-# this has been run on real hardware yet (no board has been flashed at the
-# time of writing -- see SESSION_LOG.md); it is verified only the way the
-# rest of this file's HMAC/canonicalisation logic was originally verified,
-# by hand-checking the string-building logic against the Python-side
-# equivalent, not by a live board round trip. Budget real debugging time
-# for this on first flash, same as every other integration point this file
-# already flags.
+# see that file and src/trust_engine.py for the full rationale). This HAS
+# now been run on real hardware: the board authenticates and publishes
+# live, and the HMAC/canonicalisation path is confirmed by hundreds of
+# consecutive gateway-accepted messages with zero hmac_mismatch, which is
+# a stronger check than the hand-comparison it originally shipped with
+# (canonical_json() here must reproduce Python's
+# json.dumps(payload, sort_keys=True) byte-for-byte or every message would
+# be rejected). The on-device feature math is separately verified against
+# src/feature_engineering.py, the reference implementation -- all five
+# features now agree exactly (see the trig note further down for the one
+# real bug that check found).
 #
 #   - boot_id: read the persisted counter from a local file (this board's
 #     flash-equivalent of docs/01_simulation_and_hardware_abstraction.md
@@ -30,6 +33,7 @@
 # Required libraries: as before, plus `ntptime` (bundled with standard
 # MicroPython ESP32 builds).
 
+import math
 import network
 import time
 import ujson
@@ -45,33 +49,25 @@ from machine import I2C, Pin
 from umqtt.simple import MQTTClient
 
 # ==================== CONFIGURE BEFORE FLASHING ====================
-
 WIFI_SSID = "YOUR_WIFI_SSID"
 WIFI_PASSWORD = "YOUR_WIFI_PASSWORD"
-MQTT_HOST = "192.168.x.x"          # your gateway machine's LAN IP -- see firmware/HARDWARE_SETUP.md
-MQTT_TLS_PORT = 8883               # matches config.MQTT_TLS_PORT; switches on automatically once certs/ exists
-MQTT_USE_TLS = True                # set False only for initial bring-up/debugging over plaintext 1883
+MQTT_HOST = "192.168.x.x"          # your gateway machine LAN IP -- see firmware/HARDWARE_SETUP.md
+MQTT_TLS_PORT = 8883
+MQTT_USE_TLS = True
 DEVICE_ID = "esp32-vib-001"
-# Must exactly match src/secrets_local.py's DEVICE_SECRETS["esp32-vib-001"]
-# (payload HMAC) -- that file is gitignored and holds the real value; copy
-# it in here before flashing, never commit the real value to this file.
 DEVICE_SECRET = "CHANGE-ME-match-secrets_local.py-DEVICE_SECRETS"
-# MQTT broker login (separate from DEVICE_SECRET above -- transport layer,
-# not application layer, IEC 62443 FR5). Must exactly match
-# src/secrets_local.py's MQTT_PASSWORDS["esp32-vib-001"] and
-# certs/mosquitto_passwd. Only used if the broker has auth enabled.
 MQTT_USE_AUTH = True
 MQTT_USERNAME = "esp32-vib-001"
 MQTT_PASSWORD = "CHANGE-ME-match-secrets_local.py-MQTT_PASSWORDS"
 
-MPU6050_I2C_ADDR = 0x68            # default address when AD0 is tied to GND
+MPU6050_I2C_ADDR = 0x68
 
 TELEMETRY_TOPIC = b"cps/telemetry"
 DECISION_TOPIC = ("cps/decisions/" + DEVICE_ID).encode()
-CHALLENGE_TOPIC = ("cps/challenge/" + DEVICE_ID).encode()   # Module 2 Section 7 step-up
-BOOT_ID_FILE = "boot_id.txt"                                 # flash-equivalent persisted counter
-SAMPLE_RATE_HZ = 100                # matches config.FEATURE_SAMPLE_RATE_HZ
-WINDOW_SIZE = 32                    # matches config.FEATURE_WINDOW_SIZE
+CHALLENGE_TOPIC = ("cps/challenge/" + DEVICE_ID).encode()
+BOOT_ID_FILE = "boot_id.txt"
+SAMPLE_RATE_HZ = 100
+WINDOW_SIZE = 32
 PUBLISH_INTERVAL_MS = 2000
 # =====================================================================
 
@@ -251,16 +247,23 @@ def _dominant_frequency(window, mean, sample_rate_hz):
     return best_freq
 
 
+# Real trig from MicroPython's built-in `math` module (present in every
+# standard ESP32 build -- this port has hardware float). This REPLACED a
+# hand-rolled truncated-Taylor _sin()/_cos() pair, which was accurate only
+# near zero: measured max error 7.5e-2 across [0, 2pi], which corrupted the
+# DFT above badly enough to select the WRONG dominant_freq bin in 57 of 300
+# test windows (19%), off by as much as 46.9 Hz. That mattered beyond the
+# feature itself: src/feature_engineering.py is the reference implementation
+# the models are TRAINED against, so a firmware-only frequency error is a
+# silent train/serve skew present on real telemetry and absent from every
+# simulated row. With math.sin/math.cos the firmware reproduces
+# feature_engineering.dominant_frequency() exactly (0/300 mismatches).
 def _sin(x):
-    x = x % (2 * 3.14159265358979)
-    if x > 3.14159265358979:
-        x -= 2 * 3.14159265358979
-    x2 = x * x
-    return x * (1 - x2 / 6 * (1 - x2 / 20 * (1 - x2 / 42)))
+    return math.sin(x)
 
 
 def _cos(x):
-    return _sin(x + 1.5707963267948966)
+    return math.cos(x)
 
 
 def sample_window():

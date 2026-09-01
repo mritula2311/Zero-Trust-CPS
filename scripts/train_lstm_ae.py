@@ -25,11 +25,12 @@ import torch.nn as nn
 from config import (
     DATA_COLLECTED_DIR,
     MODELS_DIR,
-    LSTM_AE_MODEL_PATH,
-    LSTM_AE_META_PATH,
+    lstm_ae_path,
+    lstm_ae_meta_path,
     LSTM_SEQ_LEN,
     LSTM_EPOCHS,
     LSTM_LEARNING_RATE,
+    FEATURE_VECTOR_DEVICE_IDS,
     FEATURE_NAMES,
 )
 import feature_engineering as fe
@@ -38,18 +39,19 @@ from lstm_ae_scorer import LSTMAutoencoder, _TORCH_DEVICE
 SESSION_PATH = os.path.join(DATA_COLLECTED_DIR, "training_session.json")
 
 
-def main():
+def train_one(records, device_id) -> bool:
+    """Trains ONE device's LSTM-AE + normalization/baseline stats on ITS OWN
+    normal readings, saving both to that device's per-device paths. Returns
+    True if trained, False if too few examples (skipped, not fatal)."""
     torch.manual_seed(0)
-    with open(SESSION_PATH) as f:
-        records = json.load(f)
-
     normal = [
         r for r in records
-        if r["device_id"] == "esp32-vib-001" and r["label"] == 1 and r["auth_ok"]
+        if r["device_id"] == device_id and r["label"] == 1 and r["auth_ok"]
     ]
     normal.sort(key=lambda r: r["tick"])
     if len(normal) < LSTM_SEQ_LEN + 10:
-        raise SystemExit(f"only {len(normal)} normal examples -- need more, re-run generate_training_data.py")
+        print(f"[skip] {device_id}: only {len(normal)} normal examples -- no model trained")
+        return False
 
     raw = np.array([fe.feature_vector(r["reading"]) for r in normal], dtype=np.float32)
     mean = raw.mean(axis=0)
@@ -58,7 +60,6 @@ def main():
     normalized = (raw - mean) / std
 
     windows = np.stack([normalized[i:i + LSTM_SEQ_LEN] for i in range(len(normalized) - LSTM_SEQ_LEN + 1)])
-    print(f"training device: {_TORCH_DEVICE}")
     x = torch.tensor(windows, dtype=torch.float32, device=_TORCH_DEVICE)
 
     model = LSTMAutoencoder().to(_TORCH_DEVICE)
@@ -72,7 +73,7 @@ def main():
         loss.backward()
         optimizer.step()
         if epoch % 20 == 0 or epoch == LSTM_EPOCHS - 1:
-            print(f"  epoch {epoch}: loss={loss.item():.5f}")
+            print(f"  [{device_id}] epoch {epoch}: loss={loss.item():.5f}")
 
     model.eval()
     with torch.no_grad():
@@ -82,8 +83,8 @@ def main():
     baseline_error_std = float(per_window_error.std()) or 1e-3
 
     os.makedirs(MODELS_DIR, exist_ok=True)
-    torch.save(model.state_dict(), LSTM_AE_MODEL_PATH)
-    with open(LSTM_AE_META_PATH, "w") as f:
+    torch.save(model.state_dict(), lstm_ae_path(device_id))
+    with open(lstm_ae_meta_path(device_id), "w") as f:
         json.dump({
             "mean": mean.tolist(),
             "std": std.tolist(),
@@ -92,8 +93,19 @@ def main():
             "feature_names": FEATURE_NAMES,
         }, f, indent=1)
 
-    print(f"trained LSTM-AE on {len(windows)} windows ({len(normal)} normal readings), saved to {LSTM_AE_MODEL_PATH}")
-    print(f"baseline reconstruction error: mean={baseline_error_mean:.5f} std={baseline_error_std:.5f}")
+    print(f"[{device_id}] trained LSTM-AE on {len(windows)} windows ({len(normal)} normal readings) "
+          f"-> {lstm_ae_path(device_id)} (baseline err mean={baseline_error_mean:.5f} std={baseline_error_std:.5f})")
+    return True
+
+
+def main():
+    print(f"training device: {_TORCH_DEVICE}")
+    with open(SESSION_PATH) as f:
+        records = json.load(f)
+    trained = sum(train_one(records, d) for d in FEATURE_VECTOR_DEVICE_IDS)
+    if trained == 0:
+        raise SystemExit("no feature_vector device had enough normal examples -- re-run generate_training_data.py")
+    print(f"trained {trained}/{len(FEATURE_VECTOR_DEVICE_IDS)} per-device LSTM-AE model(s)")
 
 
 if __name__ == "__main__":

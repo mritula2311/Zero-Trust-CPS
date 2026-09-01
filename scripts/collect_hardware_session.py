@@ -197,7 +197,15 @@ def attach_fused_scores(audit_rows):
         if wall_time is None:
             continue
         best = min(audit_rows, key=lambda row: abs(row[0] - wall_time))
-        if abs(best[0] - wall_time) <= FUSED_MATCH_TOLERANCE_S:
+        # Require BOTH scores to be non-None before attaching: the nearest
+        # match can be a SILENT (watchdog) or otherwise process-less audit row
+        # for esp32-vib-001, whose fused_score/security_trust_score columns are
+        # NULL. Attaching a None fused_score still sets "fused_score" in r,
+        # which would then crash write_outputs()'s sum() over the per-phase
+        # averages. Leaving them unattached falls through to the "n/a (no
+        # gateway match)" path there instead.
+        if (abs(best[0] - wall_time) <= FUSED_MATCH_TOLERANCE_S
+                and best[3] is not None and best[2] is not None):
             r["decision"] = best[1]
             r["security_trust_score"] = best[2]
             r["fused_score"] = best[3]

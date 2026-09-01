@@ -43,7 +43,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 import numpy as np
 
-from config import DATA_COLLECTED_DIR, LSTM_SEQ_LEN
+from config import DATA_COLLECTED_DIR, LSTM_SEQ_LEN, is_feature_vector
 import feature_engineering as fe
 from trust_engine import rule_range_score
 from isolation_forest_scorer import IsolationForestScorer
@@ -90,9 +90,9 @@ def score_all_signals(records):
         if len(lw) > LSTM_SEQ_LEN:
             del lw[0]
 
-        if device_id == "esp32-vib-001":
+        if is_feature_vector(device_id):
             fv = fe.feature_vector(r["reading"])
-            if_score = if_scorer.score(fv)
+            if_score = if_scorer.score(device_id, fv)
             lstm_score = lstm_scorer.score(device_id, fv)
             transformer_score = transformer_scorer.score(device_id, fv)
         else:

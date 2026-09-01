@@ -63,6 +63,7 @@ from config import (
     FEATURE_SAMPLE_RATE_HZ,
     FEATURE_WINDOW_SIZE,
     REAL_HARDWARE_DEVICE_IDS,
+    is_feature_vector,
 )
 import feature_engineering as fe
 
@@ -117,14 +118,24 @@ def _make_on_message(device_id: str, secret: str):
     return _on_message, decision_topic, challenge_topic
 
 
+# At-rest noise std of the synthetic baseline. CALIBRATED TO REAL HARDWARE
+# (firmware/HARDWARE_DATA_LOG.md): the real MPU6050 at rest produces
+# peak-to-peak ~0.01-0.03g and crest_factor ~0.01-0.03, i.e. a per-sample std
+# of ~0.005g -- MUCH quieter than the original synthetic 0.03 (which gave
+# peak/crest ~0.15 and made every real at-rest reading look anomalous to the
+# ML scorers, the train/serve gap seen on first bring-up). 0.006 makes the
+# synthetic stand-in match what the real board actually reports, so one
+# coherent "normal" distribution covers both simulated and real telemetry.
+REST_NOISE_STD = 0.006
+
+
 def _synthetic_accel_window(anomalous: bool, coordinated: bool = False) -> list[float]:
     """Fabricated raw accel-magnitude samples standing in for what the real
-    MPU6050 would produce -- quiet baseline (~1g + small noise) normally,
-    an impulsive SINGLE-sample shock when `anomalous`, a milder
-    multi-sample elevation when `coordinated` (see module docstring in the
-    original file for the kurtosis-shape reasoning)."""
+    MPU6050 would produce -- quiet baseline (~1g + REST_NOISE_STD noise,
+    matched to the real board) normally, an impulsive SINGLE-sample shock
+    when `anomalous`, a milder multi-sample elevation when `coordinated`."""
     n = FEATURE_WINDOW_SIZE
-    baseline = [max(0.0, random.gauss(1.0, 0.03)) for _ in range(n)]
+    baseline = [max(0.0, random.gauss(1.0, REST_NOISE_STD)) for _ in range(n)]
     if anomalous:
         baseline[random.randrange(n)] = random.uniform(3.0, 4.5)
     elif coordinated:
@@ -141,7 +152,7 @@ def make_reading(device_id: str, anomalous: bool = False, coordinated: bool = Fa
     stealthy_forged_values scenario is that the REPORTED values are
     deliberately innocuous even though the situation (ground truth, for
     training/eval only) is not."""
-    if device_id == "esp32-vib-001":
+    if is_feature_vector(device_id):
         if stealthy:
             window = _synthetic_accel_window(anomalous=False, coordinated=False)
         else:

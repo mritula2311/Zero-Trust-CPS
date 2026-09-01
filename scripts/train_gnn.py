@@ -26,6 +26,7 @@ from config import (
     GNN_EPOCHS,
     GNN_LEARNING_RATE,
     DEVICE_REGISTRY,
+    is_feature_vector,
 )
 import feature_engineering as fe
 from trust_engine import rule_range_score
@@ -75,6 +76,9 @@ def build_snapshots(records):
     nothing in the features to justify it."""
     if_scorer = IsolationForestScorer()
     lstm_scorer = LSTMAEScorer()
+    # adjacency for "this device has no active neighbour" -- see the
+    # augmentation comment below. All-inactive mask => self-loops only => identity.
+    _ISOLATED_A_HAT = normalized_adjacency(np.zeros(len(DEVICE_IDS), dtype=bool)).numpy()
 
     last_features = np.full((len(DEVICE_IDS), 3), 0.9, dtype=np.float32)
     last_label = np.ones(len(DEVICE_IDS), dtype=np.float32)
@@ -89,9 +93,9 @@ def build_snapshots(records):
         i = INDEX[device_id]
         rule_score, _ = rule_range_score(device_id, r["reading"])
 
-        if device_id == "esp32-vib-001":
+        if is_feature_vector(device_id):
             fv = fe.feature_vector(r["reading"])
-            if_score = if_scorer.score(fv)
+            if_score = if_scorer.score(device_id, fv)
             lstm_score = lstm_scorer.score(device_id, fv)
         else:
             # scalar devices have no independent IF/LSTM-AE model -- mirror
@@ -108,6 +112,24 @@ def build_snapshots(records):
         a_hat = normalized_adjacency(active)
 
         snapshots.append((last_features.copy(), a_hat.numpy(), last_label.copy()))
+
+        # ISOLATED-TOPOLOGY AUGMENTATION. The live gateway routinely scores a
+        # device with NO active neighbour -- a real board publishing while the
+        # simulated devices are stopped is the normal single-device deployment,
+        # not an edge case. In that topology a_hat is the identity, so each
+        # node's output depends only on its own features, and the activation
+        # scale differs sharply from the 3-active-node case (a_hat entries 1.0
+        # vs 1/3). The un-augmented session covers that topology ONLY with the
+        # merged real-hardware records, which are all label=1 -- so the GCN
+        # learned "no neighbours => normal" and saturated to ~1.0 on isolated
+        # snapshots regardless of the evidence, scoring a genuinely shaken
+        # board (rms=2.5, isolation_forest=0.00, lstm_ae=0.40) at 1.000 and
+        # masking a real anomaly. Emitting the isolated variant of EVERY
+        # snapshot covers that topology with the same class balance as the
+        # connected one. Labels are unchanged and stay correct per node:
+        # with an identity adjacency each node is scored purely on its own
+        # last-known features, which is exactly what its own label describes.
+        snapshots.append((last_features.copy(), _ISOLATED_A_HAT, last_label.copy()))
 
     return snapshots
 

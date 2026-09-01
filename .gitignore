@@ -31,6 +31,16 @@ data/audit_log.db
 src/data/audit_log.db
 *.db
 
+# Rotated audit archives (audit_log.py's rotation writes
+# <name>.archived-<date>_rotate). These are NOT matched by the *.db rule
+# above -- the suffix comes after the extension -- so they need their own
+# rule or a 23MB rotated audit database lands in a commit. They are local
+# tamper-evident runtime evidence tied to this machine's audit key, and
+# the checkpoint archive is derived from data/audit_key.bin, which is
+# itself never committed: publishing either is both useless to a cloner
+# and a needless disclosure of this deployment's decision history.
+*.archived-*
+
 # gateway.py's own boot_id counter (decision-channel anti-replay,
 # RESULTS.md Section 14 item 3) -- same treatment as firmware/main.py's
 # boot_id.txt on the device side: local runtime state, not source.

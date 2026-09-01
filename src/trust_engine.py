@@ -411,7 +411,12 @@ class RuleBasedTrustEngine:
         auth_st = self._get_auth_state(device_id)
         now = time.time()
 
-        elapsed = now - st.last_updated_at
+        # max(0.0, ...): a backward wall-clock step (NTP correction, manual
+        # adjustment) would otherwise make elapsed negative -> decay negative
+        # -> st.score - decay INFLATES the score, spuriously raising a device's
+        # security trust toward 1.0 for a reason that has nothing to do with
+        # its behaviour. Trust may only decay with time, never grow from it.
+        elapsed = max(0.0, now - st.last_updated_at)
         decay = min(0.3, TRUST_DECAY_PER_SECOND * elapsed)
         st.score = max(0.0, st.score - decay)
 
@@ -448,7 +453,7 @@ class RuleBasedTrustEngine:
         st = self.security_state.get(device_id)
         if st is None:
             return 0.8
-        elapsed = time.time() - st.last_updated_at
+        elapsed = max(0.0, time.time() - st.last_updated_at)  # never let a backward clock inflate trust (see score_security_trust)
         decay = min(0.3, TRUST_DECAY_PER_SECOND * elapsed)
         return round(max(0.0, st.score - decay), 3)
 

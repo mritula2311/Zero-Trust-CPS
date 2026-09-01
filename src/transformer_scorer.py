@@ -5,8 +5,9 @@ anomaly scorer -- INFERENCE ONLY.
 Same split as lstm_ae_scorer.py: training happens offline in
 scripts/train_transformer.py, which imports `TransformerAutoencoder` from
 this file (one architecture definition) and saves a trained state dict +
-normalization/baseline-error stats to config.TRANSFORMER_MODEL_PATH /
-TRANSFORMER_META_PATH. This file's `TransformerScorer` only ever loads
+normalization/baseline-error stats per feature_vector device to
+config.transformer_path(device_id) / transformer_meta_path(device_id).
+This file's `TransformerScorer` only ever loads
 those artifacts and runs a forward pass.
 
 NOT wired into fusion_engine.py -- this is an ablation candidate, scored
@@ -38,8 +39,9 @@ from config import (
     TRANSFORMER_NUM_LAYERS,
     TRANSFORMER_DIM_FEEDFORWARD,
     TRANSFORMER_DROPOUT,
-    TRANSFORMER_MODEL_PATH,
-    TRANSFORMER_META_PATH,
+    transformer_path,
+    transformer_meta_path,
+    FEATURE_VECTOR_DEVICE_IDS,
     FEATURE_NAMES,
 )
 
@@ -99,27 +101,31 @@ class TransformerScorer:
     into scripts/evaluate_ablation.py as one more column."""
 
     def __init__(self):
-        self.model: TransformerAutoencoder | None = None
-        self.mean = np.zeros(INPUT_DIM)
-        self.std = np.ones(INPUT_DIM)
-        self.baseline_error_mean = 0.0
-        self.baseline_error_std = 1.0
+        # Per-device registry (same rationale as LSTMAEScorer): one model +
+        # one set of normalization/baseline-error stats per feature_vector
+        # device.
+        self.models: dict[str, TransformerAutoencoder] = {}
+        self.stats: dict[str, dict] = {}
         self._history: dict[str, list] = {}
         self._load()
 
     def _load(self):
-        if not (os.path.exists(TRANSFORMER_MODEL_PATH) and os.path.exists(TRANSFORMER_META_PATH)):
-            return  # not trained yet -- score() will defer to the neutral fallback
-        model = TransformerAutoencoder()
-        model.load_state_dict(torch.load(TRANSFORMER_MODEL_PATH, map_location=_TORCH_DEVICE, weights_only=True))
-        model.eval()
-        self.model = model.to(_TORCH_DEVICE)
-        with open(TRANSFORMER_META_PATH) as f:
-            meta = json.load(f)
-        self.mean = np.array(meta["mean"])
-        self.std = np.array(meta["std"])
-        self.baseline_error_mean = meta["baseline_error_mean"]
-        self.baseline_error_std = meta["baseline_error_std"]
+        for device_id in FEATURE_VECTOR_DEVICE_IDS:
+            model_path, meta_path = transformer_path(device_id), transformer_meta_path(device_id)
+            if not (os.path.exists(model_path) and os.path.exists(meta_path)):
+                continue  # no model for this device yet -- score() defers to the neutral fallback
+            model = TransformerAutoencoder()
+            model.load_state_dict(torch.load(model_path, map_location=_TORCH_DEVICE, weights_only=True))
+            model.eval()
+            self.models[device_id] = model.to(_TORCH_DEVICE)
+            with open(meta_path) as f:
+                meta = json.load(f)
+            self.stats[device_id] = {
+                "mean": np.array(meta["mean"]),
+                "std": np.array(meta["std"]),
+                "baseline_error_mean": meta["baseline_error_mean"],
+                "baseline_error_std": meta["baseline_error_std"],
+            }
 
     def score(self, device_id: str, feature_vec: list[float]) -> float:
         """Feeds one new feature vector into this device's rolling window
@@ -131,24 +137,26 @@ class TransformerScorer:
         if len(window) > SEQ_LEN:
             del window[0]
 
-        if self.model is None or len(window) < SEQ_LEN:
-            return 0.9  # not trained yet, or not enough history for this device -- defer
+        model = self.models.get(device_id)
+        if model is None or len(window) < SEQ_LEN:
+            return 0.9  # no model for this device, or not enough history yet -- defer
 
-        arr = (np.array(window, dtype=np.float32) - self.mean) / self.std
+        st = self.stats[device_id]
+        arr = (np.array(window, dtype=np.float32) - st["mean"]) / st["std"]
         x = torch.tensor(arr, dtype=torch.float32, device=_TORCH_DEVICE).unsqueeze(0)  # (1, seq_len, input_dim)
         with torch.no_grad():
-            recon = self.model(x)
+            recon = model(x)
             error = float(((recon - x) ** 2).mean())
 
-        z = (error - self.baseline_error_mean) / self.baseline_error_std
-        return float(np.clip(0.9 - 0.25 * max(z, 0.0), 0.0, 1.0))
+        return self._error_to_score(device_id, error)
 
-    def is_trained(self) -> bool:
-        return self.model is not None
+    def is_trained(self, device_id: str | None = None) -> bool:
+        return bool(self.models) if device_id is None else device_id in self.models
 
-    def _error_to_score(self, error: float) -> float:
+    def _error_to_score(self, device_id: str, error: float) -> float:
         """Same rescaling score() uses -- see LSTMAEScorer._error_to_score()."""
-        z = (error - self.baseline_error_mean) / self.baseline_error_std
+        st = self.stats[device_id]
+        z = (error - st["baseline_error_mean"]) / st["baseline_error_std"]
         return float(np.clip(0.9 - 0.25 * max(z, 0.0), 0.0, 1.0))
 
     def level2_explain(self, device_id: str) -> tuple[str, float, float] | None:
@@ -166,20 +174,22 @@ class TransformerScorer:
         (feature_name, error_drop, counterfactual_score) -- see
         LSTMAEScorer.level2_explain()'s docstring for what each means."""
         window = self._history.get(device_id)
-        if self.model is None or not window or len(window) < SEQ_LEN:
+        model = self.models.get(device_id)
+        if model is None or not window or len(window) < SEQ_LEN:
             return None
 
-        arr = (np.array(window, dtype=np.float32) - self.mean) / self.std
+        st = self.stats[device_id]
+        arr = (np.array(window, dtype=np.float32) - st["mean"]) / st["std"]
         x = torch.tensor(arr, dtype=torch.float32, device=_TORCH_DEVICE).unsqueeze(0)
         with torch.no_grad():
-            base_error = float(((self.model(x) - x) ** 2).mean())
+            base_error = float(((model(x) - x) ** 2).mean())
 
             best_name, best_drop, best_cf_error = None, -1.0, base_error
             for c, name in enumerate(FEATURE_NAMES):
                 perturbed = x.clone()
                 perturbed[:, :, c] = 0.0
-                perturbed_error = float(((self.model(perturbed) - perturbed) ** 2).mean())
+                perturbed_error = float(((model(perturbed) - perturbed) ** 2).mean())
                 drop = base_error - perturbed_error
                 if drop > best_drop:
                     best_name, best_drop, best_cf_error = name, drop, perturbed_error
-        return (best_name, best_drop, self._error_to_score(best_cf_error)) if best_name is not None else None
+        return (best_name, best_drop, self._error_to_score(device_id, best_cf_error)) if best_name is not None else None

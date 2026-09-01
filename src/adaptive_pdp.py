@@ -28,7 +28,6 @@ from config import (
     RL_SECURITY_BUCKET_SIZE,
     RL_PROCESS_BUCKET_SIZE,
     RL_EPSILON,
-    RL_ALPHA,
     ADAPTIVE_PDP_MODEL_PATH,
 )
 from policy_engine import decide  # static 2x2 policy -- used only to seed a fresh Q-table state
@@ -49,14 +48,23 @@ CORRECT_ACTION_FOR_SITUATION = {
 
 
 def state_key(security_trust_score: float, process_trust_score: float) -> str:
-    security_bucket = int(security_trust_score / RL_SECURITY_BUCKET_SIZE)
-    process_bucket = int(process_trust_score / RL_PROCESS_BUCKET_SIZE)
+    # A score of exactly 1.0 (reachable: score_security_trust() clamps to
+    # min(1.0, ...) after a step-up SUCCESS boost) would otherwise produce
+    # int(1.0 / 0.1) == 10 -- one past the last valid bucket [0..9], a state
+    # the trained Q-table never contains and _build_qtable_view()'s range(10)
+    # never renders, silently dropping that message back to the seeded static
+    # action. Clamp into range so the top bucket owns the 1.0 endpoint.
+    n_security = int(round(1.0 / RL_SECURITY_BUCKET_SIZE))
+    n_process = int(round(1.0 / RL_PROCESS_BUCKET_SIZE))
+    security_bucket = min(int(security_trust_score / RL_SECURITY_BUCKET_SIZE), n_security - 1)
+    process_bucket = min(int(process_trust_score / RL_PROCESS_BUCKET_SIZE), n_process - 1)
     return f"{security_bucket},{process_bucket}"
 
 
 class AdaptivePDP:
     def __init__(self):
         self.q: dict[str, dict[str, float]] = {}
+        self._visit_counts: dict[tuple[str, str], int] = {}  # (state_key, action) -> visits; training-only, not saved
         self._load()
 
     def _load(self):
@@ -110,9 +118,28 @@ class AdaptivePDP:
     def update(self, security_trust_score: float, process_trust_score: float,
                action: str, reward: float) -> None:
         """OFFLINE-TRAINING-ONLY. scripts/train_adaptive_pdp.py calls this;
-        the live gateway never does."""
+        the live gateway never does.
+
+        Incremental SAMPLE AVERAGE (alpha = 1/N for the N-th visit to this
+        exact (state, action) pair), not the previous fixed-alpha
+        exponential moving average. One state bucket holds a MIXTURE of
+        ground-truth situations -- the same (security, process) bucket is
+        reached by genuinely normal messages and by attack messages alike --
+        so Q(s,a) is estimating an EXPECTATION over that mixture, and the
+        target is stationary. A fixed alpha=0.2 EMA tracks only the last
+        ~5 visits, leaving the stored value dominated by visit ORDER rather
+        than by the mixture's mean: measured on the trained table, every
+        action in the high-security/high-process states sat within 0.4 of
+        every other (e.g. state 9,8: BLOCK -0.3 vs ALLOW -0.7), so argmax
+        picked essentially at random and the live policy answered BLOCK for
+        a device with security=0.91 and process=0.87 -- which the static 2x2
+        table correctly answers ALLOW. A sample average converges to the
+        true expected reward instead, which is what the greedy argmax needs
+        to be meaningful."""
         q = self._get_q(security_trust_score, process_trust_score)
-        q[action] += RL_ALPHA * (reward - q[action])
+        key = (state_key(security_trust_score, process_trust_score), action)
+        self._visit_counts[key] = self._visit_counts.get(key, 0) + 1
+        q[action] += (reward - q[action]) / self._visit_counts[key]
 
     def save(self, path: str = ADAPTIVE_PDP_MODEL_PATH) -> None:
         os.makedirs(os.path.dirname(path), exist_ok=True)
