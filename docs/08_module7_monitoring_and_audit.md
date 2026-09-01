@@ -19,9 +19,15 @@
 > `process_trust_score`, `process_status`, `reason_category`, and
 > `identity_targeting_count_60s` alongside the legacy `trust_score` column
 > (kept as an alias of `security_trust_score` for backward compatibility).
-> Both live dashboards (Streamlit and the local web dashboard) show the
-> chain-verified indicator and the two independent score lines Section 4
-> asks for. `level2_dominant_feature`/`level2_summary` (this file's own
+> The live dashboard (`design/zero-trust-cps-command-center.html`, served
+> with a live overlay by `gateway.py` itself — see `gateway.py`'s Module 9
+> extension section, `SESSION_LOG.md` §29/§30) shows the chain-verified
+> indicator and the two independent score lines Section 4 below asks for.
+> A Streamlit dashboard (`dashboard.py`) was found during real-hardware
+> integration work to never have existed in the repo at all — Section 4
+> below is stale with respect to that, kept only for its still-accurate
+> panel-content requirements (Section 4.1), not as a description of what
+> actually runs. `level2_dominant_feature`/`level2_summary` (this file's own
 > Section 2 schema below already specified both) are now populated on
 > every authenticated message, not placeholders — `src/explainability.py`,
 > `docs/04_module3_trust_evaluation.md` Section C.
@@ -168,7 +174,7 @@ create_checkpoint():
 
 `verify_chain_integrity()` should be extended to also re-derive each stored checkpoint's HMAC using the separate audit key and confirm it matches both the stored value and the chain's actual state at `row_id_at_checkpoint`. If an attacker rewrites history *before* the most recent checkpoint and recomputes the in-database chain to stay internally consistent, the recomputed chain will no longer match the independently-stored checkpoint's `latest_chain_hash` — and that mismatch is what actually catches the attack this section exists to catch. This does not require a blockchain; it only requires that the checkpoint's storage and its audit key are kept separate from the database the checkpoint is protecting.
 
-## 4. Dashboard (Streamlit)
+## 4. Dashboard (original design intent — see AS-BUILT note above for what actually runs)
 
 ### 4.1 Panels
 
