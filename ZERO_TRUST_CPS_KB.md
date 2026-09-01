@@ -207,6 +207,16 @@ responses.
 - **NOT:** Never updates Q-values live (`update()` is training-only; the
   gateway calls `greedy_action()`).
 
+### `governance_validation.py` — Governance validation
+- **Ownership:** Independently checking that each NIST tenet's *claim* holds,
+  as distinct from whether it was *tagged*.
+- **Inputs:** A list of audit-log rows (nothing else).
+- **Outputs:** Per-tenet `{status, claim, method, falsifier, evidence, checked,
+  violations}`; `PASS | FAIL | UNFALSIFIABLE | INSUFFICIENT_DATA`.
+- **NOT:** Never reads live in-memory state — an assertion that depends on
+  trusting the running process is not independent of it. Never emits `PASS`
+  for a claim it could not test: it returns `UNFALSIFIABLE` instead.
+
 ### `audit_log.py` — Monitoring
 - **Ownership:** Hash-chained SQLite rows + a separately-keyed, separately-
   stored checkpoint file.
@@ -497,6 +507,24 @@ and `kurtosis` together; the best single-channel repair reaches ~33.7 against
 the ≤4.28 needed. Re-deriving this is wasted effort — the diagnosis is printed
 by `evaluate_explainability_level2.py` itself.
 
+**ADR-13 — Governance coverage and governance validation are reported
+separately, and coverage is labelled tautological where it is.**
+*Context:* `tenets_for_decision()` tags tenets 1/3/4/5/6 on every decision
+unconditionally. Reporting the resulting "100% coverage" as evidence of
+compliance overstates it: the number is 100% because the tagger always writes
+it, and no arrangement of the system could change that.
+*Chosen:* Keep coverage (it is the metric the synopsis names), but add
+`governance_validation.py` alongside it — falsifiable per-tenet checks over the
+audit log only — and state plainly in every surface (script output, dashboard
+panel, `RESULTS.md` §5.3) that coverage measures tagging while validation
+measures compliance. A falsifiability self-test injects each check's own
+falsifier and requires it to FAIL, so no check can be silently vacuous.
+*Rejected:* Making the tagger conditional so coverage drops below 100% and
+"looks earned" — that would corrupt the synopsis's own defined metric to flatter
+a different one, and still would not prove the claims hold.
+*Do not "simplify" this into one number.* The two answer different questions,
+and a reader who only sees the merged figure cannot tell which they are getting.
+
 ---
 
 ## 10. Roadmap & Milestones
@@ -576,7 +604,21 @@ own vector.
 
 ### Governance
 
-- **NIST SP 800-207: 7/7 tenets at 100%** across every logged decision.
+Two distinct claims, deliberately not conflated:
+
+- **Coverage** (`nist_mapping`) — **7/7 tenets at 100%** across every logged
+  decision. This measures *tagging*, and tenets 1/3/4/5/6 are tagged
+  unconditionally, so 100% there is true by construction, not a finding.
+- **Validation** (`governance_validation`) — **7/7 PASS** over 10,000 audit
+  rows. This measures whether the claim *holds*, reading only the hash-chained
+  log and naming what would falsify each check. Sharpest evidence: ALLOW rate
+  15% below the process threshold vs 91% above, and 0% vs 88% on the security
+  axis (tested per axis, so each score is shown to move the outcome on its own);
+  213 rejected rows, none of which reached an access decision; the learned
+  fusion moved the score away from the rule-only baseline on 100% of rows.
+- **Falsifiability self-test** — **6/6** checks reject their own falsifier when
+  it is injected as synthetic rows. Tenet 5 is excluded rather than assumed
+  (its falsifier is missing data, not a constructible row).
 - **IEC 62443-3-3:** FR1–FR4, FR6 **implemented** (100% of 8524 logged
   decisions); FR5, FR7 honestly **partial** — real transport controls exist,
   physical segmentation and redundancy do not.

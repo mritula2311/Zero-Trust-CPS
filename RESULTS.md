@@ -612,6 +612,91 @@ element, FR5/FR7 partial, and the `stealthy_forged_values` limit
 
 ---
 
+### 5.3 Governance VALIDATION (not coverage) — `src/governance_validation.py`
+
+Coverage and validation are different claims, and conflating them was a real
+weakness in the earlier write-up.
+
+`nist_mapping.tenets_for_decision()` attaches tenets **1, 3, 4, 5 and 6 to every
+decision unconditionally** — they describe the shape of the pipeline, so the
+tagger asserts them by construction. Their 100% coverage is therefore
+**tautological**: it is 100% because the tagger always writes it, and no
+arrangement of the system could make it anything else. Only tenets 2 (secured
+transport) and 7 (fusion trained) were ever gated on an actual condition.
+
+That makes coverage a measure of **tagging**, not of compliance. An examiner
+entitled to ask "how do you know tenet 4 is satisfied?" deserves better than
+"because we always put a 4 in that column."
+
+`src/governance_validation.py` answers the second question. Each tenet gets a
+check that reads **only the hash-chained audit log** — the same rows an external
+auditor would be handed, never live in-memory state — and each one names the
+observation that would falsify it:
+
+| Tenet | Claim validated | Fails if |
+|---|---|---|
+| 1 | Nothing is scored without first being a registered resource | An authenticated row whose `device_id` is not in the registry |
+| 2 | Every scored message arrived over an encrypted transport | An authenticated row on an unencrypted transport |
+| 3 | Every message is independently evaluated, never cached | A row granted access with no scores of its own |
+| 4 | The policy is driven by the trust state, **on each axis independently** | Equal ALLOW rate above and below a threshold |
+| 5 | Every registered asset is actually observed, including silent ones | A registered device with no audit rows at all |
+| 6 | No unauthenticated message received anything but rejection | Any `auth_ok=False` row carrying an access decision |
+| 7 | The learned models measurably change the outcome | `fused_score` identical to `rule_score` on every row |
+
+**Result over 10,000 audit rows: 7/7 PASS.** Selected evidence:
+
+- **T4** (the sharpest): ALLOW rate **15% below** the process threshold vs
+  **91% at or above**; **0% below** the security threshold vs **88% at or
+  above**. Tested per axis deliberately — a pooled mean is a weak test here,
+  since a window whose only non-ALLOW rows are security-driven `STEP_UP`s would
+  show almost no separation on the process axis and still pass by accident.
+  Testing each axis separately also directly exercises the two-score
+  architecture's central claim: each score must be able to move the outcome on
+  its own.
+- **T6** (most load-bearing): 213 rejected rows in the window, **none** of which
+  reached a scoring or access decision.
+- **T7**: 9771/9787 rows (100%) where the learned fusion moved the score away
+  from the rule-only baseline — so the ML pipeline is demonstrably contributing,
+  not decorative.
+- **T3**: all 3 devices changed decision within the window
+  (`esp32-vib-001: ALERT, ALLOW, BLOCK, STEP_UP`), which a cached once-per-session
+  grant could not produce.
+
+#### Falsifiability self-test — proving the checks are not vacuous
+
+A check that cannot fail is not a check. `evaluate_governance.py` therefore
+injects each tenet's own stated falsifier as synthetic rows and requires the
+check to reject it:
+
+```
+T1 inject an authenticated row from an unregistered device          -> FAIL (correctly rejected)
+T2 inject an authenticated row over an unencrypted transport        -> FAIL (correctly rejected)
+T3 inject a row granted access with no scores of its own            -> FAIL (correctly rejected)
+T4 inject a policy that ALLOWs equally above and below thresholds   -> FAIL (correctly rejected)
+T6 inject an UNauthenticated row that was granted ALLOW             -> FAIL (correctly rejected)
+T7 inject a pipeline whose fused score never differs from the rule  -> FAIL (correctly rejected)
+
+6/6 checks demonstrably reject their own falsifier.
+```
+
+Tenet 5 is excluded from that count rather than assumed: its falsifier is a
+registered device with **no** rows, which is the absence of data rather than a
+row that can be constructed.
+
+Two honest caveats, both reported by the tool itself rather than smoothed over:
+
+- On a short, healthy window the **process axis of T4 becomes untestable**
+  (no rows below threshold to compare against), and the evidence line says so
+  explicitly instead of quietly passing on the security axis alone. Both axes
+  are testable over a longer window.
+- **T3 reports `UNFALSIFIABLE`**, not `PASS`, if no device changed decision in
+  the window — because that window genuinely cannot distinguish "re-evaluated
+  every message" from "decided once and cached."
+
+The live dashboard carries this as its own panel, with each tenet's claim,
+falsifier and evidence shown next to the coverage bars, so the distinction is
+visible rather than buried in a script's output.
+
 ## 6. Resource and Performance Overhead
 
 `scripts/evaluate_latency.py`, measured on the development machine, 200

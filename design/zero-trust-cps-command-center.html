@@ -144,6 +144,16 @@
   .flow .ar{color:var(--dim)}
   .ev{font-family:var(--mono);font-size:10px;color:var(--dim);margin-left:6px}
   .note{color:var(--dim);font-size:10.8px;line-height:1.5;margin-top:9px;font-style:italic}
+  .val{border:1px solid var(--edge);border-radius:9px;padding:9px 11px;margin-bottom:8px;background:#0a1220}
+  .val .h{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+  .val .st{font-family:var(--mono);font-size:10px;font-weight:700;border-radius:5px;padding:2px 7px;letter-spacing:.4px}
+  .val .st.PASS{background:rgba(52,211,153,.15);color:var(--green)}
+  .val .st.FAIL{background:rgba(248,113,113,.16);color:var(--red)}
+  .val .st.UNFALSIFIABLE,.val .st.INSUFFICIENT_DATA{background:rgba(251,191,36,.14);color:var(--amber)}
+  .val .t{font-family:var(--mono);font-size:11px;color:var(--muted)}
+  .val .claim{color:var(--txt);font-size:11.5px;margin-top:5px}
+  .val .meta{color:var(--dim);font-size:10.5px;margin-top:4px;line-height:1.5}
+  .val .meta b{color:var(--muted);font-weight:600}
 </style>
 </head>
 <body>
@@ -263,6 +273,20 @@
       </div>
       <div id="nist"></div>
       <div class="note" id="nistnote"></div>
+    </section>
+
+    <section class="card span8">
+      <h2>NIST SP 800-207 — Governance Validation <span class="tag" id="valtag"></span></h2>
+      <div class="why">
+        Coverage (left) measures whether a tenet was <b>tagged</b>. This measures whether the
+        claim <b>holds</b>. It matters because <code>tenets_for_decision()</code> writes tenets
+        1/3/4/5/6 on <i>every</i> decision unconditionally — so 100% coverage for those is true
+        by construction, not a finding. Each check below reads only the hash-chained audit log,
+        never live process state, and states the observation that would <b>falsify</b> it.
+        <code>evaluate_governance.py</code> injects each falsifier as synthetic rows and confirms
+        6/6 checks reject it, so these are not vacuous.
+      </div>
+      <div id="val"></div>
     </section>
     <section class="card span4">
       <h2>IEC 62443-3-3 FRs <span class="tag" id="iectag"></span></h2>
@@ -445,6 +469,20 @@
     });
     if(gov.window_note)$("nistnote").textContent=gov.window_note;
   }
+  function renderValidation(gov){
+    var box=$("val"); if(!box) return;
+    var vals=gov.validation||[], sum=gov.validation_summary||{};
+    if(!vals.length){box.innerHTML='<div class="empty">no validation data</div>';return}
+    $("valtag").textContent=(sum.passed||0)+"/"+(sum.total||0)+" validated";
+    box.innerHTML=vals.map(function(v){
+      return '<div class="val"><div class="h"><span class="st '+v.status+'">'+v.status.replace("_"," ")+'</span>'+
+        '<span class="t">Tenet '+v.tenet+'</span><span class="t" style="margin-left:auto">'+v.checked+' rows · '+v.violations+' violation(s)</span></div>'+
+        '<div class="claim">'+esc(v.claim)+'</div>'+
+        '<div class="meta"><b>fails if:</b> '+esc(v.falsifier)+'</div>'+
+        '<div class="meta"><b>evidence:</b> '+esc(v.evidence)+'</div></div>';
+    }).join("");
+    if(gov.validation_note)$("nistnote").textContent=gov.validation_note;
+  }
   function renderIec(iec){
     var box=$("iec");box.innerHTML="";
     (iec.frs||[]).forEach(function(f){
@@ -510,7 +548,7 @@
       $("p-thr").innerHTML='thresholds: <b>sec '+status.security_threshold+" · proc "+status.process_threshold+'</b>';
       var latest=latestByDevice(rows);
       renderDevices(devices,latest);renderDecisions(rows);renderSecurityEvents(rows);
-      renderNist(gov);renderIec(iec);renderQtable(qt);setChain(chain);
+      renderNist(gov);renderValidation(gov);renderIec(iec);renderQtable(qt);setChain(chain);
       var cov=gov.coverage||{},gv=Object.keys(cov);
       var gpct=gv.length?Math.round(100*gv.reduce(function(a,k){return a+cov[k]},0)/gv.length):0;
       var impl=(iec.frs||[]).filter(function(f){return f.status!=="not_implemented"});

@@ -94,6 +94,7 @@ from policy_engine import decide
 from adaptive_pdp import AdaptivePDP, ACTIONS
 import feature_engineering as fe
 import nist_mapping
+import governance_validation
 import iec62443_mapping
 import audit_log
 import explainability
@@ -552,16 +553,27 @@ def _build_governance_view() -> dict:
             part = part.strip()
             if part.isdigit() and int(part) in counts:
                 counts[int(part)] += 1
+    validation = governance_validation.validate(rows)
     return {
         "tenets": NIST_TENETS,
         "coverage": report,
         "evidence_counts": counts,
+        "validation": validation,
+        "validation_summary": governance_validation.summary(validation),
         "sample_size": len(rows),
         "window_note": (
             f"Coverage = fraction of the {len(rows)} most recent logged decisions "
             f"carrying that tenet's tag. Every decision is tagged at the moment it "
             f"is made (gateway.py calls nist_mapping.tenets_for_decision() before "
             f"every log_decision()), so this is measured evidence, not a checklist."
+        ),
+        "validation_note": (
+            "Coverage measures TAGGING. nist_mapping.tenets_for_decision() writes tenets "
+            "1/3/4/5/6 on every decision unconditionally, so 100% coverage there is true by "
+            "construction rather than a finding. The VALIDATION column is the one that can "
+            "fail: each check reads only the audit log and names the observation that would "
+            "falsify it. scripts/evaluate_governance.py proves 6/6 of them reject their own "
+            "falsifier when it is injected."
         ),
     }
 
