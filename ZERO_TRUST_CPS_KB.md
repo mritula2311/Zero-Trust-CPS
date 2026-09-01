@@ -463,6 +463,40 @@ Firmware now reproduces `feature_engineering.dominant_frequency()` exactly
 *Rejected:* A real CoAP/DTLS stack — documented openly as a substitution rather
 than claimed as CoAP.
 
+**ADR-11 — Threading + caching on the dashboard server.**
+*Context:* The dashboard polls seven `/api/*` endpoints every 2s. On a
+single-threaded `HTTPServer`, one full refresh cost **~1.99s of serial time**
+once the audit log reached ~14k rows (`/api/chain` re-verifies the whole hash
+chain: 0.66s, O(rows), and rows only grow). At ~100% saturation refreshes
+overlapped, queued, and endpoints returned **empty** responses — the page froze
+on its last good render, which presented as "the dashboard shows static values".
+*Chosen:* `ThreadingHTTPServer` (safe: `audit_log` opens a fresh sqlite
+connection per call and guards writes with its own lock), a 10s TTL cache on
+chain verification, a 5s TTL on the NIST/IEC tallies, and tiered client polling.
+Refresh cycle 1990 ms → ~690 ms; `/api/chain` 0.66 s → 0.004 s.
+*Rejected:* Trimming `/api/decisions`' payload — the detail is the point of the
+page, and it was not the bottleneck.
+*Do not revert to a plain `HTTPServer`* to "avoid concurrency": the concurrency
+is already safe, and serial handling is what broke the page.
+
+**ADR-12 — The LSTM-AE Level-2 counterfactual stays single-channel and
+flat-mean (a better-looking alternative was measured and reverted).**
+*Context:* The LSTM-AE Level-2 flip rate is 0/122. The obvious hypothesis is
+that substituting a channel's flat training mean hands the autoencoder an
+out-of-distribution input (a perfectly constant channel never occurs in
+training), so splicing a real normal *trajectory* should recover better.
+*Chosen:* It was implemented — `train_lstm_ae.py` saving reference windows, the
+scorer splicing them — measured, and **reverted**: 33.63 vs 33.70 median
+counterfactual error, better in only 9/40 windows. No material gain for real
+added complexity.
+*Rejected:* Keeping it anyway because it is more "methodologically correct" —
+it changed nothing measurable, and unused complexity misleads the next reader.
+*What the experiment established:* the ceiling is the **single-channel
+restriction**, not the fill value. A shock moves `rms`, `peak`, `crest_factor`
+and `kurtosis` together; the best single-channel repair reaches ~33.7 against
+the ≤4.28 needed. Re-deriving this is wasted effort — the diagnosis is printed
+by `evaluate_explainability_level2.py` itself.
+
 ---
 
 ## 10. Roadmap & Milestones
@@ -553,7 +587,7 @@ own vector.
 | Measurement | Value |
 |---|---|
 | HMAC verification | median **0.005 ms** |
-| Full pipeline (auth + 4 scorers + fusion + policy) | median **21.99 ms**, p95 **30.37 ms** |
+| Full pipeline (auth + 4 scorers + fusion + policy) | median **26.85 ms**, p95 **36.09 ms** |
 | Level-1 explainability | **200/200 (100%)** SHAP attributions physically sensible |
 
 ---
@@ -561,9 +595,19 @@ own vector.
 ## 12. Known Limitations & Open Risks
 
 **Level-2 explainability misses its target.** 78/200 (**39%**) of perturbation
-tests flip the score back, against a ≥70% target. Fully carried by the GNN
-(78/78, 100%); the LSTM-AE path flips **0/122**. The LSTM-AE Level-2 method is
-the weak component and is the honest gap in the explainability claim.
+tests flip the score back, against a ≥70% target — **100%** for the GNN (78/78)
+and **0%** for the LSTM-AE (0/122). The mechanism is measured, not guessed: a
+flagged window reconstructs with error ~46–62 (z = 20–27), and recovering to a
+0.5 score requires error **≤ 4.28**. An impulsive shock moves `rms`, `peak`,
+`crest_factor` and `kurtosis` together, so the best possible single-channel
+repair only reaches ~33.7 — an order of magnitude short. Splicing a real normal
+*trajectory* into the channel instead of its flat training mean was implemented
+and measured (33.63 vs 33.70 median, better in 9/40 windows), then **reverted**
+as complexity that bought nothing; that experiment is what locates the limit in
+the single-channel restriction rather than the fill value. The **attribution**
+is sound regardless: `kurtosis` is named in 110/122 cases, physically correct
+for an impulsive spike. `evaluate_explainability_level2.py` prints this
+diagnosis alongside the number so the figure never travels without it.
 
 **`stealthy_forged_values` is not reliably detected** (recall 0.515). Stated as
 a design limit, not a bug (§10).
@@ -578,11 +622,16 @@ is not discarded (unweighted fused recall on it was 0.261, *worse* than the GNN
 alone at 0.870). Aggregate accuracy is the wrong single number for a security
 system where missing a rare coordinated attack costs more than extra alerts.
 
-**Dashboard is single-threaded.** `http.server.HTTPServer` serves requests
-serially; while `/api/chain` verifies thousands of rows, concurrent polls block.
-The browser overlay polls five endpoints every 2s and can starve itself.
-One-line fix (`ThreadingHTTPServer`) deliberately not applied — it introduces
-concurrency against `audit_log` and was out of scope.
+**Dashboard load grows with the audit log.** `/api/chain` re-verifies the
+entire hash chain, so its cost is O(rows) and rows only ever grow. This was a
+live outage once (see ADR-11): at ~14k rows a full 7-endpoint refresh cost
+~1.99s of serial time against a 2s poll interval, saturating a single-threaded
+server until endpoints returned empty and the page froze on its last render.
+Now mitigated by `ThreadingHTTPServer`, a 10s cache on chain verification, a 5s
+cache on the governance tallies, and tiered client polling (refresh cycle
+~690 ms, `/api/chain` 0.004 s). The underlying O(rows) verification cost is
+unchanged, so a very large audit log will eventually need incremental
+verification rather than a full re-scan.
 
 **Fragile areas.**
 - *Canonicalisation* (`firmware/main.py` ↔ `json.dumps(sort_keys=True)`). Any

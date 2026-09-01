@@ -269,12 +269,30 @@ flowchart TD
 ```
 
 **The one number from this pipeline most worth remembering**: the
-Level-2 validation's 36% overall flip rate splits into 100% (GNN), 2%
-(Isolation Forest), 0% (LSTM-AE) — not a uniform "explainability kind of
-works," but a real, mechanistically-explained split between a relational
-model (where masking one node IS the whole causal story) and two
-feature-correlated models (where fixing one of several jointly-elevated
-correlated features doesn't fully undo the anomaly). See
+Level-2 validation's **39%** overall flip rate splits into **100% (GNN,
+78/78)** and **0% (LSTM-AE, 0/122)** — not a uniform "explainability kind
+of works," but a real, mechanistically-explained split between a
+relational model (where masking one node IS the whole causal story) and a
+sequence model over correlated channels (where repairing one of several
+jointly-elevated features cannot undo the anomaly).
+
+The LSTM-AE half is now quantified rather than asserted. A flagged window
+reconstructs with error ~46–62 (z = 20–27 above the normal baseline);
+recovering to a 0.5 score needs that error to fall to **≤ 4.28**. An
+impulsive shock moves `rms`, `peak`, `crest_factor` and `kurtosis`
+together — they are all functions of the same spike — so the best possible
+single-channel repair only brings error from ~55.7 to ~33.7, an order of
+magnitude short. Substituting a real normal *trajectory* for the channel
+instead of its flat training mean was tried and changed nothing material
+(33.63 vs 33.70 median), which locates the limit in the single-channel
+restriction itself rather than in the fill value. The **attribution**
+remains sound and useful throughout: `kurtosis` is named in 110/122 of
+these cases, the physically correct answer for an impulsive spike.
+
+There is no longer an Isolation-Forest-dominant row in this table. After
+the IF score calibration fix (see `RESULTS.md`), the IF signal reports
+"normal" correctly instead of sitting permanently near 0.58, so it stops
+being the SHAP-dominant signal on flagged windows. See
 `docs/12_model_validation_and_justification.md` Section 4.1's writeup and
 `RESULTS.md` Section 4.1 for the full numbers.
 

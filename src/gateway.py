@@ -52,7 +52,7 @@ import json
 import os
 import threading
 import time
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import paho.mqtt.client as mqtt
 
@@ -469,127 +469,38 @@ DASHBOARD_DESIGN_HTML_PATH = os.path.join(
 DASHBOARD_FIGURES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "docs", "figures")
 DASHBOARD_ROWS_TO_FETCH = 300
 
-# Injected right before the document's real closing </body> tag (found via
-# rfind -- the bundle's own JS contains several LITERAL "</body>" strings
-# in embedded template/license text, so a naive first-match replace would
-# insert into the middle of a JS string instead of the actual document;
-# verified directly against this specific file that the LAST occurrence is
-# the real one, immediately before </html>).
-_DASHBOARD_OVERLAY = """
-<div id="ztcps-live-overlay" style="position:fixed;top:0;left:0;right:0;z-index:999999;
-  background:#0d1420;border-bottom:1px solid #2a3548;color:#dbe4f0;
-  font-family:'JetBrains Mono',ui-monospace,'SF Mono',monospace;font-size:11.5px;
-  padding:8px 14px;display:flex;flex-wrap:wrap;gap:14px;align-items:center;
-  box-shadow:0 2px 12px rgba(0,0,0,.4);">
-  <b style="color:#7dd3fc;letter-spacing:.5px;">LIVE DATA</b>
-  <span id="ztcps-chain" style="color:#94a3b8;">chain: …</span>
-  <span id="ztcps-gov" style="color:#94a3b8;">governance: …</span>
-  <span id="ztcps-idrisk" style="color:#94a3b8;" title="Module 2 Section 5 -- rejected attempts, never touch a device's own score">identity targeting: …</span>
-  <span id="ztcps-stepup" style="color:#94a3b8;" title="Module 2 Section 7 -- real gateway-issued nonce / device-echo challenges">step-up: …</span>
-  <div id="ztcps-devices" style="display:flex;gap:10px;flex-wrap:wrap;"></div>
-  <a href="/figures" target="_blank" style="margin-left:auto;color:#7dd3fc;text-decoration:none;">
-    &#128202; Model Evaluation Figures</a>
-</div>
-<div id="ztcps-level2" style="position:fixed;top:34px;left:0;right:0;z-index:999998;
-  background:#0a0f18;border-bottom:1px solid #1c2534;color:#94a3b8;
-  font-family:'JetBrains Mono',ui-monospace,'SF Mono',monospace;font-size:10.5px;
-  padding:4px 14px;display:none;" title="Module 3 Section C.4 -- validated 100% (GNN) / 2% (Isolation Forest) / 0% (LSTM-AE) flip rate; see RESULTS.md Section 4.1">
-  Level-2 explainability (most recent, per device): <span id="ztcps-level2-body"></span>
-</div>
-<script>
-(function () {
-  "use strict";
-  var BADGE = {ALLOW: "#7dd3fc", ALERT: "#c4b5fd", STEP_UP: "#fbbf24", BLOCK: "#f87171", REJECTED: "#f87171"};
-  function fetchJSON(path) { return fetch(path).then(function (r) { return r.json(); }); }
-  function latestByDevice(rows) {
-    var out = {};
-    rows.forEach(function (r) {
-      if (r.decision === "REJECTED") return;
-      if (!out[r.device_id]) out[r.device_id] = r;
-    });
-    return out;
-  }
-  function refresh() {
-    Promise.all([
-      fetchJSON("/api/decisions"), fetchJSON("/api/devices"),
-      fetchJSON("/api/chain"), fetchJSON("/api/governance"), fetchJSON("/api/iec62443"),
-    ]).then(function (res) {
-      var decisions = res[0], devices = res[1], chain = res[2], gov = res[3], iec = res[4];
-      var rows = decisions.rows || [];
-      var latest = latestByDevice(rows);
 
-      var chainEl = document.getElementById("ztcps-chain");
-      var chainOk = chain.chain_ok && chain.checkpoint_ok;
-      chainEl.textContent = "chain: " + (chainOk ? "verified \\u2713" : "BROKEN \\u2717");
-      chainEl.style.color = chainOk ? "#7dd3fc" : "#f87171";
 
-      var govVals = Object.values(gov.coverage || {});
-      var govPct = govVals.length ? Math.round(100 * govVals.reduce(function (a, b) { return a + b; }, 0) / govVals.length) : 0;
-      var iecImpl = (iec.frs || []).filter(function (f) { return f.status !== "not_implemented"; });
-      var iecPct = iecImpl.length
-        ? Math.round(100 * iecImpl.reduce(function (a, f) { return a + (f.coverage || 0); }, 0) / iecImpl.length) : 0;
-      document.getElementById("ztcps-gov").textContent =
-        "NIST " + govPct + "% \\u00b7 IEC62443 " + iecPct + "%";
+# --- Dashboard read caches -------------------------------------------------
+# The dashboard polls every 2s, but these three answers do not meaningfully
+# change that fast and each one SCANS the audit log: verify_chain_integrity()
+# re-hashes every row (O(n), and n only ever grows -- 0.66s at 14k rows), while
+# the NIST/IEC reports re-tally the most recent DASHBOARD_ROWS_TO_FETCH rows.
+# Recomputing all of that per poll is what saturated the server. A short TTL
+# keeps the numbers live to the eye (a decision shows up within a couple of
+# seconds) while collapsing repeated identical work, and the lock means ten
+# concurrent pollers trigger ONE recompute rather than ten.
+_cache_lock = threading.Lock()
+_cache: dict = {}
 
-      var rejected = rows.filter(function (r) { return r.decision === "REJECTED"; });
-      var idEl = document.getElementById("ztcps-idrisk");
-      idEl.textContent = "identity targeting: " + rejected.length + " rejected attempt(s) logged";
-      idEl.style.color = rejected.length ? "#f87171" : "#94a3b8";
-      idEl.title = rejected.length
-        ? "most recent: " + rejected[0].device_id + " (" + (rejected[0].reason || "") + ") -- that device's own score is unaffected"
-        : idEl.title;
 
-      var stepUps = rows.filter(function (r) { return (r.reason_category || "").indexOf("step_up") === 0; });
-      var suEl = document.getElementById("ztcps-stepup");
-      if (!stepUps.length) {
-        suEl.textContent = "step-up: none issued yet";
-      } else {
-        var last = stepUps[0];
-        var label = last.reason_category === "step_up_succeeded" ? "SUCCESS"
-          : last.reason_category === "step_up_failed" ? "FAILED \\u2192 BLOCK" : "CHALLENGE ISSUED";
-        suEl.textContent = "step-up: " + last.device_id + " " + label;
-        suEl.style.color = last.reason_category === "step_up_succeeded" ? "#7dd3fc"
-          : last.reason_category === "step_up_failed" ? "#f87171" : "#fbbf24";
-      }
+def _cached(key: str, ttl_seconds: float, compute):
+    """Returns compute()'s value, recomputing only if the cached copy is
+    older than ttl_seconds. Deliberately NOT used for /api/decisions, which
+    must show the newest row the instant it is written."""
+    now = time.time()
+    with _cache_lock:
+        hit = _cache.get(key)
+        if hit is not None and (now - hit[0]) < ttl_seconds:
+            return hit[1]
+    value = compute()          # computed OUTSIDE the lock: a slow chain
+    with _cache_lock:          # verification must not block other endpoints
+        _cache[key] = (time.time(), value)
+    return value
 
-      var box = document.getElementById("ztcps-devices");
-      box.innerHTML = "";
-      var level2Bits = [];
-      (devices.devices || []).forEach(function (d) {
-        var row = latest[d.device_id];
-        var span = document.createElement("span");
-        if (!row) {
-          span.style.color = "#5b6b82";
-          span.textContent = d.device_id + ": no data yet";
-        } else {
-          var color = BADGE[row.decision] || "#94a3b8";
-          var sec = row.security_trust_score != null ? row.security_trust_score.toFixed(2) : "n/a";
-          var proc = row.process_trust_score != null ? row.process_trust_score.toFixed(2) : "n/a";
-          span.innerHTML = d.device_id + " sec=" + sec + " proc=" + proc +
-            ' <b style="color:' + color + '">' + row.decision + "</b>";
-          if (row.level2_summary && row.level2_dominant_feature &&
-              row.level2_dominant_feature !== "n/a" && row.level2_dominant_feature !== "unavailable") {
-            level2Bits.push(d.device_id + ": " + row.level2_summary);
-          }
-        }
-        box.appendChild(span);
-      });
 
-      var l2Bar = document.getElementById("ztcps-level2");
-      var l2Body = document.getElementById("ztcps-level2-body");
-      if (level2Bits.length) {
-        l2Bar.style.display = "block";
-        l2Body.textContent = level2Bits.join("  \\u00b7  ");
-      } else {
-        l2Bar.style.display = "none";
-      }
-    }).catch(function (e) { console.error("[ztcps-live-overlay]", e); });
-  }
-  refresh();
-  setInterval(refresh, 2000);
-})();
-</script>
-"""
+CHAIN_CACHE_TTL_SECONDS = 10.0       # integrity re-verification is the expensive one
+GOVERNANCE_CACHE_TTL_SECONDS = 5.0   # NIST/IEC tallies over the recent window
 
 
 def _dashboard_json(handler: BaseHTTPRequestHandler, payload) -> None:
@@ -626,6 +537,81 @@ def _build_qtable_view() -> dict:
     return {"rows": rows, "actions": ACTIONS, "trained": os.path.exists(ADAPTIVE_PDP_MODEL_PATH)}
 
 
+def _build_governance_view() -> dict:
+    """NIST SP 800-207 completeness over the recent audit window, plus the
+    EVIDENCE behind each number. The raw coverage fraction alone is not a
+    validation -- a reader has to be able to see WHICH logged rows count as
+    evidence for a tenet and how many there were, otherwise "100%" is an
+    assertion. `evidence_counts` and `sample_size` make the percentage
+    checkable against the audit log itself."""
+    rows = audit_log.recent(DASHBOARD_ROWS_TO_FETCH)
+    report = nist_mapping.completeness_report(rows)
+    counts = {t: 0 for t in NIST_TENETS}
+    for row in rows:
+        for part in (row.get("nist_tenets") or "").split(","):
+            part = part.strip()
+            if part.isdigit() and int(part) in counts:
+                counts[int(part)] += 1
+    return {
+        "tenets": NIST_TENETS,
+        "coverage": report,
+        "evidence_counts": counts,
+        "sample_size": len(rows),
+        "window_note": (
+            f"Coverage = fraction of the {len(rows)} most recent logged decisions "
+            f"carrying that tenet's tag. Every decision is tagged at the moment it "
+            f"is made (gateway.py calls nist_mapping.tenets_for_decision() before "
+            f"every log_decision()), so this is measured evidence, not a checklist."
+        ),
+    }
+
+
+def _build_iec_view() -> dict:
+    rows = audit_log.recent(DASHBOARD_ROWS_TO_FETCH)
+    coverage = iec62443_mapping.fr_coverage_report(rows)
+    frs = [
+        {
+            "id": fr, "name": info["name"], "status": info["status"],
+            "coverage": coverage.get(fr) if info["status"] != "not_implemented" else None,
+            "detail": info.get("where") or info.get("note"),
+            "gap_note": info.get("note") if info["status"] == "partial" else None,
+        }
+        for fr, info in iec62443_mapping.FOUNDATIONAL_REQUIREMENTS.items()
+    ]
+    return {
+        "zones": iec62443_mapping.ZONES,
+        "conduits": iec62443_mapping.CONDUITS,
+        "frs": frs,
+        "sl_assessment": iec62443_mapping.SECURITY_LEVEL_ASSESSMENT,
+        "sample_size": len(rows),
+        "status_note": (
+            "'partial' is a deliberate, honest rating, not an unfinished one: the "
+            "transport-layer control genuinely exists, but the physical control "
+            "(network segmentation for FR5, redundancy for FR7) does not. Each "
+            "partial FR carries the exact boundary in its gap_note."
+        ),
+    }
+
+
+def _build_chain_view() -> dict:
+    """Two INDEPENDENT integrity checks, reported separately on purpose.
+    chain_ok catches an attacker who edits a row and does not recompute the
+    following hashes; checkpoint_ok catches the strictly stronger attacker who
+    does recompute them, because the checkpoint file is stored elsewhere and
+    HMAC'd with a key no device holds. Both must pass for the log to be
+    trustworthy -- collapsing them into one boolean would hide which of the
+    two attacker models was actually defeated."""
+    chain_ok, broken_row = audit_log.verify_chain_integrity()
+    checkpoint_ok, checkpoint_note = audit_log.verify_against_checkpoints()
+    total = len(audit_log.recent(10 ** 9))
+    return {
+        "chain_ok": chain_ok, "broken_row": broken_row,
+        "checkpoint_ok": checkpoint_ok, "checkpoint_note": checkpoint_note,
+        "rows_verified": total,
+        "verified_at": time.strftime("%H:%M:%S"),
+    }
+
+
 def _build_devices_view() -> list:
     return [
         {"device_id": d, "kind": info["kind"]}
@@ -650,41 +636,13 @@ class DashboardHandler(BaseHTTPRequestHandler):
         elif self.path == "/api/devices":
             _dashboard_json(self, {"devices": _build_devices_view()})
         elif self.path == "/api/governance":
-            rows = audit_log.recent(DASHBOARD_ROWS_TO_FETCH)
-            report = nist_mapping.completeness_report(rows)
-            _dashboard_json(self, {
-                "tenets": NIST_TENETS,
-                "coverage": report,
-                "sample_size": len(rows),
-            })
+            _dashboard_json(self, _cached("governance", GOVERNANCE_CACHE_TTL_SECONDS, _build_governance_view))
         elif self.path == "/api/iec62443":
-            rows = audit_log.recent(DASHBOARD_ROWS_TO_FETCH)
-            coverage = iec62443_mapping.fr_coverage_report(rows)
-            frs = [
-                {
-                    "id": fr, "name": info["name"], "status": info["status"],
-                    "coverage": coverage.get(fr) if info["status"] != "not_implemented" else None,
-                    "detail": info.get("where") or info.get("note"),
-                    "gap_note": info.get("note") if info["status"] == "partial" else None,
-                }
-                for fr, info in iec62443_mapping.FOUNDATIONAL_REQUIREMENTS.items()
-            ]
-            _dashboard_json(self, {
-                "zones": iec62443_mapping.ZONES,
-                "conduits": iec62443_mapping.CONDUITS,
-                "frs": frs,
-                "sl_assessment": iec62443_mapping.SECURITY_LEVEL_ASSESSMENT,
-                "sample_size": len(rows),
-            })
+            _dashboard_json(self, _cached("iec62443", GOVERNANCE_CACHE_TTL_SECONDS, _build_iec_view))
         elif self.path == "/api/qtable":
             _dashboard_json(self, _build_qtable_view())
         elif self.path == "/api/chain":
-            chain_ok, broken_row = audit_log.verify_chain_integrity()
-            checkpoint_ok, checkpoint_note = audit_log.verify_against_checkpoints()
-            _dashboard_json(self, {
-                "chain_ok": chain_ok, "broken_row": broken_row,
-                "checkpoint_ok": checkpoint_ok, "checkpoint_note": checkpoint_note,
-            })
+            _dashboard_json(self, _cached("chain", CHAIN_CACHE_TTL_SECONDS, _build_chain_view))
         elif self.path == "/api/status":
             _dashboard_json(self, {
                 "use_rl_policy": USE_RL_POLICY,
@@ -696,9 +654,13 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.end_headers()
 
     def _serve_design_dashboard(self) -> None:
-        """Serves design/zero-trust-cps-command-center.html byte-for-byte,
-        with the live overlay (_DASHBOARD_OVERLAY above) spliced in just
-        before the document's real closing </body> -- found via rfind()."""
+        """Serves design/zero-trust-cps-command-center.html byte-for-byte.
+
+        No injection of any kind: the dashboard is a single self-contained
+        page that polls the /api/* endpoints itself. It previously WAS a
+        2.2MB flattened design-canvas export with a live overlay bar spliced
+        in before its closing </body>; that export and the overlay constant
+        that patched it are both gone."""
         if not os.path.exists(DASHBOARD_DESIGN_HTML_PATH):
             self.send_response(404)
             self.end_headers()
@@ -786,15 +748,27 @@ full write-up behind each comparison. <a href="/">&larr; back to live dashboard<
         self.wfile.write(body)
 
 
-def start_dashboard_server() -> HTTPServer:
+def start_dashboard_server() -> ThreadingHTTPServer:
     """Starts the dashboard HTTP server in a background thread -- same
     non-blocking pattern as coap_server.py's start_https_server(), called
-    from run() below alongside MQTT and the HTTPS second transport."""
-    server = HTTPServer(("0.0.0.0", DASHBOARD_PORT), DashboardHandler)
+    from run() below alongside MQTT and the HTTPS second transport.
+
+    THREADING (was a plain single-threaded HTTPServer): the dashboard polls
+    seven /api/* endpoints every 2s, and one full refresh cost ~1.99s of
+    SERIAL server time once the audit log reached ~14k rows (/api/chain
+    alone, which re-verifies the whole hash chain, was 0.66s and grows with
+    every logged decision). At ~100% saturation refreshes overlapped, queued,
+    and endpoints began returning EMPTY responses -- which is what "the
+    dashboard shows static values" actually was: the page kept its last good
+    render because the next fetch never completed. audit_log opens a fresh
+    sqlite3 connection per call and guards writes with its own _chain_lock,
+    so concurrent readers are safe here; the caches below then remove most of
+    the repeated work outright."""
+    server = ThreadingHTTPServer(("0.0.0.0", DASHBOARD_PORT), DashboardHandler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     print(f"[dashboard] serving http://localhost:{DASHBOARD_PORT} -- "
-          f"design/zero-trust-cps-command-center.html + a live data overlay bar")
+          f"design/zero-trust-cps-command-center.html -- fully live, polls /api/*")
     return server
 
 
@@ -886,7 +860,7 @@ def run():
           f"{'enabled, port ' + str(COAP_TLS_PORT) if COAP_ENABLED else 'disabled (no certs/coap_server.* found)'}")
     print(f" MQTT broker auth (IEC 62443 FR5, per-device credentials + topic ACLs): "
           f"{'enabled' if MQTT_USE_AUTH else 'disabled (anonymous broker access -- no certs/mosquitto_passwd found)'}")
-    print(f" Dashboard: http://localhost:{DASHBOARD_PORT} (design/zero-trust-cps-command-center.html + live overlay)")
+    print(f" Dashboard: http://localhost:{DASHBOARD_PORT} (design/zero-trust-cps-command-center.html, fully live)")
     print("=" * 110)
 
     if COAP_ENABLED:

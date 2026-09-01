@@ -124,6 +124,26 @@
   footer{margin-top:20px;color:var(--dim);font-family:var(--mono);font-size:11px;text-align:center}
   .banner{margin-top:14px;padding:10px 14px;border-radius:10px;font-family:var(--mono);font-size:12px;display:none}
   .banner.show{display:block}.banner.err{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.4);color:#fecaca}
+
+  /* self-explanatory UI: every panel states what it shows and how to read it */
+  .why{color:var(--muted);font-size:11.5px;line-height:1.55;margin:-4px 0 13px;
+       border-left:2px solid var(--edge2);padding:2px 0 2px 10px}
+  .why b{color:var(--txt);font-weight:600}
+  .why code{font-family:var(--mono);font-size:10.8px;color:var(--cyan);background:#0a1220;
+       border:1px solid var(--edge);border-radius:4px;padding:1px 4px}
+  .legend{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 2px}
+  .legend span{font-family:var(--mono);font-size:10.5px;color:var(--muted);
+       border:1px solid var(--edge);border-radius:6px;padding:3px 8px;background:#0a1220}
+  .legend i{font-style:normal;font-weight:700;margin-right:5px}
+  .flow{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-family:var(--mono);
+       font-size:10.8px;color:var(--muted);margin-top:4px}
+  .flow .st{border:1px solid var(--edge);border-radius:6px;padding:4px 8px;background:#0a1220;white-space:nowrap}
+  .flow .st.rej{border-color:rgba(248,113,113,.4);color:#fca5a5}
+  .flow .st.sec{border-color:rgba(52,211,153,.35);color:#6ee7b7}
+  .flow .st.proc{border-color:rgba(167,139,250,.4);color:#c4b5fd}
+  .flow .ar{color:var(--dim)}
+  .ev{font-family:var(--mono);font-size:10px;color:var(--dim);margin-left:6px}
+  .note{color:var(--dim);font-size:10.8px;line-height:1.5;margin-top:9px;font-style:italic}
 </style>
 </head>
 <body>
@@ -145,12 +165,67 @@
 
   <div class="grid">
     <section class="card span12">
+      <h2>How a message becomes a decision <span class="tag">read this first</span></h2>
+      <div class="why">
+        Every telemetry message walks this path in order. <b>Anything that fails an
+        authentication step is rejected outright and never reaches a model</b> — and,
+        critically, a rejected message never touches the claimed device's own trust
+        state (it only increments an identity-targeting counter, so nobody can lower
+        a device's score just by spamming its ID).
+      </div>
+      <div class="flow">
+        <span class="st">identity</span><span class="ar">→</span>
+        <span class="st">revoked?</span><span class="ar">→</span>
+        <span class="st">HMAC-SHA256</span><span class="ar">→</span>
+        <span class="st">replay (boot_id/seq)</span><span class="ar">→</span>
+        <span class="st">timestamp freshness</span>
+        <span class="ar">⇒</span><span class="st rej">any failure = REJECTED</span>
+      </div>
+      <div class="flow" style="margin-top:8px">
+        <span class="st sec">SECURITY TRUST — rate, step-up, silence</span>
+        <span class="ar">+</span>
+        <span class="st proc">PROCESS ANOMALY — rule + Isolation Forest + LSTM-AE + GNN → fusion</span>
+        <span class="ar">→</span>
+        <span class="st">2×2 policy lookup</span><span class="ar">→</span>
+        <span class="st">ALLOW / ALERT / STEP_UP / BLOCK</span>
+      </div>
+      <div class="note">
+        The two scores are computed from completely separate evidence and meet only at
+        that final lookup — they are never averaged into one number. A device with valid
+        credentials reporting a violently abnormal reading, and one with forged
+        credentials reporting a perfectly normal reading, must produce different
+        responses; a single blended score cannot tell them apart.
+      </div>
+    </section>
+
+    <section class="card span12">
       <h2>Devices — Model Predictions and SHAP Attribution <span class="tag" id="devtag"></span></h2>
+      <div class="why">
+        One card per registered device. <b>Both scores run 0 to 1 where 1 = healthy.</b>
+        <code>security</code> is cyber evidence only (message rate, step-up outcome,
+        silence). <code>process</code> is physical sensor evidence only, fused from four
+        independent signals. The bars show each signal's SHAP contribution — which signal
+        pushed the fused score, and in which direction.
+      </div>
+      <div class="legend">
+        <span><i style="color:var(--cyan)">ALLOW</i>both scores healthy</span>
+        <span><i style="color:var(--violet)">ALERT</i>process anomaly, identity fine</span>
+        <span><i style="color:var(--amber)">STEP_UP</i>nonce challenge issued</span>
+        <span><i style="color:var(--red)">BLOCK</i>denied</span>
+        <span><i style="color:var(--dim)">SILENT</i>no message in the staleness window</span>
+      </div>
       <div class="devs" id="devs"></div>
     </section>
 
     <section class="card span8">
       <h2>Live Decision Stream <span class="tag" id="dectag"></span></h2>
+      <div class="why">
+        Newest first, one row per logged decision. <code>sec</code>/<code>proc</code> are the
+        two independent scores; <code>rule</code>/<code>IF</code>/<code>LSTM</code>/<code>GNN</code>
+        are the four Process Anomaly sub-signals and <code>fused</code> is the meta-learner's
+        combination of them. A <b>REJECTED</b> row never reached any model — it failed
+        authentication, and its scores are blank for that reason, not missing.
+      </div>
       <div class="tblwrap">
         <table>
           <thead><tr>
@@ -165,6 +240,13 @@
 
     <section class="card span4">
       <h2>Security Events</h2>
+      <div class="why">
+        <b>Identity-targeting</b> counts failed verification attempts per <i>claimed</i>
+        device ID. It is the anti-trust-poisoning mechanism: these attempts are recorded
+        here <b>instead of</b> against the real device's score.
+        <b>Step-up</b> is a real challenge — the gateway issues a nonce the device must
+        echo back inside a signed message. Failing it forces BLOCK.
+      </div>
       <div class="kv"><span>Identity-targeting (rejected)</span><b id="idr">…</b></div>
       <div id="idlist"></div>
       <div class="kv" style="margin-top:10px"><span>Step-up challenges</span><b id="sucount">…</b></div>
@@ -173,15 +255,53 @@
 
     <section class="card span4">
       <h2>NIST SP 800-207 <span class="tag" id="nisttag"></span></h2>
+      <div class="why">
+        Governance completeness: the fraction of recent logged decisions that carry each
+        tenet's tag. Every decision is tagged <b>at the moment it is made</b>, so this is
+        measured evidence recomputed from the audit log — not a checklist someone ticked.
+        The count after each bar is how many audit rows back it.
+      </div>
       <div id="nist"></div>
+      <div class="note" id="nistnote"></div>
     </section>
     <section class="card span4">
       <h2>IEC 62443-3-3 FRs <span class="tag" id="iectag"></span></h2>
+      <div class="why">
+        The seven Foundational Requirements. <b><span class="ok">implemented</span></b> means a
+        real enforced control backs it; <b><span class="warn">partial</span></b> is a deliberate
+        honest rating — the transport-layer control exists but the physical one does not
+        (no network segmentation for FR5, no redundancy for FR7). Hover a row for the exact
+        boundary.
+      </div>
       <div id="iec"></div>
+      <div class="note" id="iecnote"></div>
     </section>
     <section class="card span4">
       <h2>RL Policy Q-table <span class="tag">process bucket = 9</span></h2>
+      <div class="why">
+        The deployed offline-trained bandit, sliced at process bucket 9 (process score
+        0.9–1.0). Each row is a security-score bucket; the highlighted action is what the
+        gateway would choose there. <b>Q-values are expected reward</b> (+1 correct action,
+        −1 wrong), estimated as a sample average over training visits — so a higher number
+        means "this action was right more often in this state".
+      </div>
       <div id="qtable"></div>
+    </section>
+  </div>
+
+  <div class="grid" style="margin-top:0">
+    <section class="card span12">
+      <h2>Audit Log Integrity <span class="tag" id="chaintag"></span></h2>
+      <div class="why">
+        Two <b>independent</b> checks, reported separately on purpose because they defeat
+        two different attackers.
+        <b>Hash chain</b> catches someone who edits a row and does not recompute every
+        following hash. <b>Checkpoint cross-check</b> catches the stronger attacker who
+        does recompute them — the checkpoints live in a different file, HMAC'd with a key
+        no device holds, so a consistently-rewritten in-DB chain still fails to match.
+        Both must pass.
+      </div>
+      <div id="chaindetail"></div>
     </section>
   </div>
 
@@ -318,17 +438,22 @@
     $("nisttag").textContent="avg "+avg+"% · n="+(gov.sample_size||0);
     Object.keys(tenets).sort(function(a,b){return a-b}).forEach(function(k){
       var f=cov[k]==null?0:cov[k],pct=Math.round(f*100);
-      box.innerHTML+='<div class="cov"><div class="lab"><span title="'+esc(tenets[k])+'">'+k+". "+esc(tenets[k])+'</span><b>'+pct+'%</b></div>'+
+      var n=(gov.evidence_counts||{})[k];
+      box.innerHTML+='<div class="cov"><div class="lab"><span title="'+esc(tenets[k])+'">'+k+". "+esc(tenets[k])+'</span><b>'+pct+'%'+
+        (n==null?"":'<span class="ev">'+n+" rows</span>")+'</b></div>'+
         '<div class="bar"><i style="width:'+pct+'%;background:'+(pct>=100?"var(--green)":"var(--amber)")+'"></i></div></div>';
     });
+    if(gov.window_note)$("nistnote").textContent=gov.window_note;
   }
   function renderIec(iec){
     var box=$("iec");box.innerHTML="";
     (iec.frs||[]).forEach(function(f){
       var pct=f.coverage==null?"n/a":Math.round(f.coverage*100)+"%";
-      box.innerHTML+='<div class="fr"><span class="st '+f.status+'">'+f.status.replace("_"," ")+'</span>'+
+      var tip=(f.detail||"")+(f.gap_note?("\n\nGAP: "+f.gap_note):"");
+      box.innerHTML+='<div class="fr" title="'+esc(tip)+'"><span class="st '+f.status+'">'+f.status.replace("_"," ")+'</span>'+
         '<span class="frname">'+esc(f.id)+" "+esc(f.name)+'</span><span class="frpct">'+pct+'</span></div>';
     });
+    if(iec.status_note)$("iecnote").textContent=iec.status_note;
     var impl=(iec.frs||[]).filter(function(f){return f.status!=="not_implemented"});
     var avg=impl.length?Math.round(100*impl.reduce(function(a,f){return a+(f.coverage||0)},0)/impl.length):0;
     $("iectag").textContent="avg "+avg+"%";
@@ -349,11 +474,35 @@
     var ok=chain.chain_ok&&chain.checkpoint_ok,el=$("p-chain");
     el.innerHTML='chain: <span class="sdot" style="background:'+(ok?"var(--green)":"var(--red)")+'"></span><b class="'+(ok?"ok":"bad")+'">'+(ok?"verified":"BROKEN")+'</b>';
     el.title=ok?"hash chain and checkpoints verify":((chain.broken_row?("broken at row "+chain.broken_row+"; "):"")+(chain.checkpoint_note||""));
+    if(chain.rows_verified!=null)$("chaintag").textContent=chain.rows_verified.toLocaleString()+" rows · re-verified "+(chain.verified_at||"");
+    function line(label,good,detail){
+      return '<div class="kv"><span>'+label+'</span><b class="'+(good?"ok":"bad")+'">'+
+        (good?"PASS":"FAIL")+'</b></div>'+(detail?'<div class="note" style="margin-top:2px">'+esc(detail)+'</div>':"");
+    }
+    $("chaindetail").innerHTML=
+      line("Hash chain — every row's hash matches its predecessor",chain.chain_ok,
+           chain.broken_row?("first broken row: "+chain.broken_row):"Defeats an attacker who edits a row and leaves the following hashes stale.")+
+      line("Checkpoint cross-check — independent, separately-keyed",chain.checkpoint_ok,
+           chain.checkpoint_note||"Defeats an attacker who rewrites the in-DB chain consistently; the checkpoint file is stored elsewhere and HMAC'd with a key no device holds.");
+  }
+
+  // Tiered polling. /api/decisions and /api/devices are the live view and are
+  // fetched every cycle; the governance tallies, Q-table and chain verification
+  // change far more slowly and each one SCANS the audit log, so re-fetching them
+  // twice a second was most of the load that used to saturate a single-threaded
+  // server and leave the page rendering stale data. Cached copies are reused in
+  // between, so every panel still paints on the very first cycle.
+  var SLOW_EVERY=5, tick=0, slowCache=null;
+  function slowFetches(){
+    if(slowCache && tick%SLOW_EVERY!==0) return Promise.resolve(slowCache);
+    return Promise.all([j("/api/chain"),j("/api/governance"),j("/api/iec62443"),j("/api/qtable")])
+      .then(function(r){slowCache=r;return r});
   }
 
   var fails=0;
   function refresh(){
-    Promise.all([j("/api/status"),j("/api/devices"),j("/api/decisions"),j("/api/chain"),j("/api/governance"),j("/api/iec62443"),j("/api/qtable")])
+    Promise.all([j("/api/status"),j("/api/devices"),j("/api/decisions"),slowFetches()])
+    .then(function(p){return [p[0],p[1],p[2],p[3][0],p[3][1],p[3][2],p[3][3]]})
     .then(function(res){
       fails=0;$("livedot").className="dot";$("liveword").textContent="LIVE";
       var status=res[0],devices=(res[1].devices||[]),rows=(res[2].rows||[]),chain=res[3],gov=res[4],iec=res[5],qt=res[6];
@@ -373,7 +522,7 @@
       if(fails>=2){var b=$("banner");b.className="banner err show";b.textContent="Cannot reach the gateway API ("+e.message+"). Is gateway.py running? Retrying every 2 s.";}
     });
   }
-  refresh();setInterval(refresh,2000);
+  refresh();setInterval(function(){tick++;refresh()},2000);
 })();
 </script>
 </body>

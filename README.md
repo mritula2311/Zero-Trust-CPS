@@ -17,6 +17,14 @@ state, a hash-chained + independently-checkpointed audit log, NIST SP
 800-207 + IEC 62443 governance mapping, and a real live dashboard (served
 by `gateway.py` itself, no separate script) — all logged to SQLite.
 
+**Coding agent, or new to the codebase? Start with
+`ZERO_TRUST_CPS_KB.md`** — the single-source-of-truth knowledge base:
+architecture, module boundaries (including what each module explicitly
+does NOT do), data schemas, the full ADR decision log explaining why each
+design is the way it is, measured evaluation numbers, and the known
+limitations. It exists specifically so that a new engineer or an agent
+does not "fix" an intended design.
+
 **First time here? Read `docs/00_overview.md`** for the master overview of
 the as-built architecture (start there, then the module files in numeric
 order), **`RESULTS.md`** for every real measured number this project has
@@ -216,25 +224,31 @@ python evaluate_governance.py
 python evaluate_iec62443.py
 ```
 
-**`design/zero-trust-cps-command-center.html`** (the actual Claude Design
-mockup file) is served live by `gateway.py` itself — no separate
-dashboard script — with a real, live data overlay bar injected at the top
-of the page: per-device Security Trust + Process Anomaly scores,
-decisions, chain-verification status, NIST/IEC governance coverage,
-Identity Targeting Risk, and step-up challenge activity, all polling real
-`/api/*` endpoints `gateway.py` also serves. The canvas beneath the
-overlay is the original design-folder artifact, kept byte-for-byte — its
-own device names/numbers are a static export snapshot predating the
-current device registry, so the overlay bar is the authoritative live
-view, not the canvas below it. Just run the gateway (Terminal 1 above)
-and open:
+**`design/zero-trust-cps-command-center.html`** is served live by
+`gateway.py` itself — no separate dashboard script. The whole page is
+live: it polls the `/api/*` endpoints `gateway.py` serves and renders
+per-device Security Trust + Process Anomaly scores with their SHAP
+attribution, a rolling decision stream, chain-verification status, NIST
+tenet coverage with the audit-row counts backing each number, IEC 62443 FR
+status, Identity Targeting Risk, step-up activity, and the deployed RL
+Q-table. Each panel carries a short "how to read this" note, so the page
+explains itself without the design docs open.
+
+There is no overlay-injection step any more, and no static canvas
+underneath: the earlier 2.2MB flattened design-canvas export (whose device
+names were a stale snapshot) has been deleted, and the page above replaces
+it outright. The canvas *source* it was exported from is still in
+`design/canvas.json` and `design/Main.dc.html` if it ever needs
+regenerating.
+
+Just run the gateway (Terminal 1 above) and open:
 
 ```text
 http://localhost:8600
 ```
 
 `gateway.py` also serves a `/figures` gallery page of every generated PNG
-(see Evaluate it below), linked from the overlay bar.
+(see Evaluate it below), linked from the dashboard header.
 
 Note the ML scorers need `models/` populated (see Setup step 4) — without
 trained artifacts, every scorer falls back to a neutral default and the
@@ -272,8 +286,8 @@ methodology writeup of every model above (purpose, why that architecture,
 what the validation actually establishes, what it doesn't) and
 `docs/13_system_architecture_and_workflow.md` for the whole-system
 diagrams. With the gateway running, `http://localhost:8600/figures` also
-serves a gallery page of every generated PNG, linked from the dashboard's
-live overlay bar.
+serves a gallery page of every generated PNG, linked from the dashboard
+header.
 
 ## Project structure
 
@@ -304,7 +318,7 @@ zt-cps-starter/
 │   ├── 13_system_architecture_and_workflow.md      <- whole-system diagrams (architecture, sequence, training pipeline)
 │   └── figures/                              <- scripts/generate_evaluation_graphs.py's PNG output
 ├── design/
-│   ├── zero-trust-cps-command-center.html   <- served live by gateway.py with a real-data overlay (http://localhost:8600)
+│   ├── zero-trust-cps-command-center.html   <- fully live dashboard, served by gateway.py (http://localhost:8600)
 │   ├── Main.dc.html                          <- editable source (can't run standalone, missing runtime)
 │   └── canvas.json
 ├── firmware/

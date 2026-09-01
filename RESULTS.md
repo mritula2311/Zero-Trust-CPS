@@ -18,6 +18,197 @@ it lists the deliberate deviations from the original design docs (trust-
 style Process Anomaly scale, flat `src/` layout, RL/GNN as live defaults)
 that the numbers below should be read in light of.
 
+## 0. Scoring-Defect Remediation Round (supersedes earlier RL/policy numbers)
+
+**Read this before citing any number below it.** A full end-to-end
+verification against the live ESP32 found that a healthy board sitting at
+rest was being `BLOCK`ed. Four independent defects were root-caused, each
+by measurement rather than inspection, plus one firmware bug. The training
+data was **not** regenerated — `data/collected/training_session.json` is
+byte-identical across this round — so every change below is attributable
+to code, not to shifted inputs.
+
+### 0.1 Isolation Forest score calibration (the root cause)
+
+`sklearn`'s `decision_function` is not a `[-0.5, 0.5]`-spanning score.
+With `contamination=0.1` it is defined so that exactly 10% of the training
+data falls below `0.0`, and its inlier side is compressed into a narrow
+positive band. Measured on this model:
+
+| Class | `decision_function` median | Old mapped score (`raw + 0.5`) |
+|---|---|---|
+| normal | `+0.0788` | 0.579 |
+| best case, any input | `+0.1214` | **0.621** |
+| anomalous_shock | `-0.3529` | 0.147 |
+
+`PROCESS_THRESHOLD` is **0.6**. The best score the signal could produce for
+a *perfectly normal* reading was 0.621, and the median normal was 0.579 —
+**below threshold**. The signal could never express "normal", and it
+dragged the fused score under threshold on healthy telemetry, including the
+real board at rest. Note that the class separation was always excellent;
+only the mapping into `[0,1]` was wrong.
+
+Fixed with two anchors taken from the **normal class only**, so training
+stays unsupervised: `raw = 0 → 0.5` (sklearn's own inlier/outlier boundary)
+and `raw = median(normal) → 0.9`. The map is monotonic, so nothing is
+reordered — it only rescales a signal that had been squeezed into an
+unusable range.
+
+| Isolation Forest on training normals | Before | After |
+|---|---|---|
+| median | 0.579 | **0.900** |
+| fraction above the 0.6 threshold | 25.8% | **85.7%** |
+| `anomalous_shock` median | 0.147 | **0.000** |
+
+### 0.2 GNN verdict depended on unrelated devices
+
+One **identical** ESP32 reading, varying only how many other devices
+happened to be publishing inside the edge window:
+
+| Active devices | GNN (before) | fused (before) | fused (after) |
+|---|---|---|---|
+| 1 (board alone) | 0.081 | **0.020** | **0.873** |
+| 2 | 0.226 | 0.057 | 0.924 |
+| 3 | 0.648 | 0.577 | 0.941 |
+
+Two causes. First, with the textbook `A + I` and three active nodes,
+symmetric normalisation gives a node's own evidence only 1/3 of its
+representation, so neighbours dominated its verdict. Now
+`GNN_SELF_LOOP_WEIGHT = 3.0` (`A + 3I`), making self-weight 0.6 against
+0.2 per neighbour. Second, the isolated-graph topology appeared in training
+*only* as merged real-hardware rows, which are all labelled normal — so the
+model learned "no neighbours ⇒ normal" and saturated to **1.000** on a
+genuinely shaken board (`rms = 2.5`, IF `0.00`, LSTM `0.40`), masking a
+real anomaly. Training now emits the isolated variant of every snapshot,
+covering that topology with the same class balance.
+
+### 0.3 RL Q-value estimator
+
+`RL_ALPHA = 0.2` is an exponential moving average with roughly a five-visit
+memory. A single state bucket holds a *mixture* of ground-truth situations,
+so the stored value tracked visit **order** rather than the mixture mean.
+Measured on the trained table, state `9,8`: `BLOCK -0.3` against
+`ALLOW -0.7` — every action within 0.4 of every other, so `argmax` was
+effectively arbitrary. The deployed policy answered **BLOCK** for a device
+at security `0.91`, process `0.87`, where the static 2×2 table correctly
+answers `ALLOW`.
+
+Replaced with the incremental **sample average** (`α = 1/N` per
+`(state, action)` visit), the correct estimator for a stationary contextual
+bandit. `RL_ALPHA` has been removed.
+
+### 0.4 An unlearnable class was steering the policy
+
+`stealthy_forged_values` is by construction drawn from the same feature
+distribution as normal traffic (`docs/04` §B.8). A policy keyed on
+`(security, process)` cannot learn to detect it; it can only learn to block
+the region where normal traffic lives. Measured on state `9,8`:
+
+| | raw count | after the 22.66× inverse-frequency weight |
+|---|---|---|
+| legitimate (`normal`) | **3295** | 948 |
+| `combined` (stealthy) | 69 | **1564** |
+
+A 48:1 legitimate majority was overturned by the class weight. The class is
+now excluded from what the policy **trains** on; the confusion matrices
+still score it, because failing to detect it is a result worth reporting.
+The alternative was measured too: unweighted rewards collapse to `ALLOW`
+even at process `0.05`, so inverse-frequency weighting is retained for the
+classes that genuinely *are* separable.
+
+### 0.5 Firmware: `dominant_freq` was wrong 19% of the time
+
+The hand-rolled truncated-Taylor `_sin()` had **7.5e-2** maximum error over
+`[0, 2π]`, which corrupted the on-device DFT enough to select the **wrong
+frequency bin in 57 of 300 test windows (19%)**, off by as much as
+**46.9 Hz**. Because `src/feature_engineering.py` is the reference the
+models are trained against, this was a silent train/serve skew present
+*only* on real telemetry and invisible to every simulated row.
+
+Replaced with `math.sin`/`math.cos`, present in every standard ESP32 build.
+The firmware now reproduces `feature_engineering.dominant_frequency()`
+**exactly — 0/300 mismatches**. The other four features already matched
+exactly. A hardcoded `machine.RTC().datetime(...)` line was also removed:
+it left a wrong-but-plausible clock whenever NTP failed, which is worse
+than an obviously-wrong one.
+
+### 0.6 Verified outcome, on live hardware
+
+| Check | Before | After |
+|---|---|---|
+| Real board at rest | `process 0.18` → **BLOCK** | `process 0.85–0.88` → **ALLOW** |
+| Board shaken (`rms > 1.2`) | — | **19/19 → ALERT, zero ALLOW** |
+| Clean held-out normals, false positives at threshold | — | **0.0%** (n=84, fused median 0.888) |
+| RL average reward (held-out) | 0.379 (static) | **0.515** |
+| RL macro-F1 | 0.287 (static) | **0.550** |
+| `security_concern` F1 | 0.000 | **0.997** |
+| RL training reward | 3063 | **10094** |
+
+Detection quality was preserved rather than traded away: `anomalous_shock`
+recall **1.000**, `coordinated` **1.000** (GNN) and **0.974** (fused).
+
+The live decision trace shows clean shake → `ALERT` → recovery-tail →
+`ALLOW` cycles. The tail is the LSTM-AE's 8-sample rolling window flushing
+the shaken samples, which is correct temporal behaviour rather than a false
+positive.
+
+### 0.7 Why the held-out ablation table barely moved
+
+`evaluate_ablation.py` thresholds at **0.5**, while the calibration defect
+only bites at the live `PROCESS_THRESHOLD` of **0.6**. That evaluation was
+structurally blind to the defect, which is precisely why this shipped
+looking healthy. Worth knowing before citing §2's aggregate accuracy as
+evidence of correctness — the live-hardware and false-positive numbers in
+§0.6 are the ones that actually exercise the deployed threshold.
+
+### 0.8 Dashboard was serving stale renders
+
+Not a scoring defect, but user-visible. The dashboard polls seven `/api/*`
+endpoints every 2s; one full refresh cost **~1.99s of serial server time**
+on a single-threaded `HTTPServer` once the audit log reached about 14k rows
+(`/api/chain` alone re-verifies the entire hash chain — 0.66s, and growing
+with every logged decision). At roughly 100% saturation, refreshes
+overlapped, queued, and endpoints began returning **empty** responses, so
+the page kept its last good render. That is what "the dashboard shows
+static values" actually was.
+
+Fixed with `ThreadingHTTPServer`, short-TTL caches on the three
+audit-scanning endpoints, and tiered client polling.
+
+| | Before | After |
+|---|---|---|
+| Full refresh cycle | 1990 ms | **~690 ms** |
+| `/api/chain` | 0.66 s | **0.004 s** |
+
+### 0.9 Level-2 explainability: why it still misses its target
+
+The overall flip rate is **39%** (78/200) against a ≥70% target, split
+**100% (GNN, 78/78)** and **0% (LSTM-AE, 0/122)**. There is no longer an
+Isolation-Forest-dominant case, because after §0.1 the IF signal reports
+"normal" correctly instead of sitting permanently near 0.58 and so stops
+dominating SHAP on flagged windows.
+
+The LSTM-AE 0% is now measured and mechanistically explained rather than
+merely reported. A flagged window reconstructs with error ~46–62 (z = 20–27
+above the normal baseline); recovering to a 0.5 score requires that error
+to fall to **≤ 4.28**. An impulsive shock moves `rms`, `peak`,
+`crest_factor` and `kurtosis` together — they are all functions of the same
+spike — so the best possible single-channel repair only brings error from
+~55.7 to ~33.7, an order of magnitude short.
+
+Substituting a real normal *trajectory* for the channel, instead of its
+flat training mean, was implemented and measured: it changed nothing
+material (33.63 against 33.70 median, better in only 9/40 windows), so the
+change was **reverted** rather than kept as complexity that buys nothing.
+That experiment locates the limit in the single-channel restriction itself
+rather than in the fill value. The **attribution** remains sound and useful
+throughout: `kurtosis` is named in 110/122 of these cases, the physically
+correct answer for an impulsive spike.
+
+The flip test is a fair pass/fail for a point model — see the GNN's 100% —
+but for a sequence model over correlated channels it asks the model to undo
+an anomaly through a channel that carries only part of it.
+
 ## Figure Index
 
 Every figure below is a PNG in `docs/figures/`, produced by

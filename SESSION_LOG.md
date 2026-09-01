@@ -2425,3 +2425,156 @@ blip during recovery that the exception handler has no way to flag by
 itself (a slow read that succeeds isn't an OSError). `RESULTS.md`'s
 confirmed-behaviours table and Section 13.2 both updated from "fixed, not
 yet re-verified" to "fixed and confirmed."
+
+---
+
+## Scoring-Defect Remediation Round — a healthy board was being BLOCKed
+
+Started as "run the gateway and check the models respond properly to real
+Thonny/ESP32 data." The board authenticated fine (hundreds of accepted
+messages, zero `hmac_mismatch`, which incidentally is the strongest proof
+yet that the firmware's hand-built canonical JSON matches Python's
+`json.dumps(sort_keys=True)` byte-for-byte — one mismatched float and every
+message would be rejected). But the board sitting *at rest* on the desk was
+being scored `process = 0.18` and `BLOCK`ed.
+
+The first hypothesis was wrong, and worth recording because it cost time:
+the real board's `dominant_freq` clusters at 3–9 Hz while the simulated
+normals sit at a median of 25 Hz, so a train/serve distribution mismatch
+looked obvious. It was not the cause. Substituting each feature in turn
+with the simulated-normal median rescued nothing — and, decisively, the
+model's **own training normals** scored fused ≈ 0.03 too. That ruled out
+the data and pointed at the inference path.
+
+**The actual root cause was an Isolation Forest score-calibration bug.**
+`sklearn`'s `decision_function` is not a `[-0.5, 0.5]` score; with
+`contamination=0.1` its inlier side is compressed into a narrow positive
+band (normal median `+0.079`, best case `+0.121`). The mapping `raw + 0.5`
+therefore capped a *perfectly normal* reading at **0.621** and put the
+median normal at **0.579** — both under `PROCESS_THRESHOLD = 0.6`. The
+signal was structurally incapable of saying "normal." Class separation had
+always been excellent (`anomalous_shock` median `-0.353`); only the mapping
+to `[0,1]` was broken. Fixed by anchoring on the normal class only —
+`raw = 0 → 0.5` (sklearn's own boundary) and `raw = median(normal) → 0.9`.
+
+Three more defects surfaced while verifying that fix:
+
+**The GNN's verdict depended on unrelated devices.** One identical reading
+scored fused 0.020 / 0.057 / 0.577 for 1 / 2 / 3 active devices. The
+textbook `A + I` normalisation gives a node's own evidence just 1/3 weight
+with three active nodes. Worse, the first attempted fix *inverted* the
+problem: retraining made the isolated case saturate to **1.000** even for a
+genuinely shaken board (`rms = 2.5`), masking a real anomaly — because the
+only isolated-topology examples in training were merged real-hardware rows,
+all labelled normal, so the model had learned "alone ⇒ normal." Fixed
+properly with a weighted self-loop (`A + 3I`) *and* emitting the isolated
+variant of every training snapshot so that topology is covered by both
+classes. Recording the intermediate wrong state deliberately: "the number
+went up" was not the same as "the model got better," and only re-testing
+the shaken-board case caught it.
+
+**The RL Q-value estimator was noise.** `RL_ALPHA = 0.2` is an EMA with a
+~5-visit memory, but a state bucket holds a *mixture* of situations, so the
+stored value tracked visit order rather than the mean — every action in the
+high-trust states sat within 0.4 of every other, making `argmax` arbitrary.
+The deployed policy answered `BLOCK` at security `0.91` / process `0.87`,
+where the static table correctly answers `ALLOW`. Replaced with the
+incremental sample average (`α = 1/N`), correct for a stationary bandit.
+
+**An unlearnable class was steering the policy.** Even with a correct
+estimator, `BLOCK` still won the healthy region — and legitimately, given
+the objective. State `9,8` holds 3295 legitimate messages against 69
+stealthy ones, but the 22.66× inverse-frequency weight flipped the reward
+mass to 1564 vs 948. The policy was blocking a 48:1 legitimate majority to
+chase an attack this project's own `docs/04` §B.8 documents as undetectable
+from telemetry. `stealthy_forged_values` is now excluded from what the
+policy *trains* on, while the confusion matrices still score it.
+
+**One firmware bug, found by checking the maths rather than reading it.**
+Re-implementing `firmware/main.py`'s feature extraction in CPython and
+diffing it against `src/feature_engineering.py` — the reference the models
+are trained on — showed four of five features matching exactly and
+`dominant_freq` disagreeing in **57 of 300 windows (19%)**, by up to
+46.9 Hz. The hand-rolled truncated-Taylor `_sin()` had 7.5e-2 maximum
+error over `[0, 2π]`. `math.sin`/`math.cos` (present in every standard
+ESP32 build) reproduce the reference exactly, 0/300 mismatches. A hardcoded
+`machine.RTC().datetime(...)` line went too — it left a wrong-but-plausible
+clock whenever NTP failed, which fails the freshness window more insidiously
+than an obviously-wrong clock.
+
+**Outcome, verified on live hardware, not in replay**: the board at rest now
+reads `process 0.85–0.88` → `ALLOW`, and while being shaken by hand
+**19/19 readings with `rms > 1.2` were caught (ALERT, zero ALLOW)**, with a
+clean recovery tail as the LSTM window flushes. Clean held-out normals show
+a **0.0%** false-positive rate at the deployed threshold. Detection quality
+held: `anomalous_shock` 1.000, `coordinated` 1.000 (GNN) / 0.974 (fused).
+RL now genuinely beats static — average reward 0.515 vs 0.379, macro-F1
+0.550 vs 0.287, `security_concern` F1 0.997 vs 0.000.
+
+**A methodological note worth keeping.** The held-out ablation table barely
+moved (fused 0.744 → 0.747), because `evaluate_ablation.py` thresholds at
+0.5 while the defect only bites at the live threshold of 0.6. The
+evaluation suite was structurally blind to a bug that made the system
+unusable on real hardware. That is the reason this round leaned on live
+observation instead of trusting the offline numbers.
+
+### Dashboard: "static values" was server saturation
+
+The dashboard polls seven `/api/*` endpoints every 2s. One full refresh
+cost **~1.99s of serial time** on a single-threaded `HTTPServer` once the
+audit log passed ~14k rows (`/api/chain` re-verifies the whole hash chain —
+0.66s and growing). At ~100% saturation refreshes overlapped and endpoints
+started returning **empty** responses, so the page held its last good
+render. Fixed with `ThreadingHTTPServer` (safe: `audit_log` opens a fresh
+connection per call and guards writes with its own lock), short-TTL caches
+on the three audit-scanning endpoints, and tiered client polling. Refresh
+cycle 1990 ms → ~690 ms; `/api/chain` 0.66s → 0.004s.
+
+Verified in a real browser, which caught something a curl loop had not: an
+escaping error in that same edit had produced a JavaScript `SyntaxError`,
+so the page rendered *nothing*. Worth recording — the server-side fix was
+real and measured, but only loading the actual page proved the whole path
+worked end to end. After the fix: 3 device cards, 60 live decision rows
+advancing between snapshots, 7 NIST bars with evidence counts, chain
+verified across 15,048 rows.
+
+### A fix that was tried, measured, and reverted
+
+Level-2 explainability sits at **39%** against its ≥70% target, carried
+entirely by the GNN (78/78); the LSTM-AE path flips 0/122. The hypothesis
+was that substituting a channel's *flat training mean* across the window
+hands the autoencoder an out-of-distribution input (a perfectly constant
+channel never occurs in training), so a real normal *trajectory* spliced
+from stored reference windows should work better. It was implemented,
+`train_lstm_ae.py` was extended to save reference windows, and it was
+measured: **33.63 vs 33.70 median counterfactual error, better in only
+9/40 windows.** No material change, so it was **reverted** rather than kept
+as complexity that buys nothing.
+
+The measurement did explain the ceiling, which is the more useful outcome.
+A flagged window reconstructs with error ~46–62; recovering to 0.5 needs
+**≤ 4.28**. An impulsive shock moves `rms`, `peak`, `crest_factor` and
+`kurtosis` together, so repairing any single channel leaves the other three
+carrying it — best single-channel repair only reaches ~33.7. The limit is
+the single-channel restriction itself, not the fill value. The attribution
+stays sound: `kurtosis` is named in 110/122 cases, physically correct for an
+impulsive spike. That diagnosis is now printed by
+`evaluate_explainability_level2.py` itself, so the number never appears
+without its explanation.
+
+### Housekeeping
+
+`.gitignore` did not match rotated `*.archived-*` audit files (`*.db` does
+not match `audit_log.db.archived-…`), so a 23MB rotated audit database and
+key-derived checkpoints were committable. Fixed. Also removed 121 lines of
+dead `_DASHBOARD_OVERLAY` code whose docstring still described an injection
+step that no longer happens, and deleted the superseded 2.2MB canvas export
+(its source survives in `design/canvas.json` / `design/Main.dc.html`).
+
+One thing caught before it did damage: the working copy of
+`firmware/main.py` held real WiFi, HMAC and MQTT credentials, while the
+committed version has placeholders. A plain `git add -A` would have
+published all three to a public repository. Commits now stage the firmware
+with placeholders restored while the real values stay on disk, which is why
+`firmware/main.py` permanently shows as modified locally — that is the
+intended steady state, not an uncommitted change.

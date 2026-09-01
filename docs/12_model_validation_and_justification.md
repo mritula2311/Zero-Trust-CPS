@@ -572,7 +572,7 @@ distinct ML/DL paradigms, a graph model, a stacking ensemble, and a
 reinforcement-learning policy — produces a system where every component's
 presence is backed by a specific, reproducible, held-out measurement, and
 where a negative or underwhelming result (the Transformer's marginal
-gain, the Level-2 explainability's 36% flip rate, Isolation Forest's
+gain, the Level-2 explainability's 39% flip rate, Isolation Forest's
 `coordinated` blind spot) is reported as data, not smoothed over. That
 discipline, not any single model, is this project's actual research
 contribution.

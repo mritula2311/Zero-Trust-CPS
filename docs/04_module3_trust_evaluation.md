@@ -20,8 +20,12 @@
 > (orchestration) plus a `level2_explain()` method added to each scorer,
 > wired into the live gateway and logged to two new audit columns. Its
 > Section C.4 validation, however, surfaces a genuine, honestly-reported
-> result, not a clean win: 36% overall flip rate against the 70% target
-> (100% for the GNN, 2%/0% for Isolation Forest/LSTM-AE) — see `RESULTS.md`
+> result, not a clean win: **39%** overall flip rate against the 70%
+> target (**100%** for the GNN, **0%** for the LSTM-AE; there is no longer
+> an Isolation-Forest-dominant case after the IF calibration fix). The
+> LSTM-AE 0% is now mechanistically explained and measured rather than
+> merely reported — a single-channel repair cannot undo a multi-channel
+> shock; see `RESULTS.md`
 > Section 4.1 for the full breakdown and why it splits that way by
 > architecture. This closes item 2 of `RESULTS.md` Section 14's
 > remediation plan, though the C.4 validation result itself is a new,
