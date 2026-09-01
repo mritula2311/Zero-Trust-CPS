@@ -2360,3 +2360,27 @@ microcontroller loop against a PC's compiled numpy/torch, not a red flag.
 Only Section 13.2 (real adversarial testing) and the network-round-trip-
 latency half of 13.4 remain, both requiring new physical action from the
 user, nothing left to close through code or analysis alone.
+
+**Minutes after that, an unplanned but genuinely real physical fault**:
+the user disconnected and reconnected the real MPU6050 while the board
+was running. The board didn't error -- I2C reads against a disconnected
+sensor came back all-zero bytes instead of raising an exception, so
+`rms=peak=crest_factor=kurtosis=0.0` got published as if legitimate,
+physically impossible for a connected accelerometer (gravity alone is
+~1g at rest). Checked, not assumed, whether this was actually caught:
+replayed the exact reading through the live scorers. `rule_range_score()`
+missed it (`0.9`, "within expected range" -- the old `rms` bound was
+`(0.0, 3.0)`), but the full fusion pipeline didn't: `if=0.42 lstm=0.9
+gnn=0.002`, `fused=0.008`, well below `PROCESS_THRESHOLD=0.6` -- the
+GNN/Isolation Forest caught what the rule check missed, the
+defense-in-depth design working exactly as intended, no single point of
+failure. Fixed the rule gap anyway (`rms` lower bound `0.0`->`0.1`, a
+cheap deterministic check for an unambiguous physical impossibility
+shouldn't rely on the ML signals alone) -- verified against both the
+synthetic held-out set (`rule_score` accuracy unchanged at 0.921, no
+regression) and every real session's data (`min` observed `rms` was
+0.33g, comfortably above the new 0.1 floor). `RESULTS.md` Section 13.2
+and the confirmed-behaviours table (Section 1) both updated -- this is
+real evidence toward the still-open formal adversarial-testing item, not
+a substitute for it (it was an incidental discovery, not a structured,
+human-labelled session).

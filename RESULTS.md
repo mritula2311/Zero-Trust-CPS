@@ -69,6 +69,7 @@ log — not inferred from code review:
 | The separate checkpoint catches the sophisticated edit the chain check misses | Compared the recomputed chain against the independently-stored checkpoint | **Confirmed** — mismatch correctly detected |
 | Live dashboard reads real data | `design/zero-trust-cps-command-center.html`, served with a live overlay by `gateway.py` itself (`gateway.py`'s Module 9 extension section, no separate script) | **Confirmed** — tested end to end against real hardware telemetry (Section 13): main page, all `/api/*` endpoints, and `/figures` gallery all verified working |
 | A rate anomaly from a REAL physical device (not the simulator) triggers a real BLOCK | The real `esp32-vib-001` board itself, live | **Confirmed** — `rms=1.02 FLOOD \| security=0.49 \| process=0.40(FRESH) \| BLOCK` with `FLOOD detected (messages arriving faster than the minimum interval)`. Previously this exact response was only ever confirmed with `device_simulator.py`'s synthetic flood scenario (row above) — this is the first live confirmation against genuine hardware. Note this is a Security Trust (rate/timing) event, distinct from Section 13.2's still-pending Process Anomaly (physical fault) adversarial testing — the two domains stay separately evidenced on purpose. |
+| A real physical sensor fault (MPU6050 disconnected) is caught by the fusion pipeline even though the rule check alone misses it | Disconnected/reconnected the real MPU6050 while the board was running | **Confirmed, and a real gap found + fixed** — the disconnected sensor read back all-zero I2C bytes rather than erroring, publishing physically-impossible `rms=peak=crest_factor=kurtosis=0.0`; the rule check's old `(0.0, 3.0)` `rms` bound missed it, but replaying the exact reading through the live scorers gave `fused=0.008` (well below threshold) — the GNN/Isolation Forest caught what the rule check didn't, confirming the fusion design's defense-in-depth. `rms`'s lower bound raised to `0.1` anyway (Section 13.2), verified not to regress the synthetic baseline or reject any real session's data. |
 
 ---
 
@@ -936,13 +937,39 @@ category the project's own pre-hardware baseline already flagged as "not
 expected to be reliably caught" (Section 2, `stealthy_forged_values` row)
 — it moved within an already-weak category, not from strong to weak.
 
-**Still pending**: true physical adversarial testing (actually tapping/
-shocking/loosening the rig with a deliberately induced fault and
-human-labelled ground truth, `CLAUDE.md` Section 9 Week 2) — everything
-above is real hardware under varied but *legitimate* conditions, not a
-staged physical attack. This is the step that would let Sections 2–5's
+**A first real (if informal) physical fault, found by accident, not staged
+as a formal session**: the user disconnected and reconnected the MPU6050
+while the board was running. The board did not error — I2C reads against
+a disconnected sensor came back all-zero bytes rather than raising an
+exception, so the firmware happily published `rms=0.0, peak=0.0,
+crest_factor=0.0, kurtosis=0.0` as if it were a legitimate reading. This
+is physically impossible for a connected accelerometer (Earth's gravity
+alone contributes ~1g even at rest) but revealed a real, previously
+undocumented gap: `rule_range_score()`'s `rms` bound was `(0.0, 3.0)`, so
+this exact fault passed the rule check as "within expected range."
+**Checked, not assumed, whether the fault was caught anyway**: replayed
+the exact reading through the live scorers — `rule=0.900` (missed),
+`if=0.420`, `lstm=0.900`, `gnn=0.002`, **`fused=0.008`** — the full
+fusion pipeline correctly flagged it as anomalous (well below
+`PROCESS_THRESHOLD=0.6`), driven by the GNN and Isolation Forest even
+though the rule check missed it — the defense-in-depth design worked as
+intended, no single point of failure. **Fixed anyway**, since a cheap
+deterministic check catching an unambiguous physical impossibility is
+strictly better than relying on the ML signals alone for it: `rms`'s
+lower bound raised to `0.1` (comfortably below every real observed
+minimum, 0.33g across the 5 sessions above, while excluding exactly
+`0.0`). Verified this doesn't regress the synthetic held-out baseline
+(`rule_score` accuracy unchanged at 0.921) or reject any real session's
+data (all real `rms` values already sit at 0.33 or above).
+
+**Still pending**: a FORMAL physical adversarial-testing session (actually
+tapping/shocking/loosening the rig with a deliberately induced fault and
+human-labelled ground truth per phase, `CLAUDE.md` Section 9 Week 2, using
+`scripts/collect_hardware_session.py`-style structured capture rather than
+an incidental discovery). This is the step that would let Sections 2–5's
 synthetic-attack numbers be re-run against genuine physical faults instead
-of the generator's model of one.
+of the generator's model of one — the sensor-disconnect finding above is
+real evidence in that direction, not a substitute for it.
 
 ### 13.3 Real Sensor Calibration — checked, no change needed (yet)
 

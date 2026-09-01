@@ -200,7 +200,20 @@ DEVICE_REGISTRY = {
         "mqtt_username": "esp32-vib-001",
         "mqtt_password": MQTT_PASSWORDS["esp32-vib-001"],
         "expected_ranges": {
-            "rms": (0.0, 3.0),              # g
+            # rms lower bound raised from 0.0 to 0.1 -- found live (RESULTS.md
+            # Section 13.2) that a genuinely disconnected MPU6050 reads back
+            # all-zero bytes over I2C rather than raising an error, producing
+            # rms=peak=crest_factor=kurtosis=0.0 -- physically impossible for
+            # a connected accelerometer (gravity alone contributes ~1g even
+            # at rest), but rms=0.0 satisfied the old (0.0, 3.0) bound
+            # trivially. 0.1 stays well below every real observed minimum
+            # (0.33g across 5 real sessions, Section 13.2's table) while
+            # catching this exact fault. peak/crest_factor/kurtosis are NOT
+            # tightened the same way -- unlike rms, they can legitimately
+            # approach 0 during genuinely still real readings (observed real
+            # minimum peak was 0.0087g), so a similar floor there risks a
+            # false positive on quiet-but-connected operation.
+            "rms": (0.1, 3.0),              # g
             "peak": (0.0, 6.0),             # g (peak-to-peak)
             "crest_factor": (0.0, 10.0),    # dimensionless (peak-to-peak / rms, not textbook max/rms -- see feature_engineering.py)
             "kurtosis": (-3.0, 30.0),       # excess kurtosis
