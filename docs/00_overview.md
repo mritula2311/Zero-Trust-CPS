@@ -54,7 +54,7 @@
 >    the real-data retraining results. **The dashboard is now served by
 >    `gateway.py` itself, not a separate script** — `webapp_server.py` was
 >    first removed entirely (on explicit user instruction), then its live-
->    overlay/`/api/*`/`/figures`-gallery logic was merged directly into
+>    `/api/*`/`/figures`-gallery logic was merged directly into
 >    `gateway.py` (its Module 9 extension section,
 >    `start_dashboard_server()`, same background-thread pattern
 >    `coap_server.py`'s second transport already used) once the user asked

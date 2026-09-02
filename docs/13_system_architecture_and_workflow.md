@@ -40,7 +40,7 @@ flowchart TB
     end
 
     subgraph L5["Layer 5 — Observability (Phase 9, merged into gateway.py)"]
-        V1["Live dashboard<br/>design/zero-trust-cps-command-center.html<br/>+ live overlay, :8600"]
+        V1["Live dashboard<br/>design/zero-trust-cps-command-center.html<br/>fully live, polls /api/*, :8600"]
     end
 
     D1 & D2 & D3 -->|signed telemetry| T1
@@ -83,7 +83,7 @@ MQTT, the HTTPS second transport, and the dashboard together
 | 5 — Access Control | Static 2x2 table, or RL bandit reading the same 2D state | `src/policy_engine.py`, `src/adaptive_pdp.py` |
 | 6 — Secure Communication | MQTT/TLS, HTTPS (CoAP-shaped) | `src/device_simulator.py`, `src/coap_server.py`, `firmware/main.py` |
 | 7 — Monitoring & Audit | Hash-chained log, governance tenet mapping | `src/audit_log.py`, `src/nist_mapping.py`, `src/iec62443_mapping.py` |
-| 9 — Observability (extension) | Live dashboard (`design/zero-trust-cps-command-center.html` + a real live-data overlay), served by `gateway.py` itself on a background thread, no separate script | `src/gateway.py` (Module 9 extension section), `src/audit_log.py`, `src/nist_mapping.py`, `src/iec62443_mapping.py` |
+| 9 — Observability (extension) | Live dashboard (`design/zero-trust-cps-command-center.html`, a single fully-live page that polls the `/api/*` endpoints itself), served by `gateway.py` on a background thread, no separate script | `src/gateway.py` (Module 9 extension section), `src/audit_log.py`, `src/nist_mapping.py`, `src/iec62443_mapping.py` |
 
 ---
 
@@ -238,9 +238,13 @@ flowchart LR
     CKPT -.->|independent tamper check| DASH
 ```
 
-`design/zero-trust-cps-command-center.html` is served by DASH above with
-a live-data overlay spliced in (not a separate script — merged into
-`gateway.py` directly; `SESSION_LOG.md` §29/§30).
+`design/zero-trust-cps-command-center.html` is served by DASH above as a
+single fully-live page that polls the `/api/*` endpoints itself (not a
+separate script — merged into `gateway.py` directly; `SESSION_LOG.md`
+§29/§30). There is no overlay-injection step any more: the earlier 2.2MB
+flattened canvas export it used to be spliced into has been deleted, and
+the canvas *source* survives in `design/canvas.json` /
+`design/Main.dc.html` if it ever needs regenerating.
 
 **Why `firmware/main.py` and `device_simulator.py` are drawn as
 alternatives, not both-always-on**: both publish under the SAME
@@ -306,7 +310,7 @@ zt-cps-starter/
 ├── certs/                        <- self-signed CA + TLS certs + mosquitto ACLs
 ├── data/collected/                <- training_session.json / test_session.json (generated)
 ├── models/                        <- every scripts/train_*.py's output (read-only at runtime)
-├── design/                        <- Claude Design canvas export + live overlay target
+├── design/                        <- live dashboard page (+ the canvas source it came from)
 ├── docs/                          <- this 14-file design/reference set + docs/figures/
 ├── src/                           <- see Section 2's module table above
 └── scripts/

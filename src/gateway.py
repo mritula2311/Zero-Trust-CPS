@@ -447,21 +447,25 @@ def on_message(client, userdata, msg):
 # background-thread pattern coap_server.py's second transport already
 # uses (see start_dashboard_server() / run() below).
 #
-# **Read this before assuming every pixel on the page is live.** The
-# served file is a 2.2MB bundled EXPORT of a Claude Design canvas -- the
-# Design tool's own runtime/renderer bundled together with a flattened
-# snapshot of whatever the canvas showed at export time. The exported
-# bundle's device names are hardcoded, stale TEXT (`vibration-001`,
-# `mpu6050-001`), not live bindings -- they predate the current
-# `esp32-vib-001`/`sensor-002`/`actuator-001` hybrid device registry
-# entirely. There is no reactivity left to reconnect; the export
-# flattened it away. This code does NOT attempt to surgically patch
-# values inside the 2.2MB minified bundle (high risk of silently breaking
-# it). Instead it serves the real file byte-for-byte AS THE VISUAL SHELL,
-# and injects one clearly-labelled, genuinely-live overlay bar at the top
-# of the page, polling the real `/api/*` endpoints below. The overlay is
-# the authoritative live view; the canvas beneath it is the original
-# design artifact kept intact, not a live-updating element.
+# The page is FULLY LIVE. It renders itself from the /api/* endpoints below,
+# polling every 2s, so there is no injection step and no static shell: device
+# cards, decision stream, NIST coverage and its validation, IEC FR status, the
+# RL policy table and audit-chain integrity are all read from this gateway.
+#
+# It did not start that way, and the history matters if you are reading old
+# comments elsewhere: the served file used to be a 2.2MB flattened export of a
+# Claude Design canvas whose device names were hardcoded, stale text
+# (`vibration-001`, `mpu6050-001`) predating the current registry entirely, with
+# one genuinely-live overlay bar spliced in above it. That export has been
+# deleted and replaced outright by the hand-written live page; the canvas SOURCE
+# it was exported from survives in design/canvas.json and design/Main.dc.html.
+#
+# Two things worth knowing before changing this server:
+#   - It is a ThreadingHTTPServer, and that is load-bearing rather than
+#     incidental -- see start_dashboard_server() for the measured saturation
+#     failure a single-threaded one caused.
+#   - The read caches below are what keep /api/chain affordable; its cost grows
+#     with every logged decision, since it re-verifies the whole hash chain.
 # =============================================================================
 
 DASHBOARD_DESIGN_HTML_PATH = os.path.join(
@@ -726,8 +730,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
     def _serve_figures_gallery(self) -> None:
         """Serves a small, self-contained HTML gallery of every PNG in
         docs/figures/ (scripts/generate_evaluation_graphs.py's output),
-        linked from the live overlay bar rather than spliced into the
-        canvas, for the same "don't touch the 2.2MB bundle" reason."""
+        linked from the dashboard header."""
         if not os.path.isdir(DASHBOARD_FIGURES_DIR):
             names = []
         else:

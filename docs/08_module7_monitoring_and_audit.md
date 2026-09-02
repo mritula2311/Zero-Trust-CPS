@@ -20,7 +20,7 @@
 > `identity_targeting_count_60s` alongside the legacy `trust_score` column
 > (kept as an alias of `security_trust_score` for backward compatibility).
 > The live dashboard (`design/zero-trust-cps-command-center.html`, served
-> with a live overlay by `gateway.py` itself — see `gateway.py`'s Module 9
+> live by `gateway.py` itself — see `gateway.py`'s Module 9
 > extension section, `SESSION_LOG.md` §29/§30) shows the chain-verified
 > indicator and the two independent score lines Section 4 below asks for.
 > A Streamlit dashboard (`dashboard.py`) was found during real-hardware

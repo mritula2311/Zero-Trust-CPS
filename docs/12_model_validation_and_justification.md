@@ -41,7 +41,7 @@ stated once:
    project's own history (`SESSION_LOG.md`) contains multiple cases where
    a measured result came back worse than hoped (the Transformer's tie
    with the LSTM-AE before the residue-exclusion fix; the Level-2
-   explainability validation's 36% vs. a 70% target) and the response was
+   explainability validation's 39% vs. a 70% target) and the response was
    to report the number and explain it, not adjust the target or hide the
    run. That standard applies to every model in this file.
 4. **Synthetic data, honestly labeled as such.** Every number in this

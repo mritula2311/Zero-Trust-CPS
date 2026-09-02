@@ -179,6 +179,33 @@ rule_based_score(features, expected_range: dict from device registry) -> float i
 - **Cold start:** until a device has enough baseline messages to train on (configurable minimum, e.g. 500 messages), this sub-signal returns a neutral `0.5` and is excluded from the fusion meta-learner's training data for that period — do not let an untrained model contribute noise to early scoring.
 - **Retraining:** retrain on a schedule (e.g., every 10,000 new messages, or nightly in hardware-time) using an expanding or sliding window of recent normal data, so the model can adapt to slow legitimate drift.
 
+> **AS-BUILT NOTE (scoring scale — this was a real defect, now fixed):**
+> the design line above says only "rescaled to `[0, 1]`", and *how* that
+> rescaling is done turned out to matter enormously. The as-built scale is
+> trust-style (**1 = normal**, the project-wide inversion flagged in
+> `docs/00_overview.md`), and the original mapping was simply
+> `decision_function() + 0.5`. That assumed `decision_function` spans
+> `[-0.5, 0.5]`. It does not: with `contamination=0.1` sklearn defines it so
+> exactly 10% of the *training* data falls below `0.0`, and its inlier side is
+> compressed into a narrow positive band — measured on this model, normal
+> median `+0.079` and best case `+0.121`. So the best score a **perfectly
+> normal** reading could receive was **0.621**, with the median normal at
+> **0.579** — both under `config.PROCESS_THRESHOLD` (0.6). The sub-signal was
+> structurally incapable of reporting "normal", and dragged the fused score
+> below threshold on healthy telemetry, including the real ESP32 at rest.
+>
+> The as-built mapping anchors on two points taken from the **normal class
+> only**, so training stays unsupervised (no anomalous example is consulted to
+> calibrate): `raw = 0 → 0.5` (sklearn's own inlier/outlier boundary, so the
+> model's decision boundary becomes the neutral midpoint) and
+> `raw = median(normal) → 0.9` (this codebase's "looks normal" convention).
+> Linear in between, clipped, and monotonic — it reorders nothing, it only
+> rescales a signal that had been squeezed into an unusable range. The anchor
+> is measured at training time and saved to
+> `models/isolation_forest_<device>_meta.json`. Class separation was always
+> excellent (`anomalous_shock` median `-0.353`); only the mapping was wrong.
+> See `RESULTS.md` §0.1.
+
 ### B.4 Sub-Signal 3 — LSTM-Autoencoder
 
 - **Library:** PyTorch.
@@ -196,6 +223,40 @@ rule_based_score(features, expected_range: dict from device registry) -> float i
 - **Fallback graph construction (single-node):** if only one device exists, build a graph from the six MPU6050 channels themselves — each channel is a node, edges represent expected correlation between channels (e.g., accel_x–accel_y, accel_z–gyro_z if the mounting orientation makes that physically meaningful), and node features are that channel's recent statistics. State explicitly in code comments that this is the weaker fallback case, not the target design.
 - **Library:** PyTorch Geometric. A small 2-layer GCN or GraphSAGE model is sufficient — this is not a case that needs a large model.
 - **The keep/drop decision:** after training, compare this sub-signal's contribution on the *validation* split against the three-signal combination (rule + Isolation Forest + LSTM-AE) using the ablation methodology in `10_testing_and_attack_simulation.md`. If it does not measurably improve F1-score or recall on the validation set, **do not include it in the live fusion meta-learner.** Record the comparison numbers regardless of outcome — a documented "we tried it, it did not help, here is the evidence" is a valid and expected result, not a failure.
+
+> **AS-BUILT NOTE (graph construction):** the as-built graph is the
+> multi-node device graph above (3 devices), not the single-node channel
+> fallback, and it is a hand-rolled GCN in plain PyTorch rather than PyTorch
+> Geometric — see `src/gnn_scorer.py` for why (compiled extensions are
+> version-locked and a common broken install, for identical math on a 3-node
+> graph). The keep/drop decision came out **keep**, decisively: the GNN is the
+> only sub-signal that detects the `coordinated` event type at all (recall
+> **1.000**, against 0.316 for Isolation Forest and 0.222 for the LSTM-AE,
+> which are structurally blind to cross-device co-occurrence).
+>
+> Two as-built corrections to the adjacency, both found by measurement:
+>
+> 1. **Self-loop weight.** With the textbook `A + I` and three active nodes,
+>    symmetric normalisation gives a node's own evidence only 1/3 of its
+>    representation, so *neighbours* dominated its verdict. One identical ESP32
+>    reading scored fused **0.020 / 0.057 / 0.577** depending only on how many
+>    unrelated devices happened to be publishing inside the edge window.
+>    `config.GNN_SELF_LOOP_WEIGHT = 3.0` (`A + 3I`) makes self-weight 0.6
+>    against 0.2 per neighbour, keeping the relational term the sub-signal
+>    exists for while letting a device's own physics decide the majority of its
+>    own verdict.
+> 2. **Isolated-topology training coverage.** A device publishing with no
+>    active neighbour is the *normal* single-device deployment, not an edge
+>    case. That topology originally appeared in training only as merged
+>    real-hardware rows, which are all labelled normal — so the model learned
+>    "no neighbours ⇒ normal" and saturated to **1.000** on a genuinely shaken
+>    board (`rms = 2.5`, IF `0.00`, LSTM `0.40`), masking a real anomaly.
+>    `scripts/train_gnn.py` now emits the isolated variant of every snapshot,
+>    covering that topology with the same class balance.
+>
+> `normalized_adjacency()` is shared by training and inference deliberately —
+> changing it without retraining silently invalidates the model. See
+> `RESULTS.md` §0.2.
 
 ### B.5b Sub-Signal 5 — Transformer (Ablation Candidate, Not in the Original Design)
 

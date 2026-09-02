@@ -146,12 +146,32 @@ Epsilon-greedy bandit sketch:
   is a valid, useful finding.
 ```
 
+### Q-value estimator: incremental sample average, not a fixed learning rate
+
+`AdaptivePDP.update()` uses `α = 1/N` for the N-th visit to a given
+`(state, action)` pair — the textbook incremental sample average — rather than a
+fixed-α exponential moving average.
+
+This is not a stylistic choice. A single state bucket holds a **mixture** of
+ground-truth situations (the same `(security, process)` bucket is reached by
+genuinely normal messages and by attack messages alike), so `Q(s,a)` is
+estimating an *expectation over that mixture*, and the target is stationary. A
+fixed `α = 0.2` EMA tracks only the last ~5 visits, which leaves the stored
+value dominated by visit **order** rather than by the mixture's mean. Measured
+on the previously-trained table: every action in the high-security/high-process
+states sat within 0.4 of every other (state `9,8`: `BLOCK -0.3` vs
+`ALLOW -0.7`), so `argmax` was effectively arbitrary — and the deployed policy
+answered `BLOCK` for a device at security `0.91`, process `0.87`, where the
+static table correctly answers `ALLOW`. A sample average converges to the true
+expected reward, which is what a greedy `argmax` needs to mean anything. See
+`RESULTS.md` §0.3.
+
 ## 4.1 Failure Modes (RL Policy)
 
 | Scenario | Static table (Section 2) | RL policy (Section 4, live default) |
 |---|---|---|
 | Both scores exactly at a threshold/bucket boundary | Deterministic, always the same decision | Depends on the trained Q-values for that bucket — a decision may differ from the static table's for a borderline state; log these distinctly for evaluation since the RL policy is meant to have learned a genuinely different, better boundary here, not to be arbitrary |
-| A `(security_bucket, process_bucket)` state that was rare or absent in training | N/A | Q-values for that state are unreliable (few or no updates ever touched it) — `situation_weights()`'s inverse-frequency weighting (Section 4 above) mitigates but does not eliminate this; worth checking which states are sparsely covered before trusting the policy's behaviour there |
+| A `(security_bucket, process_bucket)` state that was rare or ABSENT in training | N/A | **Absent is safe, rare is the real risk — they are different cases.** For a state never visited at all, `AdaptivePDP._get_q()` SEEDS the state from the static 2×2 table (`policy_engine.decide()`), giving the static-correct action 1.0 and the rest 0.0, so `greedy_action()` returns exactly what the static policy would. It does not pick arbitrarily by dictionary order, and it does not fail open — verified: at `security 0.05–0.55` with `process 0.95` both policies return `STEP_UP`. The live dashboard's RL panel labels these rows `static fallback` and shows `--` rather than a misleading `0.00`. A state visited only a FEW times is the genuinely unreliable case, since its sample average is estimated from too few visits; `situation_weights()`'s inverse-frequency weighting mitigates but does not eliminate it, so check which states are sparsely covered before trusting behaviour there. |
 | Live reward signal | N/A | Not a live concern by construction — `greedy_action()` is the only method the live gateway calls, and it never updates online (Section 4 above) |
 
 ## 5. Interface Contract
