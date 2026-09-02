@@ -263,13 +263,85 @@ Step 10 before doing anything else.
 | `OSError: [Errno 19] ENODEV` or similar around `i2c.writeto_mem` | MPU6050 not wired correctly, or wired to the wrong pins — recheck Section 2, especially SDA/SCL not swapped. |
 | Hangs forever at `[wifi] connecting to ...` | Wrong WiFi password, or a 5GHz-only network (the ESP32's WiFi radio is 2.4GHz only) — confirm your network has a 2.4GHz band available and the ESP32 is using it. |
 | `ImportError: no module named 'ussl'` | Already handled automatically — `firmware/main.py` falls back to `import ssl as ussl` on MicroPython builds that dropped the `u` prefix. If you still see this exact error, your build is missing both names; try a different/newer MicroPython `.bin`. |
-| `[time] NTP sync attempt N/3 failed` / `[time] NTP sync failed after 3 attempts` | The firmware retries NTP 3 times (2s apart) before giving up — observed live that a single attempt right after WiFi association intermittently times out (`ETIMEDOUT`) even though a retry succeeds. If all 3 attempts fail, it's non-fatal (see the comment in `firmware/main.py`) but telemetry will fail the gateway's secondary timestamp-freshness check (`REJECTED (stale_timestamp)`) until the next successful sync — press EN/RST to retry, or check whether your network blocks outbound NTP (UDP port 123). `boot_id`/`seq` (the primary anti-replay mechanism) is unaffected either way. |
+| `[time] NTP sync attempt N/3 failed` / `[time] NTP sync failed after 3 attempts` | The firmware retries NTP 3 times (2s apart) before giving up — observed live that a single attempt right after WiFi association intermittently times out (`ETIMEDOUT`) even though a retry succeeds. **Failure here is now handled, not fatal:** the firmware falls back to treating the RTC as *local* time and subtracts `RTC_LOCAL_UTC_OFFSET_SECONDS` to get UTC, and prints exactly that. Read Step 9.1 before assuming a `stale_timestamp` rejection means NTP — if the offset constant is wrong for your timezone, you get rejections *because of* this fallback rather than despite it. `boot_id`/`seq` (the primary anti-replay mechanism) is unaffected either way. |
 | `OSError: [Errno 104] ECONNRESET` or connection refused at `[mqtt] connecting...` | Wrong `MQTT_HOST`, broker not running, or the gateway machine's firewall is blocking the ESP32's subnet — confirm Section 5's checks. |
 | `MQTTException: 5` at `client.connect()` | CONNACK "not authorized" — almost always `MQTT_USERNAME`/`MQTT_PASSWORD` not matching `certs/mosquitto_passwd` exactly. See Step 7's typo-checking tip. |
 | `[main] MPU6050 read failed (sensor disconnected, unpowered, or wired incorrectly?): [Errno 116] ETIMEDOUT` | The sensor read (not WiFi/MQTT) failed — a genuinely unpowered or disconnected MPU6050 (VCC or SDA/SCL loose). Not fatal: the firmware re-initializes I2C and retries every cycle, recovering automatically the moment the wiring/power is restored (no reset needed) — verified live, including the automatic-recovery path. If this persists with the wiring connected, recheck Section 2's pinout. |
 | Real readings publish fine, but `rms`/`peak`/`crest_factor`/`kurtosis` all read exactly `0.0` | A more subtle sensor fault than the error above — some disconnection states leave the I2C bus responsive but returning all-zero bytes instead of raising an error (observed live when only SDA/SCL, not VCC, was disconnected). Physically impossible for a connected accelerometer (gravity alone is ~1g at rest). `src/config.py`'s `rms` rule-check bound (`expected_ranges`) has a `0.1` floor specifically to catch this — if you're seeing it on the gateway console as `ALLOW`/normal rather than flagged, something upstream of that check needs attention. |
 
 ---
+
+## 9.1 If every message is `REJECTED (stale_timestamp)` — the clock trap
+
+This is the single most likely thing to block a first bring-up on an isolated
+hotspot, and the symptom is misleading: the board looks perfectly healthy, WiFi
+and MQTT connect, the HMAC is correct, and yet the gateway refuses every message.
+
+**Diagnose it by the size of the offset, which tells you which of three problems
+you have:**
+
+| Board clock vs gateway | Cause |
+|---|---|
+| ~30 years behind | The 2000-epoch bug — MicroPython's `time.time()` counts from 2000-01-01, not 1970. The firmware adds `946684800` s; if you edited that, put it back. |
+| **A constant offset exactly equal to a timezone** (e.g. +19,800 s = +5:30) | **The timezone trap below.** A whole-timezone offset is never drift. |
+| Slowly growing by minutes | Genuine RTC drift with no NTP. This is what `REPLAY_WINDOW_SECONDS = 600` accommodates. |
+
+### The timezone trap
+
+When NTP is unreachable, the ESP32's RTC keeps whatever last wrote to it — and on
+a Thonny-managed board, that is **Thonny**. Its ESP32 backend connects with
+`local_rtc: True`, meaning it writes **local** time, not UTC. The firmware then
+adds the epoch gap assuming the RTC is UTC, so every message lands exactly one
+timezone offset **into the future** and fails the freshness window.
+
+Measured on this deployment: **+19,784 s**, precisely IST's +5:30, with every
+message rejected.
+
+### The fix
+
+`firmware/main.py` defines:
+
+```python
+RTC_LOCAL_UTC_OFFSET_SECONDS = 5 * 3600 + 30 * 60   # IST (UTC+5:30)
+```
+
+applied **only when NTP fails**. `sync_time()` returns whether it succeeded, so:
+
+- **NTP succeeded** → the RTC is true UTC → offset is 0, this constant is ignored
+  entirely. A board with a real internet route needs no configuration.
+- **NTP failed** → the RTC holds local time → the offset converts it to UTC.
+
+**Set this to your own timezone**, or to `0` if your IDE syncs UTC. Watch the
+boot log to see which path you are on:
+
+```
+[time] synced via NTP -- RTC is true UTC, no offset needed
+```
+or
+```
+[time] NTP sync failed after 3 attempts -- treating the RTC as LOCAL time and
+[time] subtracting RTC_LOCAL_UTC_OFFSET_SECONDS = 19800 to get UTC
+```
+
+After the fix the measured delta was **+2.3 s to +21.3 s**, with zero
+`stale_timestamp` rejections across 46 consecutive rows.
+
+### Why not just hardcode the date?
+
+An earlier version of this firmware did exactly that —
+`machine.RTC().datetime((2026, 9, 1, ...))` — and it is the wrong answer even
+though it works on the day you write it. A pinned instant drifts a day further
+out of date every day, and it fails with a *plausible-looking* wrong time rather
+than an obviously wrong one, which is much harder to diagnose. An offset stays
+correct as long as your timezone does. **Do not replace this with a fixed
+timestamp.**
+
+### The real fix, if you want one
+
+Share your laptop's internet connection to the hotspot (enable ICS on Windows).
+The board then reaches a real NTP server, `sync_time()` succeeds, the offset is
+bypassed automatically with no firmware change, and you can revert
+`config.REPLAY_WINDOW_SECONDS` from 600 back to 30.
 
 ## 10. The Critical First Integration Test
 
@@ -308,6 +380,40 @@ between the firmware and the gateway, HMAC verification will fail on
 
 ---
 
+### 10.1 The second integration test — feature maths, not just signatures
+
+Step 10 proves the *envelope* is right. It cannot prove the *contents* are, and
+that is a separate failure mode worth its own test.
+
+The five features are computed **on the device**, while every model is trained
+against `src/feature_engineering.py`. Those are two independent implementations
+of the same maths. The HMAC signs whatever number the device computed — correct
+or not — so a numerically wrong feature sails through Step 10 untouched.
+
+This has already happened once on this project. A hand-rolled `_sin()` in the
+firmware carried up to **7.5e-2** error, which selected the wrong DFT bin for
+`dominant_freq` in **57 of 300** windows (19%), by as much as 46.9 Hz. Every one
+of those messages was perfectly signed and cheerfully accepted. Because the
+models train on the reference implementation, the result was a **silent
+train/serve skew visible only on real hardware** — no simulated row and no
+offline evaluation script could have shown it.
+
+**The test**, and it costs a minute:
+
+1. Copy the firmware's `extract_features()` / `_dominant_frequency()` maths into
+   a throwaway CPython script (they are plain arithmetic; only `_sin`/`_cos`
+   need substituting).
+2. Generate a few hundred randomised windows across several regimes — quiet
+   baseline, single impulsive spike, low-frequency sinusoid.
+3. Run both implementations over the same windows and diff all five features.
+4. **Every feature must match exactly.** The current firmware does: 0/300
+   mismatches on all five.
+
+If `dominant_freq` disagrees, suspect trigonometry first: use `math.sin` /
+`math.cos` from MicroPython's built-in `math` module (present in every standard
+ESP32 build — the board has hardware floating point) rather than any hand-rolled
+series approximation.
+
 ## 11. Running Real Hardware Alongside the Simulator
 
 Once Step 10 passes, `esp32-vib-001` is being published from **two**
@@ -337,6 +443,21 @@ To go back to pure simulation (e.g. the board is disconnected), set
 ---
 
 ## 12. Baseline Calibration & Folding Real Data Into the Trained Models
+
+> **Before capturing:** make sure your firmware passes Step 10.1. Data captured
+> with wrong feature maths gets merged into the training set and teaches the
+> models the wrong distribution — and because it is labelled *normal* like every
+> other real row, nothing downstream will flag it. The four sessions currently in
+> `data/collected/` predate the `dominant_freq` fix and still carry an inflated
+> high-frequency tail; see `HARDWARE_DATA_LOG.md` §3.
+>
+> **Also note what the capture script's `phase` field is and is not.** It records
+> what the operator was *asked* to do, not what the board physically experienced,
+> and on the existing sessions the two do not line up — `at_rest_1` contains a
+> higher maximum `rms` (3.416 g) than `moderate_shake` (1.050 g). Do not build
+> labelled training or evaluation data on it. If you want trustworthy labels,
+> record them at the moment of injection rather than inferring them from a timed
+> phase schedule afterwards (`HARDWARE_DATA_LOG.md` §2).
 
 `src/config.py`'s `DEVICE_REGISTRY["esp32-vib-001"]["expected_ranges"]`
 and the trained Isolation Forest / LSTM-AE / GNN / fusion meta-learner are
@@ -417,11 +538,15 @@ to reflect the real observed range with reasonable margin.
 - **`DEVICE_SECRET`/`MQTT_PASSWORD` are plaintext constants in flash** —
   no secure element, no flash encryption. Same accepted simplification,
   same section.
-- **NTP dependency**: the secondary timestamp-freshness check needs the
-  board's clock to be roughly correct, which needs a working NTP path
-  (Step 9's troubleshooting table; the firmware retries 3 times before
-  giving up). The *primary* anti-replay mechanism (`boot_id`/`seq`) does
-  not depend on this at all.
+- **Wall-clock dependency (NTP *or* a correct offset)**: the secondary
+  timestamp-freshness check needs the board's clock roughly correct. With a
+  working NTP path that is automatic. Without one — which is the case on an
+  isolated hotspot — it depends on `RTC_LOCAL_UTC_OFFSET_SECONDS` being right
+  for your timezone (Step 9.1). The *primary* anti-replay mechanism
+  (`boot_id`/`seq`) does not depend on either. Note the accommodation this
+  forced: `config.REPLAY_WINDOW_SECONDS` is widened from 30 s to **600 s**
+  because a manually-set RTC drifts by minutes; revert it to 30 once the board
+  has real NTP time.
 - **`boot_id` persistence uses a plain file on the MicroPython
   filesystem** (`boot_id.txt`), not a hardware-backed counter — a full
   flash chip erase (not just a normal reboot or even a firmware

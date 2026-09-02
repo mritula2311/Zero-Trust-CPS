@@ -215,6 +215,92 @@ Stated explicitly, again, per the project synopsis: this is **alignment and trac
 | All resource authentication/authorization is dynamic and strictly enforced before access | `decision` = BLOCK/STEP_UP rows, tied to specific `reason` values from Module 2 |
 | The system collects information about assets, network traffic, and requests to improve security posture | The audit log itself, plus the hash chain proving it has not been silently altered |
 
+### 5.1 Two different claims: coverage vs. validation
+
+The table above maps each tenet to the audit fields that make it *traceable*.
+Traceability is necessary but it is not the same as evidence, and conflating the
+two was a genuine weakness in earlier versions of this document.
+
+**Coverage** (`src/nist_mapping.py`, `completeness_report()`) answers: *what
+proportion of logged decisions carry this tenet's tag?* It measures **tagging**.
+
+**Validation** (`src/governance_validation.py`) answers: *does the tagged claim
+actually hold, under an independent check against the logged evidence?* It
+measures **compliance**.
+
+The distinction is not academic here. `tenets_for_decision()` attaches tenets
+**1, 3, 4, 5 and 6 to every decision unconditionally** — they describe the shape
+of the pipeline, so the tagger asserts them by construction. Their 100% coverage
+is therefore **tautological**: it reads 100% because the tagger always writes it,
+and no arrangement of the system could produce another number. Only tenets 2
+(secured transport) and 7 (fusion trained) were ever gated on a real condition.
+
+A reader entitled to ask *"how do you know tenet 4 is satisfied?"* deserves a
+better answer than *"because we always put a 4 in that column."*
+
+### 5.2 How each tenet is actually validated
+
+Every check reads **only the hash-chained audit log** — the same rows an external
+auditor would be handed — and never live in-memory state, because an assertion
+that depends on trusting the running process is not independent of it. Each one
+names the observation that would falsify it:
+
+| Tenet | Claim validated | FAILS if |
+|---|---|---|
+| 1 | Nothing is scored without first being a registered resource | An authenticated row whose `device_id` is not in `DEVICE_REGISTRY` |
+| 2 | Every scored message arrived over an encrypted transport | An authenticated row on an unencrypted transport |
+| 3 | Every message is independently evaluated, never cached | A row granted access carrying no scores of its own |
+| 4 | The policy is driven by the trust state, **on each axis independently** | An equal (or inverted) ALLOW rate above and below a threshold |
+| 5 | Every registered asset is observed, including silent ones | A registered device with no audit rows at all |
+| 6 | No unauthenticated message received anything but rejection | Any `auth_ok=False` row carrying an access decision |
+| 7 | The learned models measurably change the outcome | `fused_score` identical to `rule_score` on every row |
+
+**Result over 10,000 rows: 7/7 PASS.** The evidence worth quoting:
+
+- **T4** is the sharpest and is tested **per axis** deliberately. A single pooled
+  comparison is weak here: a window whose only non-ALLOW rows are security-driven
+  `STEP_UP`s would show almost no separation on the *process* axis and pass by
+  accident. Measured separately — ALLOW rate **15% below** the process threshold
+  vs **91% at or above**, and **0% below** the security threshold vs **88% at or
+  above**. Testing per axis also directly exercises the two-score architecture's
+  central claim: each score must be able to move the outcome on its own.
+- **T6** is the most load-bearing: 213 rejected rows in the window, **none** of
+  which reached a scoring or access decision.
+- **T7**: the learned fusion moved the score away from the rule-only baseline on
+  **100%** of rows, so the ML pipeline is demonstrably contributing rather than
+  decorative.
+- **T3**: all three devices changed decision within the window
+  (`esp32-vib-001: ALERT, ALLOW, BLOCK, STEP_UP`) — which a cached,
+  once-per-session grant could not produce.
+
+### 5.3 The checks are proven non-vacuous
+
+`scripts/evaluate_governance.py` injects each tenet's own stated falsifier as
+synthetic rows and requires the check to reject it: **6/6 do**. Tenet 5 is
+excluded from that count rather than assumed — its falsifier is a device with
+*no* rows, which is the absence of data rather than a constructible row. See
+`10_testing_and_attack_simulation.md` §7.1 for the general method.
+
+Two non-PASS states exist and are reported rather than smoothed into a pass:
+
+- **`UNFALSIFIABLE`** — T3, when no device changed decision in the window, since
+  that window cannot distinguish re-evaluation from caching.
+- **`INSUFFICIENT_DATA`** — T4, when the window holds rows on only one side of a
+  threshold. On a short, healthy window the *process* axis routinely becomes
+  untestable this way, and the tool says so instead of quietly passing on the
+  security axis alone.
+
+Both appear verbatim in the dashboard's Governance Validation panel and in the
+script's output, alongside each check's claim, falsifier and evidence.
+
+### 5.4 What this still is not
+
+Unchanged from the statement above the table: **alignment and traceability with
+an independent check, not certified compliance.** Validation raises confidence
+that the logged claims hold on the logged data. It does not audit the
+implementation itself, cover tenets in situations the log never exercised, or
+substitute for a third-party assessment.
+
 ## 6. Interface Contract
 
 | Producer | What It Writes to the Log |

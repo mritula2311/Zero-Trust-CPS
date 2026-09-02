@@ -149,6 +149,78 @@ is, live default — Section B.5), measure per-message latency explicitly
 (`docs/10_testing_and_attack_simulation.md`) rather than assuming it's
 still negligible.
 
+> **AS-BUILT — the serial assumption above is no longer true, and the gateway
+> defends against that explicitly.** `gateway.py` runs several threads that
+> reach the same unlocked mutable state: the MQTT loop, the HTTPS second
+> transport (`coap_server.py`), and the silence watchdog. Both transports call
+> `process_telemetry()`, and the watchdog reads and mutates per-device trust
+> state on its own timer. The "single-threaded pipeline" assumption that
+> `fusion_engine.py` and `trust_engine.py` were written against therefore does
+> not hold on its own.
+>
+> `_pipeline_lock` restores it. It serialises the **whole** telemetry pipeline,
+> not just individual reads, because the state at risk is not one variable but
+> several that must stay mutually consistent: `FusionEngine.last_shap` (read
+> immediately after `combine()` to log it), the LSTM-AE's per-device rolling
+> window, the GNN's `last_features`/`last_seen` arrays, and
+> `check_boot_replay()`'s `last_seen_seq`. Two interleaved in-flight messages
+> would corrupt all four. The silence watchdog holds the same lock across its
+> entire per-device block, so a `SILENT` row can never be written against a
+> half-updated snapshot of a device's own scores.
+>
+> Lock ordering is fixed and documented: `_pipeline_lock` → `audit_log`'s own
+> chain lock, never the reverse, so the two cannot deadlock.
+>
+> Measured per-message cost with the full pipeline (auth + 4 scorers + fusion +
+> policy): **median 26.85 ms, p95 36.09 ms**; HMAC verification alone is
+> **0.005 ms**. So the serialisation is not currently a throughput problem at
+> three devices publishing every 2 s, but the measurement is the point — §3.1's
+> advice to measure rather than assume is what produced these numbers.
+
+### 3.1b The dashboard and `/api/*` layer — a second concurrency domain
+
+The dashboard runs on its own `ThreadingHTTPServer` in a background thread and
+is **deliberately outside** `_pipeline_lock`. It never mutates pipeline state; it
+only reads the audit log, which opens a fresh SQLite connection per call and
+guards writes with its own lock. Keeping it outside the pipeline lock is what
+stops a slow HTTP client from stalling telemetry processing.
+
+Threading here is load-bearing rather than incidental, and the reason is worth
+recording because the failure was subtle:
+
+The page polls seven `/api/*` endpoints every 2 s. On the original
+single-threaded `HTTPServer`, one full refresh cost **~1.99 s of serial server
+time** once the audit log reached ~14k rows — `/api/chain` alone re-verifies the
+entire hash chain, at 0.66 s and growing with every logged decision. Against a
+2 s poll interval that is ~100% saturation: refreshes overlapped, queued, and
+endpoints began returning **empty** responses, so the page silently kept its last
+good render. The symptom presented as "the dashboard shows static values", which
+points at the UI, while the cause was entirely server-side.
+
+Three changes fixed it, and they are complementary:
+
+| Change | Effect |
+|---|---|
+| `ThreadingHTTPServer` | Requests no longer queue behind one another |
+| 10 s TTL cache on chain verification | `/api/chain` **0.66 s → 0.004 s** |
+| 5 s TTL cache on the NIST/IEC tallies + tiered client polling | Heavy, slow-changing panels stop being recomputed twice a second |
+
+Full refresh cycle: **1990 ms → ~690 ms**.
+
+The underlying cost is unchanged: chain verification is O(rows) and rows only
+grow. The cache defers that, it does not remove it. A substantially larger audit
+log will eventually need incremental verification — verifying only rows added
+since the last checkpoint — rather than a full re-scan.
+
+**A verification lesson from the same incident:** the server-side fix was real
+and measured, but the page still rendered *nothing*, because an escaping error in
+the same edit had produced a JavaScript `SyntaxError`. A `curl` loop over the
+endpoints reported everything healthy. Only loading the actual page revealed it.
+Endpoint checks verify the API; they do not verify the client that consumes it,
+and for a browser-delivered surface both need testing. `node --check` on the
+extracted script is now the cheap static gate, and a real page load is the
+functional one.
+
 ### 3.2 The Seven Modules, One Sentence Each
 
 Useful as a quick recap or viva cheat sheet:

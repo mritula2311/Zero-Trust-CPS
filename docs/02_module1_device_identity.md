@@ -179,6 +179,65 @@ file), two further hardening steps a production deployment would add:
    — gives a PKI-compatible identity at the network boundary without
    pushing PKI cost onto the endpoint. Grounded in [12].
 
+## 8.1 AS-BUILT: the registry's `kind` field drives the whole scoring path
+
+`DEVICE_REGISTRY` carries a `kind` per device, and it is the single switch that
+decides how the rest of the pipeline treats that identity:
+
+| `kind` | Devices | Reading shape | Process Anomaly path |
+|---|---|---|---|
+| `feature_vector` | `esp32-vib-001` | 5 named features computed on-device | Real Isolation Forest + LSTM-AE models, per device |
+| `scalar` | `sensor-002`, `actuator-001` | one float | **No IF/LSTM model exists**; those slots mirror `rule_score` |
+
+That mirroring is documented rather than silent, and the honest reading of it
+matters: for a scalar device the "four-signal fusion" is really one signal
+(`rule_score`) replicated into three of the four inputs, plus a genuine GNN
+contribution from the graph. It is not four independent opinions. Anyone
+quoting fusion performance for the simulated devices should say so.
+
+The registry is also where per-device expected ranges live, and one bound there
+is not arbitrary. `esp32-vib-001`'s `rms` lower bound is **0.1**, not 0.0,
+because a physically disconnected MPU6050 reads back all-zero bytes over I2C
+rather than raising an error — producing `rms = peak = crest_factor = kurtosis =
+0.0`, which is impossible for a connected accelerometer (gravity alone
+contributes ~1 g at rest) but satisfied the original `(0.0, 3.0)` bound
+trivially. 0.1 sits well below the real observed minimum across five sessions
+(0.334 g) while catching that exact fault. `peak`, `crest_factor` and `kurtosis`
+were deliberately **not** given the same treatment: unlike rms they can
+legitimately approach zero during genuinely quiet operation, so a similar floor
+there would produce false positives.
+
+## 8.2 AS-BUILT: `REAL_HARDWARE_DEVICE_IDS` is the coexistence mechanism
+
+A real board and the simulator publishing under the **same** `device_id` race on
+`boot_id`/`seq` — `check_boot_replay()` tracks one session per identity, so
+whichever message arrives second is rejected as a replay. `config.REAL_HARDWARE_DEVICE_IDS`
+(currently `{"esp32-vib-001"}`) tells `device_simulator.py` to skip that
+identity entirely, leaving the physical board its sole publisher while the other
+two remain simulated. The gateway needs no change either way — it cannot tell,
+and deliberately should not care, which side of the abstraction a message came
+from.
+
+## 8.3 Identity is checked before everything, and rejection never touches the victim
+
+The ordering in `gateway.py._process_telemetry()` is deliberate and worth
+restating here because it is a Module 1 property:
+
+1. **Unknown `device_id`** → rejected before HMAC is even attempted. An
+   unregistered identity has no secret to check against, and by definition no
+   state of its own to damage.
+2. **Revoked device** → rejected before HMAC, as a hard override regardless of
+   signature validity (§3). Checked *after* the unknown-identity test, since a
+   revoked ID is still a *known* ID and the two rejection reasons must stay
+   distinct in the audit log.
+3. Only then does authentication proceed.
+
+Every one of those rejections routes to `IdentityTargetingRisk` for the
+**claimed** identity — never to that device's own trust state. Validated
+continuously: NIST tenet 1's check confirms no authenticated row ever came from
+an unregistered device, across 10,000 audit rows, 0 violations
+(`08_module7_monitoring_and_audit.md` §5.2).
+
 ## 9. Acceptance Criteria
 
 - Registering two devices produces two different secrets (verify by direct comparison in a test — this sounds trivial but is worth asserting explicitly, since a copy-paste provisioning bug is a realistic mistake).

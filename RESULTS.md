@@ -595,27 +595,55 @@ script's docstring): perturb the named Level-2 feature toward "normal",
 re-run the full Process Anomaly Engine, check whether the fused score
 recovers above the 0.5 threshold.
 
-**Result: 82/225 (36%) overall — below the 70% target, and reported
+**Result: 78/200 (39%) overall — below the 70% target, and reported
 honestly rather than adjusted to look better.** The aggregate number
 hides a real, informative split by signal:
 
 | Dominant signal | Flip rate | Why |
 |---|---|---|
-| GNN | 80/80 (**100%**) | Masking the one neighboring device actually responsible for a `coordinated` reading fully explains the anomaly — the relational signal really is that node's whole story. |
-| Isolation Forest | 2/129 (**2%**) | SHAP correctly ranks which raw feature contributed most (Section 4's 100% result already confirms this), but an Isolation Forest's anomaly score is the isolation depth across many tree splits on many features jointly — replacing one feature, even the top-ranked one, doesn't collapse the ensemble's path length back to "normal" when several correlated features (`rms`/`peak`/`crest_factor` are all derived from the same raw window) are elevated together. |
-| LSTM-AE | 0/16 (**0%**) | Same underlying cause as Isolation Forest: `anomalous_shock`/`coordinated` windows typically elevate several of the 5 correlated features at once, so zeroing one channel leaves the others still driving reconstruction error up. |
+| GNN | 78/78 (**100%**) | Masking the one neighbouring device actually responsible for a `coordinated` reading fully explains the anomaly — the relational signal really is that node's whole story. |
+| LSTM-AE | 0/122 (**0%**) | A single-channel repair cannot undo a multi-channel event. Quantified below. |
+| Isolation Forest | — | No longer appears. See the note on composition below. |
 
-**This is a genuine, informative finding about explanation validity
-across model families, not a bug to chase toward 70%:** Level 1 SHAP is
-already validated as 100% physically-sensible (Section 4 above) — the
-gap here is specifically about whether a *single-feature* perturbation
-is a strong enough intervention to fully flip a *multi-feature-correlated*
-model's decision, and the honest answer is "yes for the GNN's relational
-signal, no for the two feature-correlated signals." Reported as measured;
-future work wanting to close this gap should perturb the FULL set of
-elevated features together for IF/LSTM-AE, not just the single top-ranked
-one — a different (and arguably more informative) validation design than
-Section C.4's literal single-feature procedure, out of this round's scope.
+**Why Isolation Forest has vanished from this table.** It previously accounted
+for 129 of the 225 cases at a 2% flip rate. After the IF score-calibration fix
+(§0.1), the signal reports "normal" correctly instead of sitting permanently
+near 0.58, so it stops being the SHAP-dominant signal on flagged windows and
+those cases redistribute to the LSTM-AE. The overall rate moved 36% → 39% not
+because explanation quality improved, but because the *mix* changed. Worth
+stating plainly: this is a composition shift, not progress against the target.
+
+**The LSTM-AE 0% is now measured rather than asserted.** A flagged window
+reconstructs with error **~46–62** (z = 20–27 above the normal baseline), and
+recovering to a 0.5 score requires that error to fall to **≤ 4.28**. An impulsive
+shock moves `rms`, `peak`, `crest_factor` and `kurtosis` *together* — they are all
+functions of the same spike — so repairing any single channel leaves the other
+three carrying it. The best achievable single-channel repair brings error from
+~55.7 only to **~33.7**, an order of magnitude short of what recovery needs.
+
+**One hypothesis was tested and rejected.** Substituting a channel's flat
+training mean hands a sequence autoencoder an out-of-distribution input — a
+perfectly constant channel never occurs in training — so splicing a *real normal
+trajectory* from stored reference windows should recover better. It was
+implemented, measured (**33.63 vs 33.70** median counterfactual error, better in
+only 9/40 windows), and **reverted** as complexity that bought nothing. That
+experiment is what locates the ceiling in the **single-channel restriction
+itself**, not in the fill value.
+
+**The attribution remains sound throughout.** `kurtosis` is named in **110/122**
+of these cases — the physically correct answer for an impulsive spike. What fails
+is the *recovery* test, not the *explanation*.
+
+**This is a finding about explanation validity across model families, not a bug
+to chase toward 70%:** Level 1 SHAP is already validated as 100%
+physically-sensible (Section 4 above). The flip test is a fair pass/fail for a
+point/relational model — see the GNN's 100% — but for a sequence model over
+correlated channels it asks the model to undo an anomaly through a channel that
+carries only part of it. Future work wanting to close the gap should perturb the
+**full set** of elevated features together, which is a different and arguably
+more informative validation design than Section C.4's literal single-feature
+procedure. `scripts/evaluate_explainability_level2.py` prints this diagnosis
+alongside the number, so the figure never travels without its explanation.
 
 ---
 

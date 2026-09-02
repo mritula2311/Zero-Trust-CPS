@@ -161,6 +161,54 @@ As part of Phase 3's acceptance test, and again as part of the full evaluation (
 | Message published to the wrong topic (typo) | Silently never received by the intended subscriber | No built-in detection — a periodic per-device heartbeat message is one way to detect "device configured but not actually reaching the gateway" |
 | Plain MQTT, no TLS | All traffic readable to anyone with network access to the broker | Not the default — TLS auto-enables once `certs/` is populated (`config.MQTT_USE_TLS`); plaintext only remains as a fallback for the very first connectivity check before certs exist |
 
+## 5.2 AS-BUILT: the ACLs are enforced, and that was demonstrated rather than assumed
+
+`certs/mosquitto_acl` gives each identity least privilege: a device may
+**publish** its own telemetry and **read only** the decisions and challenges
+addressed to itself (`pattern read cps/decisions/%u`), while the gateway may
+**read** all telemetry and **write** all decisions and challenges. Note the
+gateway is deliberately granted `topic write cps/decisions/#` and **not** read.
+
+That asymmetry was confirmed accidentally, which makes it better evidence than a
+deliberate test would have been. An attempt to verify the gateway→device
+decision channel using **gateway** credentials returned zero messages. The
+initial reading was a broken decision channel; the actual cause was the broker
+correctly refusing a subscription the gateway has no right to make. Re-running
+with a *device* credential — which `pattern read cps/decisions/%u` does permit —
+returned the messages immediately.
+
+Two results came out of that:
+
+- **Mutual authentication verified.** 10/10 gateway→device decisions were
+  HMAC-valid when recomputed with the device's own secret, exactly as
+  `firmware/main.py`'s `verify_decision_signature()` does. Sample payload:
+  `{device_id, decision, ts, gateway_boot_id, decision_seq}` — the last two
+  giving the decision channel the same boot/seq anti-replay the telemetry
+  channel uses, in the opposite direction.
+- **No cross-device leakage.** Subscribing as `sensor-002` and attempting
+  `cps/decisions/esp32-vib-001` yielded **0** messages.
+
+A caveat on how that second result reads: Mosquitto **silently drops** delivery
+for a topic the ACL denies rather than returning a subscribe failure code, so the
+client sees success and simply never receives anything. The evidence is
+therefore "zero messages delivered", not "subscription rejected". When testing
+ACLs, absence of delivery is the signal — do not expect an error.
+
+### 5.3 What FR5 "partial" actually means here
+
+`iec62443_mapping.py` rates FR5 (Restricted Data Flow) **partial**, and that is a
+deliberate, honest rating rather than an unfinished one. The transport-layer
+conduit restriction genuinely exists — per-device broker credentials plus the
+topic ACLs above, replacing what used to be `allow_anonymous=true` where the
+application-layer HMAC was the *only* enforcement. What does not exist is
+physical or VLAN segmentation between the three zones: all three still run as
+processes on the same machine and network, so a compromised host would still see
+all traffic regardless of the broker ACLs.
+
+Both halves belong in the write-up: real conduit-level access control exists;
+physical segmentation remains future work. The dashboard shows this gap inline
+under the FR5 row rather than hiding it in a tooltip.
+
 ## 6. Configuration Parameters
 
 ```yaml

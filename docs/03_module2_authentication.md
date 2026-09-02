@@ -252,6 +252,69 @@ authentication:
                                                 # rate-limit response in Section 5.1
 ```
 
+### 8.1 AS-BUILT: `replay_window_seconds` is 600, not 30 — and why that is a *deployment* accommodation, not a weakening
+
+`config.REPLAY_WINDOW_SECONDS = 600`. The design value above is 30 s, and the
+widening is deliberate, bounded, and reversible:
+
+- **What it does not weaken.** This is the *secondary* freshness check. The
+  **primary** anti-replay mechanism is the boot-aware `boot_id`/`seq` check
+  (§4 Check 4, §4.1), which is entirely independent of wall-clock time and is
+  unaffected by this value. A replayed packet is caught by `check_boot_replay()`
+  regardless of the freshness window, because its `seq` has already been seen.
+  What the window actually bounds is how far a *fresh* message's self-reported
+  clock may drift from the gateway's before it is refused.
+- **Why it had to widen.** The real board sits on an isolated laptop hotspot
+  with **no route to an NTP server**, so `ntptime.settime()` always fails and
+  its RTC is set manually. A manually-set RTC drifts by minutes; 30 s refuses
+  legitimate traffic within the hour.
+- **How to revert it.** Share the laptop's internet connection to the hotspot
+  (enable ICS) so the board gets real NTP time, then set this back to 30.
+
+### 8.2 The clock trap this check exposes on real hardware
+
+`check_timestamp_freshness()` compares the device's self-reported `ts` against
+the gateway's own `time.time()`. Both sides must therefore agree on **which
+epoch and which timezone** `ts` is expressed in, and on MicroPython neither is
+automatic:
+
+1. **Epoch.** MicroPython's `time.time()` counts seconds from **2000-01-01**,
+   not the Unix epoch. The firmware adds a fixed `946684800` s, or every message
+   appears roughly 30 years stale.
+2. **Timezone.** When NTP fails, the RTC holds whatever last wrote to it. Thonny
+   sets the ESP32 clock on every connect with `local_rtc: True` — i.e. **local**
+   time, not UTC. An uncorrected local RTC puts every message exactly one
+   timezone offset into the *future*.
+
+The second was observed live: the board measured **+19,784 s** ahead of the
+gateway — precisely IST's +5:30 — and every message was rejected as
+`stale_timestamp`. Note the failure signature is informative: a constant offset
+that exactly equals a timezone is a clock-reference bug, whereas a slowly
+growing offset would be drift and a ~30-year offset would be the epoch bug.
+
+The as-built firmware resolves this with `RTC_LOCAL_UTC_OFFSET_SECONDS`, applied
+**only when `sync_time()` reports that NTP failed**. A successful NTP sync yields
+a true UTC clock and a zero offset, so a board with a working route needs no
+configuration. Post-fix the measured delta is **+2.3 s to +21.3 s**, with zero
+`stale_timestamp` rejections across 46 consecutive rows.
+
+> **A rejected design:** pinning the clock with a hardcoded
+> `machine.RTC().datetime(...)` constant. It works on the day it is written and
+> then silently rots — drifting a day further out every day, and failing with a
+> *plausible-looking* wrong time rather than an obviously wrong one, which is the
+> harder failure to diagnose. An offset stays correct as long as the timezone
+> does. See `RESULTS.md` §0.5b.
+
+### 8.3 What a `stale_timestamp` rejection routes to
+
+Per §6's table, `stale_timestamp` routes to `IdentityTargetingRisk` for the
+*claimed* device — **not** to that device's own trust state. That property held
+during the clock incident above and is worth noting as evidence the attribution
+fix (§5) behaves correctly under a fault that is not an attack: the board was
+rejected hundreds of times by its own misconfigured clock, and its Security
+Trust Score was never touched. A design that penalised the claimed device would
+have buried the real device's reputation for a clock bug.
+
 ## 9. Acceptance Criteria
 
 - 100 deliberately forged messages (wrong HMAC) → 0 accepted, and none of them alter the claimed device's own `AuthenticatedBehaviourState` or Security Trust Score — only `IdentityTargetingRisk` for that claimed ID changes.

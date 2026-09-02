@@ -140,7 +140,13 @@ The project synopsis calls for a multi-day baseline collection to avoid the shor
 
 ## 5. Implementation B — Hardware Device (specification for later)
 
-This section specifies what the eventual ESP32 firmware must do to be a drop-in replacement for the simulator. **No firmware code is written yet** — this is the contract the firmware must satisfy when hardware arrives.
+This section specifies what the ESP32 firmware must do to be a drop-in replacement for the simulator.
+
+> **AS-BUILT:** the firmware exists (`firmware/main.py`), is flashed, and has
+> been running against the live gateway. The contract below held up — see §5.2's
+> AS-BUILT note for how it was verified and for a second, subtler equivalence
+> risk that this specification did not anticipate and that turned out to matter
+> more than the one it did.
 
 ### 5.1 Firmware Responsibilities
 
@@ -153,6 +159,85 @@ This section specifies what the eventual ESP32 firmware must do to be a drop-in 
 ### 5.2 The One Integration Risk to Test First
 
 MicroPython's `ujson` and the gateway's CPython `json` can serialize floats or key ordering slightly differently. **The very first hardware integration test, before anything else, must be:** publish one real message from the ESP32, and confirm the gateway's independently computed HMAC matches the one the firmware sent. If it does not, the canonicalization rule (Section 2) needs a firmware-side fix before any other module can be trusted against real hardware.
+
+> **AS-BUILT — this risk was real, and the mitigation was to stop trusting the
+> JSON encoder at all.** `firmware/main.py` does *not* call `ujson.dumps()` to
+> build the signed payload. It constructs the canonical string by hand
+> (`canonical_json()` + `format_py_float()`): every value is pre-rendered as a
+> JSON literal, keys are sorted explicitly, and the separators (`", "` between
+> pairs, `": "` within one) match CPython's `json.dumps(payload, sort_keys=True)`
+> defaults exactly. `format_py_float()` renders with 4 decimals then strips
+> trailing zeros, restoring a single `.0` so that `1.0` does not become `1.`.
+> This means the firmware never depends on a MicroPython JSON encoder matching
+> CPython's float formatting — it sidesteps the entire class of risk rather than
+> hoping the two agree.
+>
+> **The verification is stronger than the one-message test specified above.**
+> Hundreds of consecutive messages have been accepted with **zero
+> `hmac_mismatch`**. That is a continuous proof, not a one-off: the HMAC covers
+> the canonical string byte-for-byte, so a single mismatched float rendering — in
+> any field, on any message — would reject that message immediately. Sustained
+> acceptance across varied readings (values spanning `0.0087` to `3.4386`, both
+> signs of kurtosis, and the optional `step_up_nonce_echo` field appearing and
+> disappearing) is what actually establishes equivalence.
+
+### 5.2b The Second Equivalence Risk — the one this spec missed
+
+Canonicalisation equivalence is necessary but **not sufficient**. A message can
+be perfectly signed and still carry a *numerically wrong* feature, because the
+five features are computed **on-device** (§5.1 item 2) while every model is
+trained against `src/feature_engineering.py`. Those are two independent
+implementations of the same maths, and nothing in the message format can detect
+a disagreement between them — the HMAC signs whatever number the device
+computed, correct or not.
+
+This was not hypothetical. Re-implementing the firmware's extraction in CPython
+and diffing it against `feature_engineering.py` over 300 windows in three signal
+regimes found:
+
+| Feature | Agreement with reference |
+|---|---|
+| `rms` | exact |
+| `peak` | exact |
+| `crest_factor` | exact |
+| `kurtosis` | exact |
+| **`dominant_freq`** | **wrong bin in 57/300 windows (19%), by up to 46.9 Hz** |
+
+The cause was a hand-rolled truncated-Taylor `_sin()` with up to **7.5e-2**
+error over `[0, 2π]`, which corrupted the on-device DFT's bin selection. Because
+the models train on the reference implementation, this was a **silent train/serve
+skew that existed only on real telemetry** — invisible to every simulated row and
+to every offline evaluation script. Replacing it with `math.sin`/`math.cos`
+(present in every standard ESP32 MicroPython build) reproduces the reference
+exactly: **0/300 mismatches**. See `RESULTS.md` §0.5.
+
+**The generalisable lesson for this layer:** when features are computed on the
+device, the hardware/simulation abstraction has *two* contracts, not one — the
+message format, and the feature mathematics. Only the first is enforced by the
+protocol. The second needs its own differential test, and the cheap version is
+what was used here: re-implement the device maths in CPython and diff it against
+the reference over randomised windows. That test now belongs in §6's acceptance
+criteria.
+
+### 5.2c A third integration point: wall-clock time
+
+Also not anticipated here. The gateway's secondary freshness check
+(`check_timestamp_freshness`) compares the device's self-reported `ts` against
+the gateway's own clock, so the two clocks must agree to within
+`config.REPLAY_WINDOW_SECONDS`. Two device-side corrections are required and
+neither is obvious:
+
+1. MicroPython's `time.time()` counts from **2000-01-01**, not the Unix epoch,
+   so a fixed `946684800` s must be added or every message looks ~30 years stale.
+2. If NTP is unreachable — which is the case on an isolated hotspot — the RTC
+   holds whatever last set it. Thonny syncs it with `local_rtc: True`, i.e.
+   **local** time, so an uncorrected clock lands exactly one timezone offset in
+   the future. Measured at **+19,784 s**, precisely IST's +5:30, and every
+   message was rejected as `stale_timestamp`.
+
+`firmware/main.py` applies `RTC_LOCAL_UTC_OFFSET_SECONDS` **only when
+`sync_time()` reports NTP failed**, so a working NTP route bypasses it
+automatically. See `firmware/HARDWARE_DATA_LOG.md` §5.
 
 ### 5.3 Switching Modes
 
@@ -170,6 +255,7 @@ config.yaml:
 ## 6. Acceptance Criteria for This Layer
 
 - A simulated device publishes a valid, correctly-signed message that Module 2's verifier accepts.
+- **The hardware device's on-device feature maths matches `src/feature_engineering.py`** — the reference implementation the models are trained against — verified by a differential test over randomised windows, not by inspection. Signature validity does not imply numerical equivalence (§5.2b).
 - Each attack-matrix scenario in Section 4.3 can be triggered on command and produces a message that Module 2 or Module 3 correctly flags.
 - At least 3 simulated devices can run concurrently with independent state.
 - Switching `device_mode` in config requires editing exactly one value, and no code in Modules 1–7 references `device_mode` directly.

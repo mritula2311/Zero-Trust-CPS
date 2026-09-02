@@ -55,6 +55,49 @@ zt-cps/
 └── docs/                              # this LLD set, kept alongside the code it describes
 ```
 
+## 1.1 AS-BUILT: the real `src/` module inventory
+
+One file per module or concern, flat, no packages. Every one of these is
+imported by `gateway.py` on the live path **except** `device_simulator.py`
+(a client, not part of the gateway) and `transformer_scorer.py` (an ablation
+candidate deliberately not wired into fusion — see `04_module3_trust_evaluation.md`
+§B.5b).
+
+| Module | Lines | Role |
+|---|---|---|
+| `gateway.py` | 925 | PDP/PEP, both transports, dashboard + `/api/*`, silence watchdog |
+| `config.py` | 571 | Every tunable, the device registry, all paths and thresholds |
+| `trust_engine.py` | 491 | Security Trust + auth state (replay, step-up, silence, rotation, revocation, `IdentityTargetingRisk`) |
+| `audit_log.py` | 338 | Hash-chained SQLite log + independent checkpoints |
+| `device_simulator.py` | 316 | The two simulated devices (client side) |
+| `governance_validation.py` | 260 | **NIST tenet validation** — falsifiable compliance checks, distinct from coverage |
+| `iec62443_mapping.py` | 218 | IEC 62443 zones, conduits, FR status and coverage |
+| `transformer_scorer.py` | 195 | Ablation candidate only — *not* a live fusion input |
+| `gnn_scorer.py` | 179 | Relational Process Anomaly signal (hand-rolled GCN) |
+| `adaptive_pdp.py` | 172 | RL bandit over the two-score state (inference live, training offline) |
+| `lstm_ae_scorer.py` | 168 | Temporal Process Anomaly signal |
+| `isolation_forest_scorer.py` | 117 | Point-anomaly Process Anomaly signal |
+| `coap_server.py` | 114 | HTTPS second transport (substitutes for CoAP/DTLS) |
+| `fusion_engine.py` | 109 | Stacking meta-learner + SHAP (Level 1) |
+| `feature_engineering.py` | 89 | **Reference implementation** of the 5 features — firmware is checked against this |
+| `explainability.py` | 81 | Level-2 orchestration across the scorers |
+| `nist_mapping.py` | 56 | NIST tenet tagging (coverage) |
+| `policy_engine.py` | 51 | The static 2×2 table |
+| `secrets_local.py` | 31 | **Gitignored.** Real HMAC secrets + MQTT passwords; template is `secrets_local.example.py` |
+
+Two boundaries in that table are load-bearing and easy to erase by accident:
+
+- **`nist_mapping.py` vs `governance_validation.py`.** The first *tags* a
+  decision with the tenets it is evidence for; the second *independently checks*
+  whether the tagged claim holds. Coverage and validation answer different
+  questions and are reported separately on purpose — merging them would hide
+  which one a reader is getting. See `08_module7_monitoring_and_audit.md`.
+- **`feature_engineering.py` is the reference, not just a helper.** The firmware
+  computes the same five features on-device, and the models are trained against
+  *this* file. Changing a formula here without re-verifying the firmware against
+  it silently creates a train/serve skew that no offline evaluation can see
+  (`01_simulation_and_hardware_abstraction.md` §5.2b).
+
 ## 2. Dependencies
 
 ```
@@ -130,6 +173,39 @@ monitoring:
   chain_verification_schedule_seconds: 300
   dashboard_refresh_seconds: 2
 ```
+
+## 3.1 AS-BUILT: configuration constants that carry non-obvious consequences
+
+Every setting is a Python constant in `src/config.py`. These particular ones
+have caused real, measured failures when set wrong, so they are documented here
+rather than left to an inline comment:
+
+| Constant | Value | Why it matters |
+|---|---|---|
+| `PROCESS_THRESHOLD` | `0.6` | The live decision boundary for the Process Anomaly axis. **Note it is 0.6, while `scripts/evaluate_ablation.py` thresholds at 0.5** — a defect that only bit at 0.6 was therefore invisible to that evaluation (`RESULTS.md` §0.7). |
+| `SECURITY_THRESHOLD` | `0.6` | Same for the Security Trust axis. |
+| `REPLAY_WINDOW_SECONDS` | `600` | Widened from 30 because the board has no NTP route. Bounds only the *secondary* freshness check; `boot_id`/`seq` remains primary (`03_module2_authentication.md` §8.1). |
+| `GNN_SELF_LOOP_WEIGHT` | `3.0` | Adjacency is `A + wI`. At the textbook `w=1` with 3 active nodes, a node's own evidence carries only 1/3 of its representation and neighbours dominate its verdict. Shared by training and inference — changing it without retraining silently invalidates the GNN. |
+| `ISOLATION_FOREST_CONTAMINATION` | `0.1` | Defines where sklearn puts `decision_function == 0`, which is the anchor the score calibration is built on. Changing it requires retraining so the saved `raw_normal_median` anchor is regenerated. |
+| `USE_RL_POLICY` | `True` | Selects the RL bandit over the static 2×2 table. Both are always available; the bandit *seeds unvisited states from the static table*, so the static policy is never fully out of the picture (`06_module5_access_control.md` §4.1). |
+| `LSTM_SEQ_LEN` | `8` | The rolling window. Explains the ALERT "recovery tail" after a real disturbance: normal readings arriving within 8 samples of an anomaly still contain it, and are correctly scored low. Excluding these is what makes a false-positive rate meaningful (`RESULTS.md` §0.6). |
+| `SILENCE_CHECK_INTERVAL_SECONDS` | `5` | The watchdog sweep. Nothing else makes staleness observable — the message-triggered path cannot detect a device that has stopped sending (`05_module4_continuous_verification.md`). |
+| `CHECKPOINT_INTERVAL_ROWS` | `100` | How often an independent checkpoint is written. Sets the granularity at which the stronger tamper attacker is caught. |
+| `DASHBOARD_ROWS_TO_FETCH` | `300` | The window the governance/IEC/decision panels summarise. A window this size can leave a validation check untestable (e.g. no rows below threshold on either axis) — the validator reports that rather than passing silently. |
+
+### Model artifacts and their metadata sidecars
+
+`models/` holds more than weights, and the sidecars are not optional:
+
+| Artifact | Contains |
+|---|---|
+| `isolation_forest_<device>.joblib` | The fitted forest |
+| `isolation_forest_<device>_meta.json` | **`raw_normal_median`** — the calibration anchor mapping `decision_function` to `[0,1]`. Without it the scorer falls back to the legacy mapping, which cannot express "normal" (`RESULTS.md` §0.1). |
+| `lstm_ae_<device>.pt` | Autoencoder weights |
+| `lstm_ae_<device>_meta.json` | Per-feature `mean`/`std` and the baseline reconstruction-error distribution used to turn error into a score |
+| `gnn.pt` | GCN weights — **must** be regenerated if `normalized_adjacency()` or `GNN_SELF_LOOP_WEIGHT` changes |
+| `fusion_meta_learner.joblib` + `fusion_background.npy` | The stacker and its SHAP background sample |
+| `adaptive_pdp_qtable.json` | The trained Q-table; unvisited states are simply absent and are seeded from the static table at read time |
 
 ## 4. Build Order (Repeated From `00_overview.md` for Convenience)
 

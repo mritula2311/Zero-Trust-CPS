@@ -124,6 +124,114 @@ A second table, using the same test set, records detection rate broken out by th
 
 Following `04_module3_trust_evaluation.md` Section C.4: on a random sample (recommend at least 50) of test-set messages that were correctly flagged as anomalous, perturb the named `level2_dominant_feature` and re-run scoring. Record the percentage of cases where the decision actually flips. Target ≥ 70%.
 
+## 7.1 Validating a *validation* — the falsifiability self-test
+
+A check that cannot fail is not a check. Every metric in this document is
+vulnerable to a specific, quiet failure: the measurement can be constructed so
+that it always passes, at which point it stops carrying information while still
+looking like evidence.
+
+This was not hypothetical here. The NIST governance figure was **100% coverage
+across all 7 tenets** — and it was tautological. `nist_mapping.tenets_for_decision()`
+attaches tenets 1, 3, 4, 5 and 6 to *every* decision unconditionally, so those
+five read 100% because the tagger always writes them, and no arrangement of the
+system could have produced any other number. Coverage measured **tagging**, not
+compliance (see `08_module7_monitoring_and_audit.md`).
+
+The remedy generalises beyond governance, and is the method this document now
+prescribes for any claimed validation:
+
+1. **State the falsifier.** For each check, write down the specific observation
+   that would make it FAIL. If you cannot name one, the check is not a check.
+2. **Inject the falsifier.** Construct synthetic input exhibiting exactly that
+   observation and confirm the check rejects it.
+3. **Report an untestable check as untestable.** If the available data cannot
+   exercise a check, report that state explicitly rather than defaulting to
+   PASS.
+
+`scripts/evaluate_governance.py` implements all three. Its self-test injects
+each tenet's own stated falsifier as synthetic audit rows:
+
+```
+T1 inject an authenticated row from an unregistered device          -> FAIL (correctly rejected)
+T2 inject an authenticated row over an unencrypted transport        -> FAIL (correctly rejected)
+T3 inject a row granted access with no scores of its own            -> FAIL (correctly rejected)
+T4 inject a policy that ALLOWs equally above and below thresholds   -> FAIL (correctly rejected)
+T6 inject an UNauthenticated row that was granted ALLOW             -> FAIL (correctly rejected)
+T7 inject a pipeline whose fused score never differs from the rule  -> FAIL (correctly rejected)
+
+6/6 checks demonstrably reject their own falsifier.
+```
+
+Tenet 5 is **excluded from that count rather than assumed**: its falsifier is a
+registered device with *no* rows, which is the absence of data rather than a row
+that can be constructed. Counting it as a seventh pass would be exactly the
+overclaiming this section exists to prevent.
+
+Two checks additionally report non-PASS states that are not failures:
+
+- **`UNFALSIFIABLE`** — T3 returns this when no device changed decision within
+  the window, because such a window genuinely cannot distinguish "re-evaluated
+  every message" from "decided once and cached."
+- **`INSUFFICIENT_DATA`** — T4 reports an axis as untestable when the window
+  contains rows on only one side of its threshold.
+
+## 7.2 An evaluation that was structurally blind — and the lesson
+
+`scripts/evaluate_ablation.py` thresholds at **0.5**. The live gateway's
+`config.PROCESS_THRESHOLD` is **0.6**. A calibration defect that made the
+Isolation Forest incapable of scoring above 0.621 — so a *perfectly normal*
+reading sat at a median of 0.579, below the live threshold — therefore produced
+**almost no change** in this document's headline ablation table (fused accuracy
+0.744 → 0.747 before and after the fix), while making the system reject a
+healthy physical board outright.
+
+The evaluation was not wrong. It was measuring something adjacent to what the
+deployment does, and the gap between the two was exactly where the bug lived.
+
+**Three practices follow, and they apply to any metric in this document:**
+
+1. **Evaluate at the deployed decision boundary.** If the live system decides at
+   0.6, a metric computed at 0.5 is not evidence about the live system.
+2. **Aggregate accuracy hides threshold defects.** Report the score
+   *distribution* per class, not just a pass/fail count — the defect was
+   instantly visible as "normal median 0.579, best achievable 0.621" and
+   invisible as "accuracy 0.744".
+3. **Offline metrics do not substitute for live observation.** The definitive
+   evidence that anything was wrong came from watching a real board at rest be
+   BLOCKed, not from any script here.
+
+## 7.3 Verification scenarios that define correctness
+
+Concrete cases, each with the observation that decides pass or fail. These
+complement the aggregate metrics in §4 — an aggregate can stay healthy while any
+individual one of these breaks.
+
+| # | Scenario | Correct behaviour | Measured |
+|---|---|---|---|
+| 1 | Healthy board at rest | ALLOW | fused median **0.888**, **0.0%** false positives at threshold (n=84 clean normals) |
+| 2 | Board physically shaken | ALERT/BLOCK, never ALLOW | **19/19** readings with `rms > 1.2` caught, zero ALLOW |
+| 3 | Recovery after disturbance | Returns to ALLOW, with a short tail | Clean shake → ALERT → tail → ALLOW cycles; the tail is the 8-sample LSTM window flushing |
+| 4 | Neighbour degrades, own evidence unchanged | Only the GNN may move | GNN `0.647 → 0.316`; IF and LSTM-AE structurally cannot move |
+| 5 | Coordinated multi-device anomaly | Detected | GNN recall **1.000**; IF 0.316, LSTM-AE 0.222 |
+| 6 | Rate anomaly from a valid device | Security axis only | `high_rate` moves Security (3.21 msgs to break), Process untouched |
+| 7 | Physical anomaly from a valid device | Process axis only | `anomalous_shock`/`coordinated` move Process (0.00/0.10), Security untouched |
+| 8 | Unauthenticated message | REJECTED, and the *claimed* device's own score untouched | 0 violations across 10,000 rows (governance T6) |
+| 9 | Gateway→device decision | Device can verify it | **10/10** HMAC-valid recomputed with the device's own secret |
+| 10 | Cross-device decision leakage | None | 0 leaked; broker ACL refuses the subscription |
+| 11 | Device with no active neighbour | Scored on its own evidence, not saturated | fused **0.873** at 1 active device vs **0.941** at 3 (was 0.020 vs 0.577) |
+| 12 | Audit tampering | Detected by both checks | Hash chain + independent checkpoint, both PASS over 34,067 rows |
+
+Scenarios 6 and 7 together are the operational test of the two-score
+architecture: if either event type moved *both* axes, the separation has a leak
+and every downstream claim about the 2×2 policy is unsound.
+
+Scenario 11 is included because it once failed in **both** directions — first
+scoring a healthy isolated board at 0.020, then, after a naive fix, saturating a
+genuinely shaken one to 1.000 and masking a real anomaly. A metric moving in the
+desired direction is not the same as the model getting better; scenario 2 is
+what catches the second failure, and it must be re-run whenever 11 changes.
+
 ## 8. Resource and Performance Overhead
 
 Measured on whichever hardware is available at the time (simulation-only machine now; the real ESP32 once it arrives):

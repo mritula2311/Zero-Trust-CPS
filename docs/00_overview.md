@@ -96,6 +96,16 @@ This is the entry point to the as-built architecture. It is one of 14 documents 
 
 ---
 
+## 0. Where to start
+
+| If you are… | Read |
+|---|---|
+| A coding agent, or new to the codebase | **`ZERO_TRUST_CPS_KB.md`** — the single source of truth: architecture, module boundaries (including what each module explicitly does **not** do), schemas, and a 13-entry ADR log written specifically so that intended designs are not "fixed" |
+| Looking for measured numbers | **`RESULTS.md`** — start at §0, which supersedes several later sections |
+| Bringing up the physical board | **`firmware/HARDWARE_SETUP.md`**, then `firmware/HARDWARE_DATA_LOG.md` |
+| Reading the design set | This file, then `01`–`13` in order |
+| Wondering how a past decision was reached | **`SESSION_LOG.md`** — append-only, narrative, includes the wrong turns |
+
 ## 1. What This Project Is
 
 A Zero-Trust security framework for IoT-based Cyber-Physical Systems (CPS). Instead of trusting a device permanently after it authenticates once, the system re-checks every device on every single message, using two independent scores:
@@ -107,7 +117,23 @@ These two scores are **never blended into one number**. They are combined only a
 
 ## 2. The Critical Constraint This Design Solves: No Hardware Yet
 
-The physical hardware (ESP32 + MPU6050) is not yet available. Every module in this project must therefore be built against a **Device Data Source abstraction** (defined in `01_simulation_and_hardware_abstraction.md`) rather than against real hardware directly. Concretely:
+> **AS-BUILT:** the hardware constraint this section was written under is
+> **gone** — the ESP32 + MPU6050 is built, flashed, and publishing live
+> (`RESULTS.md` §13). The abstraction below is kept anyway, and the reason it
+> earned its place is worth stating: the real board and the two simulated
+> devices run **side by side** through the identical gateway path, with
+> `config.REAL_HARDWARE_DEVICE_IDS` as the only switch. Nothing in Modules 1–7
+> knows or cares which side of the abstraction a message came from.
+>
+> One thing the abstraction does **not** cover, learned the hard way: it
+> guarantees a common *message format*, not common *feature mathematics*. The
+> five features are computed on-device, and the models train against
+> `src/feature_engineering.py`. Those are two implementations of the same maths,
+> and a disagreement between them is invisible to the protocol — a wrong number
+> is signed and accepted exactly like a right one. See
+> `01_simulation_and_hardware_abstraction.md` §5.2b.
+
+The physical hardware (ESP32 + MPU6050) was not available when this was written. Every module in this project must therefore be built against a **Device Data Source abstraction** (defined in `01_simulation_and_hardware_abstraction.md`) rather than against real hardware directly. Concretely:
 
 - Right now: a **Simulated Device** generates realistic MPU6050-shaped telemetry and can inject any attack from the attack matrix on command.
 - Later, when one ESP32 + MPU6050 arrives: a **Hardware Device** reads the same message schema from the same MQTT topics. Nothing downstream of the message broker changes.

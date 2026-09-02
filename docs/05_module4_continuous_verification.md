@@ -111,6 +111,54 @@ This directly affects the 2×2 decision table in `06_module5_access_control.md`.
 | `SILENCE_GRACE_PERIOD`/staleness threshold set too low relative to a device's normal reporting interval | Devices constantly flagged stale between their normal ~2-second reporting cycle | Tune relative to the device's actual reporting frequency, not a fixed default across every device kind |
 | Device silent forever with a high last-known Process Anomaly Score | Score stays frozen at that high value indefinitely, status `STALE` | Correct, not a bug — see Section 2.2's reasoning; the alternative (decaying it down) is the exact error this section corrects |
 
+## 2.5 AS-BUILT: the silence watchdog is what makes any of §2.2 observable
+
+Everything in §2.2 describes what should happen when a device goes quiet — but
+none of it can be *detected* by the message-triggered path, for a structural
+reason worth stating plainly: **the event that needs detecting is the absence of
+an event.** `trust_engine`'s staleness checks are lazy, evaluated when something
+asks. If a device stops publishing and nothing else ever asks about it, nothing
+evaluates it, and the device simply stops appearing — indistinguishable from a
+device that is fine and idle.
+
+`gateway.py._silence_watchdog_loop()` closes that. It sweeps **every registered
+device** on a timer (`config.SILENCE_CHECK_INTERVAL_SECONDS = 5`), independent of
+any incoming message, and is the only thing that exercises
+`is_stale()`/`get_process_anomaly()`'s lazy checks for a device that has gone
+quiet.
+
+Three properties of the as-built implementation that are deliberate:
+
+1. **It writes real audit rows on both transitions**, silence-start *and*
+   silence-end, with `decision="SILENT"` and
+   `reason_category="device_silent"`. "This device went quiet for N seconds" is
+   therefore queryable history rather than a console line that scrolls away —
+   which is exactly the visibility a device that was powered off, disconnected,
+   or deliberately silenced by an attacker would otherwise leave none of.
+2. **It alerts once per episode, not once per sweep.** `_silence_alerted` tracks
+   which devices are currently flagged, so a device offline for an hour produces
+   two rows, not 720.
+3. **It holds `_pipeline_lock` across the entire per-device block**, not just the
+   staleness read. `get_process_anomaly()` mutates `status` (FRESH→STALE) and
+   `get_security_trust()` reads state that the MQTT/HTTPS path writes
+   concurrently, so holding the lock through the `log_decision()` call too means a
+   `SILENT` row can never be written against a half-updated snapshot of a
+   device's own scores.
+
+**This is also what makes NIST tenet 5 validatable.** That tenet claims every
+registered asset is monitored, and its falsifier is "a registered device with no
+audit rows at all". Without the watchdog, a device that stopped publishing would
+produce exactly that — so the check would fail, correctly, because the claim
+would be false. See `08_module7_monitoring_and_audit.md` §5.2.
+
+**Scores are frozen, never decayed toward normal.** A silent device keeps its
+last known scores. The alternative — drifting them back toward "normal" while no
+evidence is arriving — would mean an attacker could launder a bad reputation
+simply by going quiet. The console line states this explicitly: *"last known
+scores frozen, not decayed toward normal or spiked toward anomalous."* Neither
+direction is safe to assume from silence alone, and the design says so rather
+than picking one.
+
 ## 3. Interface Contract
 
 | Consumer | What It Reads | What It Writes |
