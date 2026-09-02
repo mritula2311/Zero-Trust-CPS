@@ -57,8 +57,24 @@ def _result(tenet, claim, method, falsifier, status, checked, violations, eviden
     }
 
 
+# Rows the gateway writes about ITSELF rather than about an inbound message.
+# SILENT comes from the silence watchdog; auto_quarantine from Module 5
+# enforcement. Neither arrived over a transport and neither carries its own
+# scores, because neither is a device message -- judging them as if they were
+# makes T2 ("every message arrived encrypted") and T3 ("every message carries
+# its own scores") fail on the gateway's own bookkeeping. Found exactly that
+# way: 25 auto-quarantine rows turned a 7/7 validation into 5/7.
+GATEWAY_ORIGINATED = {"REJECTED", "SILENT"}
+GATEWAY_ORIGINATED_CATEGORIES = {"auto_quarantine"}
+
+
 def _authenticated(rows):
-    return [r for r in rows if r.get("auth_ok") and r.get("decision") not in ("REJECTED", "SILENT")]
+    return [
+        r for r in rows
+        if r.get("auth_ok")
+        and r.get("decision") not in GATEWAY_ORIGINATED
+        and r.get("reason_category") not in GATEWAY_ORIGINATED_CATEGORIES
+    ]
 
 
 def validate(rows: list[dict]) -> list[dict]:

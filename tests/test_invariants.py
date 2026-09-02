@@ -470,8 +470,23 @@ class TestAutoQuarantine(unittest.TestCase):
     def setUp(self):
         import gateway
         import trust_engine
+        import audit_log
         self.gw, self.te = gateway, trust_engine
         self.device = "sensor-002"
+        # _apply_auto_quarantine writes a real audit row. Without redirecting the
+        # database, these tests append to data/audit_log.db -- which this suite
+        # explicitly promises not to do, and which was caught downstream: 25
+        # test-written auto_quarantine rows made the governance validation report
+        # 5/7 instead of 7/7. The rows cannot simply be deleted afterwards either,
+        # because the log is hash-chained: removing a row breaks the chain, which
+        # is the audit design working as intended.
+        self._tmp = tempfile.mkdtemp(prefix="ztcps-quarantine-")
+        self._saved_db = audit_log.AUDIT_DB_PATH
+        self._saved_cp = audit_log.CHECKPOINT_STORE_PATH
+        audit_log.AUDIT_DB_PATH = os.path.join(self._tmp, "audit.db")
+        audit_log.CHECKPOINT_STORE_PATH = os.path.join(self._tmp, "checkpoints.jsonl")
+        audit_log.init_db()
+        self._audit = audit_log
         self._enabled = gateway.AUTO_QUARANTINE_ENABLED
         self._threshold = gateway.AUTO_QUARANTINE_CONSECUTIVE_BLOCKS
         gateway.AUTO_QUARANTINE_ENABLED = True
@@ -484,6 +499,9 @@ class TestAutoQuarantine(unittest.TestCase):
         self.gw.AUTO_QUARANTINE_CONSECUTIVE_BLOCKS = self._threshold
         self.gw._consecutive_blocks.clear()
         self.te.reinstate_device(self.device)
+        self._audit.AUDIT_DB_PATH = self._saved_db
+        self._audit.CHECKPOINT_STORE_PATH = self._saved_cp
+        shutil.rmtree(self._tmp, ignore_errors=True)
 
     def test_disabled_by_default_in_config(self):
         """The shipped default must stay OFF -- a scoring defect once produced
@@ -582,6 +600,96 @@ class TestGovernanceValidationIsFalsifiable(unittest.TestCase):
         import governance_validation as gv
         rows = [self._row() for _ in range(5)]      # every decision identical
         self.assertEqual(self._validate(rows, 3)["status"], gv.UNFALSIFIABLE)
+
+
+# ---------------------------------------------------------------------------
+# 9. Sampling rate and label provenance  (RESULTS.md 13.4c)
+# ---------------------------------------------------------------------------
+
+class TestSamplingContract(unittest.TestCase):
+    """`dominant_freq` is computed as k * SAMPLE_RATE_HZ / n, so the declared
+    rate must be the ACHIEVED rate or every reported frequency is scaled by a
+    constant that is not true. It was out by 12.3x once already."""
+
+    def _firmware_source(self):
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "firmware", "main.py")
+        return open(path, encoding="utf-8").read()
+
+    def test_sample_window_paces_itself(self):
+        """The regression: a bare list comprehension read as fast as I2C allowed
+        (~1231 Hz against a declared 100 Hz)."""
+        src = self._firmware_source()
+        self.assertNotIn(
+            "return [read_accel_magnitude_g() for _ in range(WINDOW_SIZE)]", src,
+            "sample_window() is unpaced again -- it will not sample at SAMPLE_RATE_HZ",
+        )
+        self.assertIn("ticks_add", src, "sample_window() must schedule against a deadline")
+        self.assertIn("sleep_us", src, "sample_window() does not wait between samples")
+
+    def test_declared_rates_agree_across_the_boundary(self):
+        """The firmware and the reference implementation must agree, or the
+        models are trained on a different frequency axis than the board reports."""
+        src = self._firmware_source()
+        fw_rate = next(l for l in src.split("\n") if l.startswith("SAMPLE_RATE_HZ"))
+        fw_size = next(l for l in src.split("\n") if l.startswith("WINDOW_SIZE"))
+        self.assertEqual(int(fw_rate.split("=")[1].strip()), int(config.FEATURE_SAMPLE_RATE_HZ))
+        self.assertEqual(int(fw_size.split("=")[1].split("#")[0].strip()), config.FEATURE_WINDOW_SIZE)
+
+    def test_anti_alias_filter_is_configured_below_nyquist(self):
+        """Pacing the sampling loop moved Nyquist from 615 Hz down to 50 Hz,
+        below the sensor's 260 Hz default bandwidth -- which turned a correct
+        rate into an aliased signal. The DLPF must keep the sensor's passband
+        under Nyquist, or the two fixes cancel out."""
+        src = self._firmware_source()
+        self.assertIn("0x1A", src, "MPU6050 CONFIG register is never written -- no anti-alias filter")
+        cfg_line = next((l for l in src.split(chr(10)) if l.startswith("MPU6050_DLPF_CFG")), None)
+        self.assertIsNotNone(cfg_line, "MPU6050_DLPF_CFG is not defined")
+        cfg = int(cfg_line.split("=")[1].split("#")[0].strip())
+        bandwidth_hz = {0: 260, 1: 184, 2: 94, 3: 44, 4: 21, 5: 10, 6: 5}[cfg]
+        nyquist = config.FEATURE_SAMPLE_RATE_HZ / 2
+        self.assertLess(
+            bandwidth_hz, nyquist,
+            f"DLPF_CFG={cfg} passes {bandwidth_hz} Hz, at or above the {nyquist} Hz "
+            f"Nyquist limit -- content above Nyquist folds into the measured band",
+        )
+
+    def test_no_stale_dt_ms_claim(self):
+        """config.py once documented a `dt_ms=10 sampling loop` that did not
+        exist, which is what hid the defect."""
+        cfg = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..",
+                                "src", "config.py"), encoding="utf-8").read()
+        self.assertNotIn("matches firmware/main.py's dt_ms=10 sampling loop", cfg)
+
+
+class TestOperatorMarkedLabels(unittest.TestCase):
+    """Timed-schedule labels were shown not to match physical reality
+    (`at_rest_1` held a higher max rms than `moderate_shake`). Operator-marked
+    labels must only ever apply inside a confirmed interval."""
+
+    def setUp(self):
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "scripts"))
+        import collect_hardware_session as c
+        self.c = c
+        self._saved = c.marked_intervals
+        c.marked_intervals = [("gentle_tap", 100.0, 130.0), ("at_rest", 200.0, 240.0)]
+
+    def tearDown(self):
+        self.c.marked_intervals = self._saved
+
+    def test_mid_interval_is_labelled(self):
+        self.assertEqual(self.c.label_for_wall_time(115.0), "gentle_tap")
+        self.assertEqual(self.c.label_for_wall_time(220.0), "at_rest")
+
+    def test_keypress_margins_are_excluded(self):
+        """The samples nearest each mark are the least trustworthy -- the
+        keypress and the physical action are not simultaneous."""
+        m = self.c.MARK_MARGIN_S
+        self.assertIsNone(self.c.label_for_wall_time(100.0 + m / 2))
+        self.assertIsNone(self.c.label_for_wall_time(130.0 - m / 2))
+
+    def test_between_events_is_unlabelled_not_guessed(self):
+        self.assertIsNone(self.c.label_for_wall_time(165.0))
+        self.assertIsNone(self.c.label_for_wall_time(0.0))
 
 
 if __name__ == "__main__":

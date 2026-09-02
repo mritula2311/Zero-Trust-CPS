@@ -44,6 +44,7 @@ scenario:
 import hashlib
 import hmac
 import json
+import math
 import random
 import time
 
@@ -126,7 +127,27 @@ def _make_on_message(device_id: str, secret: str):
 # ML scorers, the train/serve gap seen on first bring-up). 0.006 makes the
 # synthetic stand-in match what the real board actually reports, so one
 # coherent "normal" distribution covers both simulated and real telemetry.
-REST_NOISE_STD = 0.006
+REST_NOISE_STD = 0.004        # white noise floor, calibrated to the real board
+REST_DRIFT_AMPLITUDE = 0.002  # slow mechanical/thermal wander riding above it
+REST_DRIFT_HZ_MIN = 15.0      # drawn per window so the spectrum has real spread
+REST_DRIFT_HZ_MAX = 90.0
+REST_DC_MIN = 0.99          # resting magnitude range; the real unit sits at 1.041 g
+REST_DC_MAX = 1.07
+REST_DC_CENTRE = 1.035      # long-run resting magnitude the state reverts toward
+REST_DRIFT_HZ_CENTRE = 52.0
+REST_DC_WALK = 0.010        # per-window innovation
+REST_DRIFT_WALK = 22.0
+REST_PERSISTENCE = 0.30     # how much of the previous window's state carries over;
+                            # tuned so the synthetic lag-1 autocorrelation matches
+                            # the real board's rather than exceeding it
+
+# Persistent resting state, mean-reverting between windows rather than redrawn.
+_rest_dc = REST_DC_CENTRE
+_rest_drift_hz = REST_DRIFT_HZ_CENTRE
+
+
+def _clamp(v, lo, hi):
+    return min(hi, max(lo, v))
 
 
 def _synthetic_accel_window(anomalous: bool, coordinated: bool = False) -> list[float]:
@@ -135,7 +156,57 @@ def _synthetic_accel_window(anomalous: bool, coordinated: bool = False) -> list[
     matched to the real board) normally, an impulsive SINGLE-sample shock
     when `anomalous`, a milder multi-sample elevation when `coordinated`."""
     n = FEATURE_WINDOW_SIZE
-    baseline = [max(0.0, random.gauss(1.0, REST_NOISE_STD)) for _ in range(n)]
+    # A resting accelerometer is NOT white noise, and modelling it as white was a
+    # real train/serve mismatch. White noise puts the dominant DFT bin roughly
+    # uniformly across the band (median 140.6 Hz at 500 Hz sampling), whereas the
+    # real board at rest is low-frequency weighted (median 78.1 Hz) -- it carries
+    # slow mechanical and thermal drift above its noise floor. Measured
+    # consequence: the Isolation Forest scored synthetic normals 0.900 and the
+    # REAL resting board 0.000, even with the real samples inside its own
+    # training set, because 44 real rows against 3967 synthetic ones read as an
+    # isolated cluster.
+    #
+    # Baseline is therefore a low-frequency drift term over a smaller white
+    # floor. The three constants are calibrated against the real at-rest capture
+    # (see firmware/HARDWARE_DATA_LOG.md): they reproduce its dominant_freq
+    # median of 78.1 Hz and peak median of 0.017 g. drift_hz is drawn per window
+    # rather than fixed, so the synthetic spectrum has the same SPREAD as the
+    # real one instead of piling onto a single bin.
+    # Resting DC level is drawn per window, not pinned to exactly 1.0 g. The real
+    # board reads 1.041 g at rest -- gravity plus its own calibration offset --
+    # and a synthetic class sitting exactly on 1.000 leaves a systematic 4% gap
+    # an Isolation Forest can separate on. Drawing from a small range covers the
+    # real operating point WITHOUT hardcoding one unit's calibration, which would
+    # just be overfitting the simulator to this particular board.
+    # Resting state PERSISTS between windows instead of being redrawn each time.
+    # Independent draws give the synthetic sequence ~zero temporal structure
+    # (measured lag-1 autocorrelation: rms 0.09, peak -0.02), while a real board
+    # carries its slowly-varying state forward (rms 0.26, peak 0.16). That gap
+    # only reaches ONE signal -- the LSTM-AE is the only scorer that models a
+    # sequence rather than a point -- and it showed up exactly there: every
+    # residual false positive on real resting data was LSTM-driven, with the
+    # rule and Isolation Forest passing the same samples. A small random walk
+    # gives the sequence the continuity the autoencoder is trained to expect.
+    # MEAN-REVERTING, not a free random walk. A pure walk has no anchor: it
+    # wanders off its own centre (measured: rms median drifted from 1.03 to 1.00
+    # and clamped) and is far too persistent (lag-1 0.89 against the real 0.26).
+    # Reverting toward a centre gives a stable long-run mean AND a tunable
+    # autocorrelation, which is exactly the pair of properties needed here.
+    global _rest_dc, _rest_drift_hz
+    _rest_dc = _clamp(REST_DC_CENTRE + REST_PERSISTENCE * (_rest_dc - REST_DC_CENTRE)
+                      + random.gauss(0.0, REST_DC_WALK), REST_DC_MIN, REST_DC_MAX)
+    _rest_drift_hz = _clamp(
+        REST_DRIFT_HZ_CENTRE + REST_PERSISTENCE * (_rest_drift_hz - REST_DRIFT_HZ_CENTRE)
+        + random.gauss(0.0, REST_DRIFT_WALK), REST_DRIFT_HZ_MIN, REST_DRIFT_HZ_MAX)
+    dc = _rest_dc
+    drift_hz = _rest_drift_hz
+    phase = random.uniform(0.0, 2.0 * math.pi)
+    baseline = [
+        max(0.0, dc
+            + REST_DRIFT_AMPLITUDE * math.sin(2.0 * math.pi * drift_hz * t / FEATURE_SAMPLE_RATE_HZ + phase)
+            + random.gauss(0.0, REST_NOISE_STD))
+        for t in range(n)
+    ]
     if anomalous:
         baseline[random.randrange(n)] = random.uniform(3.0, 4.5)
     elif coordinated:

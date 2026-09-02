@@ -567,6 +567,39 @@ hash from its fields. The measured attack matrix is in §12.
 *Do not "optimise" the full scan away.* Its interval is the detection latency
 for naive tampering, which is why the UI shows it.
 
+**ADR-16 -- Acquisition rate, anti-alias filter and window are one decision.**
+*Context:* `sample_window()` ran unpaced at ~1231 Hz while declaring 100 Hz, so
+`dominant_freq` was scaled by a constant 12.3x wrong.
+*Chosen:* 500 Hz deadline-paced sampling, MPU6050 DLPF at 184 Hz (66 Hz below
+the 250 Hz Nyquist), 32-sample window.
+*Rejected:* (a) 100 Hz with a 44 Hz filter -- only 6 Hz of margin, and 38% of
+samples still landed in the top three bins from the filter's gradual rolloff;
+(b) 100 Hz with a 21 Hz filter -- clean, but throws away most of the vibration
+band; (c) keeping 100 Hz at all -- it was never a requirement, it came from a
+comment describing a loop that did not exist.
+*The trap, recorded because it cost two regressions:* at ~1231 Hz Nyquist was
+615 Hz, above the sensor's 260 Hz passband, so **there was no aliasing to see**.
+Correcting the rate is what created it. Do not change one of these three without
+the other two, and do not change any of them without retraining -- every
+`dominant_freq` the models learned is scaled by the rate.
+
+**ADR-17 -- The simulator models the real board's physics, not white noise.**
+*Context:* The synthetic baseline was `random.gauss(1.0, 0.006)`. White noise
+puts the dominant DFT bin roughly uniformly across the band; a real resting board
+is low-frequency weighted and carries its state between windows. Measured
+consequence: the Isolation Forest scored synthetic normals 0.900 and the real
+resting board **0.000**, even with the real samples inside its own training set.
+*Chosen:* low-frequency drift over a smaller white floor, drift frequency drawn
+per window, resting DC drawn from a range, and the resting state
+**mean-reverting** between windows so the sequence has the temporal continuity a
+real board has.
+*Rejected:* a free random walk for that state -- unanchored (the mean drifted and
+clamped) and far too persistent (lag-1 0.89 against the real 0.26).
+*Honest limitation:* the temporal fix did **not** resolve the residual false
+positives. It is kept for fidelity -- the simulator now matches the real board on
+a property it previously got wrong -- not because it fixed the symptom it aimed at.
+*Do not revert to white noise for simplicity.* It is simpler and measurably wrong.
+
 ---
 
 ## 10. Roadmap & Milestones
@@ -778,6 +811,31 @@ depends on the adversary complying is not enforcement, and silencing a
 suspicious device destroys the evidence you most want. See `docs/06` §2.0.2.
 
 ### Still open
+
+**False positives on a genuinely resting board: 37.5% (6/16).** The main open
+defect, and the one that would block deployment. Measured on real,
+operator-labelled hardware: detection of physical disturbance is **100% (42/42)**
+and the resting fused median is **0.881**, but six of sixteen resting samples
+fall under threshold. Every one is LSTM-AE-driven (`lstm` 0.00-0.45 while `rule`
+0.900 and `iso` 0.41-1.00 pass the same samples), and those six readings are
+physically indistinguishable from the ten that pass. n=16 is small, and the live
+gateway on long steady runs scored the board `ALLOW` consistently, which
+suggests the short per-phase blocks deny the autoencoder the steady run it
+stabilises over. **That is a hypothesis, not a finding: it has not been tested.**
+See `RESULTS.md` 0.10.5.
+
+**The `dominant_freq` axis is only as good as the acquisition chain.** Now
+correct (500 Hz, DLPF 184 Hz, 66 Hz of anti-alias margin), but three successive
+defects lived here and each was invisible until the previous was fixed. Rate,
+filter and window size are ONE decision -- `firmware/main.py` records the full
+sequence so the next reader does not repeat it.
+
+**Only one labelled hardware session exists**, and its labels are
+`transcript_reconstruction`, not `operator_mark` -- recovered from a failed
+capture rather than recorded live. The recovery is defensible (labels validate
+against the physics; `at_rest` medians agree across four separate occurrences)
+but a clean `--labelled` run remains worth doing.
+
 
 **`dominant_freq` is a bin index, not Hz — the declared sample rate is 12.3×
 off.** Firmware declares `SAMPLE_RATE_HZ = 100`, but `sample_window()` reads its

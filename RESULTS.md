@@ -257,6 +257,165 @@ The flip test is a fair pass/fail for a point model — see the GNN's 100% —
 but for a sequence model over correlated channels it asks the model to undo
 an anomaly through a channel that carries only part of it.
 
+## 0.10 Acquisition Chain Rebuild and First Labelled Hardware Evaluation
+
+This round fixed the sensor acquisition chain end to end and produced the
+project's first evaluation against **real hardware with trustworthy labels**.
+Five defects, each of which only became visible once the previous one was fixed.
+
+### 0.10.1 Three acquisition defects, in the order they surfaced
+
+| # | Defect | Evidence | Fix |
+|---|---|---|---|
+| 1 | `sample_window()` had no delay: ~1231 Hz actual against a declared 100 Hz | 26 ms measured for 32 samples; a true 100 Hz window needs 320 ms | Deadline-scheduled pacing |
+| 2 | Pacing moved Nyquist 615 Hz → 50 Hz, **below** the sensor's 260 Hz default bandwidth | `dominant_freq` collapsed onto 28–50 Hz, pinned to the top of the band | Enable the MPU6050 DLPF |
+| 3 | DLPF at 44 Hz left only 6 Hz of margin under a 50 Hz Nyquist | 38% of samples still in the top 3 bins, 2× uniform | Raise the rate instead of narrowing the filter |
+
+The ordering is the lesson. At ~1231 Hz, Nyquist was 615 Hz — comfortably above
+the sensor's 260 Hz passband — so **there was no aliasing to observe**. Fixing
+the sample rate is what *created* it. Rate, anti-alias filter and window size are
+one decision, and treating them as three produced two successive regressions.
+
+Final configuration — **500 Hz sampling, DLPF 184 Hz, 32-sample window**:
+
+| | rate | Nyquist | filter | margin | window | usable BW |
+|---|---|---|---|---|---|---|
+| original | ~1231 Hz (declared 100) | 615 | none | — | 26 ms | axis 12.3× wrong |
+| after fix 1 | 100 Hz | 50 | none | −210 | 320 ms | aliased |
+| after fix 2 | 100 Hz | 50 | 44 Hz | 6 | 320 ms | marginal |
+| **final** | **500 Hz** | **250** | **184 Hz** | **66** | **64 ms** | **184 Hz** |
+
+500 Hz beats narrowing the filter on every axis: 11× the margin, 4× the usable
+bandwidth, and a *shorter* window. The 100 Hz target was never a requirement —
+it originated in a comment describing a sampling loop that did not exist.
+
+Verified on the board: cycle time 2209 ms (predicted 2173), and the resting
+spectrum now decays monotonically with frequency — 46% at 31.25 Hz, 23% at
+15.625 Hz, **0% in the top 15% of the band**. That is the physically expected
+signature for a board at rest, and it is the first time this project has had one.
+
+### 0.10.2 Labels recorded at injection time
+
+The four earlier hardware sessions were labelled by a fixed timetable, and the
+labels did not match the physics — `at_rest_1` held a higher maximum rms
+(3.416 g) than `moderate_shake` (1.050 g). `collect_hardware_session.py
+--labelled` replaces the timetable: the operator marks the start and stop of
+each action, only samples strictly inside a marked interval carry the label, and
+**anything outside is discarded rather than guessed at**.
+
+The first labelled run failed outright — 0 intervals marked, all 146 records
+discarded — because the per-message console output buried the interactive
+prompts. That is a UI defect with a data consequence, and it is worth recording
+as such: a capture tool that talks over its own instructions cannot be driven.
+Fixed by collapsing telemetry to one rewriting status line during a labelled
+run, boxing each event prompt, and offering a **retry** on a too-short interval
+instead of silently dropping it.
+
+**114 records were recovered from that failed run's transcript**, which retained
+both the readings and their position relative to each event prompt. Labels were
+assigned by event block, leading handling transients trimmed (4 samples), and
+at-rest windows containing a physical disturbance excluded (5 samples, peak
+above 0.15 g against a resting median of 0.017 g). Provenance is recorded
+honestly as `label_source: "transcript_reconstruction"` — not `operator_mark`.
+
+The labels hold up against the physics, which the old sessions never did:
+
+| phase | n | rms median | peak median | peak range |
+|---|---|---|---|---|
+| at_rest | 44 | 1.041 | 0.017 | 0.011 – 0.097 |
+| gentle_tap | 16 | 1.034 | 0.380 | 0.020 – 3.108 |
+| tilt_rotate | 24 | 1.034 | 0.524 | 0.012 – 2.491 |
+| moderate_shake | 14 | 1.654 | 1.587 | 0.309 – 2.965 |
+| sharp_impact | 16 | 2.372 | 0.909 | 0.150 – 2.263 |
+
+`at_rest` medians agree across all **four separate occurrences** (1.0400,
+1.0425, 1.0405, 1.0425) — the consistency check the timed sessions failed.
+`moderate_shake` and `sharp_impact` have **zero** overlap with rest;
+`gentle_tap` and `tilt_rotate` overlap by 3 samples each, which is expected
+because intermittent actions have genuinely quiet moments between them.
+
+### 0.10.3 Two simulator defects the real data exposed
+
+The 500 Hz chain made the synthetic/real mismatch measurable for the first time.
+
+**Spectrum.** The simulator's baseline was `random.gauss(1.0, 0.006)` — white
+noise, whose dominant DFT bin is roughly uniform across the band. A real resting
+board is low-frequency weighted. Measured: synthetic `dominant_freq` median
+**140.6 Hz** against the real **78.1 Hz**, and the Isolation Forest scored
+synthetic normals **0.900** while scoring the **real resting board 0.000** —
+even with the real samples inside its own training set, because 44 real rows
+against 3967 synthetic ones read as an isolated cluster. The baseline is now a
+low-frequency drift term over a smaller white floor, with the drift frequency
+drawn per window so the spread matches, and the resting DC drawn from a range
+rather than pinned to exactly 1.0 g.
+
+**Temporal continuity.** Every synthetic window was drawn independently, giving
+the sequence ~zero temporal structure (lag-1 autocorrelation: rms 0.09, peak
+−0.02) where a real board carries its state forward (rms 0.263, peak 0.161).
+This can only reach one signal — the LSTM-AE is the sole scorer that models a
+*sequence* — and that is exactly where it appeared. The state is now
+mean-reverting between windows (autocorrelation 0.32 against the real 0.26); a
+free random walk was tried first and rejected, being both unanchored (the mean
+drifted and clamped) and far too persistent (0.89).
+
+**Stated plainly: the temporal fix did NOT resolve the residual false
+positives.** It moved the fused median from 0.869 to 0.881 and left the rate
+unchanged at 6/16. It is kept because the simulator is supposed to stand in for
+the real board and now matches it on a property it previously got wrong, not
+because it fixed the symptom it was aimed at.
+
+### 0.10.4 A stale constant, caught by the real data
+
+`dominant_freq`'s expected range was still `(0.0, 50.0)` — set for the old
+axis — while Nyquist had moved to 250 Hz. It marked **35 of 114** genuine
+resting readings "out of range" purely as an artefact. The bound is now
+**derived** from `FEATURE_SAMPLE_RATE_HZ / 2` rather than written as a literal,
+so it can never drift from the acquisition chain again.
+
+### 0.10.5 Result: first real-hardware evaluation with trustworthy labels
+
+`scripts/evaluate_real_hardware.py`, 58 scored readings (the rolling window is
+reset per phase and its warm-up dropped — see below):
+
+| phase | n | rule | iso | lstm | gnn | fused | flagged |
+|---|---|---|---|---|---|---|---|
+| at_rest | 16 | 0.900 | 1.000 | 0.885 | 0.647 | **0.881** | 38% |
+| gentle_tap | 9 | 0.900 | 0.000 | 0.000 | 0.021 | 0.000 | **100%** |
+| moderate_shake | 7 | 0.900 | 0.000 | 0.000 | 0.021 | 0.000 | **100%** |
+| sharp_impact | 9 | 0.900 | 0.000 | 0.000 | 0.021 | 0.000 | **100%** |
+| tilt_rotate | 17 | 0.900 | 0.000 | 0.000 | 0.021 | 0.000 | **100%** |
+
+- **Detection on real physical disturbance: 100% (42/42).**
+- **False positives on a genuinely resting board: 37.5% (6/16)**, fused median
+  0.881.
+
+Both numbers matter and neither should be quoted alone. Detection is complete.
+The false-positive rate is **not acceptable for deployment** and is the main
+open defect: every one of the six is LSTM-driven (`lstm` 0.00–0.45 while `rule`
+0.900 and `iso` 0.41–1.00 pass the same samples), and the six readings are
+physically indistinguishable from the ten that pass (rms 1.038–1.045, peak
+0.011–0.022). n=16 is a small sample, and the live gateway on long steady runs
+scored the resting board `ALLOW` consistently, which suggests the short
+per-phase blocks in this evaluation deny the autoencoder the steady run it
+stabilises over. That is a hypothesis, not a finding — it has not been tested.
+
+**A methodological note on how these were scored.** The LSTM-AE's rolling
+window is reset at each phase boundary and the first `LSTM_SEQ_LEN-1` records of
+each block are dropped. Without that, every window straddling a boundary
+contains two different physical states and reconstructs badly by construction:
+measured, a continuous window scored the LSTM **0.000 even on at_rest**, while
+the same samples fed as their own sequence reconstruct at error 0.725 (z = 0.0,
+a 0.9 score). The continuous number was measuring transitions, not the model.
+That transition behaviour is real and matters live — it is the ALERT recovery
+tail after a disturbance — but it answers a different question than "given the
+board is in state X, does the pipeline score X correctly", which is what a
+labelled per-phase evaluation exists to answer.
+
+Finally, what this does **not** measure: no attack was performed, so this is
+physical anomaly discrimination, not attack detection. Security Trust is
+untouched throughout — which is the two-score separation behaving exactly as
+designed.
+
 ## Figure Index
 
 Every figure below is a PNG in `docs/figures/`, produced by

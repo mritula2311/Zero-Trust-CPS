@@ -41,13 +41,42 @@ OUTPUT_PATH = os.path.join(DATA_COLLECTED_DIR, "training_session.json")
 TICK_GAP = 20  # comfortably past EDGE_WINDOW_TICKS=1
 
 
+# Only sessions captured through the CURRENT acquisition chain may be merged.
+#
+# The four 20260901 sessions were recorded with unpaced sampling (~1231 Hz while
+# labelling the axis 100 Hz -- a 12.3x error) and with no anti-alias filter, so
+# their dominant_freq values sit on a completely different frequency axis than
+# anything the board produces now (median 6.25 Hz against 15.62 Hz, max 50 Hz
+# against 250 Hz). Pooling them would teach every model that one physical
+# condition has two different spectral signatures. They are kept on disk as a
+# historical record and excluded here. See RESULTS.md 13.4c.
+#
+# Only files matching this suffix are merged; re-capture with
+# `collect_hardware_session.py --labelled` produces one.
+MERGEABLE_SUFFIX = "_labelled.json"
+
+# Of the labelled phases, only genuinely-at-rest samples are NORMAL training
+# data. gentle_tap/tilt_rotate/moderate_shake/sharp_impact are real physical
+# disturbances -- exactly the thing the Process Anomaly engine exists to flag --
+# so folding them in as "normal" would be teaching the models that a shaken
+# board is healthy. They are held out instead, and
+# scripts/evaluate_real_hardware.py scores them as a labelled test set.
+NORMAL_PHASES = {"at_rest"}
+
+
 def load_real_records():
     real = []
-    for path in sorted(glob.glob(os.path.join(DATA_COLLECTED_DIR, "hardware_session_*.json"))):
+    paths = sorted(glob.glob(os.path.join(DATA_COLLECTED_DIR, "*" + MERGEABLE_SUFFIX)))
+    if not paths:
+        print("  (no *_labelled.json sessions found -- training on synthetic data only)")
+    for path in paths:
         with open(path) as f:
             session = json.load(f)
-        print(f"  {os.path.basename(path)}: {len(session)} records")
-        real.extend(session)
+        rest = [r for r in session if r.get("phase") in NORMAL_PHASES]
+        held = len(session) - len(rest)
+        print(f"  {os.path.basename(path)}: {len(session)} records, "
+              f"{len(rest)} at-rest merged as normal, {held} held out as labelled events")
+        real.extend(rest)
     return real
 
 

@@ -1,0 +1,2054 @@
+[
+  {
+    "tick": 0,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.067,
+      "peak": 0.079,
+      "crest_factor": 0.074,
+      "kurtosis": -0.334,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 16
+  },
+  {
+    "tick": 1,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.039,
+      "peak": 0.018,
+      "crest_factor": 0.017,
+      "kurtosis": 0.387,
+      "dominant_freq": 171.88
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 17
+  },
+  {
+    "tick": 2,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.039,
+      "peak": 0.024,
+      "crest_factor": 0.023,
+      "kurtosis": -0.326,
+      "dominant_freq": 93.75
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 18
+  },
+  {
+    "tick": 3,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.038,
+      "peak": 0.019,
+      "crest_factor": 0.018,
+      "kurtosis": -0.085,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 19
+  },
+  {
+    "tick": 4,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.04,
+      "peak": 0.014,
+      "crest_factor": 0.013,
+      "kurtosis": -0.711,
+      "dominant_freq": 140.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 20
+  },
+  {
+    "tick": 5,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.04,
+      "peak": 0.012,
+      "crest_factor": 0.012,
+      "kurtosis": -0.761,
+      "dominant_freq": 125.0
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 21
+  },
+  {
+    "tick": 6,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.04,
+      "peak": 0.018,
+      "crest_factor": 0.018,
+      "kurtosis": 0.805,
+      "dominant_freq": 218.75
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 22
+  },
+  {
+    "tick": 7,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.039,
+      "peak": 0.011,
+      "crest_factor": 0.011,
+      "kurtosis": -0.596,
+      "dominant_freq": 78.12
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 23
+  },
+  {
+    "tick": 8,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.04,
+      "peak": 0.017,
+      "crest_factor": 0.016,
+      "kurtosis": 1.26,
+      "dominant_freq": 46.88
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 24
+  },
+  {
+    "tick": 9,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.04,
+      "peak": 0.015,
+      "crest_factor": 0.014,
+      "kurtosis": -0.597,
+      "dominant_freq": 156.25
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 25
+  },
+  {
+    "tick": 10,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.042,
+      "peak": 0.016,
+      "crest_factor": 0.016,
+      "kurtosis": -0.404,
+      "dominant_freq": 78.12
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 26
+  },
+  {
+    "tick": 11,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 0.947,
+      "peak": 0.575,
+      "crest_factor": 0.608,
+      "kurtosis": -0.951,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "gentle_tap",
+    "label_source": "transcript_reconstruction",
+    "console_index": 32
+  },
+  {
+    "tick": 12,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 0.672,
+      "peak": 0.201,
+      "crest_factor": 0.299,
+      "kurtosis": -0.333,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "gentle_tap",
+    "label_source": "transcript_reconstruction",
+    "console_index": 33
+  },
+  {
+    "tick": 13,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.065,
+      "peak": 0.295,
+      "crest_factor": 0.277,
+      "kurtosis": 9.655,
+      "dominant_freq": 46.88
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "gentle_tap",
+    "label_source": "transcript_reconstruction",
+    "console_index": 34
+  },
+  {
+    "tick": 14,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.043,
+      "peak": 0.029,
+      "crest_factor": 0.028,
+      "kurtosis": -0.347,
+      "dominant_freq": 46.88
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "gentle_tap",
+    "label_source": "transcript_reconstruction",
+    "console_index": 35
+  },
+  {
+    "tick": 15,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.469,
+      "peak": 1.903,
+      "crest_factor": 1.296,
+      "kurtosis": -0.071,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "gentle_tap",
+    "label_source": "transcript_reconstruction",
+    "console_index": 36
+  },
+  {
+    "tick": 16,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.013,
+      "peak": 0.373,
+      "crest_factor": 0.368,
+      "kurtosis": -0.694,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "gentle_tap",
+    "label_source": "transcript_reconstruction",
+    "console_index": 37
+  },
+  {
+    "tick": 17,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.042,
+      "peak": 0.02,
+      "crest_factor": 0.019,
+      "kurtosis": 0.495,
+      "dominant_freq": 62.5
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "gentle_tap",
+    "label_source": "transcript_reconstruction",
+    "console_index": 38
+  },
+  {
+    "tick": 18,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 0.923,
+      "peak": 0.387,
+      "crest_factor": 0.419,
+      "kurtosis": -0.711,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "gentle_tap",
+    "label_source": "transcript_reconstruction",
+    "console_index": 39
+  },
+  {
+    "tick": 19,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.026,
+      "peak": 0.753,
+      "crest_factor": 0.734,
+      "kurtosis": 3.524,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "gentle_tap",
+    "label_source": "transcript_reconstruction",
+    "console_index": 40
+  },
+  {
+    "tick": 20,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.324,
+      "peak": 2.882,
+      "crest_factor": 2.176,
+      "kurtosis": 1.528,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "gentle_tap",
+    "label_source": "transcript_reconstruction",
+    "console_index": 41
+  },
+  {
+    "tick": 21,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 0.589,
+      "peak": 0.207,
+      "crest_factor": 0.351,
+      "kurtosis": -1.258,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "gentle_tap",
+    "label_source": "transcript_reconstruction",
+    "console_index": 42
+  },
+  {
+    "tick": 22,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.158,
+      "peak": 0.301,
+      "crest_factor": 0.26,
+      "kurtosis": -0.435,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "gentle_tap",
+    "label_source": "transcript_reconstruction",
+    "console_index": 43
+  },
+  {
+    "tick": 23,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 0.862,
+      "peak": 0.664,
+      "crest_factor": 0.771,
+      "kurtosis": 1.116,
+      "dominant_freq": 46.88
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "gentle_tap",
+    "label_source": "transcript_reconstruction",
+    "console_index": 44
+  },
+  {
+    "tick": 24,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.307,
+      "peak": 3.108,
+      "crest_factor": 2.379,
+      "kurtosis": 0.812,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "gentle_tap",
+    "label_source": "transcript_reconstruction",
+    "console_index": 45
+  },
+  {
+    "tick": 25,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.188,
+      "peak": 0.704,
+      "crest_factor": 0.593,
+      "kurtosis": -1.279,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "gentle_tap",
+    "label_source": "transcript_reconstruction",
+    "console_index": 46
+  },
+  {
+    "tick": 26,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.026,
+      "peak": 0.055,
+      "crest_factor": 0.053,
+      "kurtosis": 0.574,
+      "dominant_freq": 78.12
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "gentle_tap",
+    "label_source": "transcript_reconstruction",
+    "console_index": 47
+  },
+  {
+    "tick": 27,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.042,
+      "peak": 0.023,
+      "crest_factor": 0.022,
+      "kurtosis": 0.069,
+      "dominant_freq": 78.12
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 50
+  },
+  {
+    "tick": 28,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.043,
+      "peak": 0.018,
+      "crest_factor": 0.017,
+      "kurtosis": 0.115,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 51
+  },
+  {
+    "tick": 29,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.043,
+      "peak": 0.017,
+      "crest_factor": 0.016,
+      "kurtosis": -1.096,
+      "dominant_freq": 93.75
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 52
+  },
+  {
+    "tick": 30,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.045,
+      "peak": 0.014,
+      "crest_factor": 0.013,
+      "kurtosis": -0.205,
+      "dominant_freq": 78.12
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 53
+  },
+  {
+    "tick": 31,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.048,
+      "peak": 0.02,
+      "crest_factor": 0.019,
+      "kurtosis": -0.473,
+      "dominant_freq": 62.5
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 54
+  },
+  {
+    "tick": 32,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.04,
+      "peak": 0.023,
+      "crest_factor": 0.022,
+      "kurtosis": -0.376,
+      "dominant_freq": 31.25
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 55
+  },
+  {
+    "tick": 33,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.043,
+      "peak": 0.023,
+      "crest_factor": 0.022,
+      "kurtosis": 2.163,
+      "dominant_freq": 78.12
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 56
+  },
+  {
+    "tick": 34,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.041,
+      "peak": 0.014,
+      "crest_factor": 0.014,
+      "kurtosis": -0.682,
+      "dominant_freq": 46.88
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 57
+  },
+  {
+    "tick": 35,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.042,
+      "peak": 0.017,
+      "crest_factor": 0.017,
+      "kurtosis": 0.724,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 58
+  },
+  {
+    "tick": 36,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.04,
+      "peak": 0.018,
+      "crest_factor": 0.017,
+      "kurtosis": -0.009,
+      "dominant_freq": 78.12
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 59
+  },
+  {
+    "tick": 37,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.657,
+      "peak": 2.518,
+      "crest_factor": 1.52,
+      "kurtosis": 2.839,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "moderate_shake",
+    "label_source": "transcript_reconstruction",
+    "console_index": 62
+  },
+  {
+    "tick": 38,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.651,
+      "peak": 0.577,
+      "crest_factor": 0.349,
+      "kurtosis": -1.122,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "moderate_shake",
+    "label_source": "transcript_reconstruction",
+    "console_index": 63
+  },
+  {
+    "tick": 39,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 0.947,
+      "peak": 1.956,
+      "crest_factor": 2.066,
+      "kurtosis": 2.824,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "moderate_shake",
+    "label_source": "transcript_reconstruction",
+    "console_index": 64
+  },
+  {
+    "tick": 40,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 0.728,
+      "peak": 0.309,
+      "crest_factor": 0.425,
+      "kurtosis": -1.164,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "moderate_shake",
+    "label_source": "transcript_reconstruction",
+    "console_index": 65
+  },
+  {
+    "tick": 41,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.29,
+      "peak": 1.569,
+      "crest_factor": 1.216,
+      "kurtosis": -1.45,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "moderate_shake",
+    "label_source": "transcript_reconstruction",
+    "console_index": 66
+  },
+  {
+    "tick": 42,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.765,
+      "peak": 2.676,
+      "crest_factor": 1.517,
+      "kurtosis": -0.922,
+      "dominant_freq": 31.25
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "moderate_shake",
+    "label_source": "transcript_reconstruction",
+    "console_index": 67
+  },
+  {
+    "tick": 43,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.079,
+      "peak": 0.957,
+      "crest_factor": 0.887,
+      "kurtosis": 1.46,
+      "dominant_freq": 62.5
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "moderate_shake",
+    "label_source": "transcript_reconstruction",
+    "console_index": 68
+  },
+  {
+    "tick": 44,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.986,
+      "peak": 2.308,
+      "crest_factor": 1.162,
+      "kurtosis": -0.658,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "moderate_shake",
+    "label_source": "transcript_reconstruction",
+    "console_index": 69
+  },
+  {
+    "tick": 45,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.757,
+      "peak": 1.492,
+      "crest_factor": 0.849,
+      "kurtosis": -0.649,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "moderate_shake",
+    "label_source": "transcript_reconstruction",
+    "console_index": 70
+  },
+  {
+    "tick": 46,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.668,
+      "peak": 1.606,
+      "crest_factor": 0.963,
+      "kurtosis": -0.886,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "moderate_shake",
+    "label_source": "transcript_reconstruction",
+    "console_index": 71
+  },
+  {
+    "tick": 47,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.489,
+      "peak": 1.613,
+      "crest_factor": 1.083,
+      "kurtosis": -1.603,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "moderate_shake",
+    "label_source": "transcript_reconstruction",
+    "console_index": 72
+  },
+  {
+    "tick": 48,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.997,
+      "peak": 0.971,
+      "crest_factor": 0.486,
+      "kurtosis": -1.484,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "moderate_shake",
+    "label_source": "transcript_reconstruction",
+    "console_index": 73
+  },
+  {
+    "tick": 49,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 2.431,
+      "peak": 1.482,
+      "crest_factor": 0.61,
+      "kurtosis": -0.046,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "moderate_shake",
+    "label_source": "transcript_reconstruction",
+    "console_index": 74
+  },
+  {
+    "tick": 50,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.48,
+      "peak": 2.965,
+      "crest_factor": 2.003,
+      "kurtosis": 1.533,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "moderate_shake",
+    "label_source": "transcript_reconstruction",
+    "console_index": 75
+  },
+  {
+    "tick": 51,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.04,
+      "peak": 0.023,
+      "crest_factor": 0.022,
+      "kurtosis": 0.092,
+      "dominant_freq": 31.25
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 78
+  },
+  {
+    "tick": 52,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.04,
+      "peak": 0.018,
+      "crest_factor": 0.017,
+      "kurtosis": -0.416,
+      "dominant_freq": 187.5
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 79
+  },
+  {
+    "tick": 53,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.042,
+      "peak": 0.013,
+      "crest_factor": 0.013,
+      "kurtosis": -0.551,
+      "dominant_freq": 250.0
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 80
+  },
+  {
+    "tick": 54,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.041,
+      "peak": 0.043,
+      "crest_factor": 0.042,
+      "kurtosis": 0.149,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 81
+  },
+  {
+    "tick": 55,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.042,
+      "peak": 0.016,
+      "crest_factor": 0.015,
+      "kurtosis": -0.201,
+      "dominant_freq": 31.25
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 82
+  },
+  {
+    "tick": 56,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.041,
+      "peak": 0.013,
+      "crest_factor": 0.012,
+      "kurtosis": -1.204,
+      "dominant_freq": 125.0
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 83
+  },
+  {
+    "tick": 57,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.046,
+      "peak": 0.017,
+      "crest_factor": 0.016,
+      "kurtosis": -0.299,
+      "dominant_freq": 62.5
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 84
+  },
+  {
+    "tick": 58,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.045,
+      "peak": 0.012,
+      "crest_factor": 0.012,
+      "kurtosis": -0.412,
+      "dominant_freq": 78.12
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 85
+  },
+  {
+    "tick": 59,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.039,
+      "peak": 0.022,
+      "crest_factor": 0.022,
+      "kurtosis": -0.359,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 86
+  },
+  {
+    "tick": 60,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.039,
+      "peak": 0.014,
+      "crest_factor": 0.014,
+      "kurtosis": -0.23,
+      "dominant_freq": 78.12
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 87
+  },
+  {
+    "tick": 61,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.039,
+      "peak": 0.017,
+      "crest_factor": 0.016,
+      "kurtosis": -0.824,
+      "dominant_freq": 78.12
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 88
+  },
+  {
+    "tick": 62,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.041,
+      "peak": 0.014,
+      "crest_factor": 0.014,
+      "kurtosis": -0.014,
+      "dominant_freq": 203.12
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 89
+  },
+  {
+    "tick": 63,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.04,
+      "peak": 0.021,
+      "crest_factor": 0.02,
+      "kurtosis": 0.998,
+      "dominant_freq": 156.25
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 90
+  },
+  {
+    "tick": 64,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.04,
+      "peak": 0.017,
+      "crest_factor": 0.016,
+      "kurtosis": 0.329,
+      "dominant_freq": 62.5
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 91
+  },
+  {
+    "tick": 65,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.04,
+      "peak": 0.012,
+      "crest_factor": 0.011,
+      "kurtosis": -0.831,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "label_source": "transcript_reconstruction",
+    "console_index": 93
+  },
+  {
+    "tick": 66,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.283,
+      "peak": 0.73,
+      "crest_factor": 0.569,
+      "kurtosis": -1.536,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "label_source": "transcript_reconstruction",
+    "console_index": 94
+  },
+  {
+    "tick": 67,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 0.911,
+      "peak": 0.288,
+      "crest_factor": 0.317,
+      "kurtosis": -1.228,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "label_source": "transcript_reconstruction",
+    "console_index": 95
+  },
+  {
+    "tick": 68,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 0.889,
+      "peak": 0.514,
+      "crest_factor": 0.579,
+      "kurtosis": -1.585,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "label_source": "transcript_reconstruction",
+    "console_index": 96
+  },
+  {
+    "tick": 69,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.115,
+      "peak": 1.126,
+      "crest_factor": 1.01,
+      "kurtosis": 2.301,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "label_source": "transcript_reconstruction",
+    "console_index": 97
+  },
+  {
+    "tick": 70,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.147,
+      "peak": 0.534,
+      "crest_factor": 0.466,
+      "kurtosis": -0.38,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "label_source": "transcript_reconstruction",
+    "console_index": 98
+  },
+  {
+    "tick": 71,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.237,
+      "peak": 0.406,
+      "crest_factor": 0.328,
+      "kurtosis": -0.763,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "label_source": "transcript_reconstruction",
+    "console_index": 99
+  },
+  {
+    "tick": 72,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.006,
+      "peak": 0.207,
+      "crest_factor": 0.206,
+      "kurtosis": -1.054,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "label_source": "transcript_reconstruction",
+    "console_index": 100
+  },
+  {
+    "tick": 73,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.864,
+      "peak": 0.441,
+      "crest_factor": 0.237,
+      "kurtosis": -1.592,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "label_source": "transcript_reconstruction",
+    "console_index": 101
+  },
+  {
+    "tick": 74,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 0.856,
+      "peak": 1.482,
+      "crest_factor": 1.732,
+      "kurtosis": 2.537,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "label_source": "transcript_reconstruction",
+    "console_index": 102
+  },
+  {
+    "tick": 75,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 0.812,
+      "peak": 0.332,
+      "crest_factor": 0.408,
+      "kurtosis": -0.726,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "label_source": "transcript_reconstruction",
+    "console_index": 103
+  },
+  {
+    "tick": 76,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.358,
+      "peak": 1.29,
+      "crest_factor": 0.95,
+      "kurtosis": 0.893,
+      "dominant_freq": 31.25
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "label_source": "transcript_reconstruction",
+    "console_index": 104
+  },
+  {
+    "tick": 77,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 0.683,
+      "peak": 1.077,
+      "crest_factor": 1.577,
+      "kurtosis": -0.933,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "label_source": "transcript_reconstruction",
+    "console_index": 105
+  },
+  {
+    "tick": 78,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 0.894,
+      "peak": 0.061,
+      "crest_factor": 0.069,
+      "kurtosis": -0.889,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "label_source": "transcript_reconstruction",
+    "console_index": 106
+  },
+  {
+    "tick": 79,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.141,
+      "peak": 0.724,
+      "crest_factor": 0.634,
+      "kurtosis": -0.866,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "label_source": "transcript_reconstruction",
+    "console_index": 107
+  },
+  {
+    "tick": 80,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.415,
+      "peak": 2.115,
+      "crest_factor": 1.495,
+      "kurtosis": 1.408,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "label_source": "transcript_reconstruction",
+    "console_index": 108
+  },
+  {
+    "tick": 81,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.178,
+      "peak": 1.458,
+      "crest_factor": 1.238,
+      "kurtosis": 0.666,
+      "dominant_freq": 78.12
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "label_source": "transcript_reconstruction",
+    "console_index": 109
+  },
+  {
+    "tick": 82,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 0.972,
+      "peak": 0.887,
+      "crest_factor": 0.913,
+      "kurtosis": 0.652,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "label_source": "transcript_reconstruction",
+    "console_index": 110
+  },
+  {
+    "tick": 83,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.1,
+      "peak": 0.089,
+      "crest_factor": 0.081,
+      "kurtosis": -0.48,
+      "dominant_freq": 31.25
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "label_source": "transcript_reconstruction",
+    "console_index": 111
+  },
+  {
+    "tick": 84,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 0.799,
+      "peak": 0.309,
+      "crest_factor": 0.387,
+      "kurtosis": -0.38,
+      "dominant_freq": 31.25
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "label_source": "transcript_reconstruction",
+    "console_index": 112
+  },
+  {
+    "tick": 85,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.897,
+      "peak": 2.491,
+      "crest_factor": 1.313,
+      "kurtosis": -0.998,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "label_source": "transcript_reconstruction",
+    "console_index": 113
+  },
+  {
+    "tick": 86,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.027,
+      "peak": 1.218,
+      "crest_factor": 1.186,
+      "kurtosis": 2.921,
+      "dominant_freq": 46.88
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "label_source": "transcript_reconstruction",
+    "console_index": 114
+  },
+  {
+    "tick": 87,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.003,
+      "peak": 0.207,
+      "crest_factor": 0.206,
+      "kurtosis": -1.016,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "label_source": "transcript_reconstruction",
+    "console_index": 115
+  },
+  {
+    "tick": 88,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 0.97,
+      "peak": 0.12,
+      "crest_factor": 0.123,
+      "kurtosis": -1.095,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "tilt_rotate",
+    "label_source": "transcript_reconstruction",
+    "console_index": 116
+  },
+  {
+    "tick": 89,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 0.914,
+      "peak": 0.424,
+      "crest_factor": 0.464,
+      "kurtosis": 0.554,
+      "dominant_freq": 31.25
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "sharp_impact",
+    "label_source": "transcript_reconstruction",
+    "console_index": 117
+  },
+  {
+    "tick": 90,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 2.278,
+      "peak": 2.216,
+      "crest_factor": 0.973,
+      "kurtosis": 0.118,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "sharp_impact",
+    "label_source": "transcript_reconstruction",
+    "console_index": 118
+  },
+  {
+    "tick": 91,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.915,
+      "peak": 2.263,
+      "crest_factor": 1.182,
+      "kurtosis": -0.605,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "sharp_impact",
+    "label_source": "transcript_reconstruction",
+    "console_index": 119
+  },
+  {
+    "tick": 92,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 2.915,
+      "peak": 0.955,
+      "crest_factor": 0.328,
+      "kurtosis": -0.285,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "sharp_impact",
+    "label_source": "transcript_reconstruction",
+    "console_index": 120
+  },
+  {
+    "tick": 93,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 3.191,
+      "peak": 1.129,
+      "crest_factor": 0.354,
+      "kurtosis": -0.15,
+      "dominant_freq": 31.25
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "sharp_impact",
+    "label_source": "transcript_reconstruction",
+    "console_index": 121
+  },
+  {
+    "tick": 94,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 2.837,
+      "peak": 1.518,
+      "crest_factor": 0.535,
+      "kurtosis": -1.614,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "sharp_impact",
+    "label_source": "transcript_reconstruction",
+    "console_index": 122
+  },
+  {
+    "tick": 95,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 2.936,
+      "peak": 1.204,
+      "crest_factor": 0.41,
+      "kurtosis": -1.092,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "sharp_impact",
+    "label_source": "transcript_reconstruction",
+    "console_index": 123
+  },
+  {
+    "tick": 96,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 2.138,
+      "peak": 0.497,
+      "crest_factor": 0.233,
+      "kurtosis": -0.654,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "sharp_impact",
+    "label_source": "transcript_reconstruction",
+    "console_index": 124
+  },
+  {
+    "tick": 97,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.032,
+      "peak": 0.835,
+      "crest_factor": 0.809,
+      "kurtosis": -0.884,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "sharp_impact",
+    "label_source": "transcript_reconstruction",
+    "console_index": 125
+  },
+  {
+    "tick": 98,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 2.64,
+      "peak": 1.161,
+      "crest_factor": 0.44,
+      "kurtosis": -1.479,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "sharp_impact",
+    "label_source": "transcript_reconstruction",
+    "console_index": 126
+  },
+  {
+    "tick": 99,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 2.36,
+      "peak": 0.863,
+      "crest_factor": 0.365,
+      "kurtosis": -0.775,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "sharp_impact",
+    "label_source": "transcript_reconstruction",
+    "console_index": 127
+  },
+  {
+    "tick": 100,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 3.273,
+      "peak": 0.634,
+      "crest_factor": 0.194,
+      "kurtosis": -1.117,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "sharp_impact",
+    "label_source": "transcript_reconstruction",
+    "console_index": 128
+  },
+  {
+    "tick": 101,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 2.914,
+      "peak": 0.671,
+      "crest_factor": 0.23,
+      "kurtosis": -1.067,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "sharp_impact",
+    "label_source": "transcript_reconstruction",
+    "console_index": 129
+  },
+  {
+    "tick": 102,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 2.289,
+      "peak": 0.848,
+      "crest_factor": 0.371,
+      "kurtosis": 2.711,
+      "dominant_freq": 31.25
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "sharp_impact",
+    "label_source": "transcript_reconstruction",
+    "console_index": 130
+  },
+  {
+    "tick": 103,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.016,
+      "peak": 0.15,
+      "crest_factor": 0.148,
+      "kurtosis": -0.583,
+      "dominant_freq": 15.62
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "sharp_impact",
+    "label_source": "transcript_reconstruction",
+    "console_index": 131
+  },
+  {
+    "tick": 104,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 2.383,
+      "peak": 2.195,
+      "crest_factor": 0.921,
+      "kurtosis": 0.304,
+      "dominant_freq": 31.25
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "sharp_impact",
+    "label_source": "transcript_reconstruction",
+    "console_index": 132
+  },
+  {
+    "tick": 105,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.041,
+      "peak": 0.027,
+      "crest_factor": 0.026,
+      "kurtosis": 2.647,
+      "dominant_freq": 171.88
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 135
+  },
+  {
+    "tick": 106,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.044,
+      "peak": 0.026,
+      "crest_factor": 0.025,
+      "kurtosis": -0.345,
+      "dominant_freq": 62.5
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 136
+  },
+  {
+    "tick": 107,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.054,
+      "peak": 0.087,
+      "crest_factor": 0.083,
+      "kurtosis": -0.233,
+      "dominant_freq": 62.5
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 137
+  },
+  {
+    "tick": 108,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.105,
+      "peak": 0.016,
+      "crest_factor": 0.015,
+      "kurtosis": -0.252,
+      "dominant_freq": 46.88
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 139
+  },
+  {
+    "tick": 109,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.051,
+      "peak": 0.069,
+      "crest_factor": 0.066,
+      "kurtosis": 8.438,
+      "dominant_freq": 31.25
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 140
+  },
+  {
+    "tick": 110,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.041,
+      "peak": 0.097,
+      "crest_factor": 0.093,
+      "kurtosis": 1.743,
+      "dominant_freq": 62.5
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 141
+  },
+  {
+    "tick": 111,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.039,
+      "peak": 0.015,
+      "crest_factor": 0.015,
+      "kurtosis": -1.1,
+      "dominant_freq": 109.38
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 142
+  },
+  {
+    "tick": 112,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.039,
+      "peak": 0.015,
+      "crest_factor": 0.014,
+      "kurtosis": -0.242,
+      "dominant_freq": 125.0
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 143
+  },
+  {
+    "tick": 113,
+    "device_id": "esp32-vib-001",
+    "reading": {
+      "rms": 1.038,
+      "peak": 0.017,
+      "crest_factor": 0.016,
+      "kurtosis": 0.023,
+      "dominant_freq": 156.25
+    },
+    "auth_ok": true,
+    "ts": null,
+    "label": 1,
+    "event_type": "normal",
+    "phase": "at_rest",
+    "label_source": "transcript_reconstruction",
+    "console_index": 144
+  }
+]

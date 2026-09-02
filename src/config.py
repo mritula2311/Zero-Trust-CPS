@@ -256,7 +256,12 @@ DEVICE_REGISTRY = {
             "peak": (0.0, 6.0),             # g (peak-to-peak)
             "crest_factor": (0.0, 10.0),    # dimensionless (peak-to-peak / rms, not textbook max/rms -- see feature_engineering.py)
             "kurtosis": (-3.0, 30.0),       # excess kurtosis
-            "dominant_freq": (0.0, 50.0),   # nominal units (bin * 100/32), NOT Hz -- see FEATURE_SAMPLE_RATE_HZ
+            # Upper bound is NYQUIST, derived rather than written down: a DFT cannot
+            # report a frequency above half the sampling rate, so any fixed number here
+            # silently becomes wrong the moment the rate changes. It did exactly that --
+            # left at 50.0 after the rate moved to 500 Hz, it marked 35 of 114 genuine
+            # resting readings "out of range" purely as an artefact of a stale constant.
+            "dominant_freq": None,   # set below, once FEATURE_SAMPLE_RATE_HZ exists
         },
     },
     "sensor-002": {
@@ -333,8 +338,19 @@ FEATURE_NAMES = ["rms", "peak", "crest_factor", "kurtosis", "dominant_freq"]
 # frequency. Do not read dominant_freq as Hz without applying the 12.3x
 # correction, and do not change this constant without retraining: every
 # dominant_freq value the models learned is scaled by it.
-FEATURE_SAMPLE_RATE_HZ = 100.0
+FEATURE_SAMPLE_RATE_HZ = 500.0
 FEATURE_WINDOW_SIZE = 32         # samples per on-device window, matches firmware/main.py
+
+# The dominant_freq bound is NYQUIST, derived here rather than written into the
+# registry as a literal. A DFT cannot report a frequency above half the sampling
+# rate, so any fixed number becomes wrong the moment the rate changes -- and it
+# did: left at 50.0 after the rate moved to 500 Hz, it marked 35 of 114 genuine
+# resting readings 'out of range' purely as an artefact of a stale constant.
+# Deriving it means the bound can never drift from the acquisition chain again.
+for _info in DEVICE_REGISTRY.values():
+    if _info.get('expected_ranges', {}).get('dominant_freq') is None:
+        _info.setdefault('expected_ranges', {})['dominant_freq'] = (0.0, FEATURE_SAMPLE_RATE_HZ / 2)
+del _info
 
 # --- Trust Evaluation (Module 3, Section A: Security Behaviour Engine) ---
 # Two-score rearchitecture: these now apply ONLY to the Security Trust

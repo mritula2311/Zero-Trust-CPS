@@ -87,14 +87,35 @@ TELEMETRY_TOPIC = b"cps/telemetry"
 DECISION_TOPIC = ("cps/decisions/" + DEVICE_ID).encode()
 CHALLENGE_TOPIC = ("cps/challenge/" + DEVICE_ID).encode()
 BOOT_ID_FILE = "boot_id.txt"
-# NOMINAL rate used to scale dominant_freq -- NOT the achieved sampling rate.
-# sample_window() reads WINDOW_SIZE samples back-to-back with no delay; measured
-# at 26 ms for 32 samples on real hardware, i.e. ~1231 Hz, 12.3x this value. Kept
-# at 100 because the trained models learned dominant_freq on this convention and
-# the simulator uses the same one, so the feature stays consistent end to end.
-# Changing it requires re-capturing hardware sessions and retraining.
-# See RESULTS.md 13.4c for the measurement and the three ways to fix it properly.
-SAMPLE_RATE_HZ = 100
+# ACQUISITION CHAIN -- rate, anti-alias filter and window size are ONE decision.
+#
+# 500 Hz sampling, 184 Hz sensor bandwidth, 32-sample window:
+#   Nyquist   250 Hz, a 66 Hz margin above the filter's corner
+#   window    64 ms, bins every 15.625 Hz up to 250 Hz
+#   read cost 0.81 ms/sample, so 2.0 ms spacing leaves 1.2 ms of slack
+#
+# This replaced a declared-but-never-achieved 100 Hz. The history is worth
+# keeping, because each step only became visible once the previous was fixed:
+#
+#   1. sample_window() had no delay at all and ran at ~1231 Hz while claiming
+#      100 Hz, so dominant_freq was scaled by a constant 12.3x wrong.
+#   2. Pacing it to a true 100 Hz fixed the scale but moved Nyquist from 615 Hz
+#      to 50 Hz -- BELOW the sensor's 260 Hz default bandwidth -- so 210 Hz of
+#      content began folding into the measured band. Measured: dominant_freq
+#      collapsed onto 28-50 Hz, pinned to the top of the band.
+#   3. DLPF_CFG=3 (44 Hz) cut most of that, but 44 Hz against a 50 Hz Nyquist
+#      leaves no margin for the filter's gradual rolloff. Measured: 38% of
+#      samples still landed in the top three bins, 2x uniform -- content just
+#      above 50 Hz folding back to just below it.
+#   4. The 100 Hz target was never a requirement; it came from a comment
+#      describing a sampling loop that did not exist. Raising the rate beats
+#      narrowing the filter: 500 Hz gives a 66 Hz margin, 5x the usable
+#      bandwidth of a 21 Hz filter at 100 Hz, AND a 64 ms window not 320 ms.
+#
+# Changing any of these three requires retraining -- every dominant_freq value
+# the models learned is scaled by SAMPLE_RATE_HZ. src/config.py's
+# FEATURE_SAMPLE_RATE_HZ must match this exactly (tests enforce it).
+SAMPLE_RATE_HZ = 500
 WINDOW_SIZE = 32
 PUBLISH_INTERVAL_MS = 2000
 # =====================================================================
@@ -214,10 +235,37 @@ def print_deployment_footprint():
 i2c = None
 
 
+# MPU6050 CONFIG register 0x1A, bits [2:0] = DLPF_CFG -- the sensor's internal
+# digital low-pass filter, i.e. its ANTI-ALIASING filter.
+#
+# DLPF_CFG=3 gives 44 Hz accelerometer bandwidth, just under the 50 Hz Nyquist
+# limit of our 100 Hz sampling rate. The reset default is 0 = 260 Hz.
+#
+# This is not optional, and leaving it at the default is an active bug once the
+# sampling loop is correctly paced. At 100 Hz sampling, everything the sensor
+# passes between 50 Hz and 260 Hz -- 210 Hz of bandwidth -- folds back into the
+# 0-50 Hz band we measure, and folded energy is indistinguishable from real
+# low-frequency content once it has aliased. Observed directly: after the
+# sampling-rate fix, dominant_freq collapsed onto the TOP of the band (28-50 Hz
+# on every message) where the same board had previously reported 3-15 Hz.
+#
+# Note the ordering trap. Before the sampling fix the board ran at ~1231 Hz, so
+# Nyquist was 615 Hz, comfortably above the 260 Hz bandwidth, and there was no
+# aliasing to see. Correcting the sample rate is what CREATED the aliasing, by
+# moving Nyquist below the sensor's passband. A rate fix and an anti-alias
+# filter are one change, not two.
+MPU6050_DLPF_CFG = 1      # 184 Hz accel bandwidth, 66 Hz below the 250 Hz Nyquist
+
+
 def mpu6050_init():
     global i2c
     i2c = I2C(0, scl=Pin(22), sda=Pin(21), freq=400000)
     i2c.writeto_mem(MPU6050_I2C_ADDR, 0x6B, b"\x00")  # PWR_MGMT_1 = 0 -- wake it up
+    i2c.writeto_mem(MPU6050_I2C_ADDR, 0x1A, bytes([MPU6050_DLPF_CFG]))  # CONFIG: anti-alias filter
+    # SMPLRT_DIV=0: with the DLPF enabled the sensor refreshes its output
+    # registers at 1 kHz, comfortably faster than our 500 Hz read rate, so every
+    # read returns a fresh sample rather than repeating a stale one.
+    i2c.writeto_mem(MPU6050_I2C_ADDR, 0x19, b"\x00")  # SMPLRT_DIV
 
 
 def read_accel_magnitude_g():
@@ -298,7 +346,36 @@ def _cos(x):
 
 
 def sample_window():
-    return [read_accel_magnitude_g() for _ in range(WINDOW_SIZE)]
+    """Collects WINDOW_SIZE samples at an ACTUAL rate of SAMPLE_RATE_HZ.
+
+    This used to be a bare list comprehension with no delay, which read as fast
+    as I2C allowed: measured at 26 ms for 32 samples, i.e. ~1231 Hz against a
+    declared 100 Hz -- a 12.3x overstatement. That mattered because
+    dominant_freq is computed as `k * SAMPLE_RATE_HZ / n`, so every reported
+    frequency was scaled by a constant that was not true. Bin spacing was
+    really ~38.5 Hz, not 3.125, and Nyquist ~615 Hz, not 50. See RESULTS.md
+    Section 13.4c.
+
+    Timing is scheduled against a moving DEADLINE rather than by sleeping a
+    fixed amount after each read. A fixed sleep would add the read's own
+    duration to every interval and let that error accumulate across the
+    window, so 32 samples would span measurably longer than 320 ms and the
+    frequency axis would drift again -- a subtler version of the same bug.
+    Advancing `next_t` by exactly dt each iteration means a slow read steals
+    from its own slack instead of pushing every later sample back.
+
+    ticks_add/ticks_diff (not plain arithmetic) because MicroPython's tick
+    counters wrap around, and only these handle the wrap correctly."""
+    dt_us = int(1000000 / SAMPLE_RATE_HZ)
+    window = []
+    next_t = time.ticks_us()
+    for _ in range(WINDOW_SIZE):
+        window.append(read_accel_magnitude_g())
+        next_t = time.ticks_add(next_t, dt_us)
+        remaining = time.ticks_diff(next_t, time.ticks_us())
+        if remaining > 0:
+            time.sleep_us(remaining)
+    return window
 
 
 # ---------- HMAC-SHA256 (manual, portable across MicroPython builds) ----------
