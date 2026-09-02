@@ -20,10 +20,12 @@
   a{color:var(--cyan);text-decoration:none} a:hover{text-decoration:underline}
   .wrap{max-width:1760px;margin:0 auto;padding:18px 22px 46px}
 
-  header{display:flex;flex-wrap:wrap;align-items:center;gap:14px 20px;
+  header{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;
     padding:15px 20px;background:linear-gradient(180deg,#101f34,#0b1424);
     border:1px solid var(--edge);border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.4)}
-  .brand{margin-right:auto}
+  .brand{margin-right:auto;min-width:280px}
+  header .pill:last-of-type{margin-right:0}
+  header a.pill{margin-left:auto}   /* figures link anchors to the right edge */
   .brand h1{font-size:18px;margin:0;letter-spacing:.3px;font-weight:800}
   .brand .sub{color:var(--muted);font-size:11.5px;font-family:var(--mono);margin-top:2px}
   .live{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;color:var(--green);font-weight:700}
@@ -45,8 +47,13 @@
   @media(max-width:860px){.grid>*{grid-column:span 12!important}}
 
   /* device cards */
-  .devs{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(360px,1fr))}
-  .dev{background:var(--panel2);border:1px solid var(--edge);border-radius:12px;padding:15px 16px;position:relative;overflow:hidden}
+  .devs{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(370px,1fr));align-items:stretch}
+  /* flex column + auto-margin footer: cards in a row stay equal height and their
+     footers share one baseline, instead of drifting with Level-2 text length */
+  .dev{background:var(--panel2);border:1px solid var(--edge);border-radius:12px;
+    padding:16px 18px 14px;position:relative;overflow:hidden;
+    display:flex;flex-direction:column;min-width:0}
+  .dev .foot{margin-top:auto;padding-top:12px}
   .dev::before{content:"";position:absolute;inset:0 auto 0 0;width:4px;background:var(--dim)}
   .dev.ALLOW::before{background:var(--cyan)}.dev.ALERT::before{background:var(--violet)}
   .dev.STEP_UP::before{background:var(--amber)}.dev.BLOCK::before{background:var(--red)}
@@ -60,17 +67,25 @@
   .badge.STEP_UP{background:rgba(251,191,36,.15);color:var(--amber)}.badge.BLOCK{background:rgba(248,113,113,.16);color:var(--red)}
   .badge.REJECTED{background:rgba(248,113,113,.16);color:var(--red)}.badge.SILENT{background:rgba(91,107,130,.18);color:var(--muted)}
 
-  .meter{margin:9px 0}
-  .meter .lab{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:4px}
+  /* tabular-nums: digits share one advance width, so values stack in a true
+     column instead of shimmering as they change */
+  .meter,.pred .pv,.shap .sv,table.qt td,td.mono,.dev .name{font-variant-numeric:tabular-nums}
+  .meter{margin:10px 0}
+  .meter .lab{display:flex;justify-content:space-between;align-items:baseline;
+    font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:5px;gap:10px}
   .meter .lab b{color:var(--txt)}
   .bar{height:7px;border-radius:5px;background:#0a1220;overflow:hidden;border:1px solid var(--edge);position:relative}
   .bar>i{display:block;height:100%;border-radius:5px;transition:width .5s ease}
   .bar.thr::after{content:"";position:absolute;top:-2px;bottom:-2px;left:60%;width:1px;background:var(--edge2)}
 
-  .section-t{font-family:var(--mono);font-size:10px;letter-spacing:.6px;color:var(--dim);text-transform:uppercase;margin:13px 0 7px}
+  .section-t{font-family:var(--mono);font-size:10px;letter-spacing:.7px;color:var(--dim);
+    text-transform:uppercase;margin:15px 0 8px;padding-top:2px;border-top:1px solid rgba(30,43,64,.6)}
+  .section-t:first-of-type{border-top:none;padding-top:0}
   /* model prediction chips */
-  .preds{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}
-  .pred{background:#0a1322;border:1px solid var(--edge);border-radius:8px;padding:7px 8px;text-align:center}
+  .preds{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+  .pred{background:#0a1322;border:1px solid var(--edge);border-radius:8px;
+    padding:8px 6px 9px;text-align:center;min-width:0;
+    display:flex;flex-direction:column;justify-content:space-between}
   .pred .pl{font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.3px}
   .pred .pv{font-family:var(--mono);font-size:15px;font-weight:700;margin:2px 0 4px}
   .pred .pb{height:4px;border-radius:3px;background:#0a1220;overflow:hidden}
@@ -79,7 +94,9 @@
 
   /* SHAP diverging bars */
   .shap{margin-top:4px}
-  .srow{display:grid;grid-template-columns:120px 1fr 60px;align-items:center;gap:8px;margin:5px 0}
+  /* fixed label and value columns mean every bar starts and ends at the same x
+     across all three device cards, so the bars are comparable by eye */
+  .srow{display:grid;grid-template-columns:104px minmax(0,1fr) 54px;align-items:center;gap:10px;margin:6px 0}
   .srow .sn{font-family:var(--mono);font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .srow .sn.dom{color:var(--txt);font-weight:700}
   .strack{position:relative;height:14px;background:#0a1220;border:1px solid var(--edge);border-radius:4px}
@@ -87,9 +104,11 @@
   .strack i{position:absolute;top:1px;bottom:1px;border-radius:2px}
   .srow .sv{font-family:var(--mono);font-size:10.5px;text-align:right}
   .shaphint{font-family:var(--mono);font-size:9.5px;color:var(--dim);margin-top:6px}
-  .l2{margin-top:9px;font-size:11.5px;color:var(--muted);line-height:1.4;border-top:1px solid var(--edge);padding-top:9px}
+  .l2{margin-top:11px;font-size:11.5px;color:var(--muted);line-height:1.5;
+    border-left:2px solid rgba(167,139,250,.45);padding:2px 0 2px 10px}
   .l2 b{color:var(--violet)}
-  .dev .foot{margin-top:9px;font-family:var(--mono);font-size:10.5px;color:var(--dim)}
+  .dev .foot{font-family:var(--mono);font-size:10.5px;color:var(--dim);
+    border-top:1px solid rgba(30,43,64,.6)}
   .empty{color:var(--dim);font-family:var(--mono);font-size:12px;padding:10px 2px}
 
   /* decisions table */
@@ -108,6 +127,7 @@
   .cov .lab{display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:4px}
   .cov .lab span:first-child{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:80%}
   .cov .lab b{font-family:var(--mono)}
+  .frgap{margin:-2px 0 9px 8px;padding-left:10px;border-left:2px solid rgba(251,191,36,.35)}
   .fr{display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid #131f30;font-size:12px}
   .fr:last-child{border-bottom:0}
   .fr .st{font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:5px;flex:none;letter-spacing:.2px}
@@ -152,8 +172,11 @@
   .val .st.UNFALSIFIABLE,.val .st.INSUFFICIENT_DATA{background:rgba(251,191,36,.14);color:var(--amber)}
   .val .t{font-family:var(--mono);font-size:11px;color:var(--muted)}
   .val .claim{color:var(--txt);font-size:11.5px;margin-top:5px}
-  .val .meta{color:var(--dim);font-size:10.5px;margin-top:4px;line-height:1.5}
-  .val .meta b{color:var(--muted);font-weight:600}
+  /* .meta is used outside .val too (IEC gap notes, chain-check details), so it
+     must not stay scoped to the validation panel -- unscoped it rendered as
+     full-size body text and swamped the FR rows it was annotating. */
+  .meta{color:var(--dim);font-size:10.5px;margin-top:4px;line-height:1.5}
+  .meta b{color:var(--muted);font-weight:600}
 </style>
 </head>
 <body>
@@ -497,7 +520,7 @@
       box.innerHTML+='<div class="fr" title="'+esc(tip)+'"><span class="st '+f.status+'">'+f.status.replace("_"," ")+'</span>'+
         '<span class="frname">'+esc(f.id)+" "+esc(f.name)+'</span><span class="frpct" title="fraction of logged decisions carrying evidence for this FR -- NOT how much of the FR is implemented">evidence '+pct+'</span></div>';
       if(f.gap_note){
-        box.innerHTML+='<div class="meta" style="margin:-4px 0 8px 6px">'+esc("gap: "+f.gap_note)+'</div>';
+        box.innerHTML+='<div class="frgap meta">'+esc("gap: "+f.gap_note)+'</div>';
       }
     });
     var impl=(iec.frs||[]).filter(function(f){return f.status==="implemented"});

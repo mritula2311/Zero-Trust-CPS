@@ -1401,6 +1401,112 @@ timing Section 13.1 covers.
 
 ---
 
+### 13.4b On-device latency and footprint — measured on the real ESP32
+
+Captured from `firmware/main.py`'s own instrumentation on the board's serial
+console (boot_id 21, NTP-synced). These are real on-device numbers, not the
+simulated-device-process proxy used elsewhere in this document. Timing uses
+`time.ticks_diff()`, which is the wraparound-correct comparison — naive
+subtraction on `ticks_ms()` is wrong across the wrap.
+
+| Stage | Measured | Share of cycle |
+|---|---|---|
+| Sampling (32 I2C reads) | **26 ms** | 19% |
+| Feature extraction (5 features incl. 16-bin DFT) | **98–100 ms** | **74%** |
+| HMAC-SHA256 sign | **9 ms** | 7% |
+| **Total per message** | **≈ 133–135 ms** | of a 2000 ms publish interval |
+
+So the board spends about **6.7%** of each cycle working and the rest idle,
+which is ample headroom. But the distribution is lopsided in a way worth
+naming: **feature extraction costs ~4× the sampling and ~11× the signing.**
+Cryptography is not the bottleneck here — the DFT is. `_dominant_frequency()`
+is a naive O(n·k) transform, 32 samples × 16 bins = 512 sin/cos pairs per
+window, and it dominates the entire on-device budget. If this ever needs to be
+faster, that loop is the only thing worth optimising; the HMAC is noise by
+comparison.
+
+Deployment footprint, printed after full init:
+
+| Resource | Free | Used | Total |
+|---|---|---|---|
+| RAM | 98,432 B | 16,960 B | 115,392 B (14.7% used) |
+| Flash filesystem | 2,084,864 B | 12,288 B | 2,097,152 B (0.6% used) |
+
+Both are comfortable. The whole pipeline — WiFi, TLS, MQTT, sensor driver,
+feature extraction and HMAC — fits in under 17 KB of allocated RAM.
+
+### 13.4c A real defect these numbers exposed: `SAMPLE_RATE_HZ` is fiction
+
+The latency figures are not just a performance note; they falsify a constant.
+
+`firmware/main.py` declares `SAMPLE_RATE_HZ = 100` and
+`src/config.py` declares `FEATURE_SAMPLE_RATE_HZ = 100.0`, commented "matches
+firmware/main.py's dt_ms=10 sampling loop". **There is no such loop.**
+`sample_window()` is:
+
+```python
+def sample_window():
+    return [read_accel_magnitude_g() for _ in range(WINDOW_SIZE)]
+```
+
+No delay of any kind — it reads as fast as I2C allows. The timer brackets
+exactly those 32 reads, so the measurement is direct:
+
+```
+26 ms / 32 samples = 0.8125 ms per sample  ->  ~1231 Hz actual
+declared                                    ->      100 Hz
+                                            overstatement: 12.3x
+```
+
+A genuine 100 Hz window would take **320 ms** to collect. It takes 26 ms.
+
+**What this does and does not break.**
+
+`dominant_freq` is computed as `k · SAMPLE_RATE_HZ / n`, so every reported
+frequency is scaled by the declared rate:
+
+| Reported | Actually |
+|---|---|
+| 3.125 Hz | ~38.5 Hz |
+| 6.25 Hz | ~76.9 Hz |
+| 9.375 Hz | ~115.4 Hz |
+| 12.5 Hz | ~153.8 Hz |
+
+Bin spacing is ~38.5 Hz, not 3.125 Hz, and Nyquist is ~615 Hz, not the 50 Hz
+that `config.DEVICE_REGISTRY`'s comment claims.
+
+**Detection is not affected**, and it is worth being precise about why rather
+than filing this as harmless. The simulator generates synthetic windows with no
+real timing at all, so its "sample rate" is purely notional; the firmware uses
+the same nominal constant and the same `n`. Both sides therefore produce the
+same *bin index* for the same spectral shape, the models were trained on that
+convention, and the feature is internally consistent end to end. What is wrong
+is the **physical label**: `dominant_freq` is currently a DFT bin index
+expressed in nominal units, not a frequency in Hz.
+
+**The consequence is for interpretation, not classification.** Any statement
+tying this feature to real vibration physics — bearing defect frequencies,
+unbalance at 1× running speed, the Nyquist claim in the registry comment — is
+wrong by 12.3×. That matters for a report that discusses vibration analysis,
+and not at all for the anomaly scores.
+
+**Fixing it properly requires retraining**, which is why it is recorded here
+rather than silently patched:
+
+1. *Make the constant true* — add a delay so the loop really samples at 100 Hz.
+   Costs 320 ms per cycle instead of 26 ms (still fine against 2000 ms), but it
+   changes the real board's spectral content and therefore its feature
+   distribution, so the hardware sessions need re-capturing and the models
+   retraining.
+2. *Make the label true* — measure the achieved rate on-device and use it for
+   the DFT. Physically correct immediately, but it changes every reported
+   `dominant_freq` value, which again means retraining.
+3. *Rename the feature* to `dominant_bin` and drop the Hz claim. Costs nothing
+   and removes the false precision, but abandons the physical interpretation.
+
+Until one of those is done, the honest reading of `dominant_freq` is option 3's:
+a bin index, comparable across messages, not a frequency.
+
 ## 14. Known Limitations & Remediation Roadmap
 
 Originally five acknowledged gaps against the original design.

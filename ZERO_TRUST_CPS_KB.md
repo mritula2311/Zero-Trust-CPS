@@ -779,6 +779,20 @@ suspicious device destroys the evidence you most want. See `docs/06` §2.0.2.
 
 ### Still open
 
+**`dominant_freq` is a bin index, not Hz — the declared sample rate is 12.3×
+off.** Firmware declares `SAMPLE_RATE_HZ = 100`, but `sample_window()` reads its
+32 samples back-to-back with no delay: measured at **26 ms**, i.e. **~1231 Hz**.
+A genuine 100 Hz window would take 320 ms. So bin spacing is ~38.5 Hz not 3.125,
+and Nyquist ~615 Hz not 50. **Detection is unaffected** — the simulator and the
+firmware share the same nominal constant and window size, so the bin index is
+consistent end to end and the models learned that convention. What is wrong is
+the physical label: any claim tying this feature to real vibration frequencies is
+off by 12.3×. Fixing it properly (either sampling at the declared rate, or using
+the measured rate in the DFT) changes the feature distribution and therefore
+needs re-captured hardware sessions plus a retrain, which is why it is recorded
+rather than patched. See `RESULTS.md` §13.4c.
+
+
 **GNN response is not perfectly monotonic at the extreme.** Neighbours at 0.30
 → 0.316 but at 0.10 → 0.363 — a small wobble far outside the region the training
 data covers. Directionally correct across the realistic range, and no

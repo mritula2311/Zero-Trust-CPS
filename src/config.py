@@ -256,7 +256,7 @@ DEVICE_REGISTRY = {
             "peak": (0.0, 6.0),             # g (peak-to-peak)
             "crest_factor": (0.0, 10.0),    # dimensionless (peak-to-peak / rms, not textbook max/rms -- see feature_engineering.py)
             "kurtosis": (-3.0, 30.0),       # excess kurtosis
-            "dominant_freq": (0.0, 50.0),   # Hz, Nyquist-limited by the 100Hz on-device sample rate
+            "dominant_freq": (0.0, 50.0),   # nominal units (bin * 100/32), NOT Hz -- see FEATURE_SAMPLE_RATE_HZ
         },
     },
     "sensor-002": {
@@ -323,7 +323,17 @@ REAL_HARDWARE_DEVICE_IDS: set = {"esp32-vib-001"}
 
 # --- Feature Engineering (Module 3, CLAUDE.md Section 5.1) ---
 FEATURE_NAMES = ["rms", "peak", "crest_factor", "kurtosis", "dominant_freq"]
-FEATURE_SAMPLE_RATE_HZ = 100.0   # matches firmware/main.py's dt_ms=10 sampling loop
+# NOMINAL sample rate, and it is NOT the achieved one -- see RESULTS.md 13.4c.
+# The comment here used to claim it "matches firmware/main.py's dt_ms=10 sampling
+# loop"; there is no such loop. sample_window() reads 32 samples back-to-back with
+# no delay, measured at 26 ms on real hardware = ~1231 Hz, 12.3x this value.
+# Both the simulator and the firmware use this same nominal constant and the same
+# window size, so dominant_freq is a CONSISTENT bin index end to end and detection
+# is unaffected -- but it is a bin index in nominal units, not a physical
+# frequency. Do not read dominant_freq as Hz without applying the 12.3x
+# correction, and do not change this constant without retraining: every
+# dominant_freq value the models learned is scaled by it.
+FEATURE_SAMPLE_RATE_HZ = 100.0
 FEATURE_WINDOW_SIZE = 32         # samples per on-device window, matches firmware/main.py
 
 # --- Trust Evaluation (Module 3, Section A: Security Behaviour Engine) ---

@@ -87,6 +87,13 @@ TELEMETRY_TOPIC = b"cps/telemetry"
 DECISION_TOPIC = ("cps/decisions/" + DEVICE_ID).encode()
 CHALLENGE_TOPIC = ("cps/challenge/" + DEVICE_ID).encode()
 BOOT_ID_FILE = "boot_id.txt"
+# NOMINAL rate used to scale dominant_freq -- NOT the achieved sampling rate.
+# sample_window() reads WINDOW_SIZE samples back-to-back with no delay; measured
+# at 26 ms for 32 samples on real hardware, i.e. ~1231 Hz, 12.3x this value. Kept
+# at 100 because the trained models learned dominant_freq on this convention and
+# the simulator uses the same one, so the feature stays consistent end to end.
+# Changing it requires re-capturing hardware sessions and retraining.
+# See RESULTS.md 13.4c for the measurement and the three ways to fix it properly.
 SAMPLE_RATE_HZ = 100
 WINDOW_SIZE = 32
 PUBLISH_INTERVAL_MS = 2000
