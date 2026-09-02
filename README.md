@@ -255,6 +255,21 @@ trained artifacts, every scorer falls back to a neutral default and the
 gateway console shows `(fusion model not trained yet)`. That's expected
 before training, not a bug.
 
+## Run the tests
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+33 tests, stdlib `unittest` — no install needed. They do not chase coverage:
+**every test guards a property that has already been broken once in this
+repository**, and each docstring names the incident it protects against (the
+Isolation Forest calibration, firmware-to-reference feature equivalence,
+canonicalisation drift, GNN adjacency, the RL estimator and its static fallback,
+audit tamper detection, quarantine escalation, and whether the governance checks
+can actually fail). Tests touching the audit log work on a temp copy; the real
+`data/audit_log.db` is never written to.
+
 ## Evaluate it (for the report)
 
 **`RESULTS.md`** already has every number below, with full explanations,

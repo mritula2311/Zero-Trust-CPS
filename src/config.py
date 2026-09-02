@@ -145,6 +145,40 @@ REPLAY_WINDOW_SECONDS = 600   # DEMO ACCOMMODATION (isolated hotspot, no NTP rou
                                # is unaffected. Revert to 30 once the board gets real NTP time
                                # (share the laptop's internet to the hotspot / enable ICS).
 
+# --- Automatic quarantine on sustained BLOCK (Module 5 enforcement) ---
+# The 2x2 policy table's BLOCK row is specified as "Block / quarantine"
+# (docs/06 Section 2), but the decision itself is ADVISORY: it is computed,
+# signed, delivered to the device, logged and displayed, and then nothing acts
+# on it. Measured on this repository's own audit log: 1112 BLOCK decisions, and
+# after the last one the same device sent 6264 more messages, all accepted and
+# scored. Enforcement genuinely exists at Module 2 (a revoked device is rejected
+# before HMAC, a throttled identity is dropped) but not at Module 5.
+#
+# This closes that gap using the enforcement primitive that already exists and
+# is already validated -- trust_engine.revoke_device(), whose effect gateway.py
+# checks before HMAC. Sustained BLOCK escalates to revocation, i.e. real
+# quarantine.
+#
+# DEFAULT OFF, and that default is not timidity -- it is the measured lesson
+# from this repository's own history. During the Isolation Forest calibration
+# defect (RESULTS.md Section 0.1) the REAL, physically healthy ESP32 accumulated
+# 953 BLOCK decisions, including 108 runs of >=3 consecutive BLOCKs, 20 runs of
+# >=10, and one unbroken run of 50. Auto-quarantine armed at any threshold up to
+# 50 would have revoked live hardware because of a scoring bug, and because
+# is_revoked() is a hard override the board would have stayed dead until a human
+# reinstated it. Arm this only once you trust the models' false-positive rate on
+# YOUR data, and read RESULTS.md Section 0.6 for what that rate currently is.
+AUTO_QUARANTINE_ENABLED = False
+
+# Consecutive BLOCK decisions for ONE device before quarantine. Consecutive, not
+# cumulative: a single ALLOW resets the counter, so this triggers on sustained
+# conviction rather than on scattered BLOCKs across a long session. 20 is chosen
+# against the history above -- it sits above the 108 short runs so ordinary
+# noise never fires it, while the 20 genuinely sustained runs WOULD have fired
+# it, which is the point: a device that looks blocked for 40 seconds straight is
+# either compromised or the model is broken, and both deserve a human.
+AUTO_QUARANTINE_CONSECUTIVE_BLOCKS = 20
+
 # --- Step-up authentication (Module 2 Section 7 / Module 5) ---
 # Real gateway-issued-nonce / device-echo challenge-response, closing the
 # "not literal interactive challenge-response" gap

@@ -532,17 +532,26 @@
   function setChain(chain){
     var ok=chain.chain_ok&&chain.checkpoint_ok,el=$("p-chain");
     el.innerHTML='chain: <span class="sdot" style="background:'+(ok?"var(--green)":"var(--red)")+'"></span><b class="'+(ok?"ok":"bad")+'">'+(ok?"verified":"BROKEN")+'</b>';
-    el.title=ok?"hash chain and checkpoints verify":((chain.broken_row?("broken at row "+chain.broken_row+"; "):"")+(chain.checkpoint_note||""));
-    if(chain.rows_verified!=null)$("chaintag").textContent=chain.rows_verified.toLocaleString()+" rows · re-verified "+(chain.verified_at||"");
+    el.title=ok?"chain, checkpoints and tail all verify":((chain.broken_row?("broken at row "+chain.broken_row+"; "):"")+(chain.checkpoint_note||""));
+    if(chain.rows_verified!=null)$("chaintag").textContent=chain.rows_verified.toLocaleString()+" rows";
     function line(label,good,detail){
-      return '<div class="kv"><span>'+label+'</span><b class="'+(good?"ok":"bad")+'">'+
-        (good?"PASS":"FAIL")+'</b></div>'+(detail?'<div class="note" style="margin-top:2px">'+esc(detail)+'</div>':"");
+      return '<div class="kv"><span>'+label+'</span><b class="'+(good?"ok":"bad")+'">'+(good?"PASS":"FAIL")+'</b></div>'+
+        (detail?'<div class="note" style="margin-top:2px">'+esc(detail)+'</div>':"");
     }
+    var age=chain.full_scan_age_seconds;
+    var ageTxt=age==null?"":(age<90?Math.round(age)+"s ago":Math.round(age/60)+" min ago");
     $("chaindetail").innerHTML=
-      line("Hash chain — every row's hash matches its predecessor",chain.chain_ok,
-           chain.broken_row?("first broken row: "+chain.broken_row):"Defeats an attacker who edits a row and leaves the following hashes stale.")+
+      line("Full chain scan — recomputes every row's hash from its fields",
+           chain.full_scan_ok!==false,
+           (chain.broken_row&&chain.full_scan_ok===false?("first broken row: "+chain.broken_row+". "):"")+
+           "The ONLY check that catches a naive edit (row changed, hashes left alone). O(all rows), so it runs every "+
+           "few minutes rather than every poll — last run "+ageTxt+" over "+(chain.full_scan_rows||0).toLocaleString()+
+           " rows. That age IS the detection latency for this attack.")+
       line("Checkpoint cross-check — independent, separately-keyed",chain.checkpoint_ok,
-           chain.checkpoint_note||"Defeats an attacker who rewrites the in-DB chain consistently; the checkpoint file is stored elsewhere and HMAC'd with a key no device holds.");
+           chain.checkpoint_note||"The ONLY check that catches a CONSISTENT rewrite (old row edited and every following hash "+
+           "recomputed). The chain scan cannot see that, because the result is internally valid.")+
+      line("Incremental tail — rows since the newest checkpoint",chain.tail_ok!==false,
+           "Runs on every poll ("+(chain.tail_rows||0)+" rows), so the newest history is covered continuously between full scans.");
   }
 
   // Tiered polling. /api/decisions and /api/devices are the live view and are

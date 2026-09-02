@@ -81,10 +81,12 @@ from config import (
     DASHBOARD_PORT,
     GATEWAY_BOOT_ID_PATH,
     SILENCE_CHECK_INTERVAL_SECONDS,
+    AUTO_QUARANTINE_ENABLED,
+    AUTO_QUARANTINE_CONSECUTIVE_BLOCKS,
 )
 from trust_engine import (
     RuleBasedTrustEngine, rule_range_score, IdentityTargetingRisk,
-    is_revoked, verify_signature_with_rotation,
+    is_revoked, revoke_device, verify_signature_with_rotation,
 )
 from isolation_forest_scorer import IsolationForestScorer
 from lstm_ae_scorer import LSTMAEScorer
@@ -360,6 +362,11 @@ def _process_telemetry(envelope: dict, transport: str, transport_secured: bool) 
     if level2_feature not in ("n/a", "unavailable"):
         print(f"{'':14s} | Level-2: {level2_summary}")
 
+    # Module 5 ENFORCEMENT, last so the decision that triggered it is already
+    # published to the device and already in the audit log (see the helper's
+    # docstring for why that ordering matters).
+    _apply_auto_quarantine(device_id, decision)
+
 
 _mqtt_publish_client = None  # set in run(); coap_server.py gets its own reference passed in
 
@@ -504,7 +511,16 @@ def _cached(key: str, ttl_seconds: float, compute):
     return value
 
 
-CHAIN_CACHE_TTL_SECONDS = 10.0       # integrity re-verification is the expensive one
+# Chain verification runs at two periods on purpose -- see
+# audit_log.verify_chain_incremental()'s docstring for the measured reason.
+# The TAIL check is cheap and bounded by CHECKPOINT_INTERVAL_ROWS, so it runs
+# on every poll. The FULL scan is O(all rows) and is the ONLY thing that
+# catches a naive edit to old history, so it cannot be dropped -- only run
+# less often. Its interval is therefore the detection latency for that attack,
+# and _build_chain_view() reports when it last ran so that bound is visible to
+# a reader rather than implied.
+CHAIN_CACHE_TTL_SECONDS = 10.0       # tail check + checkpoint check
+CHAIN_FULL_SCAN_TTL_SECONDS = 300.0  # full O(rows) scan: naive-edit detection latency
 GOVERNANCE_CACHE_TTL_SECONDS = 5.0   # NIST/IEC tallies over the recent window
 
 
@@ -640,22 +656,49 @@ def _build_iec_view() -> dict:
 
 
 def _build_chain_view() -> dict:
-    """Two INDEPENDENT integrity checks, reported separately on purpose.
-    chain_ok catches an attacker who edits a row and does not recompute the
-    following hashes; checkpoint_ok catches the strictly stronger attacker who
-    does recompute them, because the checkpoint file is stored elsewhere and
-    HMAC'd with a key no device holds. Both must pass for the log to be
-    trustworthy -- collapsing them into one boolean would hide which of the
-    two attacker models was actually defeated."""
-    chain_ok, broken_row = audit_log.verify_chain_integrity()
+    """THREE integrity checks, reported separately on purpose, because each
+    defeats a different attacker and collapsing them into one boolean would
+    hide which one actually held:
+
+      * full chain scan   -- recomputes every row's hash from its fields.
+                             The only check that catches a NAIVE edit (a row
+                             changed, hashes left alone). O(all rows), so it
+                             runs on the longer CHAIN_FULL_SCAN_TTL_SECONDS.
+      * checkpoint check  -- re-derives each independently-stored, separately
+                             keyed checkpoint HMAC. The only check that catches
+                             a CONSISTENT rewrite (old row edited and every
+                             subsequent hash recomputed), which the chain scan
+                             cannot see because the result is internally valid.
+      * incremental tail  -- re-verifies rows written since the newest
+                             checkpoint, every poll, so the newest history is
+                             continuously covered between full scans.
+
+    All three verdicts are surfaced, along with how long ago the full scan ran,
+    because that age IS the detection latency for the naive-edit case."""
+    tail_ok, tail_broken, tail_rows = audit_log.verify_chain_incremental()
     checkpoint_ok, checkpoint_note = audit_log.verify_against_checkpoints()
-    total = len(audit_log.recent(10 ** 9))
+    full = _cached("chain_full", CHAIN_FULL_SCAN_TTL_SECONDS, _run_full_chain_scan)
     return {
-        "chain_ok": chain_ok, "broken_row": broken_row,
+        # `chain_ok` stays the headline verdict and stays conservative: it is
+        # only true if BOTH the full scan and the tail check passed.
+        "chain_ok": bool(full["ok"] and tail_ok),
+        "broken_row": full["broken_row"] if not full["ok"] else tail_broken,
         "checkpoint_ok": checkpoint_ok, "checkpoint_note": checkpoint_note,
-        "rows_verified": total,
+        "full_scan_ok": full["ok"],
+        "full_scan_rows": full["rows"],
+        "full_scan_at": full["at"],
+        "full_scan_age_seconds": round(time.time() - full["ts"], 1),
+        "tail_ok": tail_ok,
+        "tail_rows": tail_rows,
+        "rows_verified": full["rows"],
         "verified_at": time.strftime("%H:%M:%S"),
     }
+
+
+def _run_full_chain_scan() -> dict:
+    ok, broken = audit_log.verify_chain_integrity()
+    return {"ok": ok, "broken_row": broken, "rows": audit_log._row_count(),
+            "at": time.strftime("%H:%M:%S"), "ts": time.time()}
 
 
 def _build_devices_view() -> list:
@@ -815,6 +858,55 @@ def start_dashboard_server() -> ThreadingHTTPServer:
     print(f"[dashboard] serving http://localhost:{DASHBOARD_PORT} -- "
           f"design/zero-trust-cps-command-center.html -- fully live, polls /api/*")
     return server
+
+
+# Module 5 enforcement: consecutive BLOCK decisions per device, for
+# AUTO_QUARANTINE_CONSECUTIVE_BLOCKS. Consecutive by construction -- any
+# non-BLOCK decision resets the entry (see _apply_auto_quarantine).
+_consecutive_blocks: dict = {}
+
+
+def _apply_auto_quarantine(device_id: str, decision: str) -> bool:
+    """Escalates a sustained run of BLOCKs into a real revocation.
+
+    Returns True if this call quarantined the device. Without this, BLOCK is
+    advisory: config.AUTO_QUARANTINE_ENABLED's comment has the measured
+    evidence that nothing currently acts on it. Revocation is the enforcement
+    primitive that already exists and is already checked before HMAC, so this
+    adds a policy, not a new mechanism.
+
+    Deliberately called AFTER the decision is published and logged. A
+    quarantined device must still receive the BLOCK that quarantined it, and
+    the audit row for that decision must exist before the quarantine row that
+    follows it -- otherwise the log shows a device revoked with no record of
+    why."""
+    if not AUTO_QUARANTINE_ENABLED:
+        return False
+    if decision != "BLOCK":
+        _consecutive_blocks.pop(device_id, None)
+        return False
+    run = _consecutive_blocks.get(device_id, 0) + 1
+    _consecutive_blocks[device_id] = run
+    if run < AUTO_QUARANTINE_CONSECUTIVE_BLOCKS:
+        return False
+
+    _consecutive_blocks.pop(device_id, None)
+    revoke_device(device_id)
+    reason = (f"auto-quarantine: {run} consecutive BLOCK decisions "
+              f"(threshold {AUTO_QUARANTINE_CONSECUTIVE_BLOCKS}) -- device revoked; "
+              f"all further messages are rejected before HMAC until a human "
+              f"reinstates it (trust_engine.reinstate_device)")
+    audit_log.log_decision(
+        device_id, auth_ok=True, decision="BLOCK", reason=reason,
+        security_trust_score=trust_engine.get_security_trust(device_id),
+        process_trust_score=None, process_status="",
+        policy_source="ENFORCEMENT",
+        nist_tenets=nist_mapping.tenets_for_decision(True, MQTT_USE_TLS, fusion_engine.is_trained()),
+        transport="", reason_category="auto_quarantine",
+    )
+    print(f"{device_id:14s} | [91mQUARANTINED[0m -- {run} consecutive BLOCKs; "
+          f"device REVOKED, further messages rejected before HMAC until reinstated")
+    return True
 
 
 _silence_alerted: set = set()  # device_ids currently flagged silent, so we alert once per episode, not every sweep

@@ -65,6 +65,76 @@ decide(security_trust_score: float, process_anomaly_score: float,
 
 Note this is a simplified two-level (high/low) table for clarity; if the tuned thresholds during Phase 5 suggest a third tier (e.g., "borderline" between high and low) is useful, extend to a 3×3 table using the same structure — document any such change and the validation-set evidence that motivated it.
 
+### 2.0 AS-BUILT: what these four outcomes actually DO — and what they do not
+
+The "Recommended Result" column above describes intent. This is the enforcement
+reality, stated plainly because the gap between the two is easy to overclaim:
+
+| Outcome | What actually happens |
+|---|---|
+| `ALLOW` | Decision signed, sent to the device, logged, displayed |
+| `ALERT` | Same. There is no separate alerting channel — the "alert" is the audit row and the dashboard |
+| `STEP_UP` | **Genuinely enforced.** A real nonce is issued, the device must echo it inside its next signed payload, and a failed or timed-out echo forces `BLOCK` regardless of what the table said |
+| `BLOCK` | Decision signed, sent, logged, displayed — and, unless auto-quarantine is armed, **nothing else** |
+
+**The decision is advisory by default.** It is computed, signed, delivered,
+verified by the device, logged and rendered, but neither side acts on it: the
+firmware verifies `payload["decision"]` and *prints* it — the value is never
+stored and never branched on, so the publish loop is unaffected. Measured on
+this repository's audit log: **1,112 BLOCK decisions**, and after the last one
+the same device sent **6,264 more messages**, all accepted and scored.
+
+**Enforcement does exist — at Module 2, not here.** A revoked device is rejected
+before HMAC; an identity over the `IdentityTargetingRisk` threshold has its
+messages dropped; nothing unauthenticated ever reaches scoring (validated: NIST
+tenet 6, 0 violations across 10,000 rows). So the system enforces
+*authentication* decisions unconditionally, and *policy* decisions advisorily.
+
+### 2.0.1 Closing the gap: `AUTO_QUARANTINE_ENABLED`
+
+`config.AUTO_QUARANTINE_ENABLED` escalates a sustained run of BLOCKs into a real
+revocation, via `trust_engine.revoke_device()` — the enforcement primitive that
+already exists and is already checked before HMAC. It is a policy on top of a
+tested mechanism, not new machinery.
+
+- Trigger: `AUTO_QUARANTINE_CONSECUTIVE_BLOCKS` (default **20**) **consecutive**
+  BLOCKs for one device. Any non-BLOCK decision resets the run, so it fires on
+  sustained conviction rather than scattered BLOCKs.
+- Effect: the device is revoked. Every subsequent message is rejected before
+  HMAC. A dedicated audit row is written with
+  `reason_category="auto_quarantine"` and `policy_source="ENFORCEMENT"`.
+- Recovery: **manual only** — `trust_engine.reinstate_device()`. A quarantine
+  that expires by itself is not a quarantine.
+- Ordering: applied *after* the triggering decision is published and logged, so
+  the device receives the BLOCK that quarantined it and the log always explains
+  the revocation that follows.
+
+**It ships DISABLED, and that default is evidence-based rather than cautious.**
+During the Isolation Forest calibration defect (`RESULTS.md` §0.1) the real,
+physically healthy ESP32 accumulated **953 BLOCK decisions** — including 108
+runs of ≥3 consecutive, 20 runs of ≥10, and one unbroken run of **50**.
+Auto-quarantine armed at any threshold up to 50 would have revoked live hardware
+because of a *scoring bug*, and since `is_revoked()` is a hard override the board
+would have stayed dead until a human intervened.
+
+The order of operations that follows from that: establish your false-positive
+rate first (`RESULTS.md` §0.6 — currently 0.0% on clean held-out normals), then
+arm enforcement. Not the reverse.
+
+### 2.0.2 Why the DEVICE does not enforce its own BLOCK
+
+A tempting third option — have the firmware stop publishing when blocked — is
+deliberately **not** implemented, and should not be:
+
+1. **It provides no security guarantee.** A compromised device simply ignores
+   the instruction. Enforcement that depends on the adversary's cooperation is
+   not enforcement, and the entire premise here is that the device is untrusted.
+2. **It destroys evidence.** A suspicious device is exactly the one whose
+   telemetry you most want to keep receiving and logging.
+
+Enforcement therefore belongs on the side that does not need the device's
+consent — the gateway, and ultimately the broker ACLs.
+
 ### 2.1 Staleness Overrides the Naive Table Lookup
 
 `process_anomaly_status` (from `05_module4_continuous_verification.md` Section 2.2) is a required input to `decide()`, not an afterthought, because feeding a stale score into the table above as if it were fresh can produce exactly the wrong answer. Apply this rule **before** the table lookup:

@@ -276,16 +276,25 @@ def recent(limit: int = 20):
     return [dict(r) for r in rows]
 
 
-def verify_chain_integrity() -> tuple[bool, int | None]:
+def verify_chain_integrity(after_row_id: int = 0, anchor_hash: str = GENESIS_HASH) -> tuple[bool, int | None]:
     """Recomputes every row's hash from its stored fields and compares
     against this_hash. Detects a naive edit (a row changed but the chain
     NOT recomputed afterward) -- see verify_against_checkpoints() for the
-    sophisticated-tampering case this alone cannot catch."""
+    sophisticated-tampering case this alone cannot catch.
+
+    Called with no arguments this is a full scan from the genesis hash, which
+    is O(total rows) and therefore grows without bound. `after_row_id` /
+    `anchor_hash` let a caller verify only the tail of the chain, starting from
+    a hash it already trusts -- see verify_chain_incremental(), which is the
+    safe way to use this and explains why the anchor must be a CHECKPOINT
+    rather than any arbitrary previously-seen row."""
     conn = sqlite3.connect(AUDIT_DB_PATH)
     conn.row_factory = sqlite3.Row
-    rows = conn.execute("SELECT * FROM audit_log ORDER BY id ASC").fetchall()
+    rows = conn.execute(
+        "SELECT * FROM audit_log WHERE id > ? ORDER BY id ASC", (after_row_id,)
+    ).fetchall()
     conn.close()
-    expected_prev = GENESIS_HASH
+    expected_prev = anchor_hash
     for row in rows:
         row_dict = dict(row)
         recomputed = compute_row_hash(_row_hash_fields(row_dict), expected_prev)
@@ -293,6 +302,75 @@ def verify_chain_integrity() -> tuple[bool, int | None]:
             return False, row_dict["id"]
         expected_prev = row_dict["this_hash"]
     return True, None
+
+
+def latest_checkpoint() -> dict | None:
+    """The newest checkpoint record, or None if none has been written yet."""
+    if not os.path.exists(CHECKPOINT_STORE_PATH):
+        return None
+    newest = None
+    with open(CHECKPOINT_STORE_PATH) as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            cp = json.loads(line)
+            if newest is None or cp["row_id_at_checkpoint"] > newest["row_id_at_checkpoint"]:
+                newest = cp
+    return newest
+
+
+def verify_chain_incremental() -> tuple[bool, int | None, int]:
+    """Fast TAIL check: re-verifies only the rows written since the newest
+    checkpoint, in O(rows since that checkpoint) instead of O(all rows).
+    Returns (ok, first_broken_row_id, rows_scanned).
+
+    READ THIS BEFORE USING IT AS A SUBSTITUTE FOR verify_chain_integrity().
+    It is not one. Measured against two concrete attacks on a copy of a real
+    39k-row log:
+
+      | attack                                   | full scan | checkpoints | this |
+      |------------------------------------------|-----------|-------------|------|
+      | naive edit of an old row, hashes untouched | DETECTED  | missed      | missed |
+      | old row edited AND all hashes recomputed   | missed    | DETECTED    | missed |
+
+    The reason it misses the naive edit is structural, not a bug here: editing
+    a row's fields without recomputing its this_hash leaves every STORED hash
+    after it mutually consistent, so nothing downstream of the edit looks
+    wrong. Only recomputing that row's own hash from its fields exposes it --
+    which is what the full scan does and what any tail check, by definition,
+    skips.
+
+    Checkpoints do not cover it either, and it is worth being precise about
+    why, because it is easy to assume they do: a checkpoint attests the chain
+    hash VALUE at a row boundary, comparing stored against stored. It catches
+    a consistent rewrite (every hash recomputed, so the values move) but not a
+    naive edit (no hash moved at all).
+
+    So the correct usage is all three together, with different periods:
+      * this, on every poll -- continuous coverage of the newest rows;
+      * verify_chain_integrity(), periodically -- the only thing that catches a
+        naive edit anywhere in history, and the detection latency for that
+        attack is exactly the interval you choose;
+      * verify_against_checkpoints(), periodically -- the only thing that
+        catches a fully consistent rewrite.
+    gateway.py wires exactly that, and reports when the last full scan ran so
+    the bound is visible rather than implied."""
+    cp = latest_checkpoint()
+    if cp is None:
+        ok, broken = verify_chain_integrity()
+        return ok, broken, _row_count()
+    ok, broken = verify_chain_integrity(
+        after_row_id=cp["row_id_at_checkpoint"], anchor_hash=cp["latest_chain_hash"]
+    )
+    return ok, broken, max(0, _row_count() - cp["row_id_at_checkpoint"])
+
+
+def _row_count() -> int:
+    conn = sqlite3.connect(AUDIT_DB_PATH)
+    n = conn.execute("SELECT COUNT(*) FROM audit_log").fetchone()[0]
+    conn.close()
+    return n
 
 
 def verify_against_checkpoints() -> tuple[bool, str | None]:

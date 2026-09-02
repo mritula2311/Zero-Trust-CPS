@@ -534,6 +534,39 @@ a different one, and still would not prove the claims hold.
 *Do not "simplify" this into one number.* The two answer different questions,
 and a reader who only sees the merged figure cannot tell which they are getting.
 
+**ADR-14 — Policy decisions enforce via revocation, and ship disabled.**
+*Context:* `BLOCK` was advisory. Measured: 1,112 BLOCK decisions logged, and
+after the last one the same device sent 6,264 more messages, all accepted and
+scored. `docs/06` promised "Block / quarantine"; nothing quarantined.
+*Chosen:* Escalate a run of `AUTO_QUARANTINE_CONSECUTIVE_BLOCKS` (default 20)
+**consecutive** BLOCKs into `trust_engine.revoke_device()` — the enforcement
+primitive that already exists and is already checked before HMAC. Any non-BLOCK
+decision resets the run. Recovery is manual only. Applied after the triggering
+decision is published and logged, so the device receives the BLOCK that
+quarantined it and the audit trail always explains the revocation.
+*Default OFF, on evidence:* during the Isolation Forest defect the physically
+healthy ESP32 produced 953 BLOCKs — 108 runs of ≥3, 20 runs of ≥10, one run of
+50. Auto-quarantine at any threshold up to 50 would have revoked live hardware
+because of a scoring bug, and `is_revoked()` is a hard override. Establish the
+false-positive rate first, then arm enforcement.
+*Rejected:* device-side enforcement. A compromised device ignores the
+instruction, so it provides no guarantee, and silencing a suspicious device
+destroys the evidence trail. Enforcement must not depend on the adversary.
+
+**ADR-15 — Chain verification is three checks at two periods, and the full scan
+is never dropped.**
+*Context:* `/api/chain` re-verified the whole hash chain per poll, O(rows) and
+growing — the saturation behind ADR-11.
+*Chosen:* An incremental tail check every poll, plus the full scan and the
+checkpoint check on a longer period, with the full scan's **age displayed**.
+*Rejected:* replacing the full scan with the incremental one. That was
+implemented first and **proved unsound by testing it**: checkpoints attest a
+chain-hash *value* (stored vs stored), so they miss a naive edit entirely, and a
+tail check skips it by definition. Only the full scan recomputes an old row's
+hash from its fields. The measured attack matrix is in §12.
+*Do not "optimise" the full scan away.* Its interval is the detection latency
+for naive tampering, which is why the UI shows it.
+
 ---
 
 ## 10. Roadmap & Milestones
@@ -645,61 +678,130 @@ Two distinct claims, deliberately not conflated:
 
 ## 12. Known Limitations & Open Risks
 
-**Level-2 explainability misses its target.** 78/200 (**39%**) of perturbation
-tests flip the score back, against a ≥70% target — **100%** for the GNN (78/78)
-and **0%** for the LSTM-AE (0/122). The mechanism is measured, not guessed: a
-flagged window reconstructs with error ~46–62 (z = 20–27), and recovering to a
-0.5 score requires error **≤ 4.28**. An impulsive shock moves `rms`, `peak`,
-`crest_factor` and `kurtosis` together, so the best possible single-channel
-repair only reaches ~33.7 — an order of magnitude short. Splicing a real normal
-*trajectory* into the channel instead of its flat training mean was implemented
-and measured (33.63 vs 33.70 median, better in 9/40 windows), then **reverted**
-as complexity that bought nothing; that experiment is what locates the limit in
-the single-channel restriction rather than the fill value. The **attribution**
-is sound regardless: `kurtosis` is named in 110/122 cases, physically correct
-for an impulsive spike. `evaluate_explainability_level2.py` prints this
-diagnosis alongside the number so the figure never travels without it.
+> Each entry says whether it is **resolved**, an **accepted design limit**, or
+> still **open**. An accepted limit is not a TODO — it is a boundary with a
+> reason, and "fixing" it would trade away something that matters more.
 
-**`stealthy_forged_values` is not reliably detected** (recall 0.515). Stated as
-a design limit, not a bug (§10).
+### Resolved since first writing
 
-**GNN response is not perfectly monotonic at the extreme.** Neighbours at 0.30
-→ 0.316 but at 0.10 → 0.363 — a small wobble far from the training region.
-Directionally correct across the realistic range.
+**Dashboard chain verification is no longer O(all rows) per poll.** *(was: a
+live outage — ADR-11.)* Verification now runs at three tiers, because the two
+existing checks turn out to catch **different** attacks and neither subsumes
+the other. Measured on a copy of a real 39k-row log:
+
+| Attack | Full scan | Checkpoints | Incremental tail |
+|---|---|---|---|
+| Naive edit — row changed, hashes left alone | **DETECTED** | missed | missed |
+| Consistent rewrite — every following hash recomputed | missed | **DETECTED** | missed |
+
+The tail check is bounded by `CHECKPOINT_INTERVAL_ROWS` and runs every poll;
+the full scan is the *only* thing that catches a naive edit, so it still runs —
+just every `CHAIN_FULL_SCAN_TTL_SECONDS` (300 s) instead of every 10 s. **That
+interval is therefore the detection latency for a naive edit**, and the
+dashboard displays its age rather than implying continuous coverage. Cost: a
+full `/api/chain` build went 925 ms → 32 ms warm.
+
+An earlier version of this change was **unsound and was caught by testing it**:
+it anchored the tail check at the newest checkpoint and claimed the checkpoints
+attested everything before it. They do not — a checkpoint attests a chain-hash
+*value*, comparing stored against stored, so it misses a naive edit entirely. The
+claim was removed rather than the speed kept quietly.
+
+**BLOCK can now actually enforce.** *(was: the decision was advisory — 1,112
+BLOCKs logged, and the same device sent 6,264 more messages after the last one.)*
+`config.AUTO_QUARANTINE_ENABLED` escalates a sustained run of BLOCKs into a real
+revocation through `trust_engine.revoke_device()`, which is checked before HMAC.
+**It ships disabled**, on evidence rather than caution: during the Isolation
+Forest defect the physically healthy ESP32 produced 953 BLOCKs, including one
+unbroken run of 50, and auto-quarantine at any threshold up to 50 would have
+revoked live hardware because of a scoring bug. Establish your false-positive
+rate first, then arm it. See ADR-14.
+
+**There is an automated test suite.** *(was: verification was only
+`evaluate_*.py` plus live observation.)* `tests/test_invariants.py`, 33 tests,
+stdlib `unittest` so it needs no install:
+
+```
+python -m unittest discover -s tests -v
+```
+
+It deliberately does not chase coverage. **Every test corresponds to a property
+that has already been broken once in this repository**, and its docstring names
+the incident. It guards the two-score separation, policy monotonicity, the IF
+calibration anchors, firmware↔reference feature equivalence, canonicalisation
+drift, GNN adjacency, the RL sample-average estimator and its static fallback,
+audit tamper detection (both attacks, against a temp copy — the real log is
+never written), quarantine escalation, and the governance checks' falsifiability.
+
+The suite found a real defect on its first run: `TestAuditIntegrity` reloads
+`audit_log` against a temp database and was leaking those paths into later
+tests. That is exactly the class of cross-test contamination that makes a suite
+untrustworthy, and it was fixed rather than worked around.
+
+**Firmware-side latency is instrumented.** *(was: recorded here as
+"unmeasured".)* `firmware/main.py` prints `sampling` / `feature_extraction` /
+`sign` per publish, using `time.ticks_diff()` — the wraparound-correct
+comparison, where naive subtraction would be wrong. The numbers appear on the
+board's serial console (Thonny's Shell) and have **not yet been transcribed into
+`RESULTS.md`**; that is the remaining step, not the measurement.
+
+### Accepted design limits — not defects
+
+**`stealthy_forged_values` is not reliably detected** (recall 0.515). A
+compromised device reporting deliberately innocuous, in-range values is drawn
+from the same feature distribution as normal traffic. This is
+information-theoretically out of reach for single-node telemetry, and the honest
+consequence is documented rather than engineered around — including its exclusion
+from RL training, where chasing it would only teach the policy to block the
+region where normal traffic lives (ADR-8).
 
 **Aggregate fused accuracy (0.747) is below the best single signal (0.949).**
-Deliberate: the meta-learner is class-weighted so the rare `coordinated` class
-is not discarded (unweighted fused recall on it was 0.261, *worse* than the GNN
-alone at 0.870). Aggregate accuracy is the wrong single number for a security
-system where missing a rare coordinated attack costs more than extra alerts.
+Deliberate. The meta-learner is class-weighted so the rare `coordinated` class
+survives — unweighted, fused recall on it was 0.261, *worse* than the GNN alone
+at 0.870. Aggregate accuracy is the wrong single number for a security system
+where missing a rare coordinated attack costs more than extra alerts.
 
-**Dashboard load grows with the audit log.** `/api/chain` re-verifies the
-entire hash chain, so its cost is O(rows) and rows only ever grow. This was a
-live outage once (see ADR-11): at ~14k rows a full 7-endpoint refresh cost
-~1.99s of serial time against a 2s poll interval, saturating a single-threaded
-server until endpoints returned empty and the page froze on its last render.
-Now mitigated by `ThreadingHTTPServer`, a 10s cache on chain verification, a 5s
-cache on the governance tallies, and tiered client polling (refresh cycle
-~690 ms, `/api/chain` 0.004 s). The underlying O(rows) verification cost is
-unchanged, so a very large audit log will eventually need incremental
-verification rather than a full re-scan.
+**Level-2 explainability misses its 70% target at 39%** (100% GNN, 0% LSTM-AE).
+The ceiling is measured, not assumed: a flagged window reconstructs with error
+~46–62 and recovery needs ≤ 4.28, but an impulsive shock moves `rms`, `peak`,
+`crest_factor` and `kurtosis` together, so the best single-channel repair reaches
+only ~33.7. Splicing a real normal trajectory instead of a flat mean was
+implemented, measured (33.63 vs 33.70), and **reverted** as complexity that
+bought nothing — which is what locates the limit in the single-channel
+restriction rather than the fill value. The attribution stays sound:
+`kurtosis` is named in 110/122 cases. Closing this needs a
+multi-channel counterfactual, a different validation design from the one the
+method specifies.
 
-**Fragile areas.**
-- *Canonicalisation* (`firmware/main.py` ↔ `json.dumps(sort_keys=True)`). Any
+**The device does not enforce its own BLOCK, and should not.** Enforcement that
+depends on the adversary complying is not enforcement, and silencing a
+suspicious device destroys the evidence you most want. See `docs/06` §2.0.2.
+
+### Still open
+
+**GNN response is not perfectly monotonic at the extreme.** Neighbours at 0.30
+→ 0.316 but at 0.10 → 0.363 — a small wobble far outside the region the training
+data covers. Directionally correct across the realistic range, and no
+observation has depended on it, but it is unexplained rather than justified.
+
+**`data/` and `src/data/` split.** The audit DB sits under `src/`, the checkpoint
+store at the repo root. Partly deliberate — the checkpoint store is *supposed* to
+live somewhere separate from the database it attests — and partly historical.
+Consolidating means moving a live database, which is real risk for cosmetic gain.
+
+### Fragile areas — where to be careful
+
+- **Canonicalisation** (`firmware/main.py` ↔ `json.dumps(sort_keys=True)`). Any
   change to payload fields or float formatting breaks **all** authentication.
-- *Training order.* `train_*.py` must run in dependency order; each replays
-  through earlier models.
-- *`normalized_adjacency()`* is shared by training and inference. Changing it
-  without retraining silently invalidates the GNN.
-
-**Technical debt.**
-- `data/` and `src/data/` split — the audit DB sits under `src/`, the checkpoint
-  store at the repo root. Partly deliberate (separate stores), partly historical.
-- No automated test suite; verification is via `evaluate_*.py` and live
-  observation.
-- Firmware-side latency is unmeasured.
-
----
+  Now guarded by `TestCanonicalisationContract`, but the guard is a
+  transcription of the firmware maths, so it must be updated alongside it.
+- **Training order.** `train_*.py` must run in dependency order; each replays
+  through the earlier models.
+- **`normalized_adjacency()`** is shared by training and inference. Changing it,
+  or `GNN_SELF_LOOP_WEIGHT`, without retraining silently invalidates the GNN.
+  `TestGNNAdjacency` pins the properties but cannot detect a stale artifact.
+- **On-device feature maths.** Signature validity proves the envelope, never the
+  contents. `TestFirmwareReferenceEquivalence` is the guard.
 
 ## 13. Glossary
 
