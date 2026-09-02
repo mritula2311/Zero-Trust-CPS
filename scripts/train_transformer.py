@@ -39,7 +39,7 @@ from config import (
     TRANSFORMER_NOISE_STD,
     LSTM_SEQ_LEN,
     FEATURE_VECTOR_DEVICE_IDS,
-    FEATURE_NAMES,
+    FEATURE_NAMES, TRAINING_SEED,
 )
 import feature_engineering as fe
 from transformer_scorer import TransformerAutoencoder, _TORCH_DEVICE
@@ -52,7 +52,7 @@ def train_one(records, device_id) -> bool:
     """Trains ONE device's Transformer-AE + stats on ITS OWN normal readings,
     saved to that device's per-device paths. Returns True if trained, False
     if too few examples (skipped, not fatal)."""
-    torch.manual_seed(0)
+    torch.manual_seed(TRAINING_SEED)
     normal = [
         r for r in records
         if r["device_id"] == device_id and r["label"] == 1 and r["auth_ok"]

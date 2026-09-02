@@ -28,7 +28,7 @@ from config import (
     isolation_forest_meta_path,
     ISOLATION_FOREST_CONTAMINATION,
     FEATURE_VECTOR_DEVICE_IDS,
-    FEATURE_NAMES,
+    FEATURE_NAMES, TRAINING_SEED,
 )
 import feature_engineering as fe
 
@@ -50,7 +50,7 @@ def train_one(records, device_id) -> bool:
         return False
 
     X = [fe.feature_vector(r["reading"]) for r in normal]
-    model = IsolationForest(contamination=ISOLATION_FOREST_CONTAMINATION, random_state=0)
+    model = IsolationForest(contamination=ISOLATION_FOREST_CONTAMINATION, random_state=TRAINING_SEED)
     model.fit(X)
 
     os.makedirs(MODELS_DIR, exist_ok=True)

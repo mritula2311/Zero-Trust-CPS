@@ -46,6 +46,7 @@ from config import (
     MQTT_HOST, MQTT_PORT, MQTT_TLS_PORT, MQTT_USE_TLS, MQTT_USE_AUTH,
     MQTT_TLS_CA_CERT, MQTT_GATEWAY_USERNAME, MQTT_GATEWAY_PASSWORD,
     TELEMETRY_TOPIC, FEATURE_NAMES, DATA_COLLECTED_DIR, AUDIT_DB_PATH,
+    LSTM_SEQ_LEN,
 )
 
 # How close (seconds) a record's own receipt time must be to an audit_log
@@ -80,6 +81,7 @@ PHASES_LONG = [
 
 PHASES = PHASES_LONG if "--long" in sys.argv else PHASES_SHORT
 LABELLED = "--labelled" in sys.argv
+FAULT_MODE = "--fault" in sys.argv
 
 # ---------------------------------------------------------------------------
 # OPERATOR-MARKED LABELLING  (--labelled)
@@ -105,18 +107,63 @@ LABELLED = "--labelled" in sys.argv
 # boundary samples are the least trustworthy ones in the interval. Trimming is
 # cheap; a contaminated label is not.
 LABELLED_EVENTS = [
-    ("at_rest",        "Put the board DOWN on the desk and take your hands off it."),
-    ("gentle_tap",     "Tap the MPU6050 breakout gently with one finger, about every 2 seconds."),
-    ("at_rest",        "Board DOWN on the desk again, hands off."),
-    ("moderate_shake", "Pick the board up and shake it continuously, moderately."),
-    ("at_rest",        "Board DOWN on the desk again, hands off."),
-    ("tilt_rotate",    "Hold the board and slowly rotate it through different orientations."),
-    ("sharp_impact",   "Tap the board SHARPLY a few times -- brief, hard impacts with pauses between."),
-    ("at_rest",        "Board DOWN one last time, hands off."),
+    ("at_rest",        120, "Put the board DOWN on the desk and take your hands off it. LONG block."),
+    ("gentle_tap",      60, "Tap the MPU6050 breakout gently with one finger, about every 2 seconds."),
+    ("at_rest",         60, "Board DOWN on the desk again, hands off."),
+    ("moderate_shake",  60, "Pick the board up and shake it continuously, moderately."),
+    ("at_rest",         60, "Board DOWN on the desk again, hands off."),
+    ("tilt_rotate",     60, "Hold the board and slowly rotate it through different orientations."),
+    ("sharp_impact",    60, "Tap the board SHARPLY a few times -- brief, hard impacts with pauses between."),
+    ("at_rest",        120, "Board DOWN one last time, hands off. LONG block."),
 ]
 
+# --fault: a SUSTAINED LOW-AMPLITUDE fault, which is a different detection problem
+# from everything captured so far.
+#
+# Every one of the 136 detected disturbances in the existing sessions is violent
+# hand manipulation: peak 0.4-3.1 g against a resting maximum of 0.035 g, a 10-90x
+# margin. Detecting that is easy, and 136/136 says less than it appears to. A real
+# mechanical fault -- a worn bearing, a loosening mount, an unbalanced load -- is
+# LOW amplitude, CONTINUOUS, and close to the noise floor. The LSTM-AE exists
+# specifically to catch that class (it is the only scorer that models a sequence)
+# and it has never been tested on one.
+#
+# The fault source is a phone set to continuous vibrate, sharing the board's
+# surface. Distance is the amplitude knob, which makes it repeatable without any
+# rig: further away is a weaker fault. `fault_weak` is the one that matters -- it
+# is meant to sit just above the resting floor, where the margin is small enough
+# that detection is a real question rather than a formality.
+FAULT_EVENTS = [
+    ("at_rest",      90, "BASELINE. Board flat on the desk, hands off, nothing else touching the desk."),
+    ("fault_weak",  120, "Phone on CONTINUOUS vibrate, on the SAME surface but ~30 cm away, "
+                         "not touching the board. Hands off. This should be barely perceptible."),
+    ("at_rest",      60, "Phone OFF and removed. Board still, hands off."),
+    ("fault_strong",120, "Phone on CONTINUOUS vibrate, now TOUCHING the board or directly "
+                         "under it. Hands off."),
+    ("at_rest",      90, "RECOVERY. Phone off and removed. Board still, hands off."),
+]
+
+# firmware/main.py's PUBLISH_INTERVAL_MS. Not imported because it lives on the
+# device, not in config.py -- if you change it there, change it here.
+TELEMETRY_INTERVAL_S = 2.0
+
+if FAULT_MODE:
+    LABELLED_EVENTS = FAULT_EVENTS
+
 MARK_MARGIN_S = 2.0      # trimmed from each end of every marked interval
-MIN_EVENT_SECONDS = 16.0  # below this, margins leave too few messages to be worth a label
+# Below this an event cannot contribute a single SCOREABLE sample, so it is
+# rejected rather than kept as decoration. evaluate_real_hardware.py restarts the
+# LSTM-AE's rolling window at every phase boundary and drops the first
+# LSTM_SEQ_LEN-1 records of each block, so a block needs LSTM_SEQ_LEN messages
+# left AFTER margin trimming just to yield one window. The old hardcoded 16.0
+# left 6 -- one short of a single window, i.e. a minimum-length event was worth
+# literally nothing downstream, silently. Derived from the three constants that
+# actually govern it so they cannot drift apart again.
+# 2*LSTM_SEQ_LEN, not LSTM_SEQ_LEN: evaluate_real_hardware.py now drops the first
+# 2*LSTM_SEQ_LEN-1 records of every block, because filling the window is not the
+# same as clearing the block's own settling disturbance out of it. An event that
+# only fills the window contributes nothing under that rule.
+MIN_EVENT_SECONDS = 2 * MARK_MARGIN_S + 2 * LSTM_SEQ_LEN * TELEMETRY_INTERVAL_S
 
 marked_intervals = []     # (event_name, t_start, t_end) in wall-clock seconds
 
@@ -148,18 +195,19 @@ def run_labelled_capture():
     print()
     input("Press ENTER when the gateway is running and the board is publishing... ")
 
-    for i, (name, instruction) in enumerate(LABELLED_EVENTS, 1):
+    for i, (name, target, instruction) in enumerate(LABELLED_EVENTS, 1):
         while True:
             print()
             print("=" * 70)
-            print(f"  EVENT {i}/{len(LABELLED_EVENTS)}:  {name}")
+            print(f"  EVENT {i}/{len(LABELLED_EVENTS)}:  {name}   (aim for ~{target}s)")
             print(f"  {instruction}")
             print("=" * 70)
             input("  >>> Press ENTER, THEN perform the action... ")
             t0 = time.time()
             print()
             print(f"  RECORDING {name} -- do it now.")
-            print(f"  Keep going for at least {MIN_EVENT_SECONDS:g}s, then press ENTER to stop.")
+            print(f"  Keep going for about {target}s ({MIN_EVENT_SECONDS:g}s absolute minimum),")
+            print(f"  then press ENTER to stop.")
             print()
             input("  >>> Press ENTER when you have STOPPED... ")
             t1 = time.time()
@@ -167,7 +215,10 @@ def run_labelled_capture():
             if duration >= MIN_EVENT_SECONDS:
                 marked_intervals.append((name, t0, t1))
                 usable = duration - 2 * MARK_MARGIN_S
-                print(f"  recorded: {duration:.1f}s marked, {usable:.1f}s usable after margins")
+                # Windows, not seconds, is what the evaluation actually consumes.
+                windows = max(0, int(usable / TELEMETRY_INTERVAL_S) - (LSTM_SEQ_LEN - 1))
+                print(f"  recorded: {duration:.1f}s marked, {usable:.1f}s usable after margins "
+                      f"-> ~{windows} scoreable window(s)")
                 break
             # Too short is almost always the operator pressing ENTER twice rather
             # than a genuinely brief action, so OFFER THE RETRY instead of silently
@@ -187,7 +238,10 @@ def run_labelled_capture():
     if marked_intervals:
         print(f"{len(marked_intervals)}/{len(LABELLED_EVENTS)} intervals marked:")
         for nm, a, b in marked_intervals:
-            print(f"    {nm:16s} {b - a:6.1f}s marked, {b - a - 2 * MARK_MARGIN_S:6.1f}s usable")
+            usable = b - a - 2 * MARK_MARGIN_S
+            windows = max(0, int(usable / TELEMETRY_INTERVAL_S) - (LSTM_SEQ_LEN - 1))
+            print(f"    {nm:16s} {b - a:6.1f}s marked, {usable:6.1f}s usable, "
+                  f"~{windows:3d} scoreable window(s)")
     else:
         print("NO intervals were marked -- nothing will be labelled or saved.")
     print("=" * 70)
@@ -378,7 +432,12 @@ def summarize():
 def write_outputs(by_phase):
     os.makedirs(DATA_COLLECTED_DIR, exist_ok=True)
     stamp = time.strftime("%Y%m%d_%H%M%S")
-    json_path = os.path.join(DATA_COLLECTED_DIR, f"hardware_session_{stamp}.json")
+    # evaluate_real_hardware.py selects its input by GLOBBING "*_labelled.json".
+    # Without this suffix a --labelled run wrote a file that script silently never
+    # read: the first operator-marked session had to be renamed by hand, and a
+    # capture that is ignored looks identical to one that was never taken.
+    suffix = "_labelled" if LABELLED else ""
+    json_path = os.path.join(DATA_COLLECTED_DIR, f"hardware_session_{stamp}{suffix}.json")
     with open(json_path, "w") as f:
         json.dump(records, f, indent=2)
     print(f"[collector] wrote {len(records)} records -> {json_path}")
@@ -389,7 +448,7 @@ def write_outputs(by_phase):
     # none of which this script can regenerate, and an earlier version of this
     # function would have silently replaced all of it with a single session's
     # table.
-    md_path = os.path.join(DATA_COLLECTED_DIR, f"hardware_session_{stamp}.md")
+    md_path = os.path.join(DATA_COLLECTED_DIR, f"hardware_session_{stamp}{suffix}.md")
     matched = sum(1 for r in records if "fused_score" in r)
     lines = [
         "# Hardware Data Log -- esp32-vib-001 (real MPU6050)",

@@ -10,7 +10,8 @@ The ESP32-side half of this metric (signing latency, feature-extraction
 latency on the microcontroller itself) can't be measured from here --
 that needs `time.ticks_ms()` calls added around the relevant sections of
 firmware/main.py and reading them back over the serial console once the
-board is flashed. Noted as a TODO, not silently omitted.
+board is flashed. It IS measured, on-device, by firmware/main.py's own
+instrumentation -- see RESULTS.md 13.1/13.4b and the caveat printed below.
 """
 
 import contextlib
@@ -124,8 +125,16 @@ def main():
         "\nCompare against [22] (device-to-device continuous auth), [23] (CoAP/MQTT/HTTP "
         "protocol overhead), [24] (TLS-tunnelled MQTT broker overhead) per synopsis Section 10.1 "
         "-- pull their reported figures from the literature review for the comparison table.\n"
-        "ESP32-side signing/feature-extraction latency: not measured here -- needs "
-        "time.ticks_ms() instrumentation in firmware/main.py on real hardware (TODO)."
+        "ESP32-side latency is NOT measured by this script -- it is measured on the "
+        "device itself by firmware/main.py's own time.ticks_ms()/ticks_diff() "
+        "instrumentation, which prints one [latency] line per message to the serial "
+        "console. See RESULTS.md 13.1 and 13.4b. "
+        "  CAVEAT, do not quote those tables without reading this: their sampling "
+        "figure (26 ms) predates the 500 Hz pacing fix (ADR-16). 32 samples at the "
+        "old unpaced ~1231 Hz is 26 ms; at the deployed 500 Hz it must be 64 ms. "
+        "The totals derived from it are therefore understated, and the two sections "
+        "also disagree with each other on feature extraction (134.5 ms vs 98-100 ms). "
+        "Both need re-measuring on the current firmware."
     )
 
     for throwaway_path in (EVAL_DB_PATH, EVAL_CHECKPOINT_PATH, EVAL_AUDIT_KEY_PATH):

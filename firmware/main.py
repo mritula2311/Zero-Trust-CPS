@@ -49,9 +49,9 @@ from machine import I2C, Pin
 from umqtt.simple import MQTTClient
 
 # ==================== CONFIGURE BEFORE FLASHING ====================
-WIFI_SSID = "YOUR_WIFI_SSID"
+WIFI_SSID = "YOUR_WIFI_SSID"          # your hotspot SSID (from the boot log)
 WIFI_PASSWORD = "YOUR_WIFI_PASSWORD"
-MQTT_HOST = "192.168.x.x"          # your gateway machine LAN IP -- see firmware/HARDWARE_SETUP.md
+MQTT_HOST = "192.168.x.x"             # the laptop's IP on ITS OWN hotspot subnet
 MQTT_TLS_PORT = 8883
 MQTT_USE_TLS = True
 DEVICE_ID = "esp32-vib-001"
@@ -611,7 +611,21 @@ def main():
                 time.ticks_diff(t_features_done, t_sample_done),
                 time.ticks_diff(t_sign_done, t_sign_start),
             ))
-            client.check_msg()  # non-blocking: process any pending decision/challenge message
+            # DRAIN the inbound queue, do not sample it. check_msg() processes at
+            # most ONE pending message, and the gateway publishes a signed decision
+            # for EVERY telemetry message -- so at one call per PUBLISH_INTERVAL_MS
+            # the queue is saturated by decisions alone and never empties. A step-up
+            # challenge then waits behind queued decisions, is handled well past
+            # STEP_UP_CHALLENGE_TIMEOUT_SECONDS (10 s), and the nonce it echoes is
+            # already stale. Observed live as 32-34 step-up TIMEOUT/MISMATCH failures
+            # on a board that was in fact answering correctly -- each one dropping
+            # Security Trust below threshold and producing a spurious BLOCK, with the
+            # late response then landing as a SUCCESS boost (sec 0.561 -> 0.854).
+            # Bounded rather than while-True: a malicious or wedged broker must not be
+            # able to hold the publish loop open indefinitely.
+            for _ in range(8):
+                if client.check_msg() is None:
+                    break
         except OSError as e:
             print("[main] MQTT/network error, reconnecting:", e)
             try:

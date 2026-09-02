@@ -81,13 +81,22 @@ def load_real_records():
 
 
 def main():
+    # --synthetic-only writes the SAME file with the real rows withheld, so the
+    # whole chain can be retrained without them and the contribution of the 121
+    # real at-rest samples measured directly (RESULTS.md 0.10.9). It is an
+    # experiment switch, not a deployment mode: re-run without it to restore.
+    synthetic_only = "--synthetic-only" in sys.argv
     synthetic = generate_synthetic()
     max_tick = max(r["tick"] for r in synthetic)
     print(f"generated {len(synthetic)} fresh synthetic records (max tick={max_tick})")
 
-    print("loading real hardware sessions:")
-    real = load_real_records()
-    if not real:
+    if synthetic_only:
+        print("--synthetic-only: WITHHOLDING all real hardware rows (ablation run)")
+        real = []
+    else:
+        print("loading real hardware sessions:")
+        real = load_real_records()
+    if not real and not synthetic_only:
         raise SystemExit("no data/collected/hardware_session_*.json files found -- "
                           "run scripts/collect_hardware_session.py first")
 

@@ -71,6 +71,40 @@ class TestTwoScoreSeparation(unittest.TestCase):
         leaked = forbidden.intersection(sig.parameters)
         self.assertFalse(leaked, f"Security Trust scoring accepts physical evidence: {leaked}")
 
+    def test_gnn_ripple_never_makes_a_decision_stricter(self):
+        """The GNN's raw output is NOT monotonic in neighbour health -- 25
+        violations across a 51-point sweep, ripple inside the saturated regions
+        at each end. That was recorded for a long time as "unexplained rather
+        than justified", so it is now measured at the level that matters.
+
+        The score ripple is real; the DECISION is what the system acts on, and
+        the worst fused excursion it causes is 0.003 against a threshold margin
+        of 0.3+. This pins the property worth having -- improving a neighbourhood
+        must never make the verdict stricter -- rather than demanding a
+        monotonicity the model does not have and does not need. If a future
+        change makes the ripple decision-relevant, this fails."""
+        from gnn_scorer import GNNScorer
+        from fusion_engine import FusionEngine
+        from policy_engine import decide
+        fusion = FusionEngine()
+        strictness = {"ALLOW": 0, "ALERT": 1, "STEP_UP": 2, "BLOCK": 3}
+        prev = None
+        for i in range(21):
+            nb = i / 20
+            g = GNNScorer()
+            g.score("sensor-002", nb, nb, nb)
+            g.score("actuator-001", nb, nb, nb)
+            gnn = g.score("esp32-vib-001", 0.9, 0.9, 0.9)
+            fused, _, _ = fusion.combine(0.9, 0.9, 0.9, gnn)
+            d = strictness[decide(0.909, fused, "FRESH")]
+            if prev is not None:
+                self.assertLessEqual(
+                    d, prev,
+                    f"neighbours improving to {nb:.2f} made the decision STRICTER "
+                    f"(fused {fused:.4f}) -- the GNN ripple has become "
+                    f"decision-relevant, which it was measured not to be")
+            prev = d
+
     def test_static_policy_is_monotonic_in_both_axes(self):
         """Raising either score must never make the outcome stricter. A
         non-monotonic policy is indefensible regardless of its accuracy."""
@@ -653,6 +687,20 @@ class TestSamplingContract(unittest.TestCase):
             f"Nyquist limit -- content above Nyquist folds into the measured band",
         )
 
+    def test_firmware_drains_the_inbound_queue(self):
+        """`check_msg()` handles at most ONE pending message. The gateway publishes
+        a signed decision for every telemetry message, so a single call per publish
+        cycle leaves the queue permanently saturated -- a step-up challenge waits
+        behind queued decisions, is processed past the 10 s timeout, and echoes a
+        stale nonce. Observed live as 32-34 step-up TIMEOUT/MISMATCH failures and
+        spurious BLOCKs on a board that was answering correctly."""
+        src = self._firmware_source()
+        pump = src[src.index("client.check_msg()") - 400:src.index("client.check_msg()") + 200]
+        self.assertIn(
+            "for _ in range(", pump,
+            "firmware calls check_msg() once per cycle -- it must drain the queue, "
+            "or step-up challenges arrive after STEP_UP_CHALLENGE_TIMEOUT_SECONDS")
+
     def test_no_stale_dt_ms_claim(self):
         """config.py once documented a `dt_ms=10 sampling loop` that did not
         exist, which is what hid the defect."""
@@ -690,6 +738,93 @@ class TestOperatorMarkedLabels(unittest.TestCase):
     def test_between_events_is_unlabelled_not_guessed(self):
         self.assertIsNone(self.c.label_for_wall_time(165.0))
         self.assertIsNone(self.c.label_for_wall_time(0.0))
+
+    def test_no_model_artifact_is_older_than_its_training_data(self):
+        """The transformer sat at a build from the previous day through roughly
+        six full retrains, because the documented training order --
+        IF -> LSTM-AE -> GNN -> fusion -> RL -- silently omits it. Every number
+        published about it in that window was measured on a model trained against
+        superseded data: accuracy read 0.694 when the current build reads 0.754,
+        and its apparent 0.970 recall on `stealthy_forged_values` (against the
+        deployed fusion's 0.606) evaporated to 0.606 on a fresh build. A stale
+        artifact does not announce itself -- it just quietly answers questions
+        about a dataset that no longer exists."""
+        import glob
+        data = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..",
+                            "data", "collected", "training_session.json")
+        if not os.path.exists(data):
+            raise unittest.SkipTest("no training_session.json")
+        data_mtime = os.path.getmtime(data)
+        models_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "models")
+        stale = []
+        for f in glob.glob(os.path.join(models_dir, "*")):
+            if os.path.getmtime(f) < data_mtime:
+                stale.append(os.path.basename(f))
+        self.assertFalse(
+            stale,
+            f"model artifact(s) older than training_session.json: {sorted(stale)} -- "
+            f"retrain the FULL chain (IF -> LSTM-AE -> Transformer -> GNN -> fusion -> RL)")
+
+    def test_audit_db_and_its_checkpoint_store_are_not_co_located(self):
+        """The checkpoint store attests the audit database. Putting them in one
+        directory means a single deletion or a single mis-scoped restore removes
+        the evidence and its witness together, which defeats the point of having
+        a witness. Previously recorded as 'partly historical'; it is a property,
+        and this is the guard that keeps it one."""
+        import audit_log
+        db = os.path.dirname(os.path.abspath(audit_log.AUDIT_DB_PATH))
+        cp = os.path.dirname(os.path.abspath(audit_log.CHECKPOINT_STORE_PATH))
+        self.assertNotEqual(
+            db, cp,
+            f"audit DB and checkpoint store share {db} -- a single rm takes out "
+            f"both the evidence and the witness that would detect its tampering")
+
+    def test_shortest_accepted_event_yields_a_scoreable_window(self):
+        """The regression this guards: MIN_EVENT_SECONDS was a hardcoded 16.0
+        while evaluate_real_hardware.py drops the first LSTM_SEQ_LEN-1 records of
+        every block. A minimum-length event therefore survived margin trimming
+        with 6 messages against a window length of 8 and contributed NOTHING --
+        silently, since the collector still reported it as recorded."""
+        from config import LSTM_SEQ_LEN
+        usable = self.c.MIN_EVENT_SECONDS - 2 * self.c.MARK_MARGIN_S
+        messages = int(usable / self.c.TELEMETRY_INTERVAL_S)
+        # 2*LSTM_SEQ_LEN: evaluate_real_hardware.py drops 2*LSTM_SEQ_LEN-1 per block,
+        # because a window that merely FILLS still contains the block's settling
+        # disturbance (measured: one 0.0768 g spike in a baseline block failed all
+        # 6 of its scored windows).
+        self.assertGreaterEqual(
+            messages, 2 * LSTM_SEQ_LEN,
+            f"a {self.c.MIN_EVENT_SECONDS:g}s event leaves {messages} messages, "
+            f"under the {2 * LSTM_SEQ_LEN}-message requirement: worth nothing downstream")
+
+    def test_synthetic_resting_region_spans_every_observed_session(self):
+        """ADR-18. The same board rested at 1.041, 1.056 and 1.011 g on three
+        separate occasions. Centring the simulator on the newest median was
+        implemented, measured (real-hardware FP 2/49 -> 0/49), and then the next
+        live resting board landed at -4.0 sigma. Every observed resting state
+        must stay inside the synthetic normal region, or the models are being
+        fitted to whichever session happened to be captured last."""
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "scripts"))
+        import device_simulator as sim
+        # Stationary std of the mean-reverting DC state, from its own constants.
+        std = sim.REST_DC_WALK / math.sqrt(1.0 - sim.REST_PERSISTENCE ** 2)
+        for observed in (1.041, 1.056, 1.011):
+            sigma = abs(observed - sim.REST_DC_CENTRE) / std
+            self.assertLess(
+                sigma, 3.0,
+                f"a real resting board at {observed} g sits {sigma:.1f} sigma from "
+                f"REST_DC_CENTRE={sim.REST_DC_CENTRE} (std {std:.4f}) -- widen the "
+                f"region, do not re-centre it on one session (ADR-18)")
+            self.assertTrue(
+                sim.REST_DC_MIN <= observed <= sim.REST_DC_MAX,
+                f"{observed} g falls outside the clamp "
+                f"[{sim.REST_DC_MIN}, {sim.REST_DC_MAX}]")
+
+    def test_every_labelled_event_targets_more_than_the_minimum(self):
+        """One window per event is the floor, not the goal -- the false-positive
+        rate on a resting board is measured from these blocks."""
+        for name, target, _ in self.c.LABELLED_EVENTS:
+            self.assertGreater(target, self.c.MIN_EVENT_SECONDS, name)
 
 
 if __name__ == "__main__":

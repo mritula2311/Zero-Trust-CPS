@@ -31,7 +31,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 import numpy as np
 
-from config import DATA_COLLECTED_DIR, is_feature_vector
+from config import DATA_COLLECTED_DIR, is_feature_vector, LSTM_SEQ_LEN, FEATURE_NAMES
 import feature_engineering as fe
 from trust_engine import rule_range_score
 from isolation_forest_scorer import IsolationForestScorer
@@ -58,6 +58,121 @@ def _training_medians():
     normal = [r for r in records if r["device_id"] == "esp32-vib-001" and r["label"] == 1 and r["auth_ok"]]
     vecs = np.array([fe.feature_vector(r["reading"]) for r in normal])
     return {name: float(np.median(vecs[:, i])) for i, name in enumerate(fe.FEATURE_NAMES)}
+
+
+def minimal_repair_set_measurement():
+    """MINIMAL REPAIR SET -- reported ALONGSIDE the single-channel flip test above,
+    never in place of it.
+
+    The single-channel result is the literature-comparable number (Section C.4,
+    [21]'s method) and it stays. But a 0% on `lstm_ae_score` says nothing about
+    whether the model can be explained -- it says the instrument has rank 1 and
+    the anomaly does not. This measures the actual rank: how many channels must
+    be repaired TOGETHER before the score returns to legitimate.
+
+    Measured on real operator-labelled hardware windows, not synthetic
+    injections, so the correlation between channels is the physical one.
+    """
+    import glob, itertools, numpy as np, torch
+    from config import DATA_COLLECTED_DIR
+    import feature_engineering as fe
+    from lstm_ae_scorer import LSTMAEScorer, _TORCH_DEVICE
+
+    device = "esp32-vib-001"
+    scorer = LSTMAEScorer()
+    if device not in scorer.models:
+        print()
+        print("(minimal repair set: no LSTM-AE model for esp32-vib-001, skipped)")
+        return
+    st, model = scorer.stats[device], scorer.models[device]
+
+    rows = []
+    for path in sorted(glob.glob(os.path.join(DATA_COLLECTED_DIR, "*_labelled.json"))):
+        with open(path) as f:
+            rows += [(os.path.basename(path), r) for r in json.load(f)]
+    windows, prev, buf = [], None, []
+    for src, r in rows:
+        key = (src, r["phase"])
+        if key != prev:
+            buf, prev = [], key
+        buf.append(fe.feature_vector(r["reading"]))
+        if len(buf) > LSTM_SEQ_LEN:
+            buf.pop(0)
+        if len(buf) == LSTM_SEQ_LEN and r["phase"] != "at_rest":
+            windows.append(np.array(buf))
+    if not windows:
+        print()
+        print("(minimal repair set: no labelled disturbance windows found, skipped)")
+        return
+
+    def recon_error(x):
+        with torch.no_grad():
+            return float(((model(x) - x) ** 2).mean())
+
+    def to_score(e):
+        z = (e - st["baseline_error_mean"]) / st["baseline_error_std"]
+        return float(np.clip(0.9 - 0.25 * max(z, 0.0), 0.0, 1.0))
+
+    print()
+    print("=" * 78)
+    print("MINIMAL REPAIR SET -- how many channels carry the anomaly?")
+    print("=" * 78)
+    print(f"{len(windows)} flagged windows from real operator-labelled hardware. For each k, the")
+    print("BEST k-of-5 channel subset is repaired to its training mean and the window rescored.")
+    print()
+    print(f"  {'channels repaired':>18s} | {'flipped to >= ' + str(THRESHOLD):>18s} | {'median error after':>19s}")
+    print("  " + "-" * 62)
+    sizes, baseline = [], None
+    for k in range(0, 5):
+        flips, errs, best_sets = 0, [], []
+        for w in windows:
+            arr = (w - st["mean"]) / st["std"]
+            x = torch.tensor(arr, dtype=torch.float32, device=_TORCH_DEVICE).unsqueeze(0)
+            if k == 0:
+                e, combo = recon_error(x), ()
+            else:
+                e, combo = None, None
+                for cand in itertools.combinations(range(len(FEATURE_NAMES)), k):
+                    pert = x.clone()
+                    for c in cand:
+                        pert[:, :, c] = 0.0     # 0 in normalised space == that channel's training mean
+                    e2 = recon_error(pert)
+                    if e is None or e2 < e:
+                        e, combo = e2, cand
+            errs.append(e)
+            if to_score(e) >= THRESHOLD:
+                flips += 1
+                best_sets.append(combo)
+        label = "none (baseline)" if k == 0 else f"best {k} of {len(FEATURE_NAMES)}"
+        print(f"  {label:>18s} | {flips:8d}/{len(windows):<9d} | {np.median(errs):19.2f}")
+        if k == 0:
+            baseline = np.median(errs)
+        # The rank is the smallest k at which the MAJORITY recover, not the first k
+        # at which any single window happens to. k=2 flips 1/136 -- one window is
+        # an anecdote, not the anomaly's rank.
+        if not sizes and flips > len(windows) // 2:
+            sizes = best_sets
+    need = st["baseline_error_mean"] + ((0.9 - THRESHOLD) / 0.25) * st["baseline_error_std"]
+    print()
+    print(f"  Baseline median error {baseline:.2f}; a flip requires error <= {need:.2f}.")
+    if sizes:
+        from collections import Counter
+        top = Counter(tuple(sorted(FEATURE_NAMES[i] for i in c)) for c in sizes).most_common(3)
+        k = len(sizes[0])
+        print(f"  The anomaly has rank ~{k} in channel space ({len(sizes)}/{len(windows)} recover at "
+              f"k={k}). Most common minimal repair sets:")
+        for combo, n in top:
+            print(f"    {', '.join(combo)}  ({n}/{len(sizes)})")
+    print()
+    print("  READ THIS TOGETHER WITH THE SINGLE-CHANNEL NUMBER ABOVE, NOT INSTEAD OF IT.")
+    print("  The single-channel test is the comparable one and its result stands. What this")
+    print("  adds is the reason it fails: a rank-1 repair cannot undo a rank-k anomaly. An")
+    print("  impulsive mechanical shock moves rms, peak, crest_factor and kurtosis together")
+    print("  because they are all functions of the same spike, so no single channel carries")
+    print("  enough of it. gnn_score passes the single-channel test at 100% precisely because")
+    print("  its anomaly IS single-source -- a neighbour's evidence. The metric is measuring")
+    print("  channel correlation, and only incidentally explainability.")
+
 
 
 def main():
@@ -168,18 +283,22 @@ def main():
                 "WHY the lstm_ae_score row is 0% -- this is a property of the METRIC applied to",
                 "multi-channel physical anomalies, not an untrained model or a coding defect, and",
                 "it was measured rather than assumed:",
-                "  * A flagged window reconstructs with error ~46-62 (z = 20-27 above the normal",
-                "    baseline). Recovering to a score of 0.5 requires that error to fall to <= 4.28.",
-                "  * The Level-2 procedure repairs exactly ONE feature channel. An impulsive",
-                "    mechanical shock moves rms, peak, crest_factor and kurtosis TOGETHER -- they",
-                "    are all functions of the same spike -- so repairing any single channel leaves",
-                "    the other three still carrying it. Best single-channel repair measured: error",
-                "    falls from ~55.7 to ~33.7, an order of magnitude short of the 4.28 needed.",
+                "  * The Level-2 procedure repairs exactly ONE feature channel, and the anomaly",
+                "    does not live in one channel. Measured below on real hardware: repairing the",
+                "    best single channel drops median reconstruction error 26825 -> 7157, a 3.7x",
+                "    reduction where ~9700x is needed to reach the 2.76 a flip requires.",
+                "  * Repairing THREE channels together does clear it -- 132/136 windows recover,",
+                "    and the minimal set is {peak, rms, crest_factor} in 132/132 of those. Those",
+                "    three are all amplitude functions of the same spike (crest_factor IS",
+                "    peak/rms), so no one of them can carry the repair alone. Note kurtosis is",
+                "    NOT in the minimal set, though it is the channel most often ATTRIBUTED --",
+                "    attribution names the most diagnostic channel, repair needs the sufficient",
+                "    set, and they are different questions.",
                 "  * Substituting a REAL normal trajectory for the channel instead of its flat",
                 "    training mean was tried and changed nothing material (33.63 vs 33.70 median),",
                 "    so the limit is the single-channel restriction itself, not the fill value.",
-                "  * The ATTRIBUTION remains sound and useful: kurtosis is named in 110/122 of",
-                "    these cases, the physically correct answer for an impulsive spike.",
+                "  * The ATTRIBUTION remains sound and useful: kurtosis is the channel most",
+                "    often named, the physically correct answer for an impulsive spike.",
                 "  The flip test is a fair pass/fail for a point model (see gnn_score at 100%), but",
                 "  for a sequence model on a correlated multi-channel event it asks the model to",
                 "  undo an anomaly through a channel carrying only part of it. Reported in full",
@@ -188,6 +307,9 @@ def main():
                 print(line)
     else:
         print("\nNo flagged messages with a resolvable Level-2 feature were found in the test set.")
+
+
+    minimal_repair_set_measurement()
 
 
 if __name__ == "__main__":

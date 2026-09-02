@@ -43,7 +43,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 import numpy as np
 
-from config import DATA_COLLECTED_DIR, LSTM_SEQ_LEN, is_feature_vector
+from config import DATA_COLLECTED_DIR, LSTM_SEQ_LEN, is_feature_vector, PROCESS_THRESHOLD
 import feature_engineering as fe
 from trust_engine import rule_range_score
 from isolation_forest_scorer import IsolationForestScorer
@@ -112,7 +112,16 @@ def score_all_signals(records):
     return rows
 
 
-def metrics_at_threshold(scores, labels, threshold=0.5):
+def metrics_at_threshold(scores, labels, threshold=PROCESS_THRESHOLD):
+    """Defaults to the DEPLOYED threshold, not 0.5.
+
+    This used to default to 0.5 while gateway.py decided at PROCESS_THRESHOLD
+    (0.6), and that gap was not cosmetic: an Isolation Forest calibration defect
+    that made the signal structurally incapable of scoring above 0.621 -- so a
+    healthy physical board was BLOCKed live -- moved this script's headline
+    accuracy by 0.003 (RESULTS.md 0.1). The evaluation suite was blind to a bug
+    that made the system unusable. A metric computed at a threshold the system
+    does not use is not evidence about the system."""
     scores = np.array(scores)
     labels = np.array(labels)
     preds = (scores >= threshold).astype(int)
@@ -203,7 +212,7 @@ def main():
             if sub_labels.count(0) == 0:
                 line += f"{'n/a*':>16}"
                 continue
-            preds = [1 if s >= 0.5 else 0 for s in sub_scores]
+            preds = [1 if s >= PROCESS_THRESHOLD else 0 for s in sub_scores]
             recall = sum(1 for p, l in zip(preds, sub_labels) if p == l == 0) / sub_labels.count(0)
             line += f"{recall:>16.3f}"
         print(line)
@@ -211,7 +220,8 @@ def main():
           "'high_rate' is purely a Security Trust concern, not a Process Anomaly one.)")
     print(
         "\n(Recall per event type = fraction of that event's messages the signal "
-        "correctly scored below 0.5 despite each being label=0/suspicious. "
+        "correctly scored below the deployed threshold "
+        f"({PROCESS_THRESHOLD}) despite each being label=0/suspicious. "
         "'coordinated' is where relational reasoning specifically matters -- "
         "compare the gnn_score row there against rule/isolation_forest/lstm_ae, "
         "which structurally cannot see cross-device co-occurrence at all.)"

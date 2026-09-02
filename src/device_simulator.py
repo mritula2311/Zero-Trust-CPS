@@ -129,13 +129,44 @@ def _make_on_message(device_id: str, secret: str):
 # coherent "normal" distribution covers both simulated and real telemetry.
 REST_NOISE_STD = 0.004        # white noise floor, calibrated to the real board
 REST_DRIFT_AMPLITUDE = 0.002  # slow mechanical/thermal wander riding above it
+# TRIED, MEASURED AND REVERTED -- do not re-apply without re-measuring the FUSED
+# result. The real board's resting spectrum is lower than the synthetic one
+# (median 62.5 vs 78.1 Hz, 27% vs 19% below 40 Hz), and the Isolation Forest's
+# resting dips cluster in the under-covered 0-30 Hz bucket (iso median 0.666,
+# 7/17 below threshold, against 0.974 for the well-covered 30-80 Hz bucket). So
+# 10/90/40 was fitted to match the real distribution (match error 1.91 -> 0.74)
+# and the full chain retrained. It made the SYSTEM worse: real-hardware
+# false positives went 0/49 -> 3/49 while resting iso barely moved (28 -> 25
+# samples below 0.6). Better marginal calibration of the noisiest axis is not
+# the same as a better decision, and only the fused number tells you which.
 REST_DRIFT_HZ_MIN = 15.0      # drawn per window so the spectrum has real spread
 REST_DRIFT_HZ_MAX = 90.0
-REST_DC_MIN = 0.99          # resting magnitude range; the real unit sits at 1.041 g
-REST_DC_MAX = 1.07
-REST_DC_CENTRE = 1.035      # long-run resting magnitude the state reverts toward
+REST_DC_MIN = 0.975         # resting magnitude range -- see REST_DC_CENTRE below
+REST_DC_MAX = 1.10
+# RESTING DC IS NOT STABLE ACROSS SESSIONS, and this constant must not be
+# tuned as if it were. Measured resting rms medians on the SAME board:
+#     session 1  1.041 g      session 2/3  1.056 g      live re-check  1.011 g
+# a 0.045 g spread, i.e. 4.5x the within-session std (0.009 g). Accelerometer
+# bias and resting orientation both move it; |a| at rest is ~1 g by physics but
+# not the SAME ~1 g twice.
+#
+# Recorded because it cost a wrong fix: centring tightly on the then-latest
+# measurement (1.053) made the offline numbers on the three captured sessions
+# look excellent -- real-hardware false positives went 2/49 to 0/49 -- and then
+# the very next live reading of a genuinely resting board sat at -4.0 sigma,
+# because the board had settled at 1.011 that day. Chasing the centre optimises
+# for the last session captured; what the models need is a normal region wide
+# enough to contain every session the board will actually have.
+#
+# So: centre on the MIDPOINT of the observed range and widen the spread to span
+# it (stationary std = REST_DC_WALK / sqrt(1 - REST_PERSISTENCE^2) ~= 0.020,
+# double the previous 0.010). Detection has enormous headroom to pay for this --
+# a disturbed board reconstructs at 7,000-62,000 sigma of baseline error, so
+# doubling the resting tolerance costs nothing measurable there, and the
+# ablation/real-hardware evaluations below confirm it empirically.
+REST_DC_CENTRE = 1.036      # midpoint of the observed cross-session range
 REST_DRIFT_HZ_CENTRE = 52.0
-REST_DC_WALK = 0.010        # per-window innovation
+REST_DC_WALK = 0.019        # per-window innovation (-> stationary std ~0.020)
 REST_DRIFT_WALK = 22.0
 REST_PERSISTENCE = 0.30     # how much of the previous window's state carries over;
                             # tuned so the synthetic lag-1 autocorrelation matches

@@ -23,7 +23,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from config import DATA_COLLECTED_DIR, RL_TRAINING_EPISODES, is_feature_vector
+from config import DATA_COLLECTED_DIR, RL_TRAINING_EPISODES, is_feature_vector, TRAINING_SEED
 import feature_engineering as fe
 from trust_engine import RuleBasedTrustEngine, rule_range_score
 from isolation_forest_scorer import IsolationForestScorer
@@ -147,7 +147,7 @@ def main():
     # onto a stale prior table (whose states may no longer even be reachable
     # if the data changed). random.seed() pins epsilon-greedy exploration so
     # the committed Q-table is reproducible from the same inputs.
-    random.seed(0)
+    random.seed(TRAINING_SEED)
     pdp = AdaptivePDP()
     pdp.q = {}
     for episode in range(RL_TRAINING_EPISODES):

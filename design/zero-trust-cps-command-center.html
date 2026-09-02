@@ -181,6 +181,12 @@
      full-size body text and swamped the FR rows it was annotating. */
   .meta{color:var(--dim);font-size:10.5px;margin-top:4px;line-height:1.5}
   .meta b{color:var(--muted);font-weight:600}
+  .tlrow{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+  .tlrow:last-child{border-bottom:0}
+  .tlname{flex:0 0 168px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;color:var(--fg)}
+  .tlnow{display:block;margin-top:3px}
+  .tlnow i{display:inline-block;margin-right:8px;font-style:normal;font-size:10px}
+  .tlsvg{flex:1 1 auto;height:104px;width:100%;overflow:visible}
 </style>
 </head>
 <body>
@@ -252,6 +258,20 @@
         <span><i style="color:var(--dim)">SILENT</i>no message in the staleness window</span>
       </div>
       <div class="devs" id="devs"></div>
+    </div>
+
+    <div class="panel">
+      <div class="hd"><span class="ttl">Two-Score Timeline — the separation, over time</span>
+        <span class="tag" id="tltag"></span></div>
+      <p class="lede">The architecture's central claim is that these two scores never blend.
+        A single number cannot show that; two lines can. <b>Security Trust</b> answers "are the
+        papers real?" and <b>Process Anomaly</b> answers "is the machine behaving?" — so a
+        physically disturbed but correctly-authenticated device should drop the violet line
+        while the cyan one holds flat. Dashed rule is the 0.6 decision threshold; shaded bands
+        mark spans where the two disagree, which is precisely where a blended score would have
+        been wrong. Oldest on the left, newest on the right.</p>
+      <div id="timeline"></div>
+    </div>
     </section>
 
     <section class="card span8">
@@ -449,6 +469,65 @@
     });
   }
 
+  function renderTimeline(rows){
+    var box=$("timeline"); if(!box) return;
+    var byDev={};
+    for(var i=rows.length-1;i>=0;i--){                 // API is newest-first; walk to oldest-first
+      var r=rows[i]; if(r.security_trust_score==null&&r.process_trust_score==null) continue;
+      (byDev[r.device_id]=byDev[r.device_id]||[]).push(r);
+    }
+    var names=Object.keys(byDev); if(!names.length){box.innerHTML='<div class="empty">no scored decisions yet</div>';return}
+    var W=760,H=104,PADL=34,PADR=8,PADT=8,PADB=16,split=0;
+    var html="";
+    names.forEach(function(dev){
+      var v=byDev[dev].slice(-120), n=v.length;
+      if(n<2){html+='<div class="tlrow"><div class="tlname">'+esc(dev)+'</div><div class="empty">not enough history</div></div>';return}
+      var x=function(i){return PADL+(W-PADL-PADR)*(n===1?0:i/(n-1))};
+      var y=function(s){return PADT+(H-PADT-PADB)*(1-Math.max(0,Math.min(1,s)))};
+      function path(key){
+        var d="",started=false;
+        for(var i=0;i<n;i++){var s=v[i][key];
+          if(s==null){started=false;continue}
+          d+=(started?" L":" M")+x(i).toFixed(1)+" "+y(s).toFixed(1);started=true}
+        return d.trim();
+      }
+      // spans where the two axes disagree about the threshold -- the case a blend cannot express
+      var bands="",runStart=-1;
+      for(var i=0;i<=n;i++){
+        var r=v[i],dis=false;
+        if(r&&r.security_trust_score!=null&&r.process_trust_score!=null)
+          dis=(r.security_trust_score>=0.6)!==(r.process_trust_score>=0.6);
+        if(dis&&runStart<0)runStart=i;
+        if((!dis||i===n)&&runStart>=0){
+          bands+='<rect x="'+x(runStart).toFixed(1)+'" y="'+PADT+'" width="'+Math.max(1,(x(i-1)-x(runStart))).toFixed(1)+
+                 '" height="'+(H-PADT-PADB)+'" fill="var(--violet)" opacity="0.10"/>';
+          runStart=-1;
+        }
+      }
+      var last=v[n-1],ls=last.security_trust_score,lp=last.process_trust_score;
+      var disagree=(ls!=null&&lp!=null&&((ls>=0.6)!==(lp>=0.6)));
+      split+=disagree?1:0;
+      html+='<div class="tlrow">'+
+        '<div class="tlname">'+esc(dev)+
+          '<span class="tlnow"><i style="color:var(--cyan)">sec '+(ls==null?"—":ls.toFixed(3))+'</i>'+
+          '<i style="color:var(--violet)">proc '+(lp==null?"—":lp.toFixed(3))+'</i></span></div>'+
+        '<svg class="tlsvg" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" role="img" '+
+          'aria-label="Security and process trust over the last '+n+' decisions for '+esc(dev)+'">'+
+          bands+
+          '<line x1="'+PADL+'" y1="'+y(0.6).toFixed(1)+'" x2="'+(W-PADR)+'" y2="'+y(0.6).toFixed(1)+
+            '" stroke="var(--dim)" stroke-dasharray="3 3" stroke-width="1"/>'+
+          '<text x="4" y="'+(y(0.6)+3).toFixed(1)+'" fill="var(--dim)" font-size="9">0.6</text>'+
+          '<text x="4" y="'+(y(1)+7).toFixed(1)+'" fill="var(--dim)" font-size="9">1.0</text>'+
+          '<text x="4" y="'+y(0).toFixed(1)+'" fill="var(--dim)" font-size="9">0.0</text>'+
+          '<path d="'+path("process_trust_score")+'" fill="none" stroke="var(--violet)" stroke-width="1.6"/>'+
+          '<path d="'+path("security_trust_score")+'" fill="none" stroke="var(--cyan)" stroke-width="1.6"/>'+
+        '</svg></div>';
+    });
+    box.innerHTML=html;
+    $("tltag").textContent=split?split+" device(s) with the axes disagreeing right now":"axes agree on every device";
+  }
+
+
   function renderDecisions(rows){
     $("dectag").textContent=rows.length+" recent";
     var tb=$("decrows");tb.innerHTML="";
@@ -604,7 +683,7 @@
       $("p-policy").innerHTML='policy: <b>'+(status.use_rl_policy?"RL-adaptive":"static 2x2")+'</b>';
       $("p-thr").innerHTML='thresholds: <b>sec '+status.security_threshold+" · proc "+status.process_threshold+'</b>';
       var latest=latestByDevice(rows);
-      renderDevices(devices,latest);renderDecisions(rows);renderSecurityEvents(rows);
+      renderDevices(devices,latest);renderTimeline(rows);renderDecisions(rows);renderSecurityEvents(rows);
       renderNist(gov);renderValidation(gov);renderIec(iec);renderQtable(qt);setChain(chain);
       var cov=gov.coverage||{},gv=Object.keys(cov);
       var gpct=gv.length?Math.round(100*gv.reduce(function(a,k){return a+cov[k]},0)/gv.length):0;

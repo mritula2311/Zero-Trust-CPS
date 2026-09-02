@@ -42,10 +42,10 @@ from config import (
     transformer_path,
     transformer_meta_path,
     FEATURE_VECTOR_DEVICE_IDS,
-    FEATURE_NAMES,
+    FEATURE_NAMES, TRAINING_SEED,
 )
 
-torch.manual_seed(0)
+torch.manual_seed(TRAINING_SEED)
 
 INPUT_DIM = len(FEATURE_NAMES)
 SEQ_LEN = LSTM_SEQ_LEN  # deliberately shared with the LSTM-AE -- see config.py's comment

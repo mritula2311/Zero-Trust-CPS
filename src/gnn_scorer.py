@@ -31,9 +31,9 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from config import DEVICE_REGISTRY, GNN_EDGE_WINDOW_SECONDS, GNN_HIDDEN_SIZE, GNN_NUM_LAYERS, GNN_NODE_FEATURE_DIM, GNN_MODEL_PATH, GNN_SELF_LOOP_WEIGHT
+from config import DEVICE_REGISTRY, GNN_EDGE_WINDOW_SECONDS, GNN_HIDDEN_SIZE, GNN_NUM_LAYERS, GNN_NODE_FEATURE_DIM, GNN_MODEL_PATH, GNN_SELF_LOOP_WEIGHT, TRAINING_SEED
 
-torch.manual_seed(0)
+torch.manual_seed(TRAINING_SEED)
 
 # GPU support: this file's own `device_id` parameter name already means
 # "which CPS device" (esp32-vib-001 etc.), so the torch compute device is

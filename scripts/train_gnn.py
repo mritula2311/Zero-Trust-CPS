@@ -26,7 +26,7 @@ from config import (
     GNN_EPOCHS,
     GNN_LEARNING_RATE,
     DEVICE_REGISTRY,
-    is_feature_vector,
+    is_feature_vector, TRAINING_SEED,
 )
 import feature_engineering as fe
 from trust_engine import rule_range_score
@@ -163,7 +163,7 @@ def main():
     print(f"class weights: pos(normal)={pos_weight:.3f} neg(suspicious)={neg_weight:.3f} "
           f"(from {int(num_pos)} normal / {int(num_neg)} suspicious node-targets)")
 
-    torch.manual_seed(0)
+    torch.manual_seed(TRAINING_SEED)
     model = _GCN().to(_TORCH_DEVICE)
     optimizer = torch.optim.Adam(model.parameters(), lr=GNN_LEARNING_RATE)
     model.train()

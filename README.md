@@ -100,16 +100,27 @@ Two ways to feed it telemetry:
   before/after retraining numbers, and `SESSION_LOG.md` for the full
   bring-up story (every bug hit and fixed along the way).
 
+**Start with `METHODOLOGY.md`** — it states the method, every mathematical
+expression with the reason it is required rather than arbitrary, the evaluation
+protocol, the novelty claims and the limitations. `RESULTS.md` holds the measured
+numbers behind it.
+
 See `SESSION_LOG.md` (append-only, read top-to-bottom) for the full,
 narrated status — every substitution made (CoAP/DTLS → HTTPS; GNN's graph
 choice; hand-rolled GCN vs. `torch-geometric`) and everything genuinely
-still TODO (a FORMAL, structured physical adversarial-testing session with
-human-labelled ground truth — real hardware is flashed and running, and
-two real faults have already been found and fixed by informally
-manipulating the board live, `RESULTS.md` Section 13.2, but a proper
-`scripts/collect_hardware_session.py`-style capture of deliberately
-induced faults hasn't been done yet) — and `docs/00_overview.md` onward
-for the as-built architecture reference.
+still TODO. Operator-labelled hardware capture is **done**: three sessions,
+313 records, five physical event classes, labels marked by the operator at
+the moment of each action rather than inferred from a timetable. Measured
+on it — across four operator-marked sessions (429 records, six physical
+event classes including a sustained no-contact fault): detection of real
+physical disturbance **100% (103/103)**, false positives on a genuinely
+resting board **1/29 (3.4%)** (`RESULTS.md` 0.10.10). The real at-rest rows
+are only **3%** of the training normals but they carry the result:
+retraining the whole chain without them gives **13/49** false positives
+instead of 0/49, detection unchanged (`RESULTS.md` 0.10.9). What remains TODO is a capture of
+deliberately induced *adversarial* faults; every event so far is a
+legitimate physical condition, not an attack. See `docs/00_overview.md`
+onward for the as-built architecture reference.
 
 ## Setup
 
@@ -366,8 +377,10 @@ zt-cps-starter/
     └── coap_server.py               <- Module 6's second secured transport (HTTPS)
 └── scripts/
     ├── generate_training_data.py / generate_test_data.py
-    ├── collect_hardware_session.py  <- captures a real esp32-vib-001 session (5 short phases or one long
-    │                                    free-form window via --long), joins in gateway.py's live scoring
+    ├── collect_hardware_session.py  <- captures a real esp32-vib-001 session. --labelled (the one to use)
+    │                                    has the operator mark each event's start/stop; samples outside a
+    │                                    marked interval are discarded, not guessed at. Also 5 timed phases
+    │                                    or one --long free-form window. Joins in gateway.py's live scoring
     ├── merge_real_hardware_data.py  <- folds all collected real sessions into training_session.json
     │                                    alongside the synthetic data, idempotent, safe to re-run
     ├── train_isolation_forest.py / train_lstm_ae.py / train_gnn.py

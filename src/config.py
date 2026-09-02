@@ -429,6 +429,16 @@ FUSION_MODEL_PATH = os.path.join(MODELS_DIR, "fusion_meta_learner.joblib")
 FUSION_BACKGROUND_PATH = os.path.join(MODELS_DIR, "fusion_background.npy")   # SHAP background sample
 ADAPTIVE_PDP_MODEL_PATH = os.path.join(MODELS_DIR, "adaptive_pdp_qtable.json")
 
+# --- Training seed ---
+# Every training script pins its RNG so a rebuild is reproducible. That makes each
+# number deterministic, which is NOT the same as it being stable: a single seed
+# reports one draw from the distribution of models the pipeline can produce, with
+# no indication of the spread. Overriding this (env ZTCPS_SEED) lets the same
+# chain be retrained across seeds so headline metrics can carry a mean and a
+# standard deviation instead of a point estimate (RESULTS.md 0.10.11).
+# Default 0 -- the shipped models are the seed-0 draw.
+TRAINING_SEED = int(os.environ.get("ZTCPS_SEED", "0"))
+
 # --- Isolation Forest (Module 3, Phase 6a) ---
 ISOLATION_FOREST_CONTAMINATION = 0.1
 
@@ -589,6 +599,20 @@ RL_TRAINING_EPISODES = 20        # passes over the offline dataset during script
 # scripts/*.py) tried to read it. Made absolute, anchored to src/, matching
 # MODELS_DIR/DATA_COLLECTED_DIR's pattern above -- now correct regardless
 # of which directory a script is launched from.
+# THE SPLIT BETWEEN src/data/ AND data/ IS DELIBERATE, not an accident of history.
+#
+# The audit database lives under src/data/. The checkpoint store that ATTESTS it
+# lives at the repository root, under data/. Co-locating them would put the
+# evidence and its witness in the same directory, so a single `rm -rf` or a single
+# mis-scoped backup restore takes out both -- and the checkpoint store exists
+# precisely to detect tampering with the database. Separation is the property, and
+# it survives here rather than in a comment nobody reads because these two
+# constants are defined next to each other with this note between them.
+#
+# It was previously recorded as "partly deliberate, partly historical". It is now
+# just deliberate. Consolidating would mean relocating a live hash-chained
+# database for cosmetic tidiness, which trades a real integrity property for an
+# aesthetic one. Do not do it.
 AUDIT_DB_PATH = os.path.join(_SRC_DIR, "data", "audit_log.db")
 
 # --- Decision-channel anti-replay (Module 2, RESULTS.md Section 14 item 3) ---
@@ -608,6 +632,8 @@ GATEWAY_BOOT_ID_PATH = os.path.join(_SRC_DIR, "data", "gateway_boot_id.txt")
 # so that class of attacker still gets caught: their recomputed in-DB chain
 # won't match the independently-stored checkpoint's hash for the same row.
 CHECKPOINT_INTERVAL_ROWS = 100
+# Deliberately NOT beside AUDIT_DB_PATH -- see the note there. This is the witness;
+# the database is the evidence; they do not share a directory.
 CHECKPOINT_STORE_PATH = os.path.join(_SRC_DIR, "..", "data", "checkpoint_log.jsonl")
 AUDIT_KEY_PATH = os.path.join(_SRC_DIR, "..", "data", "audit_key.bin")
 

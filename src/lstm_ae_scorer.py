@@ -24,9 +24,9 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from config import LSTM_SEQ_LEN, LSTM_HIDDEN_SIZE, LSTM_NUM_LAYERS, lstm_ae_path, lstm_ae_meta_path, FEATURE_VECTOR_DEVICE_IDS, FEATURE_NAMES
+from config import LSTM_SEQ_LEN, LSTM_HIDDEN_SIZE, LSTM_NUM_LAYERS, lstm_ae_path, lstm_ae_meta_path, FEATURE_VECTOR_DEVICE_IDS, FEATURE_NAMES, TRAINING_SEED
 
-torch.manual_seed(0)
+torch.manual_seed(TRAINING_SEED)
 
 INPUT_DIM = len(FEATURE_NAMES)
 

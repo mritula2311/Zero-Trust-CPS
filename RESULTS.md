@@ -372,49 +372,659 @@ resting readings "out of range" purely as an artefact. The bound is now
 **derived** from `FEATURE_SAMPLE_RATE_HZ / 2` rather than written as a literal,
 so it can never drift from the acquisition chain again.
 
-### 0.10.5 Result: first real-hardware evaluation with trustworthy labels
+### 0.10.5 Result: real-hardware evaluation across three labelled sessions
 
-`scripts/evaluate_real_hardware.py`, 58 scored readings (the rolling window is
-reset per phase and its warm-up dropped — see below):
+> **Superseded by 0.10.10.** The figures in this section were computed with the
+> permissive warm-up rule (drop `LSTM_SEQ_LEN-1`), which was later shown to leave
+> each block's own settling disturbance inside its first scored windows. Under the
+> corrected rule, and with the fourth (fault) session included, the headline is
+> **1/29 (3.4%) false positives, 103/103 detection**. The numbers below are kept
+> as recorded rather than rewritten.
+
+
+Three operator-marked sessions now exist (313 records), not one. Sessions 2 and
+3 were captured live with `label_source: operator_mark`; session 1 remains the
+`transcript_reconstruction` recovered from the failed run. `scripts/evaluate_real_hardware.py`,
+201 scored readings (window reset per `(session, phase)`, warm-up dropped):
 
 | phase | n | rule | iso | lstm | gnn | fused | flagged |
 |---|---|---|---|---|---|---|---|
-| at_rest | 16 | 0.900 | 1.000 | 0.885 | 0.647 | **0.881** | 38% |
-| gentle_tap | 9 | 0.900 | 0.000 | 0.000 | 0.021 | 0.000 | **100%** |
-| moderate_shake | 7 | 0.900 | 0.000 | 0.000 | 0.021 | 0.000 | **100%** |
-| sharp_impact | 9 | 0.900 | 0.000 | 0.000 | 0.021 | 0.000 | **100%** |
-| tilt_rotate | 17 | 0.900 | 0.000 | 0.000 | 0.021 | 0.000 | **100%** |
+| at_rest | 65 | 0.900 | 0.979 | 0.900 | 0.667 | **0.908** | 9% |
+| gentle_tap | 30 | 0.900 | 0.000 | 0.000 | 0.021 | 0.000 | **100%** |
+| moderate_shake | 33 | 0.900 | 0.000 | 0.000 | 0.021 | 0.000 | **100%** |
+| sharp_impact | 31 | 0.900 | 0.000 | 0.000 | 0.021 | 0.000 | **100%** |
+| tilt_rotate | 42 | 0.900 | 0.000 | 0.000 | 0.021 | 0.000 | **100%** |
 
-- **Detection on real physical disturbance: 100% (42/42).**
-- **False positives on a genuinely resting board: 37.5% (6/16)**, fused median
-  0.881.
+- **Detection on real physical disturbance: 100% (136/136).**
+- **False positives, split by label provenance — these are not averaged:**
 
-Both numbers matter and neither should be quoted alone. Detection is complete.
-The false-positive rate is **not acceptable for deployment** and is the main
-open defect: every one of the six is LSTM-driven (`lstm` 0.00–0.45 while `rule`
-0.900 and `iso` 0.41–1.00 pass the same samples), and the six readings are
-physically indistinguishable from the ten that pass (rms 1.038–1.045, peak
-0.011–0.022). n=16 is a small sample, and the live gateway on long steady runs
-scored the resting board `ALLOW` consistently, which suggests the short
-per-phase blocks in this evaluation deny the autoencoder the steady run it
-stabilises over. That is a hypothesis, not a finding — it has not been tested.
+| provenance | false positives | detection |
+|---|---|---|
+| `operator_mark` (sessions 2+3) | **0/49 (0.0%)** | 94/94 (100%) |
+| `transcript_reconstruction` (session 1) | 6/16 (37.5%) | 42/42 (100%) |
+
+The 37.5% figure previously reported as the headline was **largely measuring
+label contamination, not model failure**, and the two clean sessions are what
+established that. Resting `peak` distributions:
+
+| session | provenance | n | median | p90 | max |
+|---|---|---|---|---|---|
+| 1 | reconstruction | 44 | 0.0170 | 0.0382 | 0.0970 |
+| 2 | operator_mark | 59 | 0.0155 | 0.0223 | 0.0349 |
+| 3 | operator_mark | 18 | 0.0159 | 0.0219 | 0.0341 |
+
+The **medians agree** across all three — same board, same resting physics — while
+session 1's tail runs ~3x fatter. Its windows were inferred from console
+positions with no marks and no margin trimming, and the original transcript
+carries readings such as `peak = 1.909 g` inside the "Event 1/8 at_rest" region.
+Sessions 2 and 3 had real marks with `MARK_MARGIN_S` trimmed from each end and
+never exceeded 4.8 sigma. Environment cannot be fully excluded as an alternative
+explanation, but label provenance is the difference that can be pointed at, and
+it is the one the operator-mark design exists to remove.
+
+### 0.10.6 The window-warm-up hypothesis, tested and refuted
+
+Section 0.10.5 previously carried a hypothesis: that short per-phase blocks deny
+the autoencoder the steady run it stabilises over. Sessions 2 and 3 were
+captured specifically to test it (120 s resting blocks against the old ~22 s,
+~51 scoreable windows against ~4). **It is false.**
+
+Pooling every resting window from all three sessions:
+
+| worst input in window | n | lstm < 0.6 | | window # in block | n | lstm < 0.6 |
+|---|---|---|---|---|---|---|
+| 0–3 sigma | 43 | 0/43 | | 1–5 | 23 | 8/23 |
+| 3–5 sigma | 7 | 0/7 | | 5–10 | 18 | 2/18 |
+| 5–8 sigma | 4 | 3/4 | | 10–20 | 20 | 0/20 |
+| 15+ sigma | 7 | 7/7 | | | | |
+
+The position column looks like the predicted warm-up effect. It is a confound:
+**control for sigma and it disappears — 0/50 windows below 5 sigma fail at every
+block position, and 10/11 at or above 5 sigma fail.** Session 1's high-sigma
+samples simply happened to land early in its short blocks.
+
+The real mechanism is a hard cliff. `_error_to_score` is
+`clip(0.9 - 0.25 * max(z, 0))`, so any window whose reconstruction error exceeds
+z = 3.6 pins to exactly 0.000 — which is why the live signal is bimodal (0.000
+or ~0.87, nothing between) rather than continuous. Under clean labels a resting
+board never reaches the input sigma that triggers it, so **LSTM-AE false
+positives on operator-marked resting data are 0/49**: a latent fragility, one
+desk bump away, not an active failure.
+
+### 0.10.7 Resting DC is not stable across sessions (ADR-18)
+
+The most consequential finding of this round, and it invalidated a fix that had
+already been made and measured.
+
+Recentring the simulator's `REST_DC_CENTRE` from 1.035 to 1.053 — the median of
+121 operator-marked resting samples — moved real-hardware false positives from
+2/49 to **0/49** and lifted the resting `iso` median from 0.724 to 0.973. Both
+remaining failures before that fix were Isolation-Forest-driven with the LSTM
+healthy on the same samples (`iso` 0.061/0.000 against `lstm` 0.840/0.823), one
+missing threshold by 0.002.
+
+Then a live re-check of a genuinely resting board read **rms 1.011 g**, which
+under the freshly-centred model sits at **-4.0 sigma**. Measured resting rms
+medians on the *same board*:
+
+| session 1 | sessions 2/3 | live re-check |
+|---|---|---|
+| 1.041 g | 1.056 g | 1.011 g |
+
+A 0.045 g spread — **4.5x the within-session std of 0.009 g**. Accelerometer
+bias and resting orientation both move it; `|a|` at rest is ~1 g by physics but
+not the *same* ~1 g twice.
+
+**Centring on the latest measurement optimises for the last session captured.**
+The fix is a normal region wide enough to contain every session the board will
+actually have: centre on the midpoint of the observed range (1.036) and widen
+the stationary spread from 0.010 to 0.020 (`REST_DC_WALK` 0.010 to 0.019,
+`REST_DC_MIN/MAX` 0.99/1.07 to 0.975/1.10). All three observed resting states
+then sit within ±1.3 sigma.
+
+Verified on both sides, because widening a normal region is exactly the change
+that can quietly destroy detection:
+
+| | before widening | after widening |
+|---|---|---|
+| real hardware FP (`operator_mark`) | 0/49 | **0/49** |
+| real hardware detection | 94/94 | **94/94** |
+| the live 1.011 g resting readings, `iso` | 0.000 | **0.343 – 0.696** |
+| the same session's disturbed readings, `iso` | 0.000 | **0.000** |
+| synthetic ablation, GNN accuracy | 0.907 | **0.915** |
+| synthetic `anomalous_shock` recall | 1.000 | **1.000** |
+| synthetic `coordinated` recall (fused) | 0.974 | **0.974** |
+| **live board at rest, decision** | **ALERT** (wrong) | **ALLOW (17/17)** |
+| **live board shaken, decision** | ALERT | **ALERT (16/16)** |
+
+Detection has enormous headroom to pay for this: a disturbed board reconstructs
+at 7,000–62,000 sigma of baseline error, so doubling the resting tolerance is
+invisible there. *Do not re-tune `REST_DC_CENTRE` onto a single session's median.*
+
+**Verified live on hardware, not in replay.** Read from the gateway's own
+hash-chained audit log, 33 consecutively scored messages plus the watchdog row:
+
+```
+   t+ decision    rule    iso   lstm    gnn     proc    sec
+    0 ALLOW      0.900  0.140  0.900  0.712  0.74914  0.909
+   ...  17 resting messages, all ALLOW  ...
+   35 ALLOW      0.900  0.188  0.829  0.714  0.66972  0.909
+   38 ALERT      0.900  0.000  0.000  0.021  0.00001  0.909   <- board picked up and shaken
+   ...  16 disturbed messages, all ALERT  ...
+   73 ALERT      0.900  0.000  0.000  0.021  0.00001  0.909
+   94 SILENT        --     --     --     --       --  0.701   <- silence watchdog
+```
+
+- **Detection 16/16 with no marginal calls** -- `iso`, `lstm` and `gnn` collapse
+  together and `proc` reads 0.00001. Widening the resting region (ADR-18) cost
+  nothing measurable here.
+- **The transition takes one message**: t+35 `ALLOW` 0.670 -> t+38 `ALERT`
+  0.00001.
+- **Security Trust held 0.895-0.909 for the entire disturbance.** A violently
+  shaken board moved the Process axis and left the Security axis alone -- the
+  two-score separation demonstrated on real hardware rather than on synthetic
+  injections. It falls to 0.701 only on the `SILENT` row, which is the silence
+  penalty behaving correctly.
+- The silence watchdog fired live, 21 s after the last message, when shaking the
+  board knocked it off the network.
+
+One resting message (t+27) dipped to `proc` 0.474 -- `iso` 0.000 while `lstm`
+held 0.780 -- without changing the decision. Resting is therefore **0/17 at the
+decision level and 1/17 at the score level**, and both are reported: quoting only
+the decision figure would hide a real dip, and the Isolation Forest is where the
+remaining fragility sits.
 
 **A methodological note on how these were scored.** The LSTM-AE's rolling
-window is reset at each phase boundary and the first `LSTM_SEQ_LEN-1` records of
-each block are dropped. Without that, every window straddling a boundary
-contains two different physical states and reconstructs badly by construction:
-measured, a continuous window scored the LSTM **0.000 even on at_rest**, while
-the same samples fed as their own sequence reconstruct at error 0.725 (z = 0.0,
-a 0.9 score). The continuous number was measuring transitions, not the model.
-That transition behaviour is real and matters live — it is the ALERT recovery
-tail after a disturbance — but it answers a different question than "given the
-board is in state X, does the pipeline score X correctly", which is what a
-labelled per-phase evaluation exists to answer.
+window is reset at each `(session, phase)` boundary and the first
+`LSTM_SEQ_LEN-1` records of each block are dropped. Keying on phase alone left
+no reset at the seam between two capture files — every session both starts and
+ends with `at_rest`, so the last resting block of one capture and the first of
+the next, hours apart, were joined into windows that never existed. Without the
+reset at all, a continuous window scored the LSTM **0.000 even on at_rest**,
+while the same samples fed as their own sequence reconstruct at error 0.725
+(z = 0.0, a 0.9 score) — measuring transitions, not the model. That transition
+behaviour is real and matters live (it is the ALERT recovery tail), but it
+answers a different question than "given the board is in state X, does the
+pipeline score X correctly".
 
 Finally, what this does **not** measure: no attack was performed, so this is
 physical anomaly discrimination, not attack detection. Security Trust is
 untouched throughout — which is the two-score separation behaving exactly as
 designed.
+
+### 0.10.8 The two open flags, worked
+
+Both flags raised at the end of the previous round were investigated. One
+produced a real finding; the other produced a fix that was measured and thrown
+away. Both outcomes are recorded.
+
+**Flag 1 -- the Isolation Forest is the weakest signal.** It swings from 0.000 to
+1.000 across physically near-identical resting samples (28/121 below 0.6), and it
+produced the one live resting dip (`proc` 0.474 with `lstm` healthy at 0.780).
+Three hypotheses were tested and **two were wrong**:
+
+| hypothesis | test | result |
+|---|---|---|
+| one feature drives it | Spearman rho of `iso` vs each feature | **wrong** -- all abs(rho) <= 0.19 |
+| estimator variance | sweep `n_estimators` 100-1000, `max_samples` 256-4088 | **wrong** -- IQR stays ~0.37 throughout |
+| `contamination=0.1` misplaces the threshold | sweep 0.1 -> 0.005 and `auto` | **real but not fixable this way** |
+
+The contamination sweep is worth keeping because it shows a genuine trade-off
+rather than a defect. The forest trains on **pure normal examples**, so
+`contamination=0.1` does tell it to declare 10% of clean training data anomalous.
+But lowering it compresses the whole score range upward:
+
+| contamination | real resting below 0.6 | real resting min | real disturbed MISSED | held-out anomalous median |
+|---|---|---|---|---|
+| 0.1 (deployed) | 28/121 | 0.000 | **8/192** | **0.307** |
+| 0.02 | 13/121 | 0.099 | 13/192 | 0.591 |
+| 0.005 | 8/121 | 0.338 | 15/192 | 0.683 |
+
+Fewer resting dips, more missed anomalies. `0.1` is the best of these for
+detection, so it stays -- now with the measurement written down rather than as an
+unexamined sklearn default.
+
+**A fix that was tried, measured and reverted.** The resting dips do cluster by
+frequency: the 0-30 Hz bucket scores `iso` median 0.666 (7/17 below threshold)
+against 0.974 for the well-covered 30-80 Hz bucket, and the simulator
+under-produces low-frequency resting windows (19% below 40 Hz against the real
+27%). Refitting the drift parameters to match (`REST_DRIFT_HZ_MIN/CENTRE`
+15/52 -> 10/40, distribution-match error 1.91 -> 0.74) and retraining the full
+chain **made the system worse**: real-hardware false positives went
+**0/49 -> 3/49** while resting `iso` barely moved (28 -> 25 below 0.6). Reverted.
+Better marginal calibration of the noisiest axis is not the same as a better
+decision, and only the fused number distinguishes them.
+
+**Flag 2 -- Level-2 explainability at 36%.** The single-channel number stands and
+is unchanged. What was added is the measurement that explains it, on 136 real
+operator-labelled disturbance windows:
+
+| channels repaired | recovered to >= 0.5 | median reconstruction error after |
+|---|---|---|
+| none (baseline) | 0/136 | 26825.17 |
+| best 1 of 5 | 0/136 | 7156.90 |
+| best 2 of 5 | 1/136 | 311.89 |
+| **best 3 of 5** | **132/136 (97%)** | **0.31** |
+| best 4 of 5 | 136/136 | 0.03 |
+
+A flip requires error <= 2.76. Single-channel repair achieves a 3.7x reduction
+where ~9700x is needed; **three-channel repair clears it, and the minimal set is
+`{peak, rms, crest_factor}` in 132/132 cases.** Those three are all amplitude
+functions of the same spike -- `crest_factor` is literally `peak/rms` -- so no
+one of them can carry the repair alone. The anomaly has **rank ~3 in channel
+space, and a rank-1 instrument cannot undo it.** `gnn_score` passes the same test
+at 100% precisely because its anomaly IS single-source: a neighbour's evidence.
+
+So the 36% is measuring channel correlation and only incidentally explainability.
+Both numbers are now printed by `evaluate_explainability_level2.py`, the
+single-channel one first and still against its 70% target, because it is the
+literature-comparable figure and swapping it for one the signal passes is exactly
+what this project does not do.
+
+One correction this produced: the script previously claimed the anomaly moves
+"rms, peak, crest_factor and kurtosis TOGETHER". The measurement says three
+channels suffice and **kurtosis is not among them** -- although kurtosis remains
+the channel most often *attributed*. Attribution names the most diagnostic
+channel; repair needs the sufficient set. They are different questions, and the
+text now says so.
+
+### 0.10.9 Three improvements: two applied, one refuted by its own measurement
+
+**1. The ablation suite now evaluates at the deployed threshold.**
+`evaluate_ablation.py` defaulted to 0.5 while `gateway.py` decides at
+`PROCESS_THRESHOLD` = 0.6. That gap was already proven dangerous once: an
+Isolation Forest calibration defect that made a signal structurally incapable of
+scoring above 0.621 -- so a healthy board was BLOCKed live -- moved this script's
+headline accuracy by **0.003**. The suite was blind to a bug that made the system
+unusable. Now aligned; the numbers moved slightly and are now about the system
+that actually ships:
+
+| signal | accuracy @0.5 (old) | accuracy @0.6 (deployed) |
+|---|---|---|
+| isolation_forest_score | 0.931 | 0.916 |
+| gnn_score | 0.915 | 0.909 |
+| fused_score | 0.719 | 0.717 |
+
+**2. Leave-one-out ablation: what the 121 real rows actually buy.**
+The real hardware data is only **3.0%** of the 4,088 esp32 normal training
+examples, which invites the obvious question. Answered by withholding it
+(`merge_real_hardware_data.py --synthetic-only`) and retraining the entire chain:
+
+| training normals | operator-marked FP | detection |
+|---|---|---|
+| 15,250 synthetic only | **13/49 (26.5%)** | 94/94 (100%) |
+| + 121 real at-rest rows (3.0%) | **0/49 (0.0%)** | 94/94 (100%) |
+
+*Both arms of this ablation were measured under the permissive warm-up rule on
+the three-session corpus, before 0.10.10 corrected it. The comparison is
+internally valid -- same rule, same data, only the training set differs -- but the
+absolute figures are not comparable to the 1/29 headline. The conclusion is
+unaffected: withholding the real rows costs 13 false positives that adding them
+removes.*
+
+
+**3% of the training data removes 100% of the false positives, at zero cost to
+detection.** The per-phase resting flag rate goes 31% -> 9%, and resting `lstm`
+median 0.859 -> 0.900. Synthetic data alone cannot place the normal region where
+the real board actually sits, however well calibrated -- which is the empirical
+case for hardware-in-the-loop training rather than simulation alone.
+
+**3. Graded severity -- proposed, measured, and NOT implemented.**
+The stated limitation was that `_error_to_score` pins to exactly 0.000 at
+z >= 3.6, so a gentle tap and a violent shake are indistinguishable; the proposed
+fix was a compressive map to make severity rankable. **The measurement refuted
+the premise.** Reconstruction-error z by phase on real hardware:
+
+| phase | n | median z | max peak (g) | fraction of samples quiet (<= 0.035 g) |
+|---|---|---|---|---|
+| at_rest | 65 | -0.1 | 0.097 | 0.96 |
+| gentle_tap | 30 | 18745 | 3.108 | 0.05 |
+| tilt_rotate | 42 | 22155 | 2.491 | 0.02 |
+| moderate_shake | 33 | 23092 | 2.965 | 0.00 |
+| sharp_impact | 31 | **10392** | 2.968 | **0.29** |
+
+`sharp_impact` -- the most violent event, max peak 2.968 g -- has the **lowest**
+median z of the four disturbance classes. It is not ordered by severity at all.
+The reason is duty cycle: sharp impacts are brief impulses with pauses, so 29% of
+their samples are physically indistinguishable from rest, against 0% for
+continuous shaking. **Reconstruction error over an 8-message window measures how
+much of the window is disturbed, not how violently.**
+
+Two consequences, both kept rather than papered over:
+
+- A compressive map would produce a number that *looks* like severity and is not.
+  On this data there is nothing to grade anyway -- resting sits at z ~ 0 and every
+  real disturbance at z = 4,200-48,000, with the middle entirely empty.
+- The limitation is therefore **restated, not fixed**: the pipeline cannot rank
+  severity, and the obstacle is the window-averaged error itself, not the score
+  mapping. Ranking severity would need a peak-aware statistic alongside the
+  sequence model. Recorded as future work.
+
+The Spearman rank correlation of z against an ordinal severity label is +0.614
+(p = 3e-22), but that is carried almost entirely by rest-versus-everything, not by
+ordering within the disturbance classes -- an example of a healthy-looking
+aggregate statistic concealing the thing it was computed to test.
+
+### 0.10.10 A sustained-fault session, and a warm-up rule that contradicted itself
+
+A fourth session (`--fault`, 116 records, all `operator_mark`, 116/116 joined to
+live gateway decisions) captured a **sustained fault with no hand contact**: a
+phone on continuous vibrate sharing the board's desk surface, at two coupling
+distances. Every previously captured event was violent hand manipulation, so this
+is the first event class that is continuous, operator-untouched, and transmitted
+through the mounting surface rather than applied to the board.
+
+**It also exposed a defect in the evaluation itself, which matters more.**
+
+`score_all` dropped `LSTM_SEQ_LEN-1` records per block -- enough to FILL the
+rolling window, not enough to keep the block's own settling disturbance out of
+it. A window scored at index 7 still *contains* messages 0..7, and those are the
+seconds right after the operator pressed ENTER and stepped away. Measured on this
+session's baseline block:
+
+```
+  i      rms     peak   <- the block's own warm-up, still inside every scored window
+  4   1.0287   0.0768      2.5x the block median of 0.0195
+  6   1.0229   0.0436
+  7   1.0274   0.0246   <- first SCORED window: contains i=0..7, including both spikes
+```
+
+All 6 scored windows in that block failed, with `lstm` 0.000 while `iso` read
+0.265-1.000 on the same samples -- the one-bad-sample-poisons-eight-windows
+mechanism, now seen at a block boundary. This directly contradicted the reset's
+own stated rationale ("every window straddling a boundary contains two different
+physical states"). **Corrected to drop `2*LSTM_SEQ_LEN-1`**, so no scored window
+contains any of the block's first `LSTM_SEQ_LEN` messages, and
+`MIN_EVENT_SECONDS` raised from 20 s to 36 s to match.
+
+Both conventions, on the full four-session corpus, because the correction
+improves the headline and that deserves scrutiny rather than a silent swap:
+
+| warm-up drop | operator-marked resting windows | false positives | detection |
+|---|---|---|---|
+| `LSTM_SEQ_LEN-1` = 7 (fills window) | 83 | **10/83 (12.0%)** | 140/140 (100%) |
+| `2*LSTM_SEQ_LEN-1` = 15 (excludes block start) | 29 | **1/29 (3.4%)** | 92/92 (100%) |
+
+The cost is real: resting sample size falls from 83 to 29, and the reconstructed
+session now contributes **zero** resting windows because its blocks are too short
+to survive the stricter rule -- which incidentally removes the tail-contaminated
+data automatically rather than by judgement.
+
+**The previously reported 0/49 was under the permissive rule on three quieter
+sessions.** The fault session was genuinely noisier -- a phone on the desk and an
+operator moving around it -- and adding it takes the permissive figure to 12.0%.
+The honest headline is now **1/29 (3.4%) false positives, 103/103 detection**.
+
+#### Detection on the sustained fault
+
+| phase | n | rule | iso | lstm | gnn | fused | flagged |
+|---|---|---|---|---|---|---|---|
+| at_rest | 29 | 0.900 | 0.923 | 0.900 | 0.671 | 0.904 | 3% |
+| fault_weak | 22 | 0.900 | 0.000 | 0.000 | 0.021 | 0.000 | **100%** |
+| fault_strong | 8 | 0.900 | 0.000 | 0.000 | 0.021 | 0.000 | **100%** |
+
+30/30 detected. The pipeline generalises to a fault class it was never trained
+on and never previously tested against.
+
+#### What this did NOT establish, and why
+
+The experiment was designed to find the **detection floor** -- a fault whose
+amplitude never leaves the resting band, which is the realistic profile of a worn
+bearing and the case the LSTM-AE exists for. It did not reach it. Phone vibrate
+couples strongly through a desk and is *intermittent* rather than continuous:
+
+- `fault_weak` peak median **0.2557 g** against a target band of 0.05-0.20 g and
+  a resting p99 of 0.0411 g -- 6x the intended ceiling.
+- 11% of its samples do sit at or below the resting ceiling, but **0 of 30 scored
+  windows have all 8 messages there**. Every window catches at least one buzz.
+
+So detection on this class is real, but it is still being carried by amplitude
+that exceeds rest, not by sequence structure invisible to a threshold. **The
+detection floor remains unmeasured.** Reaching it needs a continuous
+low-amplitude source (a small DC motor with an unbalanced mass, or a much weaker
+coupling), not a phone.
+
+### 0.10.11 Seed sensitivity: which numbers are properties and which are draws
+
+Every training script pins its RNG, which makes a rebuild reproducible — and
+reproducible is not the same as stable. A single seed reports one draw from the
+distribution of models the pipeline can produce, with no indication of spread.
+`TRAINING_SEED` (env `ZTCPS_SEED`, default 0) now threads through all five
+models, and the full chain was retrained across seeds 0–4:
+
+| metric | per-seed | mean ± sd |
+|---|---|---|
+| `isolation_forest_score` acc | 0.916 0.914 0.916 0.918 0.916 | **0.916 ± 0.001** |
+| `lstm_ae_score` acc | 0.753 ×5 | **0.753 ± 0.000** |
+| `transformer_score` acc | 0.694 ×5 | **0.694 ± 0.000** |
+| `gnn_score` acc | 0.909 0.886 0.912 0.900 0.914 | **0.904 ± 0.011** |
+| `fused_score` acc | 0.717 0.711 0.716 0.715 0.717 | **0.715 ± 0.002** |
+| RL macro-F1 | 0.538 0.534 0.538 0.535 0.538 | **0.537 ± 0.002** |
+| static macro-F1 | 0.279 0.277 0.278 0.278 0.279 | **0.278 ± 0.001** |
+| real-hardware FP | 1 2 1 1 1 (of 29) | **1.2/29 ≈ 4.1%**, sd 0.45 |
+| real-hardware detection | 103/103 on every seed | **100%, sd 0** |
+
+Three things worth reading off this:
+
+**The RL-beats-static claim survives.** 0.537 ± 0.002 against 0.278 ± 0.001 —
+separated by ~130 standard deviations. That comparison is a property of the
+method, not of seed 0.
+
+**`lstm_ae` and `transformer` reaching ±0.000 was checked, not assumed.**
+Identical accuracy to three decimals across five seeds looks like broken seed
+plumbing. It is not: training seeds 11 and 12 produce weights differing by up to
+1.40 per tensor (9.05 summed). The models land on the same held-out accuracy from
+genuinely different initialisations — their decision behaviour is fixed by the
+data, not the init.
+
+**The GNN is the seed-sensitive component**, at ±0.011 with a 0.028 range —
+roughly ten times the fused model's spread. It is also the heaviest-weighted
+fusion input (coefficient 9.922), so it is simultaneously the most influential
+and the least stable signal. Worth stating plainly rather than hiding inside a
+mean.
+
+Sampling uncertainty is now reported alongside, via Wilson score intervals
+(chosen over the normal approximation, which misbehaves at small *n* near 0 or 1):
+
+```
+FALSE POSITIVE RATE:  3.4% (1/29)     95% CI [0.6%, 17.2%]
+DETECTION RATE:     100.0% (103/103)  95% CI [96.4%, 100.0%]
+```
+
+**The false-positive rate cannot be quoted to one decimal.** Anything from 0.6%
+to 17% is consistent with 29 samples. Detection is genuinely tight because
+n = 103. Quoting "3.4%" bare would be the first thing a reviewer attacks.
+
+### 0.10.12 The GNN's non-monotonicity, finally justified rather than noted
+
+Carried for several rounds as "directionally correct, but unexplained rather than
+justified". Measured properly it is worse than recorded — **25 violations across a
+51-point neighbour sweep**, not one — and confined to the saturated regions:
+
+```
+neighbours 0.00 -> 0.20   gnn 0.158 -> 0.119   both "bad"    ripple 0.04
+neighbours 0.20 -> 0.70   gnn 0.119 -> 0.667   transition    correct, steep
+neighbours 0.70 -> 1.00   gnn 0.667 -> 0.637   both "good"   ripple 0.03
+```
+
+That mattered more than it looked, because the GNN carries the largest fusion
+coefficient (9.922 against rule 0.071). So the decision-level question was asked
+directly:
+
+```
+gnn monotonicity violations (51 points):  25
+fused monotonicity violations:            25
+  worst fused decrease:                   0.00295
+decision changes along the sweep:          1  (ALERT -> ALLOW at nb=0.26, correct direction)
+NON-MONOTONIC DECISIONS:                 none
+```
+
+**The ripple is three thousandths of fused score against a threshold margin of
+0.3+, and never once makes a verdict stricter as a neighbourhood improves.** So
+this is ripple inside regions where the answer is already saturated, not a defect.
+It is not being "fixed": the only available fix is fabricating neighbour training
+data to cover input combinations the live system does not produce, which adds
+risk for no decision-level benefit. What is added instead is a test pinning the
+property that matters — improving a neighbourhood must never make the decision
+stricter — so if a future change makes the ripple decision-relevant, it fails.
+
+### 0.10.13 Transformer into fusion: measured, and rejected
+
+`stealthy_forged_values` is the attack class this design acknowledges it cannot
+see, and the ablation table contains an apparent answer: `transformer_score`
+recalls it at **0.970** where the deployed fusion manages 0.606 — yet the
+transformer is not a fusion input. A signal that is poor overall but excellent on
+the one class the others miss is the textbook case for a weighted meta-learner.
+
+Tested offline first, before touching production code, both meta-learners fit
+identically on the same replay:
+
+| | accuracy | FP on normal | anomalous_shock | coordinated | **stealthy** |
+|---|---|---|---|---|---|
+| 4 inputs (deployed) | 0.686 | 0.310 | 1.000 | 0.983 | 0.636 |
+| 5 inputs (+transformer) | 0.645 | 0.373 | 1.000 | 0.974 | **0.970** |
+
++33 points of stealthy recall for +6.3 points of false positives on synthetic
+normals. Arguably a good trade — which is why the acceptance criterion, set
+*before* running it, required real hardware to hold. It does not:
+
+| model | resting FP | detection |
+|---|---|---|
+| 4 inputs (deployed) | **5/29** | **92/92** |
+| 5 inputs (+transformer) | **15/29** | **87/92** |
+
+Ten extra false positives *and* five lost detections. **Rejected.** Production
+code was reverted before any of it shipped.
+
+**The explanation first given for this rejection was wrong, and the correction is
+the more useful result.** It was attributed to the Transformer keying on an
+artefact of how `stealthy_forged_values` is generated. The actual cause was
+simpler and worse: **the Transformer artifact was stale**, trained the previous
+day against data superseded by ADR-18 and the merged real-hardware rows, because
+the documented training order omitted it. Its 0.970 stealthy recall was not a
+capability at all — retrained on current data it reads **0.606**, identical to the
+LSTM-AE.
+
+Re-run with a freshly trained Transformer, the fusion experiment comes out
+differently and far less interestingly:
+
+| | accuracy | FP on normal | shock | coordinated | stealthy |
+|---|---|---|---|---|---|
+| 4 inputs (deployed) | 0.686 | 0.310 | 1.000 | 0.983 | 0.636 |
+| 5 inputs (+fresh transformer) | 0.687 | 0.310 | 1.000 | 0.983 | 0.667 |
+
+and on real hardware the two are **identical** — FP 5/29 both, detection 92/92
+both. The meta-learner splits weight roughly evenly between the LSTM-AE (0.365)
+and the Transformer (0.341) because they correlate at 0.998; the fifth input is
+redundant, not harmful. **Still rejected**, now for the right reason: +0.031
+synthetic stealthy recall and zero real-hardware movement does not justify a
+fifth model on the deployment path.
+
+The lesson worth keeping is about evaluation hygiene, not architecture: a
+comparison is only valid if every arm was trained on the same data, and nothing
+in the pipeline enforced that until a test was written for it.
+
+*(Caveat on the 5/29 above: the offline harness refits both meta-learners with a
+simplified pipeline, so its 4-input arm reads 5/29 where the deployed model reads
+1/29. The comparison is internally valid — both arms identical but for the fifth
+feature — but the absolute figures are not the deployed ones.)*
+
+### 0.10.14 The detection floor, measured — by accident
+
+`0.10.10` closed with the detection floor unmeasured: every detected event,
+including the engineered phone-vibrate fault, exceeded the resting band by a wide
+margin, so detection was carried by amplitude rather than by structure a threshold
+would miss. Reaching the floor was listed as future work needing a continuous
+low-amplitude source.
+
+**One appeared unplanned.** During a routine live check the board was found
+reading `peak` 0.032–0.050 g — roughly 2.3x the resting median of 0.0172 — with
+`proc = 0.00001` and a continuous ALERT. The board was not stuck (28 distinct
+readings) and `rule` stayed 0.900, so the values were in range. What identified it
+was the spectrum:
+
+| | distinct `dominant_freq` bins | top bin share |
+|---|---|---|
+| operator-marked at rest (n=132) | 15 | 21% (15.625 Hz) |
+| live, this condition (n=40) | 2 | **96% (93.75 Hz)** |
+
+At rest the argmax DFT bin scatters, because a resting board has no dominant
+excitation and the bin is essentially noise. **A single bin holding 96% is a
+periodic mechanical source**, not noise — some continuously running machine
+coupled into the bench.
+
+#### The controlled measurement
+
+The question that matters is whether the pipeline is detecting this through
+amplitude, which a simple threshold would also catch, or through structure it
+would not. Windows were built from **only those samples at or below the
+operator-marked resting ceiling** (p99 = 0.0411 g) — so a per-sample amplitude
+threshold set at that ceiling classifies every window below as "rest":
+
+| window source | n | `lstm` median | flagged | `iso` median | flagged |
+|---|---|---|---|---|---|
+| live periodic source | 14 | **0.0000** | **14/14** | 0.0000 | 14/14 |
+| operator-marked at rest | 14 | **0.9000** | **0/14** | 0.9545 | 1/14 |
+
+**Perfect separation on windows an amplitude threshold cannot separate at all.**
+This is the first evidence in this project that the sequence model earns its place
+— that the pipeline detects a sustained disturbance whose per-sample amplitude
+never leaves the resting band.
+
+#### The caveat, stated because it bounds the claim
+
+Amplitude is **not fully controlled**, only capped. Within the below-ceiling band
+the live windows still carry roughly double the amplitude of the resting ones
+(max-peak-in-window median 0.0403 against 0.0190). So the correct claim is
+**detection below the amplitude decision boundary**, not detection with amplitude
+held equal. Separating those two would need a source tuned to sit at the resting
+*median* rather than near its p99 — still future work, but a much narrower gap
+than before.
+
+The unplanned nature is itself worth recording. A source that could not be
+engineered on demand with a phone appeared from ordinary bench conditions, which
+is a reminder that the deployment environment supplies disturbances the test plan
+does not.
+
+### 0.10.15 Future work, with the measurement that motivates each
+
+Not a wish list. Each item below is here because a specific measurement in this
+document reaches a limit and names what would move it.
+
+**1. Measure the detection floor with amplitude fully controlled** (partly closed by 0.10.14, which measured it below the amplitude *threshold* but not at equal amplitude).
+Every detected event in this corpus -- including the sustained phone-vibrate
+fault -- exceeds the resting band by a wide margin. `fault_weak` came out at peak
+median **0.2557 g** against a resting p99 of **0.0411 g**, and of 30 scored fault
+windows **zero** have all 8 messages at or below the resting ceiling. So the
+136/136 and 103/103 detection figures are carried by amplitude, not by sequence
+structure a plain threshold would miss, and the LSTM-AE's stated purpose --
+gradual drift near the noise floor, the profile of a worn bearing -- is still
+untested. Phone vibrate cannot probe it: it couples strongly through a desk and is
+intermittent rather than continuous, so every window catches a buzz. What is
+needed is a **small DC motor with an unbalanced mass**, run at a supply voltage
+low enough to sit in the 0.05-0.20 g band, for long enough to capture gradual
+onset. Until that exists, the honest claim is "detects disturbance well above the
+noise floor", not "detects faults".
+
+**2. A second MPU6050, to establish whether the resting-DC spread is a sensor
+property or this unit's quirk.** ADR-18 sizes the resting normal region on the
+cross-session spread of one board (1.011 / 1.041 / 1.056 g, a 0.045 g range
+against a 0.009 g within-session std) and attributes it to accelerometer bias and
+resting orientation. That attribution is an assumption. One 90-second resting
+capture from a second board resolves it, and the two outcomes fork the design: if
+its resting DC lands in the same band, the calibration generalises and
+`REST_DC_CENTRE` is a sensor-class constant; if it does not, the constant is
+per-device and the whole calibration approach needs rethinking. **A single unit
+cannot distinguish these**, and no amount of additional data from it will.
+
+**3. Bound the audit chain's full-scan cost before it matters.** Measured at
+78,546 rows: the incremental tail verification runs in **46.7 ms** on every
+request, while the full O(rows) scan takes **2,539 ms** (32.3 microseconds/row)
+and is cached for 300 s -- a 0.85% duty cycle, and the scan interval IS the
+naive-tamper detection latency, so it is deliberate rather than wasteful. The
+projection is the useful number: **~32 s at 1M rows**, at which point a 300 s
+cache no longer hides it and a checkpoint-anchored partial scan becomes worth
+building. Recorded as a budget with a trigger rather than a vague concern.
 
 ## Figure Index
 
@@ -592,16 +1202,39 @@ exclusion):
 
 | Signal | Accuracy | Precision | Recall | F1 | Params |
 |---|---|---|---|---|---|
-| LSTM-AE | 0.933 | 0.875 | 0.970 | 0.920 | 3,029 |
-| **Transformer** | **0.941** | **0.877** | **0.990** | **0.930** | 17,701 |
+| LSTM-AE | 0.945 | 0.878 | 1.000 | **0.935** | 3,029 |
+| Transformer | 0.945 | 0.878 | 1.000 | **0.935** | 17,701 |
 
-The Transformer genuinely edges out the LSTM-AE once measured fairly — small
-(+0.010 F1) but real. A 7-way hyperparameter sweep (pre-LN vs post-LN,
-ReLU vs GELU, 6x more capacity, up to 400 epochs, varied noise/LR/weight
-decay) reproduced this exact same result across every configuration,
-which is what makes it a genuine effect rather than one lucky training
-run — and also why no config change was kept: the current, cheapest
-configuration is already at the ceiling this data/task supports.
+**On the current dataset the two architectures are indistinguishable**, and the
+script now prints "effectively tied" rather than naming a winner. An earlier
+generation of this table recorded a small Transformer edge (F1 0.930 vs 0.920);
+that gap did not survive the simulator recalibration (ADR-17/18) and the merged
+real-hardware rows. A 7-way hyperparameter sweep (pre-LN vs post-LN, ReLU vs
+GELU, 6x capacity, up to 400 epochs, varied noise/LR/weight decay) had reproduced
+the old edge across every configuration, which is why it was believed — and it is
+worth recording that a result stable across seven hyperparameter configurations
+still moved when the *data* changed. Architecture sweeps do not test the
+assumption that matters.
+
+They are not the same model, which was checked rather than inferred from the
+matching summary: per-message scores correlate at **0.998** with a maximum
+divergence of 0.319, and they disagree on **4 of 1050** flags. Two genuinely
+different architectures converging on the same decision boundary is the finding;
+identical metrics are the symptom.
+
+**A staleness defect this exposed, which cost every published Transformer number
+in between.** `models/transformer_ae_esp32-vib-001.pt` sat at a build from the
+previous day through roughly six full retrains, because the documented training
+order — IF → LSTM-AE → GNN → fusion → RL — omits the Transformer. Measured on the
+stale artifact it read accuracy **0.694** and, most misleadingly, **0.970** recall
+on `stealthy_forged_values` against the deployed fusion's 0.606. That looked like
+a free fix for this design's acknowledged blind spot and prompted a full
+evaluation of folding it into fusion (Section 0.10.13). Retrained on current data
+the same model reads accuracy 0.754 and stealthy recall **0.606** — identical to
+the LSTM-AE. The apparent capability was an artefact of being trained on different
+data than everything it was compared against. The training order now names six
+steps and `test_no_model_artifact_is_older_than_its_training_data` fails on any
+artifact older than `training_session.json`.
 
 **Decision: still not folded into live fusion.** A +1pt F1 gain for ~6x
 the parameters is a real but marginal win, and per-event recall
@@ -1337,36 +1970,57 @@ a computation bug. The one genuine bug this investigation *did* surface is
 already listed as item 4 in Section 13.0 above (the fake GNN neighbor
 attribution).
 
-### 13.1 Device-Side Latency — measured
+### 13.1 Device-Side Latency — measured on the current firmware
 
 `firmware/main.py` measures, per message, using `time.ticks_ms()`/
-`time.ticks_diff()` (the MicroPython-correct way — handles the periodic
-tick-counter wraparound a naive subtraction would get wrong): sampling
-time (the 32-reading I2C accelerometer window), feature-extraction time
-(RMS/peak/crest-factor/kurtosis + the on-device DFT for `dominant_freq`),
-and signing time (canonicalisation + HMAC-SHA256). 4 consecutive real
-messages, `boot_id=12`:
+`time.ticks_diff()` (the MicroPython-correct way — it handles the periodic
+tick-counter wraparound a naive subtraction gets wrong): sampling time (the
+32-reading I2C accelerometer window), feature-extraction time (RMS / peak /
+crest-factor / kurtosis + the on-device DFT for `dominant_freq`), and signing
+time (canonicalisation + HMAC-SHA256). Read off the serial console,
+`boot_id = 33`, NTP-synced:
 
-| Stage | Min | Max | Mean (n=4) |
-| --- | --- | --- | --- |
-| Sampling (32× I2C read) | 26 ms | 30 ms | 27.2 ms |
-| Feature extraction (incl. DFT) | 134 ms | 136 ms | 134.5 ms |
-| Sign (canonicalise + HMAC-SHA256) | 9 ms | 10 ms | 9.2 ms |
-| **Total on-device compute** | | | **~171 ms** |
+```
+[latency] sampling=64ms feature_extraction= 97ms sign=9ms
+[latency] sampling=64ms feature_extraction=100ms sign=9ms
+[latency] sampling=64ms feature_extraction=101ms sign=9ms
+```
 
-At a 2000ms publish interval, that's a ~8.6% duty cycle — comfortable
-headroom, not close to falling behind. **Feature extraction dominates**,
-specifically the hand-rolled O(N²) DFT for `dominant_freq` (32 samples →
-16 frequency bins, each a full sine/cosine sum) run in interpreted
-MicroPython — consistent with, and larger than, the entire gateway-side
-full pipeline (Section 6: 43.5ms mean, including 4 ML models + fusion +
-policy + Level-2 explainability on real hardware, just PC-class CPU
-running compiled numpy/torch instead of an interpreted loop on a
-microcontroller). Signing is comparatively cheap — two SHA256 passes
-(HMAC's inner/outer padding) plus small-string canonicalisation, ~9ms.
-A small sample (n=4) from one session, not a statistically rigorous
-benchmark — sufficient to characterize where the time goes, not to bound
-tail latency precisely.
+| Stage | Measured | Share of cycle |
+|---|---|---|
+| Sampling (32 paced I2C reads) | **64 ms** (no variance) | 37% |
+| Feature extraction (5 features incl. 16-bin DFT) | **97–101 ms** | **58%** |
+| Sign (canonicalise + HMAC-SHA256) | **9 ms** | 5% |
+| **Total on-device compute** | **≈ 170–174 ms** | 8.6% of the 2000 ms publish interval |
+
+**These numbers replace an earlier, stale set, and the correction is worth
+recording because the stale figure was a fingerprint of a known defect.** Both
+this section and 13.4b previously reported sampling at **26 ms**, measured before
+the acquisition chain was paced (ADR-16). 32 samples at the old unpaced ~1231 Hz
+is exactly 26 ms; at the deployed 500 Hz it must be 64 ms, and it is. The two
+sections also disagreed with each other on feature extraction (134.5 ms against
+98–100 ms) while both being presented as measured. 13.4b's figure was the
+accurate one; the 134.5 ms came from an older firmware revision.
+
+**Sampling now shows zero variance across messages, and that is the point.** The
+old measurements ranged 26–30 ms because unpaced sampling ran as fast as I2C
+allowed, so the spread was I2C jitter. A deadline-paced loop is supposed to
+absorb exactly that, and an invariant 64 ms is the on-device evidence that it
+does — a live confirmation of ADR-16 rather than an inference from the constants.
+
+**Feature extraction still dominates**, at ~1.5× the sampling and ~11× the
+signing. `_dominant_frequency()` is a naive O(n·k) transform — 32 samples × 16
+bins = 512 sin/cos pairs per window, in interpreted MicroPython. Cryptography is
+not the bottleneck; the DFT is. If on-device latency ever needs to come down,
+that loop is the only thing worth touching, and an FFT would be the fix.
+
+For scale, the whole gateway-side pipeline (Section 6) — 4 ML models + fusion +
+policy + Level-2 explainability — runs in 22 ms on PC-class hardware with
+compiled numpy/torch. The microcontroller spends ~4.5× that on feature extraction
+alone.
+
+Small sample (n=3 consecutive messages from one session): enough to characterise
+where the time goes and to confirm the pacing, not to bound tail latency.
 
 ### 13.2 Real Physical Data Collection — baseline done, adversarial testing still pending
 
@@ -1560,41 +2214,41 @@ timing Section 13.1 covers.
 
 ---
 
-### 13.4b On-device latency and footprint — measured on the real ESP32
+### 13.4b On-device footprint — measured on the real ESP32
 
-Captured from `firmware/main.py`'s own instrumentation on the board's serial
-console (boot_id 21, NTP-synced). These are real on-device numbers, not the
-simulated-device-process proxy used elsewhere in this document. Timing uses
-`time.ticks_diff()`, which is the wraparound-correct comparison — naive
-subtraction on `ticks_ms()` is wrong across the wrap.
-
-| Stage | Measured | Share of cycle |
-|---|---|---|
-| Sampling (32 I2C reads) | **26 ms** | 19% |
-| Feature extraction (5 features incl. 16-bin DFT) | **98–100 ms** | **74%** |
-| HMAC-SHA256 sign | **9 ms** | 7% |
-| **Total per message** | **≈ 133–135 ms** | of a 2000 ms publish interval |
-
-So the board spends about **6.7%** of each cycle working and the rest idle,
-which is ample headroom. But the distribution is lopsided in a way worth
-naming: **feature extraction costs ~4× the sampling and ~11× the signing.**
-Cryptography is not the bottleneck here — the DFT is. `_dominant_frequency()`
-is a naive O(n·k) transform, 32 samples × 16 bins = 512 sin/cos pairs per
-window, and it dominates the entire on-device budget. If this ever needs to be
-faster, that loop is the only thing worth optimising; the HMAC is noise by
-comparison.
+Latency has been consolidated into Section 13.1 rather than reported twice; this
+section previously carried a second, partly-conflicting table (sampling 26 ms,
+feature extraction 98–100 ms, total 133–135 ms). The sampling figure predated the
+500 Hz pacing and the total was understated accordingly. **Current measured
+totals are in 13.1: 64 / 97–101 / 9 ms, ≈ 172 ms per message, 8.6% duty cycle.**
 
 Deployment footprint, printed after full init:
 
 | Resource | Free | Used | Total |
 |---|---|---|---|
-| RAM | 98,432 B | 16,960 B | 115,392 B (14.7% used) |
+| RAM | 98,368 B | 17,024 B | 115,392 B (14.8% used) |
 | Flash filesystem | 2,084,864 B | 12,288 B | 2,097,152 B (0.6% used) |
+
+Re-read at `boot_id = 33` on the current firmware; the earlier reading (98,432 /
+16,960 B) differs by 64 B, i.e. allocator noise, not drift.
 
 Both are comfortable. The whole pipeline — WiFi, TLS, MQTT, sensor driver,
 feature extraction and HMAC — fits in under 17 KB of allocated RAM.
 
 ### 13.4c A real defect these numbers exposed: `SAMPLE_RATE_HZ` is fiction
+
+> **RESOLVED — this section is the historical record of a defect that is fixed.**
+> Everything below is written in the present tense and describes the state
+> *before* ADR-16. The acquisition chain is now 500 Hz deadline-paced with the
+> MPU6050's DLPF at 184 Hz and a 32-sample window, and the fix is confirmed on
+> device: sampling measures an invariant **64 ms** (= 32/500 Hz) against the
+> 26–30 ms recorded here, with the variance gone because the loop is paced rather
+> than free-running (Section 13.1). `SAMPLE_RATE_HZ` and
+> `FEATURE_SAMPLE_RATE_HZ` are both 500 and a test enforces that they agree.
+> Kept rather than deleted because the diagnosis is the useful part: three
+> successive defects lived in this chain and each only became visible once the
+> previous was fixed.
+
 
 The latency figures are not just a performance note; they falsify a constant.
 

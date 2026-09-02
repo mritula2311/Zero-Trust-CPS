@@ -31,7 +31,7 @@ from config import (
     LSTM_EPOCHS,
     LSTM_LEARNING_RATE,
     FEATURE_VECTOR_DEVICE_IDS,
-    FEATURE_NAMES,
+    FEATURE_NAMES, TRAINING_SEED,
 )
 import feature_engineering as fe
 from lstm_ae_scorer import LSTMAutoencoder, _TORCH_DEVICE
@@ -43,7 +43,7 @@ def train_one(records, device_id) -> bool:
     """Trains ONE device's LSTM-AE + normalization/baseline stats on ITS OWN
     normal readings, saving both to that device's per-device paths. Returns
     True if trained, False if too few examples (skipped, not fatal)."""
-    torch.manual_seed(0)
+    torch.manual_seed(TRAINING_SEED)
     normal = [
         r for r in records
         if r["device_id"] == device_id and r["label"] == 1 and r["auth_ok"]

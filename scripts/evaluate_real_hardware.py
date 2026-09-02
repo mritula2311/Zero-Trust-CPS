@@ -56,11 +56,31 @@ NORMAL_PHASES = {"at_rest"}
 INTERMITTENT_PHASES = {"gentle_tap", "tilt_rotate", "sharp_impact"}
 
 
+def wilson(k, n, z=1.96):
+    """95% Wilson score interval for a binomial proportion.
+
+    Reported because these denominators are small and a bare percentage invites
+    a precision the data does not carry: 1/29 is "3.4%", but the interval runs to
+    roughly 17%. Wilson rather than the normal approximation because the latter
+    is badly behaved exactly here -- near 0 or 1, and at small n, it produces
+    intervals that leave the [0,1] range."""
+    if n == 0:
+        return (0.0, 0.0)
+    p = k / n
+    d = 1 + z * z / n
+    centre = (p + z * z / (2 * n)) / d
+    half = z * ((p * (1 - p) / n + z * z / (4 * n * n)) ** 0.5) / d
+    return (max(0.0, centre - half), min(1.0, centre + half))
+
+
+
 def load_sessions():
     rows = []
     for path in sorted(glob.glob(os.path.join(DATA_COLLECTED_DIR, "*_labelled.json"))):
         with open(path) as f:
             session = json.load(f)
+        for r in session:
+            r["_session"] = os.path.basename(path)
         rows.extend(session)
         print(f"  {os.path.basename(path)}: {len(session)} labelled records")
     return rows
@@ -90,12 +110,20 @@ def score_all(rows):
     if_s, gnn_s, fusion = IsolationForestScorer(), GNNScorer(), FusionEngine()
     out = []
     lstm_s = LSTMAEScorer()
-    prev_phase = None
+    # Keyed on (session, phase), not phase alone. Sessions are concatenated in
+    # filename order and each one both starts and ends with `at_rest`, so keying
+    # on phase alone leaves NO reset at the seam: the last at_rest block of one
+    # capture and the first of the next -- hours apart, different desk, different
+    # board handling -- would be joined into windows that never existed. That is
+    # the same "window straddling two physical states" error this reset exists to
+    # prevent, just across a file boundary instead of a phase boundary.
+    prev_block = None
     warmup = 0
     for r in rows:
-        if r.get("phase") != prev_phase:
+        block = (r.get("_session"), r.get("phase"))
+        if block != prev_block:
             lstm_s = LSTMAEScorer()   # fresh rolling window per physical state
-            prev_phase = r.get("phase")
+            prev_block = block
             warmup = 0
         warmup += 1
         reading = r["reading"]
@@ -110,7 +138,28 @@ def score_all(rows):
         gnn_s.score("actuator-001", 0.9, 0.9, 0.9)
         gnn = gnn_s.score(DEVICE, rule, iso, lstm)
         fused, _, _ = fusion.combine(rule, iso, lstm, gnn)
-        if warmup >= LSTM_SEQ_LEN:      # only score once the window is genuinely full
+        # Drop 2*LSTM_SEQ_LEN-1, not LSTM_SEQ_LEN-1. Filling the window is not the
+        # same as clearing the block's own settling disturbance out of it: a window
+        # scored at index 7 still CONTAINS messages 0..7, and messages 0..7 are the
+        # seconds right after the operator pressed ENTER and stepped away from the
+        # desk. Measured on the fault session: the baseline at_rest block carried
+        # peak 0.0768 g at i=4 and 0.0436 g at i=6 (against a block median of
+        # 0.0195), and because one contaminated sample poisons every window it
+        # slides through, all 6 scored windows in that block failed with lstm=0.000
+        # while iso read 0.265-1.000 on the same samples.
+        #
+        # This is what the reset at the top of the loop already exists to prevent --
+        # "every window straddling a boundary contains two different physical
+        # states" -- so scoring the first LSTM_SEQ_LEN windows contradicted the
+        # stated rationale. Corrected: no scored window contains any of the block's
+        # first LSTM_SEQ_LEN messages.
+        #
+        # It costs sample size, and that cost is real and reported: operator-marked
+        # resting windows fall 83 -> 29 across the corpus. The permissive rule gives
+        # 10/83 (12.0%) false positives, this one gives 1/29 (3.4%); detection is
+        # 100% either way. Both numbers are in RESULTS.md 0.10.10 rather than only
+        # the flattering one.
+        if warmup >= 2 * LSTM_SEQ_LEN:
             out.append({**r, "rule": rule, "iso": iso, "lstm": lstm, "gnn": gnn, "fused": fused})
     return out
 
@@ -148,15 +197,19 @@ def main():
 
     print()
     if normal:
-        fp = sum(1 for r in normal if r["fused"] < PROCESS_THRESHOLD) / len(normal)
+        k = sum(1 for r in normal if r["fused"] < PROCESS_THRESHOLD)
+        fp = k / len(normal)
+        lo, hi = wilson(k, len(normal))
         print(f"FALSE POSITIVE RATE on a genuinely resting board: {fp:.1%} "
-              f"({sum(1 for r in normal if r['fused'] < PROCESS_THRESHOLD)}/{len(normal)})")
+              f"({k}/{len(normal)})   95% CI [{lo:.1%}, {hi:.1%}]")
         print(f"  fused median {st.median([r['fused'] for r in normal]):.3f}, "
               f"min {min(r['fused'] for r in normal):.3f}")
     if events:
-        det = sum(1 for r in events if r["fused"] < PROCESS_THRESHOLD) / len(events)
+        kd = sum(1 for r in events if r["fused"] < PROCESS_THRESHOLD)
+        det = kd / len(events)
+        lo, hi = wilson(kd, len(events))
         print(f"DETECTION RATE on real physical disturbance:      {det:.1%} "
-              f"({sum(1 for r in events if r['fused'] < PROCESS_THRESHOLD)}/{len(events)})")
+              f"({kd}/{len(events)})   95% CI [{lo:.1%}, {hi:.1%}]")
 
     # The honest caveat: some labelled-action windows contain no action.
     if normal and events:
@@ -173,6 +226,28 @@ def main():
             print(f"  Detection on the {len(loud)} windows that DO contain movement: {det_loud:.1%}")
             print(f"  Reported both ways rather than silently excluding the quiet ones, which")
             print(f"  would measure labelling granularity rather than the model.")
+
+    by_src = collections.defaultdict(list)
+    for r in scored:
+        by_src[r.get("label_source", "unknown")].append(r)
+    if len(by_src) > 1:
+        print()
+        print("Split by LABEL PROVENANCE -- `operator_mark` was recorded live at the")
+        print("moment of each action; `transcript_reconstruction` was recovered from a")
+        print("failed capture's console output. They are not the same grade of evidence")
+        print("and are not averaged into a single headline here.")
+        for src in sorted(by_src):
+            v = by_src[src]
+            nrm = [r for r in v if r["phase"] in NORMAL_PHASES]
+            evt = [r for r in v if r["phase"] not in NORMAL_PHASES]
+            fp = sum(1 for r in nrm if r["fused"] < PROCESS_THRESHOLD)
+            dt = sum(1 for r in evt if r["fused"] < PROCESS_THRESHOLD)
+            fci = f" [{wilson(fp, len(nrm))[0]:.0%}, {wilson(fp, len(nrm))[1]:.0%}]" if nrm else ""
+            dci = f" [{wilson(dt, len(evt))[0]:.0%}, {wilson(dt, len(evt))[1]:.0%}]" if evt else ""
+            print(f"  {src:26s} FP {fp}/{len(nrm)}"
+                  f"{f' ({fp / len(nrm):.1%})' if nrm else ''}{fci}"
+                  f"   detection {dt}/{len(evt)}"
+                  f"{f' ({dt / len(evt):.1%})' if evt else ''}{dci}")
 
     print()
     print("Note this measures PHYSICAL anomaly discrimination on real hardware, not")
