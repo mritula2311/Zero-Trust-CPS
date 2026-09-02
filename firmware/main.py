@@ -60,6 +60,27 @@ MQTT_USE_AUTH = True
 MQTT_USERNAME = "esp32-vib-001"
 MQTT_PASSWORD = "CHANGE-ME-match-secrets_local.py-MQTT_PASSWORDS"
 
+# Offset to convert this board's RTC to UTC when NTP could NOT be reached.
+#
+# Why this exists: on an isolated laptop hotspot with no internet route (this
+# deployment -- see config.REPLAY_WINDOW_SECONDS' comment), ntptime.settime()
+# always fails, so the RTC holds whatever last set it. Thonny sets it on every
+# connect, and Thonny's ESP32 backend runs with `local_rtc: True`, meaning it
+# writes LOCAL time, not UTC. The gateway compares `ts` against its own
+# time.time(), which is UTC-based, so an un-corrected local RTC makes every
+# message look exactly one timezone offset into the future and it is rejected
+# as stale_timestamp -- observed live at +19784s, i.e. exactly IST's +5:30.
+#
+# This replaced a hardcoded `machine.RTC().datetime((2026, 9, 1, ...))` line.
+# That worked only on the day it was written: it pinned the clock to a fixed
+# instant, so it silently drifted a day further out of date every day, and its
+# failure mode was a plausible-looking wrong time rather than an obvious one.
+# An offset does not rot -- it stays correct as long as the timezone does.
+#
+# Set to 0 if the board HAS a working NTP route, or if your IDE syncs UTC.
+# Ignored entirely when NTP succeeds, since NTP sets a true UTC clock.
+RTC_LOCAL_UTC_OFFSET_SECONDS = 5 * 3600 + 30 * 60   # IST (UTC+5:30)
+
 MPU6050_I2C_ADDR = 0x68
 
 TELEMETRY_TOPIC = b"cps/telemetry"
@@ -103,13 +124,16 @@ def sync_time():
     for attempt in range(1, 4):
         try:
             ntptime.settime()
-            print("[time] synced via NTP")
-            return
+            print("[time] synced via NTP -- RTC is true UTC, no offset needed")
+            return True
         except Exception as e:
             print("[time] NTP sync attempt %d/3 failed:" % attempt, e)
             if attempt < 3:
                 time.sleep_ms(2000)
-    print("[time] NTP sync failed after 3 attempts (non-fatal, see comment above)")
+    print("[time] NTP sync failed after 3 attempts -- treating the RTC as LOCAL time and")
+    print("[time] subtracting RTC_LOCAL_UTC_OFFSET_SECONDS =", RTC_LOCAL_UTC_OFFSET_SECONDS,
+          "to get UTC (see that constant's comment)")
+    return False
 
 
 def load_and_increment_boot_id():
@@ -424,7 +448,9 @@ def on_message(topic, msg):
 def main():
     global _pending_step_up_nonce
     connect_wifi()
-    sync_time()
+    # 0 when NTP gave us a true UTC clock; the timezone offset when it did not
+    # and the RTC therefore holds local time. See RTC_LOCAL_UTC_OFFSET_SECONDS.
+    _utc_offset = 0 if sync_time() else RTC_LOCAL_UTC_OFFSET_SECONDS
     mpu6050_init()
     client = connect_mqtt()
     client.set_callback(on_message)
@@ -469,12 +495,18 @@ def main():
             continue
 
         try:
-            # MicroPython's time.time() counts seconds since 2000-01-01, not the
-            # Unix epoch (1970-01-01) the gateway's time.time() uses -- NTP sync
-            # sets the RTC correctly but doesn't change that reference point, so
-            # the fixed 946684800s gap must be added here or every message looks
-            # ~30 years stale to check_timestamp_freshness().
-            ts_ms = int((time.time() + 946684800) * 1000)
+            # Two corrections, both needed before the gateway's freshness check
+            # (check_timestamp_freshness) will accept this message:
+            #   1. MicroPython's time.time() counts seconds since 2000-01-01, not
+            #      the Unix epoch (1970-01-01) the gateway uses. NTP sets the RTC
+            #      correctly but does not change that reference point, so the fixed
+            #      946684800s gap is always added or every message looks ~30 years
+            #      stale.
+            #   2. If NTP could NOT be reached, the RTC holds LOCAL time (whatever
+            #      the IDE last synced -- Thonny writes local time), so the
+            #      timezone offset is subtracted to get UTC. When NTP succeeded the
+            #      RTC is already true UTC and _utc_offset is 0.
+            ts_ms = int((time.time() + 946684800 - _utc_offset) * 1000)
             seq += 1
 
             nonce_to_echo = _pending_step_up_nonce

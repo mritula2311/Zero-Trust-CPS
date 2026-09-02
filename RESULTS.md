@@ -132,6 +132,54 @@ exactly. A hardcoded `machine.RTC().datetime(...)` line was also removed:
 it left a wrong-but-plausible clock whenever NTP failed, which is worse
 than an obviously-wrong one.
 
+#### 0.5b Clock handling: a regression this fix caused, and the proper repair
+
+Removing the hardcoded `machine.RTC().datetime(...)` line was correct in intent
+but wrong as executed, and it broke the board on the next flash: every message
+was **REJECTED (stale_timestamp)**.
+
+The measured cause: the board's clock sat **+19,784s** ahead of the gateway --
+exactly **5h30m**, the IST offset. This deployment has no NTP route (an isolated
+laptop hotspot; see `config.REPLAY_WINDOW_SECONDS`' own comment), so
+`ntptime.settime()` always fails and the RTC holds whatever last set it. Thonny's
+ESP32 backend runs with `local_rtc: True`, so it writes **local** time, not UTC,
+while the firmware adds the 2000-to-1970 epoch gap assuming UTC. The deleted line
+had been silently overwriting Thonny's local-time sync with an explicit UTC
+value.
+
+The repair is **not** a restored hardcoded date -- that genuinely was rotting,
+pinned to one instant and drifting a day further out every day, failing with a
+plausible-looking wrong time rather than an obvious one. Instead
+`firmware/main.py` defines `RTC_LOCAL_UTC_OFFSET_SECONDS` and applies it **only
+when NTP fails**: `sync_time()` now returns whether it succeeded, so a real NTP
+sync gives a true UTC clock and a zero offset, while a failure means the RTC
+holds local time and the offset converts it. An offset does not rot the way a
+fixed date does, and enabling internet sharing on the hotspot bypasses it
+automatically.
+
+Verified against the exact observed failure: `19784.5 - 19800 = -15.5s` residual,
+well inside the 600s window. Confirmed live after re-flashing -- clock delta
+**+2.3s to +21.3s**, and **46 consecutive accepted rows (45 ALLOW, 1 ALERT)**
+with zero `stale_timestamp` rejections.
+
+#### 0.5c Did the frequency fix actually change real telemetry?
+
+Comparing at-rest readings (`rms < 1.1`) before and after the re-flash:
+
+| At-rest `dominant_freq` | Pre-fix (buggy `_sin`) | Post-fix (`math.sin`) |
+|---|---|---|
+| lowest bin, 3.125 Hz | 35.1% | **64.7%** |
+| above 12.5 Hz | **17.4%** | **5.9%** |
+| tail extends to | 50.0 Hz | 15.6 Hz |
+
+(n=316 pre, n=34 post.) The spurious high-frequency tail largely disappears and
+the distribution concentrates where a board at rest should sit, consistent with
+the 19% wrong-bin rate measured offline. Stated honestly: **34 post-fix samples
+is a small sample** and this comparison is directional corroboration, not proof
+on its own -- the conclusive evidence remains the offline check, where the fixed
+firmware reproduces `feature_engineering.dominant_frequency()` exactly across
+300 windows (0 mismatches) while the old code missed 57.
+
 ### 0.6 Verified outcome, on live hardware
 
 | Check | Before | After |

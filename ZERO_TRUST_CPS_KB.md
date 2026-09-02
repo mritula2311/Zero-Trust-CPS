@@ -467,6 +467,15 @@ off by up to 46.9 Hz — a silent train/serve skew present only on real telemetr
 Firmware now reproduces `feature_engineering.dominant_frequency()` exactly
 (**0/300** mismatches).
 *Rejected:* Keeping the approximation — it saved nothing measurable.
+*Follow-up (a regression this caused):* the same change removed a hardcoded
+`machine.RTC().datetime(...)` line, which broke the next flash — every message
+was rejected as `stale_timestamp`, the board measuring **+19,784s ≈ 5h30m**
+ahead. This deployment has no NTP route, so the RTC holds whatever last set it,
+and Thonny syncs **local** time (`local_rtc: True`) while the firmware assumes
+UTC. Repaired with `RTC_LOCAL_UTC_OFFSET_SECONDS`, applied only when
+`sync_time()` reports NTP failed — an offset does not rot the way a pinned date
+does, and a working NTP route bypasses it automatically. **Do not "simplify"
+this back to a fixed timestamp.**
 
 **ADR-10 — HTTPS substituted for CoAP/DTLS.**
 *Chosen:* A stdlib HTTPS server as the second secured transport.
