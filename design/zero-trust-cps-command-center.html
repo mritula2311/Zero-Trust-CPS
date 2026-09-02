@@ -37,13 +37,17 @@
   .pill b{color:var(--txt)} .ok{color:var(--green)} .bad{color:var(--red)} .warn{color:var(--amber)}
   .sdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:middle}
 
-  .grid{display:grid;gap:16px;margin-top:16px;grid-template-columns:repeat(12,1fr);grid-auto-rows:min-content}
+  /* align-items:start so a short card sizes to its own content instead of
+     stretching to match a tall neighbour and showing a large empty void
+     inside its border (the RL table next to the IEC panel did exactly that). */
+  .grid{display:grid;gap:16px;margin-top:16px;grid-template-columns:repeat(12,1fr);
+    grid-auto-rows:min-content;align-items:start}
   .card{background:linear-gradient(180deg,var(--panel),#0b111c);border:1px solid var(--edge);border-radius:14px;padding:16px 17px;min-width:0}
   .card h2{font-size:12px;letter-spacing:.9px;text-transform:uppercase;color:var(--muted);margin:0 0 13px;font-weight:700;display:flex;align-items:center;gap:8px}
   .card h2 .tag{margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--dim);text-transform:none;letter-spacing:0}
   .span12{grid-column:span 12}.span8{grid-column:span 8}.span6{grid-column:span 6}
   .span5{grid-column:span 5}.span4{grid-column:span 4}.span7{grid-column:span 7}
-  @media(max-width:1240px){.span8,.span7,.span5,.span4{grid-column:span 6}}
+  @media(max-width:1240px){.span8,.span7,.span6,.span5,.span4{grid-column:span 6}}
   @media(max-width:860px){.grid>*{grid-column:span 12!important}}
 
   /* device cards */
@@ -311,7 +315,7 @@
       </div>
       <div id="val"></div>
     </section>
-    <section class="card span4">
+    <section class="card span6">
       <h2>IEC 62443-3-3 FRs <span class="tag" id="iectag"></span></h2>
       <div class="why">
         The seven Foundational Requirements. <b><span class="ok">implemented</span></b> means a
@@ -323,7 +327,7 @@
       <div id="iec"></div>
       <div class="note" id="iecnote"></div>
     </section>
-    <section class="card span4">
+    <section class="card span6">
       <h2>RL Policy — what the gateway would decide <span class="tag">process bucket = 9</span></h2>
       <div class="why">
         The deployed policy sliced at process bucket 9 (process score 0.9–1.0), one row per
