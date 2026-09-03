@@ -1,5 +1,5 @@
 # Product Requirements Document
-## A Two-Score Zero-Trust Framework for Cyber-Physical Systems
+## Explainable Zero-Trust Trust Evaluation for Cyber-Physical Systems Using Ensemble Anomaly Detection and Graph Neural Networks
 
 | | |
 |---|---|

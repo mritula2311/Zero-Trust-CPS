@@ -1,7 +1,6 @@
 # Zero-Trust CPS Starter Kit
 
-> Reference implementation for the paper **"A Two-Score Zero-Trust Framework for
-> Cyber-Physical Systems."** See `PRD.md` for requirements and novelty,
+> Reference implementation for the paper **"Explainable Zero-Trust Trust Evaluation for Cyber-Physical Systems Using Ensemble Anomaly Detection and Graph Neural Networks."** See `PRD.md` for requirements and novelty,
 > `METHODOLOGY.md` for the method and mathematics.
 
 
