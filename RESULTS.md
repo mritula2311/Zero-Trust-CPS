@@ -986,7 +986,187 @@ engineered on demand with a phone appeared from ordinary bench conditions, which
 is a reminder that the deployment environment supplies disturbances the test plan
 does not.
 
-### 0.10.15 Future work, with the measurement that motivates each
+### 0.10.15 Per-device predictions: the real board versus the simulated ones
+
+The ablation table blends all three devices, which hides the only comparison that
+matters for a hardware-in-the-loop claim. Split by device on the held-out
+synthetic set:
+
+| device | kind | n | rule | iso | lstm | gnn | fused | accuracy |
+|---|---|---|---|---|---|---|---|---|
+| esp32-vib-001 | **real**, feature_vector | 1050 | 0.900 | 0.884 | 0.000 | 0.730 | 0.042 | **0.401** |
+| sensor-002 | simulated, scalar | 1000 | 0.900 | 0.900 | 0.900 | 0.734 | 0.952 | 0.854 |
+| actuator-001 | simulated, scalar | 933 | 0.900 | 0.900 | 0.900 | 0.733 | 0.952 | 0.848 |
+
+Read naively this says the models are catastrophically worse on the real device.
+**They are not.** Splitting the normal class by window residue — a message that is
+itself normal but sits within `LSTM_SEQ_LEN` of a recent injected attack, so its
+window straddles the attack:
+
+| device | all normals | residue-contaminated | **clean normals** |
+|---|---|---|---|
+| esp32-vib-001 | 580/794 (73.0%) | 580/754 (76.9%) | **0/40 (0.0%)** |
+| sensor-002 | 92/907 (10.1%) | 49/527 (9.3%) | 43/380 (11.3%) |
+| actuator-001 | 88/840 (10.5%) | 46/481 (9.6%) | 42/359 (11.7%) |
+
+**Every one of the real device's 580 false positives is window residue, and on
+genuinely clean normals it is 0/40 — perfect.** The simulated devices show no
+residue effect at all (9.3% against 11.3%), because they have no sequence model:
+they mirror `rule_score` into the IF/LSTM slots, and a scalar has no window to
+contaminate.
+
+The cause is dataset design, not modelling. **95.0% of esp32's "normal" test rows
+are residue-contaminated**, because `generate_test_data.py` injects
+`anomalous_shock`/`coordinated`/`stealthy`/`high_rate` every 12-30 ticks against
+an 8-message window. Most nominally-normal esp32 messages are therefore
+recovery-period messages, not steady-state baseline.
+
+Three consequences worth stating plainly:
+
+1. **The blended fused accuracy of 0.717 is dominated by this artefact**, not by
+   model quality. It is a property of the attack-injection schedule.
+2. **The real-hardware result is the trustworthy one**: 1/29 false positives on
+   operator-labelled data, which agrees with the 0/40 clean-normal figure and
+   disagrees with 73% only because the synthetic set has almost no clean rows.
+3. **Any future dataset extension must keep injection density low relative to the
+   sequence window**, or the pool of genuinely clean normals collapses and
+   per-signal evaluation measures the schedule instead of the model.
+
+### 0.10.16 Governance: the seventh falsifier, previously excluded in error
+
+The falsifiability self-test injected each tenet's own falsifier and reported
+**6/6**, with Tenet 5 excluded on the stated grounds that "its falsifier is
+missing data, not a bad row, which cannot be constructed".
+
+That reasoning was wrong. T5 asks whether every device in `DEVICE_REGISTRY`
+produced at least one audit row, so its falsifier is **a row set covering fewer
+devices than the registry** — an ordinary row list, not an absence. Injected as
+one row for one registered device, the check correctly returns FAIL.
+
+**Now 7/7 tenets validated and 7/7 falsifiers demonstrably rejected.** The case is
+built from the live registry rather than a hardcoded device id, so it cannot drift
+out of step with it.
+
+Worth recording as more than a bookkeeping fix. The claim this project makes about
+governance is that its compliance checks are falsifiable rather than asserted, and
+a check excluded from the falsifiability test on a mistaken premise is exactly the
+kind of quiet gap that claim exists to prevent. Finding one is the self-test
+working.
+
+### 0.10.17 Live adversarial testing — and the vulnerability it found
+
+Until now every attack in this project was synthetic, injected into an evaluation
+harness. `scripts/attack_live_gateway.py` fires genuinely hostile MQTT messages at
+a running gateway and reads its own audit log back to confirm each was rejected.
+Threat model: the attacker holds the broker credentials (insider / stolen laptop)
+but **not** the per-device HMAC secret — the exact threat this design targets.
+
+Five attacks over a live transport, against the running board:
+
+| attack | threat | outcome |
+|---|---|---|
+| forged_signature | broker creds, guessed HMAC key | rejected (`hmac_mismatch`) |
+| tampered_payload | signature over different values | rejected (`hmac_mismatch`) |
+| unregistered_device | an id never registered | rejected (`unknown_device_id`) |
+| stale_forged | old timestamp + forged key | rejected |
+| captured_replay | a real past envelope re-sent | rejected (boot/seq anti-replay) |
+
+**5/5 rejected at Module 1/2, before any model ran.** But the first run exposed a
+real vulnerability, which is the point of doing this live.
+
+#### The vulnerability: a rejected message could mutate device state
+
+The gateway's order was `HMAC → check_boot_replay → check_timestamp_freshness`.
+`check_boot_replay` **advanced** the stored `last_seen_boot_id` as a side effect of
+its check. A validly-signed message with an inflated `boot_id` (999) therefore:
+
+1. passed HMAC,
+2. advanced the stored boot baseline to 999 inside `check_boot_replay`,
+3. was **then** rejected by the freshness gate.
+
+A rejected message had mutated the device's anti-replay state — directly violating
+the invariant *"a rejected message must never touch the claimed device's state"*.
+The consequence was live and total: the real board, on `boot_id 34`, now read as
+`replay_of_superseded_boot_session` (34 < 999) on every subsequent message and was
+**locked out entirely**. This is a denial-of-service against a legitimate device.
+
+This specific exploit needed the HMAC secret (to pass step 1), so it is not
+remotely triggerable — but the same ordering fires on any validly-signed message
+that later fails freshness, which a real device hits during the exact clock-skew
+condition this project has seen before. The invariant existed precisely to prevent
+this class, and it had a hole.
+
+#### The fix
+
+`check_boot_replay` is now a **pure predicate** — it reads state and returns a
+verdict, mutating nothing. A new `commit_boot_seq()` advances the baseline, and the
+gateway calls it **only after every authentication gate has passed**. State can no
+longer advance on a message that is ultimately rejected, regardless of check order,
+and the commit is monotonic so an accepted-but-late message cannot lower it.
+
+Verified live: after the fix, the same attack class was re-run against the board
+and the board **stayed at ALLOW (14/20 decisions)** through it — the stale/replay
+messages left its state untouched. Guarded by `TestBootReplayStateIsolation`
+(3 tests): the predicate does not mutate, a rejected stale high-`boot_id` message
+does not lock out the real device, and the commit is monotonic.
+
+This is the strongest single argument in the project for hardware-in-the-loop
+adversarial testing: the bug was invisible to every synthetic evaluation because
+those never sent a validly-signed-but-stale message with an inflated boot id at a
+live gateway holding real per-device state.
+
+### 0.10.18 GNN seed stability, severity ranking, and the FP interval — three items reframed by measurement
+
+All three were on the "solvable" list. Measured, two are non-problems dressed as
+problems and one is blocked by the bench environment. Recording the reframing
+rather than forcing a fix is the honest outcome.
+
+**GNN seed variance is in the wrong metric.** The concern was accuracy sd 0.011
+across seeds. A learning-rate sweep (3 seeds each, GNN retrained standalone):
+
+| lr | accuracy sd | coordinated recall |
+|---|---|---|
+| 0.05 (deployed) | 0.0138 | 0.974 / 1.0 / 0.974 (sd 0.015) |
+| 0.01 | 0.0213 (worse) | 1.0 / 1.0 / 1.0 (sd 0.000) |
+
+Lowering the lr does **not** cut accuracy variance — it raises it, from
+under-convergence at 150 epochs. What it does is make **coordinated recall
+perfectly stable**. That is the tell: the GNN exists for `coordinated` detection,
+and that metric is stable at deployed settings (never below 0.974) and rock-solid
+at lower lr. The accuracy variance lives in classes the GNN does not own, and
+0.10.12 already proved it changes **zero** decisions across a neighbour sweep. The
+fix is to report the metric the GNN is responsible for, not to tune away a
+decision-irrelevant wobble — which would trade real convergence for a cosmetic
+number. The lr/epochs are now env-overridable (`ZTCPS_GNN_LR`) for reproducibility;
+the deployed default is unchanged.
+
+**Severity ranking is ill-posed, not unbuilt.** 0.10.9 attributed the LSTM-AE's
+inability to rank severity to window-averaging. Tested directly: a peak-aware
+statistic (max per-timestep error instead of mean) does **not** fix it — Spearman
+rho against ordinal intensity *drops*, 0.781 → 0.723, and `sharp_impact` still
+scores lowest. The raw peak feature within disturbance classes reaches only
+rho 0.245. The reason is that "severity" is not a scalar here: `sharp_impact` is
+high-rms / low-peak (impulsive), `moderate_shake` is high-peak / high-rms
+(sustained). They differ on **orthogonal physical axes**, so no single statistic —
+reconstruction error, peak, or rms — can totally order them. The system already
+exposes all five features per message, which *is* the severity information,
+per-axis; collapsing it to one rank is the ill-posed step. Recorded as a
+correction to 0.10.9, whose window-averaging explanation was incomplete.
+
+**The false-positive interval cannot be tightened under current bench conditions.**
+n=29 gives [0.6%, 17.2%]; halving the half-width needs ~120 clean resting samples.
+A 5-minute capture collected 133 — but they are **not reference rest**: the
+`dominant_freq` concentrates 51% in one bin (31.25 Hz) against 21% scattered for
+operator-marked rest, i.e. a variable low-frequency source is coupled into the
+bench (the same class of disturbance as 0.10.14, milder). Scored, they flag 21.2%
+— which is **not a false-positive rate**, for exactly the reason the 93.75 Hz
+capture was not: the board is not at reference rest, so the pipeline is correctly
+flagging an ambient disturbance. The capture was discarded rather than reported as
+FP. Tightening the interval requires a genuinely quiet bench, which this
+environment does not currently provide — itself a reminder that a false-positive
+rate is only defined relative to a controlled resting condition (ADR-18).
+
+### 0.10.19 Future work, with the measurement that motivates each
 
 Not a wish list. Each item below is here because a specific measurement in this
 document reaches a limit and names what would move it.

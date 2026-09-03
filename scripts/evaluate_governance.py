@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 import audit_log
 import nist_mapping
-from config import NIST_TENETS
+from config import NIST_TENETS, DEVICE_REGISTRY
 import governance_validation
 
 
@@ -98,6 +98,18 @@ FALSIFIABILITY_CASES = {
         [{"device_id": "sensor-002", "auth_ok": 1, "decision": "ALLOW", "transport": "mqtt",
           "security_trust_score": 0.9, "process_trust_score": 0.9, "rule_score": 0.9,
           "fused_score": 0.9, "reason": ""}]),
+    # T5 was previously excluded as "not injectable -- its falsifier is missing
+    # data, not a bad row". That was wrong, and worth correcting rather than
+    # quietly dropping: the check asks whether every device in DEVICE_REGISTRY
+    # produced at least one audit row, so its falsifier is a row set that COVERS
+    # FEWER DEVICES THAN THE REGISTRY. That is perfectly constructible -- it is a
+    # row list, not an absence -- and an unwatched asset is exactly the condition
+    # the tenet exists to catch. Built from the live registry rather than a
+    # hardcoded id so it cannot drift out of step with it.
+    5: ("rows covering only one of the registered devices, leaving an asset nobody watches",
+        [{"device_id": sorted(DEVICE_REGISTRY)[0], "auth_ok": 1, "decision": "ALLOW",
+          "transport": "mqtt", "security_trust_score": 0.9, "process_trust_score": 0.9,
+          "rule_score": 0.9, "fused_score": 0.5, "reason": ""}]),
 }
 
 
@@ -106,8 +118,12 @@ def falsifiability_self_test():
     possible input is not a validation, so each tenet's own stated falsifier is
     injected here as a synthetic row set and the check must reject it.
 
-    Tenet 5 is excluded: its falsifier is a registered device with NO rows,
-    which is the absence of data rather than a row that can be constructed."""
+    All seven are injectable. Tenet 5 was previously excluded here on the grounds
+    that its falsifier was "missing data, not a row" -- but the check compares the
+    devices present in the rows against DEVICE_REGISTRY, so a row set covering
+    fewer devices than the registry falsifies it, and that is an ordinary row
+    list. The exclusion was a mistake, and correcting it is the point of having a
+    self-test at all."""
     print("\n" + "=" * 78)
     print("Falsifiability self-test -- can these checks actually fail?")
     print("=" * 78)
@@ -122,8 +138,9 @@ def falsifiability_self_test():
         print(f"  T{tenet} inject {description}")
         print(f"       -> {result['status']:10s} {'(correctly rejected)' if detected else '(NOT DETECTED -- check is vacuous)'}")
     print(f"\n{proved}/{len(FALSIFIABILITY_CASES)} checks demonstrably reject their own falsifier.")
-    print("Tenet 5 is not injectable (its falsifier is missing data, not a bad row) and is")
-    print("excluded from this count rather than assumed.")
+    print("All seven tenets are injectable. Tenet 5 was previously excluded as")
+    print("'not injectable'; that was wrong -- its falsifier is a row set covering fewer")
+    print("devices than DEVICE_REGISTRY, which is an ordinary row list.")
     return proved, len(FALSIFIABILITY_CASES)
 
 

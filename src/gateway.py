@@ -256,6 +256,14 @@ def _process_telemetry(envelope: dict, transport: str, transport_secured: bool) 
         _reject(device_id, "stale_timestamp", transport)
         return
 
+    # Anti-replay baseline advances ONLY here, after every gate above has passed.
+    # check_boot_replay is a pure predicate (see its docstring); committing the
+    # (boot_id, seq) any earlier would let a message that is ultimately rejected
+    # -- e.g. a validly-signed but stale one with an inflated boot_id -- mutate
+    # the stored boot state and lock out the real device. Found by live
+    # adversarial test; guarded by TestBootReplayStateIsolation.
+    trust_engine.commit_boot_seq(device_id, boot_id, seq)
+
     # -- Fully authenticated from here on. ----------------------------------
 
     # IEC 62443 FR7 "Resource Availability": a rate anomaly from a

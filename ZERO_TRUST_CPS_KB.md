@@ -867,6 +867,35 @@ place the normal region where the real board actually sits, however well
 calibrated.
 *Do not treat the real rows as a rounding error because they are 3% of the count.*
 
+**A rejected message COULD mutate anti-replay state -- found by live adversarial
+test, now fixed.** `check_boot_replay` advanced `last_seen_boot_id` as a side
+effect and ran BEFORE the freshness gate, so a validly-signed stale message with an
+inflated boot_id bumped the baseline and was then rejected -- a rejected message
+mutating device state, and it locked the real board out as
+`replay_of_superseded_boot_session`. Now `check_boot_replay` is a pure predicate
+and `commit_boot_seq()` advances the baseline only after every gate passes, called
+from gateway.py after the freshness check. Guarded by `TestBootReplayStateIsolation`.
+The exploit needed the HMAC secret, but the same ordering fires on a real device
+during clock skew, which this project has hit before. See `RESULTS.md` 0.10.17.
+
+**Synthetic test-set attack density makes the blended accuracy misleading.**
+95.0% of esp32-vib-001's "normal" test rows sit within `LSTM_SEQ_LEN` of an
+injected attack, because attacks land every 12-30 ticks against an 8-message
+window. Result: the real device shows **73.0%** false positives on all normals but
+**0/40 (0.0%)** on genuinely clean ones -- every failure is window residue. The
+simulated devices show no such effect (9.3% vs 11.3%) because they mirror
+`rule_score` and have no window to contaminate. *The blended fused accuracy of
+0.717 is a property of the injection schedule, not of the models*, and the
+real-hardware figure (1/29) is the trustworthy one. Keep injection density low
+relative to the sequence window in any dataset extension. See `RESULTS.md` 0.10.15.
+
+**Governance is 7/7 tenets and 7/7 falsifiers.** Tenet 5 was excluded from the
+falsifiability count for a long time as "not injectable -- its falsifier is missing
+data". Wrong: the check compares devices present in the rows against
+`DEVICE_REGISTRY`, so a row set covering fewer devices falsifies it, which is an
+ordinary row list. Corrected, and built from the live registry so it cannot drift.
+See `RESULTS.md` 0.10.16.
+
 **A stale model artifact is silent, and one cost every Transformer number
 published for a day.** `models/transformer_ae_esp32-vib-001.pt` sat at the
 previous day's build through ~6 full retrains because the documented training

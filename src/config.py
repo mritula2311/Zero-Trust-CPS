@@ -538,8 +538,15 @@ GNN_SELF_LOOP_WEIGHT = 3.0
 # this change.
 GNN_HIDDEN_SIZE = 32
 GNN_NUM_LAYERS = 3
-GNN_EPOCHS = 150
-GNN_LEARNING_RATE = 0.05
+# LR and epochs are env-overridable (ZTCPS_GNN_LR / ZTCPS_GNN_EPOCHS) so seed
+# stability can be swept without editing source. The GNN is the most
+# seed-sensitive signal (accuracy sd 0.011 across seeds, ~10x the fused model's),
+# and lr is the first knob to check because a high Adam lr lands different
+# initialisations in different minima. Deployed default kept unless a sweep shows
+# a lower lr cuts variance WITHOUT hurting coordinated recall (the metric the GNN
+# exists for) -- RESULTS.md 0.10.18.
+GNN_EPOCHS = int(os.environ.get("ZTCPS_GNN_EPOCHS", "150"))
+GNN_LEARNING_RATE = float(os.environ.get("ZTCPS_GNN_LR", "0.05"))
 # Node feature vector: [rule_score, isolation_forest_score, lstm_ae_score]
 GNN_NODE_FEATURE_DIM = 3
 

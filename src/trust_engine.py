@@ -294,21 +294,38 @@ class RuleBasedTrustEngine:
         attacker who captured a whole pre-reboot session cannot replay any
         message from it once a legitimate reboot has moved the device onto
         a new boot_id, even a message from very early in that old session."""
+        # PURE PREDICATE -- must not mutate auth state. The stored (boot_id, seq)
+        # is advanced ONLY by commit_boot_seq() below, which the gateway calls
+        # after EVERY authentication gate has passed. Found by live adversarial
+        # test: this check ran before check_timestamp_freshness, so a
+        # validly-signed but stale message with an inflated boot_id advanced the
+        # stored boot_id here and was THEN rejected for staleness -- a rejected
+        # message mutating device state, violating the "a rejected message never
+        # touches the claimed device's state" invariant, and locking out the real
+        # board (its now-lower boot_id read as a superseded-session replay).
         st = self._get_auth_state(device_id)
         if st.last_seen_boot_id is None:
-            st.last_seen_boot_id = boot_id
-            st.last_seen_seq = seq
             return False, "first_message"
         if boot_id > st.last_seen_boot_id:
-            st.last_seen_boot_id = boot_id
-            st.last_seen_seq = seq
             return False, "new_boot_session"
         if boot_id == st.last_seen_boot_id:
             if seq <= st.last_seen_seq:
                 return True, "replay_or_stale_sequence"
-            st.last_seen_seq = seq
             return False, "ok"
         return True, "replay_of_superseded_boot_session"
+
+    def commit_boot_seq(self, device_id: str, boot_id: int, seq: int) -> None:
+        """Advance the stored anti-replay baseline. Called by the gateway ONLY
+        after a message has cleared every authentication gate (HMAC, boot-replay,
+        freshness), so state never advances on a message that is ultimately
+        rejected. Monotonic: never moves the baseline backwards, so an
+        out-of-order-but-accepted message cannot lower it."""
+        st = self._get_auth_state(device_id)
+        if st.last_seen_boot_id is None or boot_id > st.last_seen_boot_id:
+            st.last_seen_boot_id = boot_id
+            st.last_seen_seq = seq
+        elif boot_id == st.last_seen_boot_id and seq > st.last_seen_seq:
+            st.last_seen_seq = seq
 
     def check_timestamp_freshness(self, ts_ms: int) -> bool:
         """Secondary check (Module 2 Section 4 Check 5), independent of the

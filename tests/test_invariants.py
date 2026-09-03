@@ -709,6 +709,48 @@ class TestSamplingContract(unittest.TestCase):
         self.assertNotIn("matches firmware/main.py's dt_ms=10 sampling loop", cfg)
 
 
+class TestBootReplayStateIsolation(unittest.TestCase):
+    """A rejected message must never mutate the claimed device's anti-replay
+    state. Found live: check_boot_replay advanced last_seen_boot_id before the
+    freshness gate ran, so a validly-signed but stale message with an inflated
+    boot_id bumped the baseline and was then rejected -- locking out the real
+    board, whose lower boot_id then read as a superseded-session replay."""
+
+    def setUp(self):
+        from trust_engine import RuleBasedTrustEngine
+        self.te = RuleBasedTrustEngine()
+        self.dev = "esp32-vib-001"
+        # establish a baseline: board on boot 33
+        self.te.commit_boot_seq(self.dev, 33, 10)
+
+    def test_predicate_does_not_mutate(self):
+        """check_boot_replay is pure: calling it never advances the baseline."""
+        st = self.te._get_auth_state(self.dev)
+        before = (st.last_seen_boot_id, st.last_seen_seq)
+        self.te.check_boot_replay(self.dev, 999, 500)   # a higher boot_id
+        self.assertEqual((st.last_seen_boot_id, st.last_seen_seq), before,
+                         "check_boot_replay mutated auth state -- it must be a pure predicate")
+
+    def test_rejected_stale_message_does_not_lock_out_the_real_device(self):
+        """The exact live scenario. An attacker message with boot_id 999 that
+        would fail freshness must not advance the baseline, so the real board on
+        boot_id 33 still authenticates afterwards."""
+        # attacker's inflated boot_id is only PREDICATE-checked, never committed
+        # (the gateway commits after freshness, which this message fails)
+        self.te.check_boot_replay(self.dev, 999, 500)
+        # real board, next legitimate message on boot 33
+        is_replay, reason = self.te.check_boot_replay(self.dev, 33, 11)
+        self.assertFalse(is_replay,
+                         f"real board locked out as '{reason}' after an attacker's "
+                         f"stale high-boot_id message -- state leaked from a rejected message")
+
+    def test_commit_is_monotonic(self):
+        """commit_boot_seq never moves the baseline backwards."""
+        self.te.commit_boot_seq(self.dev, 5, 1)         # lower than the boot-33 baseline
+        st = self.te._get_auth_state(self.dev)
+        self.assertEqual(st.last_seen_boot_id, 33, "commit moved the baseline backwards")
+
+
 class TestOperatorMarkedLabels(unittest.TestCase):
     """Timed-schedule labels were shown not to match physical reality
     (`at_rest_1` held a higher max rms than `moderate_shake`). Operator-marked

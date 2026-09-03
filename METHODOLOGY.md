@@ -97,6 +97,56 @@ three successive defects lived here, each invisible until the previous was fixed
 the deployed chain is confirmed on-device by an invariant 64 ms sampling time
 (`RESULTS.md` 13.1).
 
+### 3.1b What each model trains on, and why
+
+The same five features feed every Process Anomaly model, but each consumes them
+in a different **shape**, and that shape is the reason the ensemble is not
+redundant. A signal that cannot represent a pattern will never learn it, however
+much data it sees.
+
+| model | input shape | trains on | what that shape can represent | what it cannot |
+|---|---|---|---|---|
+| **Rule** | 1 vector (5 values) | nothing — fixed expected ranges from `config.DEVICE_REGISTRY` | physical implausibility (a disconnected sensor, an out-of-range reading) | anything statistical; it has no notion of "unusual but in range" |
+| **Isolation Forest** | 1 vector (5 values) | 4,088 **normal** esp32 vectors, unsupervised | a point far from the normal cloud in 5-D | anything about *order* — it sees one message at a time |
+| **LSTM-AE** | 8 × 5 window | 4,081 windows built from **normal** rows only | how the five features **evolve together over ~16 s** | cross-device patterns; each device is scored alone |
+| **Transformer-AE** | 8 × 5 window | same windows, trained as a **denoiser** | same as LSTM-AE, via self-attention instead of recurrence | same limits; measured statistically identical (r = 0.998) |
+| **GNN** | 3 nodes × 3 features (`rule`, `iso`, `lstm`) + adjacency | 29,576 graph snapshots, **supervised** per node | **simultaneous** anomalies across devices | single-device subtlety — it sees summaries, not raw features |
+| **Fusion** | 4 scores | 11,036 examples, `class_weight='balanced'` | which signal to trust in which regime | nothing new — it only weights what it is given |
+
+**Why train the autoencoders on normal data only?** Because the fault you care
+about has not happened yet. A supervised classifier needs labelled examples of
+the failure mode; an autoencoder needs only examples of health, and flags
+whatever it cannot reconstruct. That is the realistic condition for a deployment
+where the bearing has not worn out during the study.
+
+**Why does the GNN take the other models' scores as node features rather than raw
+features?** Two reasons. Raw features are device-specific — a vibration vector
+means nothing on a scalar device — while `[rule, iso, lstm]` is a common
+vocabulary every device speaks, so the graph can mix device types. And it keeps
+the graph layer's job to *relational* reasoning rather than re-learning point
+anomaly detection that the Isolation Forest already does well.
+
+**Why only `at_rest` real hardware rows become training data.** The 192 captured
+disturbance records are deliberately excluded: folding a shaken board in as
+"normal" would teach the models a fault is healthy. They are held out as the
+labelled test set, which is what makes 103/103 detection a result rather than
+recall of memorised data.
+
+**Measured evidence that the shapes are not redundant**, on `coordinated` — a
+simultaneous multi-device anomaly:
+
+| signal | input shape | recall |
+|---|---|---|
+| Isolation Forest | one vector | 0.316 |
+| LSTM-AE | one device's window | 0.308 |
+| Transformer-AE | one device's window | 0.308 |
+| **GNN** | **the graph** | **0.974** |
+
+The three single-device models are not undertrained. They **cannot see** the
+pattern — no amount of data about one device reveals that three moved together.
+That is the argument for including a graph layer at all, and it is the only event
+class where it pays.
+
 ### 3.2 Security Trust  `s_sec ∈ [0,1]`
 
 Computed from cyber evidence only — message rate, step-up challenge outcomes,
@@ -449,9 +499,13 @@ and measured.
 
 **2. Falsifiable compliance rather than a mapping table.** Each NIST SP 800-207
 tenet is validated against the hash-chained audit log, and then **each tenet's own
-falsifier is injected to prove the check can fail** — 6/6 rejected. Tenet 5 is
-excluded from that count and *stated as* excluded rather than assumed, because
-its falsifier is missing data rather than a bad row. *If a validation check
+falsifier is injected to prove the check can fail** — **7/7 rejected**. Tenet 5
+was for a long time excluded from that count as "not injectable, its falsifier is
+missing data rather than a bad row". That was wrong: the check compares the
+devices present in the rows against `DEVICE_REGISTRY`, so a row set covering
+fewer devices falsifies it, and that is an ordinary row list. Finding and
+correcting a wrongly-excluded case is precisely what a falsifiability self-test is
+for. *If a validation check
 cannot fail, it is not a check.*
 
 **3. Hardware-in-the-loop training, quantified.** Real hardware is **3.0%** of the
@@ -477,7 +531,18 @@ all. This is the evidence that the sequence model contributes something an
 amplitude rule cannot, and it came from an unengineered bench source rather than
 an injected fault.
 
-**6. The two-score separation, demonstrated on real hardware rather than argued.**
+**7. Live adversarial testing that found a real vulnerability.** Five hostile
+messages delivered over the actual MQTT transport against a running gateway, all
+rejected — and the exercise exposed a state-mutation bug invisible to every
+synthetic evaluation: `check_boot_replay` advanced the anti-replay baseline as a
+side effect, so a validly-signed but stale message with an inflated boot id could
+mutate a rejected message's device state and lock the real board out entirely
+(a denial of service). Fixed by making the check a pure predicate and committing
+state only after all gates pass; verified by re-running the attack live with the
+board staying authenticated. This is the concrete case for hardware-in-the-loop
+adversarial testing over injected-label evaluation.
+
+**8. The two-score separation, demonstrated on real hardware rather than argued.**
 A violently shaken board moved `s_proc` to 0.00001 while `s_sec` held 0.895–0.909
 across 16 consecutive messages, with a one-message transition.
 
@@ -497,14 +562,26 @@ Stated because a method's boundaries are part of it.
 - **One board, one sensor, three operators-marked sessions.** ADR-18 assumes the
   resting-DC spread is a sensor property; a single unit cannot distinguish that
   from this unit's quirk.
-- **No adversarial hardware testing.** Every physical event is a legitimate
-  condition; every attack is synthetic.
+- **Adversarial testing is now live, not synthetic** (§6 novelty #7): five hostile
+  MQTT attacks over a real transport, 5/5 rejected — and it found a
+  state-mutation vulnerability (a rejected message could advance anti-replay state
+  and lock out the real device), now fixed and regression-guarded. Physical
+  *fault* injection on hardware remains future work; a controlled attacker over
+  the transport is done.
 - **`stealthy_forged_values` is undetectable** from single-node telemetry by
   design, and the transformer's apparent solution was a staleness artefact.
-- **Severity cannot be ranked** (§3.3c).
 - **Level-2 explainability is 36%** against a 70% target, now diagnosed (§4.3).
-- **The GNN is the most influential and least stable signal** — largest fusion
-  coefficient, ±0.011 across seeds against the fused model's ±0.002.
+- **The GNN's seed variance is in aggregate accuracy, not in its job.** ±0.011
+  across seeds, but `coordinated` recall — the metric it exists for — is stable
+  (0.974–1.0, sd 0.015) and never changes a decision. Lowering the learning rate
+  makes coordinated recall perfectly stable but does not reduce accuracy variance;
+  the wobble is decision-irrelevant and reported rather than tuned away.
+
+- **Severity cannot be reduced to a single rank** because the physical states
+  differ on orthogonal axes (impulsive vs sustained). A peak-aware statistic does
+  not order them; the five-feature vector per message is the severity
+  information, per-axis. The system detects *whether* a disturbance is present
+  (binary, reliable) but not a scalar *how severe*.
 
 ---
 

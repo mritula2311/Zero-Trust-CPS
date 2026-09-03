@@ -3107,3 +3107,64 @@ spurious BLOCK on a device that is answering correctly.
 FP and 103/103 detection, all seven dashboard endpoints 200, `node --check` clean
 on the served page with every `$()` target present in the DOM.
 
+## 39. The four "solvable" items: one real bug fixed, three reframed by measurement
+
+The user picked the four limitations I had listed as solvable. The outcome is a
+useful lesson in what "solvable" meant: one was a genuine defect with a clean fix,
+and three were numbers that measurement showed were either the wrong target or
+not obtainable here.
+
+**Live adversarial testing (the win).** `scripts/attack_live_gateway.py` fires
+hostile MQTT messages at the running gateway. Threat model: attacker holds broker
+credentials, not the HMAC secret. 5/5 attacks rejected -- and the first run locked
+the real board out completely. Root cause: `check_boot_replay` advanced the stored
+boot_id as a side effect and ran before the freshness gate, so a validly-signed
+stale message with boot_id 999 bumped the baseline and was then rejected. The real
+board on boot_id 34 then read as a superseded-session replay on every message. A
+rejected message had mutated device state -- the exact invariant the project
+claims to hold. Fixed: `check_boot_replay` is now pure, `commit_boot_seq()`
+advances state only after all gates pass. Re-ran the attack live; the board stayed
+at ALLOW throughout. Three regression tests. This bug was invisible to every
+synthetic evaluation because none of them sends a signed-but-stale inflated-boot_id
+message at a gateway holding live per-device state -- which is the whole argument
+for testing on hardware.
+
+A note on the harness itself: the first run reported "BREACH" on forged_signature,
+which was a harness bug, not a system breach -- it matched the real board's
+interleaved legitimate ALLOWs by device_id. Corrected to attribute only rejection
+rows to the attacker. Recorded because a test harness that cries breach is worse
+than none.
+
+**GNN seed stability -- wrong target.** The concern was accuracy sd 0.011. An lr
+sweep showed lowering lr RAISES accuracy variance (under-convergence) while making
+`coordinated` recall -- the metric the GNN exists for -- perfectly stable (1.0 on
+every seed). Coordinated recall was already stable at deployed settings and 0.10.12
+proved the accuracy wobble changes zero decisions. The honest fix is to report the
+GNN's own metric, not to tune a decision-irrelevant number. lr/epochs made
+env-overridable for reproducibility; deployed default unchanged.
+
+**Severity ranking -- ill-posed.** A peak-aware statistic (max instead of mean
+window error) does NOT rank severity: rho drops 0.781 -> 0.723, sharp_impact still
+scores lowest. Raw peak reaches only rho 0.245 within disturbance classes. The
+reason: sharp_impact is impulsive (high rms, low peak), moderate_shake is sustained
+(high peak, high rms) -- orthogonal axes, no scalar totally orders them. 0.10.9's
+window-averaging explanation was incomplete. The five-feature vector is the
+severity information, per-axis; the scalar rank was the ill-posed part.
+
+**FP confidence interval -- blocked by the bench.** Tightening [0.6%, 17.2%] needs
+~120 clean resting samples. Captured 133 in 5 minutes -- but they are not reference
+rest (dominant_freq 51% in one bin vs 21% scattered for true rest; a variable
+low-frequency source is on the bench). Scored, they flag 21.2%, which is NOT a
+false-positive rate -- the board is not at reference rest, so the pipeline is
+correctly flagging an ambient disturbance, same as 0.10.14. Discarded rather than
+reported as FP. A quiet bench is required and this environment does not currently
+provide one.
+
+Two of four "not solvable here" items were also touched: the detection floor was
+measured below the amplitude threshold (0.10.14) and adversarial testing over the
+transport is done. Physical fault injection, a second sensor, equal-amplitude
+floor, and the stealthy/single-channel design limits remain genuinely future.
+
+50 tests (47 + 3 boot-replay isolation), governance 7/7 with 7/7 falsifiers, real
+hardware unchanged, deployed seed-0 models restored after the lr sweep.
+
