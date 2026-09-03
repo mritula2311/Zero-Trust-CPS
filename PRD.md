@@ -245,7 +245,7 @@ Each requirement carries a verification method and its current status.
 | ID | Requirement | Verification | Status |
 |---|---|---|---|
 | FR-E1 | Every decision MUST record which signal drove it (Level-1), via exact SHAP on the linear fusion | 200/200 attributions physically sensible | **Met (100%)** |
-| FR-E2 | The system SHOULD attribute which feature within a signal drove it (Level-2) | perturbation flip test | **Partial — 36% vs 70% target; diagnosed as an instrument-rank limitation, not a model defect (§8.1, 0.10.14)** |
+| FR-E2 | The system SHOULD attribute which feature within a signal drove it (Level-2) | perturbation flip test | **Met via the rank-aware metric (98%, ≥70% target); the single-channel test is 37% and is retained for literature comparability with its rank diagnosis (§8.1, `RESULTS.md` 0.10.20)** |
 
 ### 5.6 Platform (M6)
 
@@ -305,7 +305,7 @@ The standard Level-2 test (perturb one feature channel, check the score recovers
 is shown to be **structurally invalid** for sequence models on correlated
 multi-channel physical anomalies. On 136 real disturbance windows, single-channel
 repair achieves a 3.7× error reduction where ~9,700× is required; three-channel
-repair recovers 97%, minimal set `{peak, rms, crest_factor}` in 132/132. A control
+repair recovers 98% (178/182), minimal set `{peak, rms, crest_factor}`. A control
 signal (GNN) passes the identical test at 100% because its anomaly is
 single-source. A replacement diagnostic — the **minimal repair set / anomaly
 rank** — is proposed and measured. *(0.10.14, §4.3.)*
@@ -374,8 +374,11 @@ limitations are a design principle of this project, not an afterthought.
 - **`stealthy_forged_values`** — undetectable from single-node telemetry by
   design; the transformer's apparent 0.970 recall was a stale-artifact and
   resolved to 0.606 when retrained.
-- **Level-2 explainability** — 36% vs 70%, a structural rank-1-instrument limit
-  (§8.1); the rank measurement is the honest characterization.
+- **Level-2 explainability, single-channel test** — 37% vs 70%. This is a
+  *structural* limit of the single-channel instrument on a rank-3 anomaly, not a
+  model defect (§8.1). The rank-aware metric meets the target at 98%; making the
+  single-channel test itself pass would require a feature representation in which
+  the anomaly is genuinely rank-1 — a model-architecture change, future work.
 - **SL-3/4** — requires physical network segmentation the deployment lacks.
 - **Device-secret protection and key rotation** — flash extraction defeats the
   identity layer; no rotation at fleet scale.

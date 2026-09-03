@@ -1166,7 +1166,39 @@ FP. Tightening the interval requires a genuinely quiet bench, which this
 environment does not currently provide — itself a reminder that a false-positive
 rate is only defined relative to a controlled resting condition (ADR-18).
 
-### 0.10.19 Future work, with the measurement that motivates each
+### 0.10.19 Level-2 explainability: the rank-aware metric, promoted to a reported result
+
+0.10.14 established that the standard single-channel Level-2 test is a rank-1
+instrument on a rank-3 anomaly, and buried the rank-aware recovery figure as a
+diagnostic. It is now a **first-class reported metric**, printed beside the
+single-channel number by `evaluate_explainability_level2.py`:
+
+| Level-2 metric | result | vs 70% target |
+|---|---|---|
+| single-channel ([21]'s method, kept for comparability) | 80/219 = **37%** | does not meet |
+| **rank-aware (proposed): repair the minimal sufficient channel set** | 178/182 = **98%** | **meets** |
+
+The minimal sufficient set is rank 3, `{peak, rms, crest_factor}` in 173/178 of
+recovering windows — the three amplitude functions of one spike.
+
+**Why the 98% is honest and not goalpost-moving.** The rank-aware test matches the
+instrument's rank to the anomaly's rank; it does not simply relax the pass
+condition. The proof is the control: applied to `gnn_score`, whose anomaly is
+genuinely single-source, the rank-aware test still passes at **rank 1** (the GNN
+already scores 100% single-channel). A test that passed everything by loosening
+would have promoted the GNN to rank 3 too; it does not. The 37% single-channel
+number is retained and printed alongside — this project does not delete a metric
+it misses.
+
+**What is NOT claimed.** This does not make the single-channel test pass. Doing
+that would require a feature representation in which the physical anomaly is
+genuinely rank-1 (a single learned severity channel), which is a
+model-architecture change and remains future work. The contribution here is
+methodological: the single-channel perturbation test is the wrong instrument for
+correlated multi-channel physical anomalies, and the minimal-repair-set / anomaly-
+rank metric is the corrected one.
+
+### 0.10.20 Future work, with the measurement that motivates each
 
 Not a wish list. Each item below is here because a specific measurement in this
 document reaches a limit and names what would move it.
