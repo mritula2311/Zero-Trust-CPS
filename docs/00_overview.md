@@ -1,6 +1,10 @@
 # Zero-Trust Security Framework for IoT-Based CPS
 ## Low-Level Design — Master Overview
 
+> **For the paper, start with `PRD.md` (requirements + novelty) and
+> `METHODOLOGY.md` (method + mathematics). `RESULTS.md` holds every measured
+> number. This `docs/` set is the per-module low-level design reference.**
+
 > **AS-BUILT STATUS (read this before anything else in this file).** This
 > 12-file set was originally written as a from-scratch build guide, assuming
 > no existing code. It was reconciled against an already-working, already-

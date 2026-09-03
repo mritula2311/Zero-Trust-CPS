@@ -108,18 +108,23 @@ numbers behind it.
 See `SESSION_LOG.md` (append-only, read top-to-bottom) for the full,
 narrated status — every substitution made (CoAP/DTLS → HTTPS; GNN's graph
 choice; hand-rolled GCN vs. `torch-geometric`) and everything genuinely
-still TODO. Operator-labelled hardware capture is **done**: three sessions,
-313 records, five physical event classes, labels marked by the operator at
-the moment of each action rather than inferred from a timetable. Measured
-on it — across four operator-marked sessions (429 records, six physical
-event classes including a sustained no-contact fault): detection of real
-physical disturbance **100% (103/103)**, false positives on a genuinely
-resting board **1/29 (3.4%)** (`RESULTS.md` 0.10.10). The real at-rest rows
-are only **3%** of the training normals but they carry the result:
-retraining the whole chain without them gives **13/49** false positives
-instead of 0/49, detection unchanged (`RESULTS.md` 0.10.9). What remains TODO is a capture of
-deliberately induced *adversarial* faults; every event so far is a
-legitimate physical condition, not an attack. See `docs/00_overview.md`
+still TODO. Operator-labelled hardware capture is **done**: four sessions,
+429 records, six physical event classes (rest, gentle tap, tilt, moderate
+shake, sharp impact, and a sustained no-contact fault), labels marked by the
+operator at the moment of each action rather than inferred from a timetable.
+Measured on it: detection of real physical disturbance **100% (103/103)**,
+false positives on a genuinely resting board **1/29 (3.4%)**, Wilson 95% CI
+[0.6%, 17.2%] (`RESULTS.md` 0.10.10). The real at-rest rows are only **3%**
+of the training normals but they carry the result: retraining the whole
+chain without them gives **13/49** false positives instead of 0/49,
+detection unchanged (`RESULTS.md` 0.10.9).
+
+**Adversarial testing is now live, not synthetic**: five hostile MQTT attacks
+delivered over the real transport against a running gateway, all rejected at
+Module 1/2 — and the exercise found and fixed a real state-mutation
+vulnerability (`RESULTS.md` 0.10.17). Physical *fault* injection on hardware
+(a worn bearing rather than a bench disturbance) remains genuine future work.
+See `PRD.md` for the full product requirements and `docs/00_overview.md`
 onward for the as-built architecture reference.
 
 ## Setup

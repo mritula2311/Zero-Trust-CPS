@@ -78,7 +78,7 @@ responses.
    (`CLAUDE.md` §8), not a preference — an online-learning PDP is an attack
    surface, because an attacker who can generate traffic can move the model.
 4. **Honest measurement over flattering numbers.** Where the system fails
-   (`stealthy_forged_values` detection, Level-2 explainability at 39% against a
+   (`stealthy_forged_values` detection, Level-2 explainability at 36% against a
    70% target), the failure is reported and kept in the figures.
 5. **Evidence, not assertion.** Every decision emits an audit row tagged with
    the NIST tenets and IEC FRs it is evidence for.

@@ -1721,10 +1721,11 @@ T1 inject an authenticated row from an unregistered device          -> FAIL (cor
 T2 inject an authenticated row over an unencrypted transport        -> FAIL (correctly rejected)
 T3 inject a row granted access with no scores of its own            -> FAIL (correctly rejected)
 T4 inject a policy that ALLOWs equally above and below thresholds   -> FAIL (correctly rejected)
+T5 inject rows covering fewer devices than the registry            -> FAIL (correctly rejected)
 T6 inject an UNauthenticated row that was granted ALLOW             -> FAIL (correctly rejected)
 T7 inject a pipeline whose fused score never differs from the rule  -> FAIL (correctly rejected)
 
-6/6 checks demonstrably reject their own falsifier.
+7/7 checks demonstrably reject their own falsifier.
 ```
 
 Tenet 5 is excluded from that count rather than assumed: its falsifier is a

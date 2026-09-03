@@ -237,14 +237,14 @@ into 5/7, and could not simply be removed afterwards.
 ## 7. Reporting standards
 
 **Report what you measured, including when it fails.** Where the system
-underperforms — Level-2 explainability at 39% against a 70% target,
+underperforms — Level-2 explainability at 36% against a 70% target,
 `stealthy_forged_values` recall — the number stays in the figures with its
 explanation. Never swap a metric for one the system happens to pass.
 
 **If a validation check cannot fail, it is not a check.** State its falsifier
-and inject it (`docs/10` §7.1). `governance_validation.py` proves 6/6 of its
-tenets reject their own falsifier; Tenet 5 is excluded and *stated as* excluded
-rather than assumed.
+and inject it (`docs/10` §7.1). `governance_validation.py` proves 7/7 of its
+tenets reject their own falsifier (Tenet 5 was previously excluded on a mistaken
+premise; corrected).
 
 **Verify the surface a user actually touches.** Endpoint checks verify an API,
 not the page consuming it. A dashboard fix was confirmed by `curl` while the
