@@ -1,5 +1,10 @@
 # Zero-Trust CPS Starter Kit
 
+> Reference implementation for the paper **"A Two-Score Zero-Trust Framework for
+> Cyber-Physical Systems."** See `PRD.md` for requirements and novelty,
+> `METHODOLOGY.md` for the method and mathematics.
+
+
 A working implementation of the full Zero-Trust pipeline from
 `docs/Zero_Trust_CPS_Project_Synopsis.docx` (the citable academic record),
 `CLAUDE.md` (the governing engineering brief), and `docs/00_overview.md`

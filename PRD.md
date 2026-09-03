@@ -1,5 +1,5 @@
 # Product Requirements Document
-## A Two-Score Zero-Trust Gateway for Cyber-Physical Systems with Falsifiable Governance and Hardware-in-the-Loop Validation
+## A Two-Score Zero-Trust Framework for Cyber-Physical Systems
 
 | | |
 |---|---|
