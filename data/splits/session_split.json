@@ -1,0 +1,58 @@
+{
+  "_README": [
+    "Session-level TRAIN / VALIDATION / TEST allocation. The invariant this file",
+    "exists to enforce: every physical acquisition session belongs to exactly ONE",
+    "split. Overlapping windows from one session must never cross a split boundary,",
+    "because consecutive windows of a single continuous operator action are",
+    "correlated -- scattering them across splits lets a model see, in training,",
+    "windows that overlap the ones it is tested on.",
+    "",
+    "Allocation rationale (recorded, not tuned):",
+    "  20260902_171313 -> TRAIN. Largest operator-marked session (152 records,",
+    "                     4 phases). Highest-quality evidence, so it anchors the",
+    "                     learned normal region.",
+    "  20260902_102448 -> TRAIN. label_source is transcript_reconstruction, the",
+    "                     weaker grade of evidence (RESULTS.md: reconstructed",
+    "                     resting peak p90 runs ~3x fatter). It belongs in TRAIN",
+    "                     precisely because it must NOT carry a reported result.",
+    "  20260902_173108 -> VALIDATION. Operator-marked. Used for threshold",
+    "                     selection, fusion meta-training, and the self-loop sweep.",
+    "  20260902_221217 -> TEST. Operator-marked, and the only session containing",
+    "                     graded fault_weak / fault_strong phases, so the untouched",
+    "                     test set is the one that can speak to detection floor.",
+    "",
+    "TEST is untouched by model fitting, normalization, threshold selection,",
+    "hyperparameter tuning, fusion training, reward design, and model selection.",
+    "Enforced by tests/test_invariants.py::TestSessionSplit.",
+    "",
+    "The 20260901_* sessions are absent by design, not oversight: they used the",
+    "old unpaced acquisition chain and sit on a different frequency axis",
+    "(CLAUDE.md, RESULTS.md 13.4c). They are excluded from every split."
+  ],
+  "train_sessions": [
+    "20260902_171313",
+    "20260902_102448"
+  ],
+  "validation_sessions": [
+    "20260902_173108"
+  ],
+  "test_sessions": [
+    "20260902_221217"
+  ],
+  "excluded_sessions": {
+    "20260901_112219": "old unpaced acquisition chain, different frequency axis",
+    "20260901_113103": "old unpaced acquisition chain, different frequency axis",
+    "20260901_115152": "old unpaced acquisition chain, different frequency axis",
+    "20260901_125402": "old unpaced acquisition chain, different frequency axis"
+  },
+  "simulated_sessions": {
+    "_README": [
+      "Simulated data uses explicit named sessions with frozen seeds, for the same",
+      "reason: regenerating the final-test simulation while tuning would silently",
+      "turn it into a training set."
+    ],
+    "train_sessions": ["SIM_SESSION_TRAIN_001"],
+    "validation_sessions": ["SIM_SESSION_VAL_001", "SIM_SESSION_VAL_002"],
+    "test_sessions": ["SIM_SESSION_TEST_001"]
+  }
+}

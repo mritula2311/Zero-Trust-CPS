@@ -46,6 +46,7 @@ from config import (
     MQTT_HOST, MQTT_PORT, MQTT_TLS_PORT, MQTT_USE_TLS, MQTT_USE_AUTH,
     MQTT_TLS_CA_CERT, MQTT_GATEWAY_USERNAME, MQTT_GATEWAY_PASSWORD,
     TELEMETRY_TOPIC, FEATURE_NAMES, DATA_COLLECTED_DIR, AUDIT_DB_PATH,
+    feature_names_for, DEVICE_REGISTRY,
     LSTM_SEQ_LEN,
 )
 
@@ -57,7 +58,36 @@ from config import (
 # (publishes are ~2s apart).
 FUSED_MATCH_TOLERANCE_S = 3.0
 
-DEVICE_ID = "esp32-vib-001"
+def _arg(flag, default=None):
+    """--flag value, or `default`. Every capture-condition knob is a command-line
+    argument rather than a source edit: an operator running six sessions in a row
+    must not have to open this file between them, and a condition recorded by
+    editing code is a condition nobody can reconstruct afterwards."""
+    return sys.argv[sys.argv.index(flag) + 1] if flag in sys.argv else default
+
+
+# Which physical node(s) this capture listens to.
+#   --device esp32-vib-002        one node
+#   --devices esp32-vib-001,esp32-vib-002   BOTH, for the coordinated
+#                                  simultaneous-disturbance conditions (C4)
+DEVICE_IDS = [d.strip() for d in _arg("--devices", _arg("--device", "esp32-vib-001")).split(",")]
+DEVICE_ID = DEVICE_IDS[0]          # kept: the audit-log join and summary tables are per-device
+MULTI_DEVICE = len(DEVICE_IDS) > 1
+
+# Capture conditions, recorded on EVERY record and in the session header.
+# mounting_condition/orientation exist so the mounting-robustness analysis is
+# possible at all -- a session that does not say how the sensor was mounted
+# cannot contribute to it, and "I think that was the remounted one" is not data.
+MOUNTING_CONDITION = _arg("--mount", "MOUNT_A")
+ORIENTATION = _arg("--orientation", "ORIENTATION_A")
+NETWORK_EXPERIMENT_ID = _arg("--experiment", None)
+CAPTURE_NOTES = _arg("--notes", "")
+
+# Fixed once, at import, so every record carries the SAME id the output file is
+# named with. Derived at write time instead, a capture crossing a second
+# boundary would name records and file differently and splits.session_id_of()
+# would not be able to find the session it belongs to.
+SESSION_ID = time.strftime("%Y%m%d_%H%M%S")
 
 # (phase name, duration_seconds, instruction shown to the operator)
 PHASES_SHORT = [
@@ -143,12 +173,84 @@ FAULT_EVENTS = [
     ("at_rest",      90, "RECOVERY. Phone off and removed. Board still, hands off."),
 ]
 
+# --intensity: LOW / MEDIUM / HIGH operator-controlled disturbance.
+#
+# NOT calibrated. There is no shaker table, no accelerometer reference, and no
+# repeatable excitation source here -- the amplitude knob is how hard a person
+# moves the board. So these are recorded as "operator-controlled low/medium/high
+# intensity", and the ACTUAL observed rms / peak / crest / dominant_freq of each
+# block is what the analysis reports. Calling three levels of hand movement
+# "calibrated" would be claiming an instrument that does not exist.
+#
+# The point of the sweep is the DETECTION FLOOR: existing sessions detect
+# 136/136 disturbances, but every one of them is violent (peak 0.4-3.1 g against
+# a 0.035 g resting maximum, a 10-90x margin), so 100% says very little. The
+# question worth answering is where detection actually stops.
+INTENSITY_EVENTS = [
+    ("at_rest",          90, "BASELINE. Board flat, hands off, nothing touching the desk."),
+    ("intensity_low",   120, "LOW: rest a fingertip on the board and press very lightly, "
+                             "continuously. Barely perceptible movement."),
+    ("at_rest",          60, "Hands off. Board still."),
+    ("intensity_medium",120, "MEDIUM: hold the board and rock it gently and continuously."),
+    ("at_rest",          60, "Hands off. Board still."),
+    ("intensity_high",  120, "HIGH: hold the board and shake it firmly and continuously."),
+    ("at_rest",          90, "RECOVERY. Board down, hands off."),
+]
+
+# --mount-check: mounting / orientation robustness.
+#
+# Run this schedule ONCE PER PHYSICAL CONFIGURATION, passing the configuration
+# on the command line so it lands in the data:
+#     --mount-check --mount MOUNT_A --orientation ORIENTATION_A
+#     --mount-check --mount MOUNT_A --orientation ORIENTATION_B   (rotated 90 deg)
+#     --mount-check --mount MOUNT_B --orientation ORIENTATION_A   (detached, remounted)
+#
+# Mostly at-rest, because the question is whether the learned NORMAL region is
+# specific to one mounting -- not whether a shake is detectable. The single
+# reference tap gives each session one known-disturbed block, so a session that
+# scores everything normal can be distinguished from a dead sensor.
+MOUNT_EVENTS = [
+    ("at_rest",       150, "Board in the CURRENT mounting/orientation, flat, hands off. LONG block."),
+    ("gentle_tap",     60, "One reference block: tap gently every ~2s. Sanity check that the "
+                           "sensor is alive in this configuration."),
+    ("at_rest",       150, "Hands off again, same mounting. LONG block."),
+]
+
+# --coordinated: the two-physical-node conditions C1-C4.
+#
+# Requires --devices esp32-vib-001,esp32-vib-002 and BOTH boards publishing.
+# Each block names which node(s) are being disturbed, so the labelled interval
+# carries the coordination state and not just "something moved".
+COORDINATED_EVENTS = [
+    ("C1_both_normal",     120, "C1. BOTH boards flat on the desk, hands off both. LONG block."),
+    ("C2_node01_only",      90, "C2. Disturb the MPU6050 board (esp32-vib-001) ONLY -- shake it "
+                                "continuously. Do NOT touch the SW-420 board."),
+    ("C1_both_normal",      60, "Hands off both boards."),
+    ("C3_node02_only",      90, "C3. Disturb the SW-420 board (esp32-vib-002) ONLY -- tap the "
+                                "surface it sits on. Do NOT touch the MPU6050 board."),
+    ("C1_both_normal",      60, "Hands off both boards."),
+    ("C4_both_disturbed",   90, "C4. Disturb BOTH boards SIMULTANEOUSLY -- one hand on each, or "
+                                "shake the shared surface both are on."),
+    ("C1_both_normal",     120, "RECOVERY. Hands off both. LONG block."),
+]
+
 # firmware/main.py's PUBLISH_INTERVAL_MS. Not imported because it lives on the
 # device, not in config.py -- if you change it there, change it here.
 TELEMETRY_INTERVAL_S = 2.0
 
+# Exactly one schedule wins; later flags do not silently merge with earlier ones.
 if FAULT_MODE:
     LABELLED_EVENTS = FAULT_EVENTS
+elif "--intensity" in sys.argv:
+    LABELLED_EVENTS = INTENSITY_EVENTS
+elif "--mount-check" in sys.argv:
+    LABELLED_EVENTS = MOUNT_EVENTS
+elif "--coordinated" in sys.argv:
+    LABELLED_EVENTS = COORDINATED_EVENTS
+    if not MULTI_DEVICE:
+        raise SystemExit(
+            "--coordinated needs both physical nodes. Re-run with:\n"
+            "    --coordinated --labelled --devices esp32-vib-001,esp32-vib-002")
 
 MARK_MARGIN_S = 2.0      # trimmed from each end of every marked interval
 # Below this an event cannot contribute a single SCOREABLE sample, so it is
@@ -304,10 +406,11 @@ def on_message(client, userdata, msg):
         payload = envelope["payload"]
     except (json.JSONDecodeError, KeyError):
         return
-    if payload.get("device_id") != DEVICE_ID:
+    if payload.get("device_id") not in DEVICE_IDS:
         return
 
-    reading = {name: payload.get(name) for name in FEATURE_NAMES}
+    src_device = payload.get("device_id")
+    reading = {name: payload.get(name) for name in feature_names_for(src_device)}
     if any(v is None for v in reading.values()):
         return
 
@@ -318,7 +421,13 @@ def on_message(client, userdata, msg):
 
     records.append({
         "tick": len(records),
-        "device_id": DEVICE_ID,
+        "device_id": src_device,
+        "source_type": "REAL",
+        "sensor_type": DEVICE_REGISTRY.get(src_device, {}).get("sensor_type", "MPU6050"),
+        "session_id": SESSION_ID,
+        "mounting_condition": MOUNTING_CONDITION,
+        "orientation": ORIENTATION,
+        "network_experiment_id": NETWORK_EXPERIMENT_ID,
         "reading": reading,
         "auth_ok": True,
         "ts": payload.get("ts"),
@@ -431,7 +540,7 @@ def summarize():
 
 def write_outputs(by_phase):
     os.makedirs(DATA_COLLECTED_DIR, exist_ok=True)
-    stamp = time.strftime("%Y%m%d_%H%M%S")
+    stamp = SESSION_ID
     # evaluate_real_hardware.py selects its input by GLOBBING "*_labelled.json".
     # Without this suffix a --labelled run wrote a file that script silently never
     # read: the first operator-marked session had to be renamed by hand, and a

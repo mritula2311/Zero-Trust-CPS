@@ -36,6 +36,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from config import DATA_COLLECTED_DIR
 from generate_training_data import generate as generate_synthetic
+import splits
 
 OUTPUT_PATH = os.path.join(DATA_COLLECTED_DIR, "training_session.json")
 TICK_GAP = 20  # comfortably past EDGE_WINDOW_TICKS=1
@@ -65,18 +66,36 @@ NORMAL_PHASES = {"at_rest"}
 
 
 def load_real_records():
+    """At-rest rows from the TRAIN sessions ONLY.
+
+    This used to glob every `*_labelled.json` on disk. That put the at-rest rows
+    of the validation and test sessions into the training set while
+    evaluate_real_hardware.py scored the disturbance rows of those same
+    sessions -- one physical acquisition session contributing to both sides
+    (docs/REPOSITORY_AUDIT.md 2.2). Routing through splits.labelled_session_paths
+    makes the allocation a deliberate manifest entry rather than a glob.
+
+    Provenance is carried through: each returned row keeps its session id and
+    label_source so the merged record can name where it came from."""
+    splits.assert_disjoint()
     real = []
-    paths = sorted(glob.glob(os.path.join(DATA_COLLECTED_DIR, "*" + MERGEABLE_SUFFIX)))
+    paths = splits.labelled_session_paths("train")
     if not paths:
-        print("  (no *_labelled.json sessions found -- training on synthetic data only)")
+        print("  (no TRAIN-split *_labelled.json sessions found -- training on synthetic data only)")
     for path in paths:
         with open(path) as f:
             session = json.load(f)
+        sid = splits.session_id_of(path)
         rest = [r for r in session if r.get("phase") in NORMAL_PHASES]
+        for r in rest:
+            r["_session_id"] = sid
         held = len(session) - len(rest)
-        print(f"  {os.path.basename(path)}: {len(session)} records, "
+        print(f"  {os.path.basename(path)} [session {sid}, split=train]: {len(session)} records, "
               f"{len(rest)} at-rest merged as normal, {held} held out as labelled events")
         real.extend(rest)
+    for other in ("validation", "test"):
+        for path in splits.labelled_session_paths(other):
+            print(f"  {os.path.basename(path)} [split={other}]: WITHHELD from training entirely")
     return real
 
 
@@ -100,6 +119,11 @@ def main():
         raise SystemExit("no data/collected/hardware_session_*.json files found -- "
                           "run scripts/collect_hardware_session.py first")
 
+    # Provenance fields (source_type / session_id / sensor_type / label_source /
+    # split) are attached HERE and never stripped downstream. Before this, a
+    # merged real row was indistinguishable from a synthetic one except by an
+    # accident of tick arithmetic (docs/REPOSITORY_AUDIT.md 2.9), so no result
+    # could report real and simulated evidence separately even in principle.
     next_tick = max_tick + TICK_GAP
     merged_real = []
     for r in real:
@@ -112,8 +136,19 @@ def main():
             "label": 1,
             "event_type": "normal",
             "simulated_flood": False,
+            "source_type": "REAL",
+            "sensor_type": "MPU6050",
+            "session_id": r.get("_session_id"),
+            "phase": r.get("phase"),
+            "label_source": r.get("label_source"),
+            "split": "train",
         })
         next_tick += 1
+
+    for r in synthetic:
+        r.setdefault("source_type", "SIMULATED")
+        r.setdefault("session_id", "SIM_SESSION_TRAIN_001")
+        r.setdefault("split", "train")
 
     combined = synthetic + merged_real
     with open(OUTPUT_PATH, "w") as f:

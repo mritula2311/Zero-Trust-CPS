@@ -3,9 +3,27 @@ Offline training for Module 5 (RL-Adaptive Access Control).
 
 adaptive_pdp.AdaptivePDP.choose_action() in the live gateway path only ever
 reads the resulting Q-table (with epsilon-greedy SELECTION, not learning).
-Run this LAST -- it replays the training session through the fully trained
+Run this LAST -- it replays a session through the fully trained
 Process Anomaly pipeline AND a fresh Security Trust engine, then trains
 against the reward computed from the REAL ground-truth event_type.
+
+TERMINOLOGY (docs/REPOSITORY_AUDIT.md 2.6). Despite the RL_* config names
+this is not reinforcement learning. The update rule in adaptive_pdp.py is
+an incremental SAMPLE AVERAGE, there is no discount factor and no
+next-state bootstrapping, and the reward is a fixed function of
+(state, action) alone. It is a CONTEXTUAL BANDIT with sample-average
+action-value estimation -- which is the right method here, because the
+problem genuinely has no state transitions to credit. The names are kept
+to avoid a rename touching every call site; the method is described
+correctly in docs/ADAPTIVE_POLICY_SPEC.md and the manuscript.
+
+SPLIT (docs/REPOSITORY_AUDIT.md 2.1/2.3). This used to replay
+`training_session.json`, on which every base model was fitted. It now
+replays `validation_policy_session.json` (SIM_SESSION_VAL_002) -- a
+DIFFERENT validation draw from the one the fusion meta-learner was fitted
+on (SIM_SESSION_VAL_001). Two draws, not one, because this stage consumes
+fusion's output: sharing a session would leave the policy reading
+in-sample fusion scores, which is the same optimism one level up.
 
 TWO-SCORE REARCHITECTURE: state is now
 (security_trust_score, process_trust_score) instead of (trust, confidence),
@@ -33,7 +51,7 @@ from fusion_engine import FusionEngine
 from adaptive_pdp import AdaptivePDP
 from generate_training_data import situation_for_event_type
 
-SESSION_PATH = os.path.join(DATA_COLLECTED_DIR, "training_session.json")
+SESSION_PATH = os.path.join(DATA_COLLECTED_DIR, "validation_policy_session.json")
 
 
 def build_training_triples(records: list[dict]) -> list[tuple[float, float, str]]:

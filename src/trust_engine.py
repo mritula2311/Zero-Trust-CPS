@@ -37,6 +37,7 @@ from collections import deque
 from dataclasses import dataclass, field
 
 from config import (
+    ML_FEATURE_KINDS,
     TRUST_EWMA_ALPHA,
     TRUST_DECAY_PER_SECOND,
     STALE_AFTER_SECONDS,
@@ -127,15 +128,23 @@ def is_revoked(device_id: str) -> bool:
 def rule_range_score(device_id: str, reading) -> tuple[float, str]:
     """The plain rule-based check (Module 3 Section B.2) -- one of the four
     signals fusion_engine.py fuses into the Process Anomaly Score. `reading`
-    is either a plain float (scalar devices) or a dict of Section-5.1
-    features (feature_vector devices) -- shape decided by
+    is either a plain float (scalar devices) or a dict of features (any kind
+    in config.ML_FEATURE_KINDS) -- shape decided by
     DEVICE_REGISTRY[device_id]['kind']. Unchanged by the two-score
     rearchitecture -- this was always a Process Anomaly signal, never a
-    Security Trust one."""
+    Security Trust one.
+
+    Keyed on ML_FEATURE_KINDS, not on the literal "feature_vector", so the
+    SW-420 node's four event-statistics features are range-checked by the same
+    code path. With the literal, that device fell through to the scalar branch,
+    found no `expected_range`, and returned 0.9 "no expected range configured"
+    for every message -- a rule signal that could never fire, which is exactly
+    the "if a check cannot fail it is not a check" failure this project already
+    treats as a defect elsewhere."""
     info = DEVICE_REGISTRY.get(device_id, {})
     kind = info.get("kind", "scalar")
 
-    if kind == "feature_vector":
+    if kind in ML_FEATURE_KINDS:
         ranges = info.get("expected_ranges", {})
         if not isinstance(reading, dict):
             return 0.15, "malformed feature payload (expected a dict of features)"

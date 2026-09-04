@@ -1,0 +1,411 @@
+{
+  "reference": {
+    "device": "esp32-vib-001",
+    "split": "train",
+    "stats": {
+      "rms": {
+        "n": 103,
+        "mean": 1.0510349514563107,
+        "sd": 0.009641342096659995,
+        "median": 1.0552,
+        "min": 1.038,
+        "max": 1.105,
+        "p10": 1.04,
+        "p90": 1.05828,
+        "lag1_autocorr": 0.5873916980301824
+      },
+      "peak": {
+        "n": 103,
+        "mean": 0.019927184466019418,
+        "sd": 0.01363575535537373,
+        "median": 0.017,
+        "min": 0.011,
+        "max": 0.097,
+        "p10": 0.0134,
+        "p90": 0.02432
+      },
+      "crest_factor": {
+        "n": 103,
+        "mean": 0.01899126213592233,
+        "sd": 0.013007392273119879,
+        "median": 0.016,
+        "min": 0.0107,
+        "max": 0.093,
+        "p10": 0.013,
+        "p90": 0.02308
+      },
+      "kurtosis": {
+        "n": 103,
+        "mean": -0.058752427184466015,
+        "sd": 1.0811875461143408,
+        "median": -0.2882,
+        "min": -1.2782,
+        "max": 8.438,
+        "p10": -0.79788,
+        "p90": 0.7961199999999999
+      },
+      "dominant_freq": {
+        "n": 103,
+        "mean": 82.22033980582525,
+        "sd": 58.74524262606472,
+        "median": 62.5,
+        "min": 15.62,
+        "max": 250.0,
+        "p10": 15.625,
+        "p90": 171.875
+      }
+    }
+  },
+  "plausibility_envelope_rms": {
+    "low": 0.6532000000000002,
+    "high": 1.4571999999999996,
+    "k": 6.0,
+    "basis": "real cross-session spread"
+  },
+  "nodes": {
+    "esp32-sim-03": {
+      "kind": "feature_vector",
+      "stats": {
+        "n": 600,
+        "rms": {
+          "mean": 1.0233391666666667,
+          "sd": 0.01975937370732067,
+          "median": 1.024,
+          "min": 0.9617,
+          "max": 1.0838
+        },
+        "peak": {
+          "mean": 0.007915166666666666,
+          "sd": 0.0013243941906480193,
+          "median": 0.0078,
+          "min": 0.005,
+          "max": 0.0123
+        },
+        "crest_factor": {
+          "mean": 0.007737333333333333,
+          "sd": 0.0013122777483783258,
+          "median": 0.0076,
+          "min": 0.0049,
+          "max": 0.0121
+        },
+        "kurtosis": {
+          "mean": -0.34493966666666664,
+          "sd": 0.7429315476721631,
+          "median": -0.4899,
+          "min": -1.4519,
+          "max": 4.943
+        },
+        "dominant_freq": {
+          "mean": 89.980469,
+          "sd": 60.955547296884085,
+          "median": 66.4062,
+          "min": 13.2812,
+          "max": 212.5
+        },
+        "lag1_autocorr_first_feature": 0.3187228995350505
+      },
+      "verdict": "PLAUSIBLE"
+    },
+    "esp32-sim-04": {
+      "kind": "feature_vector",
+      "stats": {
+        "n": 600,
+        "rms": {
+          "mean": 1.052122,
+          "sd": 0.02016213900689441,
+          "median": 1.05205,
+          "min": 0.9881,
+          "max": 1.1118
+        },
+        "peak": {
+          "mean": 0.0311035,
+          "sd": 0.005223571997844642,
+          "median": 0.0309,
+          "min": 0.0176,
+          "max": 0.0488
+        },
+        "crest_factor": {
+          "mean": 0.029577,
+          "sd": 0.005015067729685545,
+          "median": 0.029449999999999997,
+          "min": 0.0167,
+          "max": 0.046
+        },
+        "kurtosis": {
+          "mean": 0.04541133333333333,
+          "sd": 0.6587652518701602,
+          "median": -0.07164999999999999,
+          "min": -1.0866,
+          "max": 2.6822
+        },
+        "dominant_freq": {
+          "mean": 111.25,
+          "sd": 74.63932372304383,
+          "median": 93.75,
+          "min": 15.625,
+          "max": 250.0
+        },
+        "lag1_autocorr_first_feature": 0.2891981157567703
+      },
+      "verdict": "PLAUSIBLE"
+    },
+    "esp32-sim-05": {
+      "kind": "feature_vector",
+      "stats": {
+        "n": 600,
+        "rms": {
+          "mean": 1.0295686666666666,
+          "sd": 0.01943792559805587,
+          "median": 1.0296500000000002,
+          "min": 0.9732,
+          "max": 1.0913
+        },
+        "peak": {
+          "mean": 0.06773716666666667,
+          "sd": 0.011277102256588593,
+          "median": 0.0668,
+          "min": 0.0417,
+          "max": 0.1122
+        },
+        "crest_factor": {
+          "mean": 0.06580816666666667,
+          "sd": 0.010990599770056024,
+          "median": 0.06495000000000001,
+          "min": 0.0406,
+          "max": 0.1109
+        },
+        "kurtosis": {
+          "mean": 0.6336641666666667,
+          "sd": 0.7193531516109726,
+          "median": 0.49585,
+          "min": -0.5015,
+          "max": 4.9463
+        },
+        "dominant_freq": {
+          "mean": 141.992186,
+          "sd": 96.14144627795308,
+          "median": 117.1875,
+          "min": 19.5312,
+          "max": 312.5
+        },
+        "lag1_autocorr_first_feature": 0.20270210844222272
+      },
+      "verdict": "PLAUSIBLE"
+    },
+    "esp32-sim-06": {
+      "kind": "feature_vector",
+      "stats": {
+        "n": 600,
+        "rms": {
+          "mean": 1.0398115,
+          "sd": 0.02124552151434901,
+          "median": 1.04075,
+          "min": 0.979,
+          "max": 1.0943
+        },
+        "peak": {
+          "mean": 0.0167225,
+          "sd": 0.002754204740029325,
+          "median": 0.0164,
+          "min": 0.0088,
+          "max": 0.0276
+        },
+        "crest_factor": {
+          "mean": 0.016086166666666665,
+          "sd": 0.0026656316272550156,
+          "median": 0.0158,
+          "min": 0.0089,
+          "max": 0.0267
+        },
+        "kurtosis": {
+          "mean": -0.20796566666666666,
+          "sd": 0.7392184190444361,
+          "median": -0.33675,
+          "min": -1.4155,
+          "max": 7.5472
+        },
+        "dominant_freq": {
+          "mean": 104.17838733333333,
+          "sd": 70.40173389447526,
+          "median": 74.2188,
+          "min": 14.8438,
+          "max": 237.5
+        },
+        "lag1_autocorr_first_feature": 0.41476469159228924
+      },
+      "verdict": "PLAUSIBLE"
+    },
+    "esp32-sim-07": {
+      "kind": "vibration_switch",
+      "stats": {
+        "n": 600,
+        "trigger_rate": {
+          "mean": 1.6796753333333334,
+          "sd": 2.7112968999032345,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 15.625
+        },
+        "duty_cycle": {
+          "mean": 0.004089833333333333,
+          "sd": 0.007870752609432523,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0547
+        },
+        "burst_max_ms": {
+          "mean": 0.8616666666666667,
+          "sd": 1.542464658338149,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 11.0
+        },
+        "inter_event_cv": {
+          "mean": 0.0084885,
+          "sd": 0.07411817782714755,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.932
+        },
+        "lag1_autocorr_first_feature": 0.04602776583097063
+      },
+      "verdict": "UNVALIDATED (no real SW-420 capture yet)"
+    },
+    "esp32-sim-08": {
+      "kind": "feature_vector",
+      "stats": {
+        "n": 600,
+        "rms": {
+          "mean": 1.036563,
+          "sd": 0.020613047591270924,
+          "median": 1.0352,
+          "min": 0.9781,
+          "max": 1.1032
+        },
+        "peak": {
+          "mean": 0.019329166666666668,
+          "sd": 0.0033584072572509062,
+          "median": 0.0191,
+          "min": 0.011,
+          "max": 0.0327
+        },
+        "crest_factor": {
+          "mean": 0.018656333333333334,
+          "sd": 0.0032739008163894575,
+          "median": 0.0184,
+          "min": 0.0106,
+          "max": 0.032
+        },
+        "kurtosis": {
+          "mean": -0.21230616666666666,
+          "sd": 0.6491233124853646,
+          "median": -0.33725,
+          "min": -1.3029,
+          "max": 3.2491
+        },
+        "dominant_freq": {
+          "mean": 117.94270833333333,
+          "sd": 72.6593254650766,
+          "median": 93.75,
+          "min": 15.625,
+          "max": 250.0
+        },
+        "lag1_autocorr_first_feature": 0.3119532957724049
+      },
+      "verdict": "PLAUSIBLE"
+    },
+    "esp32-sim-09": {
+      "kind": "feature_vector",
+      "stats": {
+        "n": 600,
+        "rms": {
+          "mean": 1.0459063333333334,
+          "sd": 0.01923277826755378,
+          "median": 1.0464,
+          "min": 0.9829,
+          "max": 1.1028
+        },
+        "peak": {
+          "mean": 0.014354166666666666,
+          "sd": 0.002399329622809023,
+          "median": 0.0141,
+          "min": 0.0075,
+          "max": 0.0237
+        },
+        "crest_factor": {
+          "mean": 0.013730333333333334,
+          "sd": 0.0023210083775998935,
+          "median": 0.0135,
+          "min": 0.0074,
+          "max": 0.0227
+        },
+        "kurtosis": {
+          "mean": -0.512785,
+          "sd": 0.6548116963741052,
+          "median": -0.6157,
+          "min": -1.6814,
+          "max": 3.6237
+        },
+        "dominant_freq": {
+          "mean": 74.95833333333333,
+          "sd": 50.0046210972185,
+          "median": 54.6875,
+          "min": 10.9375,
+          "max": 175.0
+        },
+        "lag1_autocorr_first_feature": 0.2677770235392397
+      },
+      "verdict": "PLAUSIBLE"
+    },
+    "esp32-sim-10": {
+      "kind": "vibration_switch",
+      "stats": {
+        "n": 600,
+        "trigger_rate": {
+          "mean": 0.08463433333333334,
+          "sd": 0.5687140428087643,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 3.9062
+        },
+        "duty_cycle": {
+          "mean": 0.00011049999999999999,
+          "sd": 0.0007555393768692668,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0078
+        },
+        "burst_max_ms": {
+          "mean": 0.028333333333333332,
+          "sd": 0.19372804535109406,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 2.0
+        },
+        "inter_event_cv": {
+          "mean": 0.0,
+          "sd": 0.0,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "lag1_autocorr_first_feature": -0.02218341851220897
+      },
+      "verdict": "UNVALIDATED (no real SW-420 capture yet)"
+    }
+  },
+  "distinctness": {
+    "closest_pair": [
+      "esp32-sim-05",
+      "esp32-sim-08"
+    ],
+    "difference_g": 0.005549999999999722,
+    "real_within_session_sd_g": 0.009641342096659995,
+    "verdict": "DISTINCT"
+  },
+  "limitations": [
+    "SW-420-type simulated nodes are UNVALIDATED -- no real SW-420 capture exists",
+    "plausibility covers resting behaviour only, not fault behaviour",
+    "the reference is a single physical device"
+  ]
+}

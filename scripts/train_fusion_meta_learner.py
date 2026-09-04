@@ -4,10 +4,28 @@ Offline training for Module 3, Phase 7 (Fusion Engine).
 CLAUDE.md Section 8: training happens here; fusion_engine.FusionEngine
 only ever loads the resulting artifacts and runs inference. Run this
 AFTER train_isolation_forest.py, train_lstm_ae.py, and train_gnn.py -- it
-replays the training session through all three (now-trained) scorers to
-build the [rule, if, lstm, gnn] -> label dataset, per synopsis Section
-4.2 Stage 4 ("train the four trust-signal models independently, then
-train the stacking meta-learner on top of their outputs").
+replays a session through all three (now-trained) scorers to build the
+[rule, if, lstm, gnn] -> label dataset, per synopsis Section 4.2 Stage 4
+("train the four trust-signal models independently, then train the
+stacking meta-learner on top of their outputs").
+
+LEAKAGE FIX (docs/REPOSITORY_AUDIT.md 2.1, reviewer concern H). This
+script used to replay `training_session.json` -- the SAME session the
+three base models were fitted on. Base-model scores on their own training
+data are optimistic, so the meta-learner learned coefficients calibrated
+to in-sample behaviour it will never see at inference. It now replays
+`validation_session.json` (a distinct simulated session, seed 4242, that
+no base model has seen) plus the real VALIDATION-split hardware session.
+
+    TRAIN       -> Isolation Forest, LSTM-AE, Transformer, GNN
+    VALIDATION  -> this meta-learner, and threshold selection
+    TEST        -> touched once, at the end, by evaluation only
+
+Held-out stacking, not out-of-fold stacking: with a base-model chain this
+stateful (the LSTM-AE carries a rolling window; the GNN carries a graph
+snapshot) a k-fold refit would mean k full retrains of every model and k
+sets of artifacts, and the honest gain over one clean held-out split is
+not worth that. The choice is recorded here rather than left implicit.
 """
 
 import json
@@ -27,8 +45,20 @@ from isolation_forest_scorer import IsolationForestScorer
 from lstm_ae_scorer import LSTMAEScorer
 from gnn_scorer import GNNScorer
 from generate_training_data import physical_label
+import splits
 
-SESSION_PATH = os.path.join(DATA_COLLECTED_DIR, "training_session.json")
+SESSION_PATH = os.path.join(DATA_COLLECTED_DIR, "validation_session.json")
+
+# NOT included: the real VALIDATION-split hardware session (20260902_173108).
+# Measured before deciding, not assumed: that session holds 47 records, and the
+# 2*LSTM_SEQ_LEN per-block warmup discard that evaluate_real_hardware.py
+# applies for good reason (CLAUDE.md, "Filling the LSTM window is not the same
+# as clearing it") leaves ~15 scoreable rows. Fifteen rows cannot meaningfully
+# move a four-coefficient logistic fit against ~2900 synthetic ones, and adding
+# a second stateful replay path to carry them would be complexity bought for no
+# measurable effect. The real validation session is used where its size IS
+# sufficient -- threshold selection (scripts/select_thresholds.py), which needs
+# a decision boundary rather than a fit.
 
 
 def build_dataset(records):
@@ -139,6 +169,9 @@ def main():
     with open(SESSION_PATH) as f:
         records = json.load(f)
 
+    splits.assert_disjoint()
+    print(f"meta-training on VALIDATION split: {os.path.basename(SESSION_PATH)} "
+          f"({len(records)} records). Base models were fitted on TRAIN and are frozen here.")
     print("building fusion training set (replaying through trained IF/LSTM-AE/GNN scorers)...")
     X, y = build_dataset(records)
     print(f"built {len(X)} examples, class balance: {np.bincount(y.astype(int))}")

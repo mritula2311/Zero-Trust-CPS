@@ -1,0 +1,135 @@
+{
+  "_README": [
+    "Configuration for the split-preserving empirical virtual-node generator",
+    "(src/virtual_device_generator.py). JSON rather than YAML for the reason",
+    "config/simulated_nodes.json gives: pyyaml is not a dependency of this",
+    "project and holding a few dictionaries is not a reason to add one.",
+    "",
+    "WHAT THE GENERATOR PRODUCES. Networks of REAL_DERIVED_VIRTUAL nodes at",
+    "n = 2, 3, 5, 10, 15. Each virtual node's base trajectory is a contiguous",
+    "block of REAL captured telemetry from the split being built, carrying the",
+    "real cross-feature and temporal structure; a persistent per-device scale,",
+    "bias, extra noise and drift are applied on top. The nodes are NOT physical",
+    "devices, are never described as such, and every row they produce carries",
+    "source_type = REAL_DERIVED_VIRTUAL.",
+    "",
+    "THE PARAMETER SPLIT THAT MATTERS. Two categories, kept apart on purpose:",
+    "",
+    "  EMPIRICALLY SUPPORTED -- estimated from the real rows of the split being",
+    "  generated, by src/virtual_device_generator.empirical_stats():",
+    "     within-session residual covariance   (cross-feature dependence)",
+    "     per-feature lag-1 autocorrelation     (temporal dependence)",
+    "     resting centre and per-feature spread",
+    "     real fault displacement trajectories  (anomaly shape)",
+    "",
+    "  CONTROLLED SENSITIVITY -- the numbers in this file. They are NOT learned",
+    "  from multiple physical units, because this project does not have multiple",
+    "  physical units to learn them from. esp32-vib-001 is the only device with",
+    "  completed captures; esp32-vib-002 contributes PENDING_REAL_HARDWARE_DATA",
+    "  rows only. Nothing derived from these numbers may be described anywhere",
+    "  as measured device-to-device variation.",
+    "",
+    "  Worth stating because it will not improve as much as it looks when the",
+    "  second board is captured: esp32-vib-002 is an SW-420 vibration SWITCH,",
+    "  not a second MPU6050 (src/config.py DEVICE_REGISTRY). Completing its",
+    "  capture gives a second sensing MODALITY, not a second sample of",
+    "  MPU6050 unit-to-unit spread. Identifying that spread empirically needs",
+    "  two accelerometers, which the testbed does not have.",
+    "",
+    "WHERE THE MEDIUM PRESET COMES FROM. The closest measured analogue to",
+    "device-to-device variation available in this project is BETWEEN-SESSION",
+    "variation on the ONE board: resting rms measured 1.041 / 1.056 / 1.011 g on",
+    "three occasions (RESULTS.md 0.10.7, ADR-18), a 0.045 g range about a 1.0335",
+    "midpoint = +-2.2%, against a within-session sd of ~0.009 g. MEDIUM's",
+    "scale_spread is set to that 0.021. It is a PROXY and is labelled one: the",
+    "same unit on different days is not two units. LOW and HIGH bracket it by",
+    "roughly a factor of two either way so that a conclusion which only holds at",
+    "one setting is visible as such (the sensitivity sweep, brief section 13).",
+    "",
+    "bias_sd_multiple and drift_sd_multiple are in units of each feature's OWN",
+    "measured spread in the split, so one number applies coherently to rms",
+    "(sd ~0.01 g) and dominant_freq (sd ~59 Hz) without either being absurd.",
+    "extra_noise_fraction is the fraction of the real residual sd added as",
+    "unit-specific measurement variation ON TOP of the real noise already",
+    "carried by the base trajectory -- it is an addition, not a replacement,",
+    "which is why values above ~0.5 are not offered."
+  ],
+
+  "generator_version": "1.0.0",
+  "global_seed": 20260904,
+
+  "feature_grid": {
+    "_note": [
+      "dominant_freq is not continuous. It is a DFT bin index times",
+      "FEATURE_SAMPLE_RATE_HZ / FEATURE_WINDOW_SIZE = 500 / 32 = 15.625 Hz, and",
+      "all 429 real rows sit exactly on that grid (22 distinct values, every one",
+      "a multiple of 15.625 to within its own rounding). A generator that",
+      "perturbs it continuously produces values no DFT of this length can emit,",
+      "which is a giveaway a discriminator finds immediately and a defect even",
+      "if no discriminator were run. Generated values are snapped back to the",
+      "grid. Derived from config, not written down, so it follows the rate."
+    ],
+    "snap_dominant_freq_to_dft_bins": true
+  },
+
+  "derived_features": {
+    "_note": [
+      "crest_factor = peak / rms EXACTLY in all 429 real rows (verified, not",
+      "assumed -- see feature_engineering.crest_factor). It is therefore derived",
+      "after every transformation rather than perturbed, which is the brief's",
+      "'do not perturb correlated features independently' in its sharpest form:",
+      "perturbing all three independently produces readings that violate an",
+      "identity the sensor pipeline cannot violate."
+    ],
+    "crest_factor": "peak / rms"
+  },
+
+  "heterogeneity_presets": {
+    "LOW": {
+      "scale_spread": 0.010,
+      "bias_sd_multiple": 0.25,
+      "extra_noise_fraction": 0.10,
+      "drift_sd_multiple": 0.15,
+      "drift_period_ticks": 400,
+      "anomaly_severity_range": [0.85, 1.15],
+      "coordinated_lag_ticks_max": 1
+    },
+    "MEDIUM": {
+      "scale_spread": 0.021,
+      "bias_sd_multiple": 0.75,
+      "extra_noise_fraction": 0.25,
+      "drift_sd_multiple": 0.40,
+      "drift_period_ticks": 400,
+      "anomaly_severity_range": [0.70, 1.30],
+      "coordinated_lag_ticks_max": 2
+    },
+    "HIGH": {
+      "scale_spread": 0.050,
+      "bias_sd_multiple": 2.00,
+      "extra_noise_fraction": 0.50,
+      "drift_sd_multiple": 1.00,
+      "drift_period_ticks": 400,
+      "anomaly_severity_range": [0.50, 1.60],
+      "coordinated_lag_ticks_max": 3
+    }
+  },
+
+  "default_preset": "MEDIUM",
+
+  "network_sizes": [2, 3, 5, 10, 15],
+
+  "ticks_per_split": {
+    "train": 600,
+    "validation": 300,
+    "test": 300
+  },
+
+  "block_ticks": 30,
+
+  "_ticks_note": [
+    "Matched to scripts/generate_network_data.py so a generated network is",
+    "comparable in size and event structure to the existing ten-node benchmark",
+    "network. block_ticks alternates quiet and event blocks: an event that never",
+    "ends is not an event, and event-level metrics need boundaries to count."
+  ]
+}

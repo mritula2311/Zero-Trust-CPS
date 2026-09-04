@@ -31,9 +31,10 @@ from config import (
     LSTM_EPOCHS,
     LSTM_LEARNING_RATE,
     FEATURE_VECTOR_DEVICE_IDS,
-    FEATURE_NAMES, TRAINING_SEED,
+    FEATURE_NAMES, TRAINING_SEED, feature_names_for,
 )
 import feature_engineering as fe
+import datasets
 from lstm_ae_scorer import LSTMAutoencoder, _TORCH_DEVICE
 
 SESSION_PATH = os.path.join(DATA_COLLECTED_DIR, "training_session.json")
@@ -62,7 +63,12 @@ def train_one(records, device_id) -> bool:
     windows = np.stack([normalized[i:i + LSTM_SEQ_LEN] for i in range(len(normalized) - LSTM_SEQ_LEN + 1)])
     x = torch.tensor(windows, dtype=torch.float32, device=_TORCH_DEVICE)
 
-    model = LSTMAutoencoder().to(_TORCH_DEVICE)
+    # input_dim from THIS device's own feature set, not the module-level
+    # FEATURE_NAMES. The SW-420-type nodes publish four features, not five;
+    # with a hardcoded 5 the trainer raised
+    # "input.size(-1) must be equal to input_size. Expected 5, got 4"
+    # on the first switch node it reached.
+    model = LSTMAutoencoder(input_dim=raw.shape[1]).to(_TORCH_DEVICE)
     optimizer = torch.optim.Adam(model.parameters(), lr=LSTM_LEARNING_RATE)
     loss_fn = nn.MSELoss()
     model.train()
@@ -90,7 +96,7 @@ def train_one(records, device_id) -> bool:
             "std": std.tolist(),
             "baseline_error_mean": baseline_error_mean,
             "baseline_error_std": baseline_error_std,
-            "feature_names": FEATURE_NAMES,
+            "feature_names": feature_names_for(device_id),
         }, f, indent=1)
 
     print(f"[{device_id}] trained LSTM-AE on {len(windows)} windows ({len(normal)} normal readings) "
@@ -100,8 +106,10 @@ def train_one(records, device_id) -> bool:
 
 def main():
     print(f"training device: {_TORCH_DEVICE}")
-    with open(SESSION_PATH) as f:
-        records = json.load(f)
+    # Per-device training corpus: esp32-vib-001 from training_session.json,
+    # every other network node from the TRAIN split of the network scenarios.
+    # See src/datasets.py for why the primary device's corpus is unchanged.
+    records = datasets.training_records()
     trained = sum(train_one(records, d) for d in FEATURE_VECTOR_DEVICE_IDS)
     if trained == 0:
         raise SystemExit("no feature_vector device had enough normal examples -- re-run generate_training_data.py")

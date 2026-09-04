@@ -84,6 +84,22 @@ def extract_features(window: list[float], sample_rate_hz: float) -> dict:
 
 
 def feature_vector(features: dict) -> list[float]:
-    """Fixed-order list, matching FEATURE_NAMES -- the shape every scorer
-    (Isolation Forest, LSTM-AE input, rule-range checks) expects."""
+    """Fixed-order list -- the shape every scorer (Isolation Forest, LSTM-AE
+    input, rule-range checks) expects.
+
+    Dispatches on the reading's OWN keys, not on a device_id parameter, because
+    the two sensor types' feature names are disjoint and both mandatory:
+    an MPU6050 reading always carries `rms`, an SW-420 reading always carries
+    `trigger_rate`, and neither ever carries the other. That makes the payload
+    self-describing, so the ~20 call sites across src/ and scripts/ keep
+    working unchanged while a heterogeneous second real node is added.
+
+    The alternative -- threading device_id through every call site -- would
+    have been twenty edits to say what the dict already says. If a third sensor
+    type is ever added whose feature names OVERLAP either set, this dispatch
+    stops being safe and the device_id parameter becomes necessary; the assert
+    below is what will fail first if that day comes."""
+    if "trigger_rate" in features:
+        from feature_engineering_sw420 import FEATURE_NAMES_SW420
+        return [features[name] for name in FEATURE_NAMES_SW420]
     return [features[name] for name in FEATURE_NAMES]

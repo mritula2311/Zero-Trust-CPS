@@ -1,0 +1,54 @@
+{
+  "1.0": {
+    "threshold": 0.225,
+    "n": 10800,
+    "tp": 1123,
+    "fp": 537,
+    "tn": 8763,
+    "fn": 377,
+    "precision": 0.6765,
+    "recall": 0.7487,
+    "f1": 0.7108,
+    "false_positive_rate": 0.0577,
+    "detection_rate": 0.7487
+  },
+  "2.0": {
+    "threshold": 0.175,
+    "n": 10800,
+    "tp": 1161,
+    "fp": 545,
+    "tn": 8755,
+    "fn": 339,
+    "precision": 0.6805,
+    "recall": 0.774,
+    "f1": 0.7243,
+    "false_positive_rate": 0.0586,
+    "detection_rate": 0.774
+  },
+  "3.0": {
+    "threshold": 0.2,
+    "n": 10800,
+    "tp": 1141,
+    "fp": 384,
+    "tn": 8916,
+    "fn": 359,
+    "precision": 0.7482,
+    "recall": 0.7607,
+    "f1": 0.7544,
+    "false_positive_rate": 0.0413,
+    "detection_rate": 0.7607
+  },
+  "5.0": {
+    "threshold": 0.225,
+    "n": 10800,
+    "tp": 1299,
+    "fp": 306,
+    "tn": 8994,
+    "fn": 201,
+    "precision": 0.8093,
+    "recall": 0.866,
+    "f1": 0.8367,
+    "false_positive_rate": 0.0329,
+    "detection_rate": 0.866
+  }
+}

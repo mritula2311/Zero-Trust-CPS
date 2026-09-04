@@ -1,0 +1,95 @@
+{
+  "_README": [
+    "Edge structure for the 10-node hybrid CPS network.",
+    "",
+    "WHY THIS FILE EXISTS. The previous graph connected every pair of active",
+    "devices -- a complete graph. With three nodes that is unremarkable and",
+    "needed no defence. At ten nodes a complete graph is a modelling CHOICE, and",
+    "an undefended one is indistinguishable from 'whatever scored best'.",
+    "",
+    "EDGE SEMANTICS, stated before any result was looked at:",
+    "",
+    "    an edge joins two nodes that monitor the SAME PHYSICAL PROCESS",
+    "",
+    "and is therefore expected to share genuine mechanical coupling. That is the",
+    "only relation a graph over sensors can carry that is not circular: joining",
+    "nodes because their scores correlate would be fitting the topology to the",
+    "thing the topology is supposed to explain.",
+    "",
+    "Three process groups, plus a sparse backbone between group representatives",
+    "standing for the shared monitoring segment (all ten report to one gateway,",
+    "so a network-wide event has SOME path, but not a direct one between every",
+    "pair). Density is 15/45 = 33% of a complete graph: 6 edges within group A,",
+    "",
+    "3 within B, 3 within C, and 3 on the inter-group backbone.",
+    "",
+    "GROUP A is where the two REAL nodes sit, together, because they physically",
+    "do: esp32-vib-001 (MPU6050) and esp32-vib-002 (SW-420) are mounted on the",
+    "same bench surface, which is what makes the C4 simultaneous-disturbance",
+    "condition a coupled event rather than two coincidences.",
+    "",
+    "WHAT THIS TOPOLOGY MUST NOT BE USED FOR. It was not selected by scoring",
+    "candidate topologies on validation and keeping the winner. It is the",
+    "physical layout, written down. If a future experiment DOES search over",
+    "topologies, that search must run on validation only and be reported as a",
+    "search."
+  ],
+
+  "network_experiment_id": "HYBRID_10_NODE_001",
+  "network_size": 10,
+  "real_node_count": 2,
+  "simulated_node_count": 8,
+
+  "nodes": [
+    {"device_id": "esp32-vib-001", "source_type": "REAL",      "group": "A", "sensor_type": "MPU6050"},
+    {"device_id": "esp32-vib-002", "source_type": "REAL",      "group": "A", "sensor_type": "SW-420"},
+    {"device_id": "esp32-sim-03",  "source_type": "SIMULATED", "group": "A", "sensor_type": "MPU6050-like"},
+    {"device_id": "esp32-sim-04",  "source_type": "SIMULATED", "group": "A", "sensor_type": "MPU6050-like"},
+    {"device_id": "esp32-sim-05",  "source_type": "SIMULATED", "group": "B", "sensor_type": "MPU6050-like"},
+    {"device_id": "esp32-sim-06",  "source_type": "SIMULATED", "group": "B", "sensor_type": "MPU6050-like"},
+    {"device_id": "esp32-sim-07",  "source_type": "SIMULATED", "group": "B", "sensor_type": "SW-420-like"},
+    {"device_id": "esp32-sim-08",  "source_type": "SIMULATED", "group": "C", "sensor_type": "MPU6050-like"},
+    {"device_id": "esp32-sim-09",  "source_type": "SIMULATED", "group": "C", "sensor_type": "MPU6050-like"},
+    {"device_id": "esp32-sim-10",  "source_type": "SIMULATED", "group": "C", "sensor_type": "SW-420-like"}
+  ],
+
+  "groups": {
+    "A": {
+      "label": "Bench 1 -- both physical nodes plus two simulated peers",
+      "members": ["esp32-vib-001", "esp32-vib-002", "esp32-sim-03", "esp32-sim-04"],
+      "rationale": "The two real boards share one bench surface; sim-03/04 stand for further sensors on the same machine."
+    },
+    "B": {
+      "label": "Machine group 2",
+      "members": ["esp32-sim-05", "esp32-sim-06", "esp32-sim-07"],
+      "rationale": "Independent machine; one switch-type node among two accelerometer-type, mirroring the real heterogeneity."
+    },
+    "C": {
+      "label": "Machine group 3",
+      "members": ["esp32-sim-08", "esp32-sim-09", "esp32-sim-10"],
+      "rationale": "Independent machine carrying the two hard cases (weak anomalies, slow-developing fault)."
+    }
+  },
+
+  "edge_rules": {
+    "intra_group": "complete within each group -- same physical process, genuine mechanical coupling",
+    "inter_group": "one edge between designated representatives only -- shared monitoring segment, not shared physics",
+    "directionality": "UNDIRECTED. Mechanical coupling is symmetric; adjacency is symmetrised and the normalisation D^-1/2 (A + wI) D^-1/2 assumes it.",
+    "self_loop": "weight GNN_SELF_LOOP_WEIGHT, swept on VALIDATION only -- see results/gnn_baselines/self_loop_sweep.json"
+  },
+
+  "group_representatives": {"A": "esp32-vib-001", "B": "esp32-sim-05", "C": "esp32-sim-08"},
+
+  "inter_group_edges": [
+    ["esp32-vib-001", "esp32-sim-05"],
+    ["esp32-sim-05", "esp32-sim-08"],
+    ["esp32-vib-001", "esp32-sim-08"]
+  ],
+
+  "activity_gate": [
+    "An edge is only realised between two nodes BOTH heard from within",
+    "GNN_EDGE_WINDOW_SECONDS. A silent node keeps its self-loop and nothing",
+    "else, so a device that drops off the network cannot keep influencing its",
+    "neighbours' scores with a stale reading."
+  ]
+}

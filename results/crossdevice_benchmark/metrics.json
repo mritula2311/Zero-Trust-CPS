@@ -1,0 +1,1561 @@
+{
+  "protocol": {
+    "fit": "train",
+    "selected_on": "validation",
+    "reported_on": "test",
+    "threshold_objective": "max F1 on validation",
+    "gcn_self_loop_weight": 5.0,
+    "seed": 0
+  },
+  "network": {
+    "size": 10,
+    "real": 2,
+    "simulated": 8,
+    "nodes": [
+      "esp32-vib-001",
+      "esp32-vib-002",
+      "esp32-sim-03",
+      "esp32-sim-04",
+      "esp32-sim-05",
+      "esp32-sim-06",
+      "esp32-sim-07",
+      "esp32-sim-08",
+      "esp32-sim-09",
+      "esp32-sim-10"
+    ]
+  },
+  "coordination_definition": ">=2 anomalous nodes at the same tick, taken from ground-truth labels only",
+  "test_anomalous_rows": {
+    "isolated": 150,
+    "coordinated": 1350
+  },
+  "operating_points": {
+    "max_f1": "threshold maximising F1 on the full validation split",
+    "fpr_capped": "isotonic calibration fitted on the validation calibration half; threshold read off the ROC of the disjoint validation selection half at each cap",
+    "caps": [
+      0.01,
+      0.03
+    ]
+  },
+  "structural_probes": {
+    "dilution_one_anomaly_among_n_minus_1_healthy": {
+      "M3_deep_sets": {
+        "2": {
+          "mean_p_anomaly": 0.2555,
+          "recall_at_threshold": 0.9925
+        },
+        "3": {
+          "mean_p_anomaly": 0.2616,
+          "recall_at_threshold": 0.9975
+        },
+        "5": {
+          "mean_p_anomaly": 0.4535,
+          "recall_at_threshold": 1.0
+        },
+        "10": {
+          "mean_p_anomaly": 0.9564,
+          "recall_at_threshold": 1.0
+        },
+        "20": {
+          "mean_p_anomaly": 0.9988,
+          "recall_at_threshold": 1.0
+        }
+      },
+      "M4_gcn": {
+        "2": {
+          "mean_p_anomaly": 0.9369,
+          "recall_at_threshold": 0.8625
+        },
+        "3": {
+          "mean_p_anomaly": 0.8091,
+          "recall_at_threshold": 0.755
+        },
+        "5": {
+          "mean_p_anomaly": 0.5161,
+          "recall_at_threshold": 0.17
+        },
+        "10": {
+          "mean_p_anomaly": 0.1952,
+          "recall_at_threshold": 0.0025
+        },
+        "20": {
+          "mean_p_anomaly": 0.1129,
+          "recall_at_threshold": 0.0
+        }
+      },
+      "M5_gatv2": {
+        "2": {
+          "mean_p_anomaly": 0.9839,
+          "recall_at_threshold": 0.995
+        },
+        "3": {
+          "mean_p_anomaly": 0.9643,
+          "recall_at_threshold": 0.9425
+        },
+        "5": {
+          "mean_p_anomaly": 0.9111,
+          "recall_at_threshold": 0.7675
+        },
+        "10": {
+          "mean_p_anomaly": 0.6948,
+          "recall_at_threshold": 0.2225
+        },
+        "20": {
+          "mean_p_anomaly": 0.3966,
+          "recall_at_threshold": 0.2025
+        }
+      },
+      "M6_set_transformer": {
+        "2": {
+          "mean_p_anomaly": 0.9231,
+          "recall_at_threshold": 0.965
+        },
+        "3": {
+          "mean_p_anomaly": 0.9105,
+          "recall_at_threshold": 0.97
+        },
+        "5": {
+          "mean_p_anomaly": 0.9343,
+          "recall_at_threshold": 0.99
+        },
+        "10": {
+          "mean_p_anomaly": 0.9496,
+          "recall_at_threshold": 1.0
+        },
+        "20": {
+          "mean_p_anomaly": 0.9166,
+          "recall_at_threshold": 0.995
+        }
+      },
+      "M7_np_st": {
+        "2": {
+          "mean_p_anomaly": 0.9957,
+          "recall_at_threshold": 1.0
+        },
+        "3": {
+          "mean_p_anomaly": 0.9941,
+          "recall_at_threshold": 0.995
+        },
+        "5": {
+          "mean_p_anomaly": 0.9954,
+          "recall_at_threshold": 0.9975
+        },
+        "10": {
+          "mean_p_anomaly": 0.9378,
+          "recall_at_threshold": 0.9925
+        },
+        "20": {
+          "mean_p_anomaly": 0.4825,
+          "recall_at_threshold": 0.995
+        }
+      },
+      "M8_set_transformer_mixed_n": {
+        "2": {
+          "mean_p_anomaly": 0.9975,
+          "recall_at_threshold": 1.0
+        },
+        "3": {
+          "mean_p_anomaly": 0.9944,
+          "recall_at_threshold": 1.0
+        },
+        "5": {
+          "mean_p_anomaly": 0.9866,
+          "recall_at_threshold": 0.9975
+        },
+        "10": {
+          "mean_p_anomaly": 0.9791,
+          "recall_at_threshold": 0.9975
+        },
+        "20": {
+          "mean_p_anomaly": 0.949,
+          "recall_at_threshold": 1.0
+        }
+      }
+    },
+    "coordination_k_of_10_anomalous": {
+      "M3_deep_sets": {
+        "1": {
+          "mean_p_anomaly": 0.9475,
+          "recall_at_threshold": 0.9975
+        },
+        "2": {
+          "mean_p_anomaly": 0.9243,
+          "recall_at_threshold": 1.0
+        },
+        "3": {
+          "mean_p_anomaly": 0.8618,
+          "recall_at_threshold": 1.0
+        },
+        "5": {
+          "mean_p_anomaly": 0.7684,
+          "recall_at_threshold": 1.0
+        },
+        "10": {
+          "mean_p_anomaly": 0.908,
+          "recall_at_threshold": 1.0
+        }
+      },
+      "M4_gcn": {
+        "1": {
+          "mean_p_anomaly": 0.3235,
+          "recall_at_threshold": 0.04
+        },
+        "2": {
+          "mean_p_anomaly": 0.7589,
+          "recall_at_threshold": 0.615
+        },
+        "3": {
+          "mean_p_anomaly": 0.9391,
+          "recall_at_threshold": 0.95
+        },
+        "5": {
+          "mean_p_anomaly": 0.9954,
+          "recall_at_threshold": 1.0
+        },
+        "10": {
+          "mean_p_anomaly": 0.9992,
+          "recall_at_threshold": 1.0
+        }
+      },
+      "M5_gatv2": {
+        "1": {
+          "mean_p_anomaly": 0.9428,
+          "recall_at_threshold": 0.865
+        },
+        "2": {
+          "mean_p_anomaly": 0.9786,
+          "recall_at_threshold": 0.9725
+        },
+        "3": {
+          "mean_p_anomaly": 0.987,
+          "recall_at_threshold": 0.99
+        },
+        "5": {
+          "mean_p_anomaly": 0.9795,
+          "recall_at_threshold": 0.975
+        },
+        "10": {
+          "mean_p_anomaly": 0.9997,
+          "recall_at_threshold": 1.0
+        }
+      },
+      "M6_set_transformer": {
+        "1": {
+          "mean_p_anomaly": 0.95,
+          "recall_at_threshold": 1.0
+        },
+        "2": {
+          "mean_p_anomaly": 0.9678,
+          "recall_at_threshold": 0.9975
+        },
+        "3": {
+          "mean_p_anomaly": 0.9561,
+          "recall_at_threshold": 0.9975
+        },
+        "5": {
+          "mean_p_anomaly": 0.9707,
+          "recall_at_threshold": 0.9975
+        },
+        "10": {
+          "mean_p_anomaly": 0.9936,
+          "recall_at_threshold": 1.0
+        }
+      },
+      "M7_np_st": {
+        "1": {
+          "mean_p_anomaly": 0.9506,
+          "recall_at_threshold": 1.0
+        },
+        "2": {
+          "mean_p_anomaly": 0.9953,
+          "recall_at_threshold": 0.9975
+        },
+        "3": {
+          "mean_p_anomaly": 0.999,
+          "recall_at_threshold": 1.0
+        },
+        "5": {
+          "mean_p_anomaly": 0.9967,
+          "recall_at_threshold": 1.0
+        },
+        "10": {
+          "mean_p_anomaly": 0.9891,
+          "recall_at_threshold": 1.0
+        }
+      },
+      "M8_set_transformer_mixed_n": {
+        "1": {
+          "mean_p_anomaly": 0.9774,
+          "recall_at_threshold": 1.0
+        },
+        "2": {
+          "mean_p_anomaly": 0.9939,
+          "recall_at_threshold": 1.0
+        },
+        "3": {
+          "mean_p_anomaly": 0.9973,
+          "recall_at_threshold": 1.0
+        },
+        "5": {
+          "mean_p_anomaly": 0.9971,
+          "recall_at_threshold": 1.0
+        },
+        "10": {
+          "mean_p_anomaly": 0.9987,
+          "recall_at_threshold": 1.0
+        }
+      }
+    },
+    "permutation_max_abs_score_delta": {
+      "M3_deep_sets": 0.0,
+      "M4_gcn": 0.755786,
+      "M5_gatv2": 0.124339,
+      "M6_set_transformer": 0.0,
+      "M7_np_st": 0.0,
+      "M8_set_transformer_mixed_n": 0.0
+    },
+    "dilution_n10_declared_topology": {
+      "M3_deep_sets": {
+        "mean_p_anomaly": 0.9475,
+        "recall_at_threshold": 0.9975
+      },
+      "M4_gcn": {
+        "mean_p_anomaly": 0.3248,
+        "recall_at_threshold": 0.06
+      },
+      "M5_gatv2": {
+        "mean_p_anomaly": 0.9466,
+        "recall_at_threshold": 0.8725
+      },
+      "M6_set_transformer": {
+        "mean_p_anomaly": 0.9397,
+        "recall_at_threshold": 0.9925
+      },
+      "M7_np_st": {
+        "mean_p_anomaly": 0.9413,
+        "recall_at_threshold": 0.9925
+      },
+      "M8_set_transformer_mixed_n": {
+        "mean_p_anomaly": 0.9763,
+        "recall_at_threshold": 1.0
+      }
+    },
+    "neighbour_degree_at_n10": {
+      "M3_deep_sets": {
+        "1": {
+          "mean_p_anomaly": 0.9475,
+          "recall_at_threshold": 0.9975
+        },
+        "2": {
+          "mean_p_anomaly": 0.9475,
+          "recall_at_threshold": 0.9975
+        },
+        "3": {
+          "mean_p_anomaly": 0.9475,
+          "recall_at_threshold": 0.9975
+        },
+        "5": {
+          "mean_p_anomaly": 0.9475,
+          "recall_at_threshold": 0.9975
+        },
+        "9": {
+          "mean_p_anomaly": 0.9475,
+          "recall_at_threshold": 0.9975
+        }
+      },
+      "M4_gcn": {
+        "1": {
+          "mean_p_anomaly": 0.9503,
+          "recall_at_threshold": 0.91
+        },
+        "2": {
+          "mean_p_anomaly": 0.8608,
+          "recall_at_threshold": 0.8125
+        },
+        "3": {
+          "mean_p_anomaly": 0.7226,
+          "recall_at_threshold": 0.5875
+        },
+        "5": {
+          "mean_p_anomaly": 0.4314,
+          "recall_at_threshold": 0.0675
+        },
+        "9": {
+          "mean_p_anomaly": 0.2064,
+          "recall_at_threshold": 0.0175
+        }
+      },
+      "M5_gatv2": {
+        "1": {
+          "mean_p_anomaly": 0.7171,
+          "recall_at_threshold": 0.1875
+        },
+        "2": {
+          "mean_p_anomaly": 0.652,
+          "recall_at_threshold": 0.205
+        },
+        "3": {
+          "mean_p_anomaly": 0.6472,
+          "recall_at_threshold": 0.2125
+        },
+        "5": {
+          "mean_p_anomaly": 0.6777,
+          "recall_at_threshold": 0.215
+        },
+        "9": {
+          "mean_p_anomaly": 0.7078,
+          "recall_at_threshold": 0.2225
+        }
+      },
+      "M6_set_transformer": {
+        "1": {
+          "mean_p_anomaly": 0.9397,
+          "recall_at_threshold": 0.9925
+        },
+        "2": {
+          "mean_p_anomaly": 0.9397,
+          "recall_at_threshold": 0.9925
+        },
+        "3": {
+          "mean_p_anomaly": 0.9397,
+          "recall_at_threshold": 0.9925
+        },
+        "5": {
+          "mean_p_anomaly": 0.9397,
+          "recall_at_threshold": 0.9925
+        },
+        "9": {
+          "mean_p_anomaly": 0.9397,
+          "recall_at_threshold": 0.9925
+        }
+      },
+      "M7_np_st": {
+        "1": {
+          "mean_p_anomaly": 0.9413,
+          "recall_at_threshold": 0.9925
+        },
+        "2": {
+          "mean_p_anomaly": 0.9413,
+          "recall_at_threshold": 0.9925
+        },
+        "3": {
+          "mean_p_anomaly": 0.9413,
+          "recall_at_threshold": 0.9925
+        },
+        "5": {
+          "mean_p_anomaly": 0.9413,
+          "recall_at_threshold": 0.9925
+        },
+        "9": {
+          "mean_p_anomaly": 0.9413,
+          "recall_at_threshold": 0.9925
+        }
+      },
+      "M8_set_transformer_mixed_n": {
+        "1": {
+          "mean_p_anomaly": 0.9763,
+          "recall_at_threshold": 1.0
+        },
+        "2": {
+          "mean_p_anomaly": 0.9763,
+          "recall_at_threshold": 1.0
+        },
+        "3": {
+          "mean_p_anomaly": 0.9763,
+          "recall_at_threshold": 1.0
+        },
+        "5": {
+          "mean_p_anomaly": 0.9763,
+          "recall_at_threshold": 1.0
+        },
+        "9": {
+          "mean_p_anomaly": 0.9763,
+          "recall_at_threshold": 1.0
+        }
+      }
+    },
+    "peer_density_at_n10_degree3": {
+      "M3_deep_sets": {
+        "0": {
+          "mean_p_anomaly": 0.9475,
+          "recall_at_threshold": 0.9975
+        },
+        "4": {
+          "mean_p_anomaly": 0.9475,
+          "recall_at_threshold": 0.9975
+        },
+        "9": {
+          "mean_p_anomaly": 0.9475,
+          "recall_at_threshold": 0.9975
+        },
+        "18": {
+          "mean_p_anomaly": 0.9475,
+          "recall_at_threshold": 0.9975
+        },
+        "36": {
+          "mean_p_anomaly": 0.9475,
+          "recall_at_threshold": 0.9975
+        }
+      },
+      "M4_gcn": {
+        "0": {
+          "mean_p_anomaly": 0.6308,
+          "recall_at_threshold": 0.3775
+        },
+        "4": {
+          "mean_p_anomaly": 0.6633,
+          "recall_at_threshold": 0.4075
+        },
+        "9": {
+          "mean_p_anomaly": 0.6654,
+          "recall_at_threshold": 0.42
+        },
+        "18": {
+          "mean_p_anomaly": 0.671,
+          "recall_at_threshold": 0.3875
+        },
+        "36": {
+          "mean_p_anomaly": 0.7226,
+          "recall_at_threshold": 0.5875
+        }
+      },
+      "M5_gatv2": {
+        "0": {
+          "mean_p_anomaly": 0.984,
+          "recall_at_threshold": 0.9925
+        },
+        "4": {
+          "mean_p_anomaly": 0.9482,
+          "recall_at_threshold": 0.895
+        },
+        "9": {
+          "mean_p_anomaly": 0.8868,
+          "recall_at_threshold": 0.695
+        },
+        "18": {
+          "mean_p_anomaly": 0.7046,
+          "recall_at_threshold": 0.2125
+        },
+        "36": {
+          "mean_p_anomaly": 0.6472,
+          "recall_at_threshold": 0.2125
+        }
+      },
+      "M6_set_transformer": {
+        "0": {
+          "mean_p_anomaly": 0.9397,
+          "recall_at_threshold": 0.9925
+        },
+        "4": {
+          "mean_p_anomaly": 0.9397,
+          "recall_at_threshold": 0.9925
+        },
+        "9": {
+          "mean_p_anomaly": 0.9397,
+          "recall_at_threshold": 0.9925
+        },
+        "18": {
+          "mean_p_anomaly": 0.9397,
+          "recall_at_threshold": 0.9925
+        },
+        "36": {
+          "mean_p_anomaly": 0.9397,
+          "recall_at_threshold": 0.9925
+        }
+      },
+      "M7_np_st": {
+        "0": {
+          "mean_p_anomaly": 0.9413,
+          "recall_at_threshold": 0.9925
+        },
+        "4": {
+          "mean_p_anomaly": 0.9413,
+          "recall_at_threshold": 0.9925
+        },
+        "9": {
+          "mean_p_anomaly": 0.9413,
+          "recall_at_threshold": 0.9925
+        },
+        "18": {
+          "mean_p_anomaly": 0.9413,
+          "recall_at_threshold": 0.9925
+        },
+        "36": {
+          "mean_p_anomaly": 0.9413,
+          "recall_at_threshold": 0.9925
+        }
+      },
+      "M8_set_transformer_mixed_n": {
+        "0": {
+          "mean_p_anomaly": 0.9763,
+          "recall_at_threshold": 1.0
+        },
+        "4": {
+          "mean_p_anomaly": 0.9763,
+          "recall_at_threshold": 1.0
+        },
+        "9": {
+          "mean_p_anomaly": 0.9763,
+          "recall_at_threshold": 1.0
+        },
+        "18": {
+          "mean_p_anomaly": 0.9763,
+          "recall_at_threshold": 1.0
+        },
+        "36": {
+          "mean_p_anomaly": 0.9763,
+          "recall_at_threshold": 1.0
+        }
+      }
+    },
+    "dilution_graph_regime": "complete graph at every n, so the curve is one experiment; declared topology reported separately",
+    "excluded": "M1/M2 accept a fixed 10*3+10 vector only"
+  },
+  "gcn_self_loop_sweep_validation": {
+    "1.0": {
+      "threshold": 0.225,
+      "n": 10800,
+      "tp": 1123,
+      "fp": 537,
+      "tn": 8763,
+      "fn": 377,
+      "precision": 0.6765,
+      "recall": 0.7487,
+      "f1": 0.7108,
+      "false_positive_rate": 0.0577,
+      "detection_rate": 0.7487
+    },
+    "2.0": {
+      "threshold": 0.175,
+      "n": 10800,
+      "tp": 1161,
+      "fp": 545,
+      "tn": 8755,
+      "fn": 339,
+      "precision": 0.6805,
+      "recall": 0.774,
+      "f1": 0.7243,
+      "false_positive_rate": 0.0586,
+      "detection_rate": 0.774
+    },
+    "3.0": {
+      "threshold": 0.2,
+      "n": 10800,
+      "tp": 1141,
+      "fp": 384,
+      "tn": 8916,
+      "fn": 359,
+      "precision": 0.7482,
+      "recall": 0.7607,
+      "f1": 0.7544,
+      "false_positive_rate": 0.0413,
+      "detection_rate": 0.7607
+    },
+    "5.0": {
+      "threshold": 0.225,
+      "n": 10800,
+      "tp": 1299,
+      "fp": 306,
+      "tn": 8994,
+      "fn": 201,
+      "precision": 0.8093,
+      "recall": 0.866,
+      "f1": 0.8367,
+      "false_positive_rate": 0.0329,
+      "detection_rate": 0.866
+    }
+  },
+  "results": {
+    "M1_concat_mlp": {
+      "calibration": {
+        "method": "isotonic, fitted on the validation calibration half",
+        "test_brier_raw": 0.0031,
+        "test_brier_calibrated": 0.00506
+      },
+      "fpr_capped": {
+        "0.01": {
+          "threshold_selected_on_validation": 0.791667,
+          "test": {
+            "n": 10800,
+            "tp": 1500,
+            "fp": 90,
+            "tn": 9210,
+            "fn": 0,
+            "precision": 0.9434,
+            "recall": 1.0,
+            "f1": 0.9709,
+            "false_positive_rate": 0.0097,
+            "detection_rate": 1.0
+          },
+          "precision_at_cap": 0.9434,
+          "achieved_test_fpr": 0.0097,
+          "cap_held_on_test": true,
+          "test_macro_f1": 0.983,
+          "test_event": {
+            "total_events": 15,
+            "detected_events": 15,
+            "missed_events": 0,
+            "event_recall": 1.0,
+            "false_alarm_windows_on_normal_nodes": 90
+          },
+          "recall_isolated_anomaly": 1.0,
+          "recall_coordinated_anomaly": 1.0
+        },
+        "0.03": {
+          "threshold_selected_on_validation": 0.990741,
+          "test": {
+            "n": 10800,
+            "tp": 1500,
+            "fp": 229,
+            "tn": 9071,
+            "fn": 0,
+            "precision": 0.8676,
+            "recall": 1.0,
+            "f1": 0.9291,
+            "false_positive_rate": 0.0246,
+            "detection_rate": 1.0
+          },
+          "precision_at_cap": 0.8676,
+          "achieved_test_fpr": 0.0246,
+          "cap_held_on_test": true,
+          "test_macro_f1": 0.9583,
+          "test_event": {
+            "total_events": 15,
+            "detected_events": 15,
+            "missed_events": 0,
+            "event_recall": 1.0,
+            "false_alarm_windows_on_normal_nodes": 229
+          },
+          "recall_isolated_anomaly": 1.0,
+          "recall_coordinated_anomaly": 1.0
+        }
+      },
+      "threshold_selected_on_validation": 0.825,
+      "validation": {
+        "n": 10800,
+        "tp": 1436,
+        "fp": 4,
+        "tn": 9296,
+        "fn": 64,
+        "precision": 0.9972,
+        "recall": 0.9573,
+        "f1": 0.9769,
+        "false_positive_rate": 0.0004,
+        "detection_rate": 0.9573
+      },
+      "test": {
+        "n": 10800,
+        "tp": 1497,
+        "fp": 42,
+        "tn": 9258,
+        "fn": 3,
+        "precision": 0.9727,
+        "recall": 0.998,
+        "f1": 0.9852,
+        "false_positive_rate": 0.0045,
+        "detection_rate": 0.998
+      },
+      "test_macro_f1": 0.9914,
+      "test_event": {
+        "total_events": 15,
+        "detected_events": 15,
+        "missed_events": 0,
+        "event_recall": 1.0,
+        "false_alarm_windows_on_normal_nodes": 42
+      },
+      "recall_isolated_anomaly": 0.98,
+      "recall_coordinated_anomaly": 1.0,
+      "train_time_ms_total": 4141.24,
+      "train_epochs": 67,
+      "train_ms_per_epoch": 61.809,
+      "inference_latency": {
+        "mean_ms": 0.061,
+        "p50_ms": 0.0554,
+        "p95_ms": 0.0789,
+        "n": 200
+      },
+      "parameters": 1857
+    },
+    "M2_grad_boosting": {
+      "calibration": {
+        "method": "isotonic, fitted on the validation calibration half",
+        "test_brier_raw": 0.00321,
+        "test_brier_calibrated": 0.00492
+      },
+      "fpr_capped": {
+        "0.01": {
+          "threshold_selected_on_validation": 0.9,
+          "test": {
+            "n": 10800,
+            "tp": 1500,
+            "fp": 113,
+            "tn": 9187,
+            "fn": 0,
+            "precision": 0.9299,
+            "recall": 1.0,
+            "f1": 0.9637,
+            "false_positive_rate": 0.0122,
+            "detection_rate": 1.0
+          },
+          "precision_at_cap": 0.9299,
+          "achieved_test_fpr": 0.0122,
+          "cap_held_on_test": false,
+          "test_macro_f1": 0.9788,
+          "test_event": {
+            "total_events": 15,
+            "detected_events": 15,
+            "missed_events": 0,
+            "event_recall": 1.0,
+            "false_alarm_windows_on_normal_nodes": 113
+          },
+          "recall_isolated_anomaly": 1.0,
+          "recall_coordinated_anomaly": 1.0
+        },
+        "0.03": {
+          "threshold_selected_on_validation": 0.9,
+          "test": {
+            "n": 10800,
+            "tp": 1500,
+            "fp": 113,
+            "tn": 9187,
+            "fn": 0,
+            "precision": 0.9299,
+            "recall": 1.0,
+            "f1": 0.9637,
+            "false_positive_rate": 0.0122,
+            "detection_rate": 1.0
+          },
+          "precision_at_cap": 0.9299,
+          "achieved_test_fpr": 0.0122,
+          "cap_held_on_test": true,
+          "test_macro_f1": 0.9788,
+          "test_event": {
+            "total_events": 15,
+            "detected_events": 15,
+            "missed_events": 0,
+            "event_recall": 1.0,
+            "false_alarm_windows_on_normal_nodes": 113
+          },
+          "recall_isolated_anomaly": 1.0,
+          "recall_coordinated_anomaly": 1.0
+        }
+      },
+      "threshold_selected_on_validation": 0.975,
+      "validation": {
+        "n": 10800,
+        "tp": 1441,
+        "fp": 13,
+        "tn": 9287,
+        "fn": 59,
+        "precision": 0.9911,
+        "recall": 0.9607,
+        "f1": 0.9756,
+        "false_positive_rate": 0.0014,
+        "detection_rate": 0.9607
+      },
+      "test": {
+        "n": 10800,
+        "tp": 1499,
+        "fp": 48,
+        "tn": 9252,
+        "fn": 1,
+        "precision": 0.969,
+        "recall": 0.9993,
+        "f1": 0.9839,
+        "false_positive_rate": 0.0052,
+        "detection_rate": 0.9993
+      },
+      "test_macro_f1": 0.9906,
+      "test_event": {
+        "total_events": 15,
+        "detected_events": 15,
+        "missed_events": 0,
+        "event_recall": 1.0,
+        "false_alarm_windows_on_normal_nodes": 48
+      },
+      "recall_isolated_anomaly": 0.9933,
+      "recall_coordinated_anomaly": 1.0,
+      "train_time_ms_total": 3720.66,
+      "train_epochs": 80,
+      "train_ms_per_epoch": 46.508,
+      "inference_latency": {
+        "mean_ms": 1.3307,
+        "p50_ms": 1.2902,
+        "p95_ms": 1.6932,
+        "n": 200
+      },
+      "parameters": null
+    },
+    "M3_deep_sets": {
+      "calibration": {
+        "method": "isotonic, fitted on the validation calibration half",
+        "test_brier_raw": 0.00426,
+        "test_brier_calibrated": 0.00661
+      },
+      "fpr_capped": {
+        "0.01": {
+          "threshold_selected_on_validation": 0.555556,
+          "test": {
+            "n": 10800,
+            "tp": 1499,
+            "fp": 102,
+            "tn": 9198,
+            "fn": 1,
+            "precision": 0.9363,
+            "recall": 0.9993,
+            "f1": 0.9668,
+            "false_positive_rate": 0.011,
+            "detection_rate": 0.9993
+          },
+          "precision_at_cap": 0.9363,
+          "achieved_test_fpr": 0.011,
+          "cap_held_on_test": false,
+          "test_macro_f1": 0.9806,
+          "test_event": {
+            "total_events": 15,
+            "detected_events": 15,
+            "missed_events": 0,
+            "event_recall": 1.0,
+            "false_alarm_windows_on_normal_nodes": 102
+          },
+          "recall_isolated_anomaly": 0.9933,
+          "recall_coordinated_anomaly": 1.0
+        },
+        "0.03": {
+          "threshold_selected_on_validation": 0.96,
+          "test": {
+            "n": 10800,
+            "tp": 1500,
+            "fp": 175,
+            "tn": 9125,
+            "fn": 0,
+            "precision": 0.8955,
+            "recall": 1.0,
+            "f1": 0.9449,
+            "false_positive_rate": 0.0188,
+            "detection_rate": 1.0
+          },
+          "precision_at_cap": 0.8955,
+          "achieved_test_fpr": 0.0188,
+          "cap_held_on_test": true,
+          "test_macro_f1": 0.9677,
+          "test_event": {
+            "total_events": 15,
+            "detected_events": 15,
+            "missed_events": 0,
+            "event_recall": 1.0,
+            "false_alarm_windows_on_normal_nodes": 175
+          },
+          "recall_isolated_anomaly": 1.0,
+          "recall_coordinated_anomaly": 1.0
+        }
+      },
+      "threshold_selected_on_validation": 0.975,
+      "validation": {
+        "n": 10800,
+        "tp": 1439,
+        "fp": 46,
+        "tn": 9254,
+        "fn": 61,
+        "precision": 0.969,
+        "recall": 0.9593,
+        "f1": 0.9642,
+        "false_positive_rate": 0.0049,
+        "detection_rate": 0.9593
+      },
+      "test": {
+        "n": 10800,
+        "tp": 1500,
+        "fp": 107,
+        "tn": 9193,
+        "fn": 0,
+        "precision": 0.9334,
+        "recall": 1.0,
+        "f1": 0.9656,
+        "false_positive_rate": 0.0115,
+        "detection_rate": 1.0
+      },
+      "test_macro_f1": 0.9799,
+      "test_event": {
+        "total_events": 15,
+        "detected_events": 15,
+        "missed_events": 0,
+        "event_recall": 1.0,
+        "false_alarm_windows_on_normal_nodes": 107
+      },
+      "recall_isolated_anomaly": 1.0,
+      "recall_coordinated_anomaly": 1.0,
+      "train_time_ms_total": 1435.74,
+      "train_epochs": 300,
+      "train_ms_per_epoch": 4.786,
+      "inference_latency": {
+        "mean_ms": 0.6473,
+        "p50_ms": 0.4581,
+        "p95_ms": 1.4591,
+        "n": 200
+      },
+      "parameters": 2097
+    },
+    "M4_gcn": {
+      "calibration": {
+        "method": "isotonic, fitted on the validation calibration half",
+        "test_brier_raw": 0.05415,
+        "test_brier_calibrated": 0.03043
+      },
+      "fpr_capped": {
+        "0.01": {
+          "threshold_selected_on_validation": 0.456522,
+          "test": {
+            "n": 10800,
+            "tp": 1159,
+            "fp": 92,
+            "tn": 9208,
+            "fn": 341,
+            "precision": 0.9265,
+            "recall": 0.7727,
+            "f1": 0.8426,
+            "false_positive_rate": 0.0099,
+            "detection_rate": 0.7727
+          },
+          "precision_at_cap": 0.9265,
+          "achieved_test_fpr": 0.0099,
+          "cap_held_on_test": true,
+          "test_macro_f1": 0.9098,
+          "test_event": {
+            "total_events": 15,
+            "detected_events": 10,
+            "missed_events": 5,
+            "event_recall": 0.6667,
+            "false_alarm_windows_on_normal_nodes": 92
+          },
+          "recall_isolated_anomaly": 0.0,
+          "recall_coordinated_anomaly": 0.8585
+        },
+        "0.03": {
+          "threshold_selected_on_validation": 0.542373,
+          "test": {
+            "n": 10800,
+            "tp": 1264,
+            "fp": 224,
+            "tn": 9076,
+            "fn": 236,
+            "precision": 0.8495,
+            "recall": 0.8427,
+            "f1": 0.8461,
+            "false_positive_rate": 0.0241,
+            "detection_rate": 0.8427
+          },
+          "precision_at_cap": 0.8495,
+          "achieved_test_fpr": 0.0241,
+          "cap_held_on_test": true,
+          "test_macro_f1": 0.9107,
+          "test_event": {
+            "total_events": 15,
+            "detected_events": 10,
+            "missed_events": 5,
+            "event_recall": 0.6667,
+            "false_alarm_windows_on_normal_nodes": 224
+          },
+          "recall_isolated_anomaly": 0.0,
+          "recall_coordinated_anomaly": 0.9363
+        }
+      },
+      "threshold_selected_on_validation": 0.225,
+      "validation": {
+        "n": 10800,
+        "tp": 1299,
+        "fp": 306,
+        "tn": 8994,
+        "fn": 201,
+        "precision": 0.8093,
+        "recall": 0.866,
+        "f1": 0.8367,
+        "false_positive_rate": 0.0329,
+        "detection_rate": 0.866
+      },
+      "test": {
+        "n": 10800,
+        "tp": 1320,
+        "fp": 330,
+        "tn": 8970,
+        "fn": 180,
+        "precision": 0.8,
+        "recall": 0.88,
+        "f1": 0.8381,
+        "false_positive_rate": 0.0355,
+        "detection_rate": 0.88
+      },
+      "test_macro_f1": 0.9052,
+      "test_event": {
+        "total_events": 15,
+        "detected_events": 11,
+        "missed_events": 4,
+        "event_recall": 0.7333,
+        "false_alarm_windows_on_normal_nodes": 330
+      },
+      "recall_isolated_anomaly": 0.0067,
+      "recall_coordinated_anomaly": 0.977,
+      "train_time_ms_total": 571.1,
+      "train_epochs": 150,
+      "train_ms_per_epoch": 3.807,
+      "inference_latency": {
+        "mean_ms": 0.6646,
+        "p50_ms": 0.7047,
+        "p95_ms": 1.095,
+        "n": 200
+      },
+      "parameters": 1217
+    },
+    "M5_gatv2": {
+      "calibration": {
+        "method": "isotonic, fitted on the validation calibration half",
+        "test_brier_raw": 0.00482,
+        "test_brier_calibrated": 0.00543
+      },
+      "fpr_capped": {
+        "0.01": {
+          "threshold_selected_on_validation": 0.780488,
+          "test": {
+            "n": 10800,
+            "tp": 1497,
+            "fp": 112,
+            "tn": 9188,
+            "fn": 3,
+            "precision": 0.9304,
+            "recall": 0.998,
+            "f1": 0.963,
+            "false_positive_rate": 0.012,
+            "detection_rate": 0.998
+          },
+          "precision_at_cap": 0.9304,
+          "achieved_test_fpr": 0.012,
+          "cap_held_on_test": false,
+          "test_macro_f1": 0.9784,
+          "test_event": {
+            "total_events": 15,
+            "detected_events": 15,
+            "missed_events": 0,
+            "event_recall": 1.0,
+            "false_alarm_windows_on_normal_nodes": 112
+          },
+          "recall_isolated_anomaly": 0.98,
+          "recall_coordinated_anomaly": 1.0
+        },
+        "0.03": {
+          "threshold_selected_on_validation": 0.883721,
+          "test": {
+            "n": 10800,
+            "tp": 1497,
+            "fp": 284,
+            "tn": 9016,
+            "fn": 3,
+            "precision": 0.8405,
+            "recall": 0.998,
+            "f1": 0.9125,
+            "false_positive_rate": 0.0305,
+            "detection_rate": 0.998
+          },
+          "precision_at_cap": 0.8405,
+          "achieved_test_fpr": 0.0305,
+          "cap_held_on_test": false,
+          "test_macro_f1": 0.9484,
+          "test_event": {
+            "total_events": 15,
+            "detected_events": 15,
+            "missed_events": 0,
+            "event_recall": 1.0,
+            "false_alarm_windows_on_normal_nodes": 284
+          },
+          "recall_isolated_anomaly": 0.98,
+          "recall_coordinated_anomaly": 1.0
+        }
+      },
+      "threshold_selected_on_validation": 0.1,
+      "validation": {
+        "n": 10800,
+        "tp": 1373,
+        "fp": 6,
+        "tn": 9294,
+        "fn": 127,
+        "precision": 0.9956,
+        "recall": 0.9153,
+        "f1": 0.9538,
+        "false_positive_rate": 0.0006,
+        "detection_rate": 0.9153
+      },
+      "test": {
+        "n": 10800,
+        "tp": 1490,
+        "fp": 44,
+        "tn": 9256,
+        "fn": 10,
+        "precision": 0.9713,
+        "recall": 0.9933,
+        "f1": 0.9822,
+        "false_positive_rate": 0.0047,
+        "detection_rate": 0.9933
+      },
+      "test_macro_f1": 0.9896,
+      "test_event": {
+        "total_events": 15,
+        "detected_events": 15,
+        "missed_events": 0,
+        "event_recall": 1.0,
+        "false_alarm_windows_on_normal_nodes": 44
+      },
+      "recall_isolated_anomaly": 0.94,
+      "recall_coordinated_anomaly": 0.9993,
+      "train_time_ms_total": 3722.51,
+      "train_epochs": 300,
+      "train_ms_per_epoch": 12.408,
+      "inference_latency": {
+        "mean_ms": 1.4697,
+        "p50_ms": 1.5409,
+        "p95_ms": 2.463,
+        "n": 200
+      },
+      "parameters": 881
+    },
+    "M6_set_transformer": {
+      "calibration": {
+        "method": "isotonic, fitted on the validation calibration half",
+        "test_brier_raw": 0.004,
+        "test_brier_calibrated": 0.00654
+      },
+      "fpr_capped": {
+        "0.01": {
+          "threshold_selected_on_validation": 0.94821,
+          "test": {
+            "n": 10800,
+            "tp": 1500,
+            "fp": 194,
+            "tn": 9106,
+            "fn": 0,
+            "precision": 0.8855,
+            "recall": 1.0,
+            "f1": 0.9393,
+            "false_positive_rate": 0.0209,
+            "detection_rate": 1.0
+          },
+          "precision_at_cap": 0.8855,
+          "achieved_test_fpr": 0.0209,
+          "cap_held_on_test": false,
+          "test_macro_f1": 0.9644,
+          "test_event": {
+            "total_events": 15,
+            "detected_events": 15,
+            "missed_events": 0,
+            "event_recall": 1.0,
+            "false_alarm_windows_on_normal_nodes": 194
+          },
+          "recall_isolated_anomaly": 1.0,
+          "recall_coordinated_anomaly": 1.0
+        },
+        "0.03": {
+          "threshold_selected_on_validation": 0.952191,
+          "test": {
+            "n": 10800,
+            "tp": 1500,
+            "fp": 194,
+            "tn": 9106,
+            "fn": 0,
+            "precision": 0.8855,
+            "recall": 1.0,
+            "f1": 0.9393,
+            "false_positive_rate": 0.0209,
+            "detection_rate": 1.0
+          },
+          "precision_at_cap": 0.8855,
+          "achieved_test_fpr": 0.0209,
+          "cap_held_on_test": true,
+          "test_macro_f1": 0.9644,
+          "test_event": {
+            "total_events": 15,
+            "detected_events": 15,
+            "missed_events": 0,
+            "event_recall": 1.0,
+            "false_alarm_windows_on_normal_nodes": 194
+          },
+          "recall_isolated_anomaly": 1.0,
+          "recall_coordinated_anomaly": 1.0
+        }
+      },
+      "threshold_selected_on_validation": 0.875,
+      "validation": {
+        "n": 10800,
+        "tp": 1404,
+        "fp": 12,
+        "tn": 9288,
+        "fn": 96,
+        "precision": 0.9915,
+        "recall": 0.936,
+        "f1": 0.963,
+        "false_positive_rate": 0.0013,
+        "detection_rate": 0.936
+      },
+      "test": {
+        "n": 10800,
+        "tp": 1496,
+        "fp": 61,
+        "tn": 9239,
+        "fn": 4,
+        "precision": 0.9608,
+        "recall": 0.9973,
+        "f1": 0.9787,
+        "false_positive_rate": 0.0066,
+        "detection_rate": 0.9973
+      },
+      "test_macro_f1": 0.9876,
+      "test_event": {
+        "total_events": 15,
+        "detected_events": 15,
+        "missed_events": 0,
+        "event_recall": 1.0,
+        "false_alarm_windows_on_normal_nodes": 61
+      },
+      "recall_isolated_anomaly": 0.98,
+      "recall_coordinated_anomaly": 0.9993,
+      "train_time_ms_total": 4447.16,
+      "train_epochs": 300,
+      "train_ms_per_epoch": 14.824,
+      "inference_latency": {
+        "mean_ms": 1.1975,
+        "p50_ms": 1.2988,
+        "p95_ms": 1.8242,
+        "n": 200
+      },
+      "parameters": 2593
+    },
+    "M7_np_st": {
+      "calibration": {
+        "method": "isotonic, fitted on the validation calibration half",
+        "test_brier_raw": 0.00435,
+        "test_brier_calibrated": 0.00592
+      },
+      "fpr_capped": {
+        "0.01": {
+          "threshold_selected_on_validation": 0.685714,
+          "test": {
+            "n": 10800,
+            "tp": 1496,
+            "fp": 70,
+            "tn": 9230,
+            "fn": 4,
+            "precision": 0.9553,
+            "recall": 0.9973,
+            "f1": 0.9759,
+            "false_positive_rate": 0.0075,
+            "detection_rate": 0.9973
+          },
+          "precision_at_cap": 0.9553,
+          "achieved_test_fpr": 0.0075,
+          "cap_held_on_test": true,
+          "test_macro_f1": 0.9859,
+          "test_event": {
+            "total_events": 15,
+            "detected_events": 15,
+            "missed_events": 0,
+            "event_recall": 1.0,
+            "false_alarm_windows_on_normal_nodes": 70
+          },
+          "recall_isolated_anomaly": 0.98,
+          "recall_coordinated_anomaly": 0.9993
+        },
+        "0.03": {
+          "threshold_selected_on_validation": 0.891525,
+          "test": {
+            "n": 10800,
+            "tp": 1499,
+            "fp": 128,
+            "tn": 9172,
+            "fn": 1,
+            "precision": 0.9213,
+            "recall": 0.9993,
+            "f1": 0.9587,
+            "false_positive_rate": 0.0138,
+            "detection_rate": 0.9993
+          },
+          "precision_at_cap": 0.9213,
+          "achieved_test_fpr": 0.0138,
+          "cap_held_on_test": true,
+          "test_macro_f1": 0.9759,
+          "test_event": {
+            "total_events": 15,
+            "detected_events": 15,
+            "missed_events": 0,
+            "event_recall": 1.0,
+            "false_alarm_windows_on_normal_nodes": 128
+          },
+          "recall_isolated_anomaly": 1.0,
+          "recall_coordinated_anomaly": 0.9993
+        }
+      },
+      "threshold_selected_on_validation": 0.925,
+      "validation": {
+        "n": 10800,
+        "tp": 1388,
+        "fp": 15,
+        "tn": 9285,
+        "fn": 112,
+        "precision": 0.9893,
+        "recall": 0.9253,
+        "f1": 0.9563,
+        "false_positive_rate": 0.0016,
+        "detection_rate": 0.9253
+      },
+      "test": {
+        "n": 10800,
+        "tp": 1496,
+        "fp": 63,
+        "tn": 9237,
+        "fn": 4,
+        "precision": 0.9596,
+        "recall": 0.9973,
+        "f1": 0.9781,
+        "false_positive_rate": 0.0068,
+        "detection_rate": 0.9973
+      },
+      "test_macro_f1": 0.9872,
+      "test_event": {
+        "total_events": 15,
+        "detected_events": 15,
+        "missed_events": 0,
+        "event_recall": 1.0,
+        "false_alarm_windows_on_normal_nodes": 63
+      },
+      "recall_isolated_anomaly": 0.98,
+      "recall_coordinated_anomaly": 0.9993,
+      "train_time_ms_total": 4775.35,
+      "train_epochs": 300,
+      "train_ms_per_epoch": 15.918,
+      "inference_latency": {
+        "mean_ms": 1.7737,
+        "p50_ms": 1.7756,
+        "p95_ms": 3.0192,
+        "n": 200
+      },
+      "parameters": 3746
+    },
+    "M8_set_transformer_mixed_n": {
+      "calibration": {
+        "method": "isotonic, fitted on the validation calibration half",
+        "test_brier_raw": 0.00575,
+        "test_brier_calibrated": 0.00634
+      },
+      "fpr_capped": {
+        "0.01": {
+          "threshold_selected_on_validation": 0.625,
+          "test": {
+            "n": 10800,
+            "tp": 1499,
+            "fp": 118,
+            "tn": 9182,
+            "fn": 1,
+            "precision": 0.927,
+            "recall": 0.9993,
+            "f1": 0.9618,
+            "false_positive_rate": 0.0127,
+            "detection_rate": 0.9993
+          },
+          "precision_at_cap": 0.927,
+          "achieved_test_fpr": 0.0127,
+          "cap_held_on_test": false,
+          "test_macro_f1": 0.9777,
+          "test_event": {
+            "total_events": 15,
+            "detected_events": 15,
+            "missed_events": 0,
+            "event_recall": 1.0,
+            "false_alarm_windows_on_normal_nodes": 118
+          },
+          "recall_isolated_anomaly": 1.0,
+          "recall_coordinated_anomaly": 0.9993
+        },
+        "0.03": {
+          "threshold_selected_on_validation": 0.914634,
+          "test": {
+            "n": 10800,
+            "tp": 1499,
+            "fp": 142,
+            "tn": 9158,
+            "fn": 1,
+            "precision": 0.9135,
+            "recall": 0.9993,
+            "f1": 0.9545,
+            "false_positive_rate": 0.0153,
+            "detection_rate": 0.9993
+          },
+          "precision_at_cap": 0.9135,
+          "achieved_test_fpr": 0.0153,
+          "cap_held_on_test": true,
+          "test_macro_f1": 0.9734,
+          "test_event": {
+            "total_events": 15,
+            "detected_events": 15,
+            "missed_events": 0,
+            "event_recall": 1.0,
+            "false_alarm_windows_on_normal_nodes": 142
+          },
+          "recall_isolated_anomaly": 1.0,
+          "recall_coordinated_anomaly": 0.9993
+        }
+      },
+      "threshold_selected_on_validation": 0.975,
+      "validation": {
+        "n": 10800,
+        "tp": 1450,
+        "fp": 58,
+        "tn": 9242,
+        "fn": 50,
+        "precision": 0.9615,
+        "recall": 0.9667,
+        "f1": 0.9641,
+        "false_positive_rate": 0.0062,
+        "detection_rate": 0.9667
+      },
+      "test": {
+        "n": 10800,
+        "tp": 1499,
+        "fp": 127,
+        "tn": 9173,
+        "fn": 1,
+        "precision": 0.9219,
+        "recall": 0.9993,
+        "f1": 0.9591,
+        "false_positive_rate": 0.0137,
+        "detection_rate": 0.9993
+      },
+      "test_macro_f1": 0.9761,
+      "test_event": {
+        "total_events": 15,
+        "detected_events": 15,
+        "missed_events": 0,
+        "event_recall": 1.0,
+        "false_alarm_windows_on_normal_nodes": 127
+      },
+      "recall_isolated_anomaly": 1.0,
+      "recall_coordinated_anomaly": 0.9993,
+      "train_time_ms_total": 4552.5,
+      "train_epochs": 300,
+      "train_ms_per_epoch": 15.175,
+      "inference_latency": {
+        "mean_ms": 1.1226,
+        "p50_ms": 0.921,
+        "p95_ms": 2.006,
+        "n": 200
+      },
+      "parameters": 2593
+    }
+  },
+  "recommendation": {
+    "highest_macro_f1": "M1_concat_mlp",
+    "lowest_latency": "M1_concat_mlp",
+    "highest_detection_at_fpr_0.01": "M1_concat_mlp"
+  },
+  "limitations": [
+    "single test split; no repeated-seed confidence intervals",
+    "eight of ten nodes are SIMULATED -- ranking partly reflects the simulator",
+    "xgboost/lightgbm not installed; sklearn HistGradientBoosting used instead",
+    "an FPR cap is honoured on validation; the achieved test FPR is reported as measured and flagged when it exceeds the cap"
+  ]
+}

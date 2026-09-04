@@ -31,6 +31,7 @@ from config import (
     FEATURE_NAMES, TRAINING_SEED,
 )
 import feature_engineering as fe
+import datasets
 
 SESSION_PATH = os.path.join(DATA_COLLECTED_DIR, "training_session.json")
 
@@ -83,8 +84,10 @@ def train_one(records, device_id) -> bool:
 
 
 def main():
-    with open(SESSION_PATH) as f:
-        records = json.load(f)
+    # Per-device training corpus: esp32-vib-001 from training_session.json,
+    # every other network node from the TRAIN split of the network scenarios.
+    # See src/datasets.py for why the primary device's corpus is unchanged.
+    records = datasets.training_records()
 
     trained = sum(train_one(records, d) for d in FEATURE_VECTOR_DEVICE_IDS)
     if trained == 0:

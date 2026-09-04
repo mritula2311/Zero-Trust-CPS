@@ -44,6 +44,7 @@ from lstm_ae_scorer import LSTMAEScorer
 from gnn_scorer import GNNScorer
 from fusion_engine import FusionEngine
 from trust_engine import rule_range_score
+import splits
 
 DEVICE = "esp32-vib-001"
 
@@ -74,15 +75,30 @@ def wilson(k, n, z=1.96):
 
 
 
-def load_sessions():
+def load_sessions(split: str = "test"):
+    """Loads ONLY the sessions allocated to `split`.
+
+    This used to glob every `*_labelled.json` on disk, including the sessions
+    whose at-rest rows merge_real_hardware_data.py had already folded into the
+    training set (docs/REPOSITORY_AUDIT.md 2.2). Reporting detection and
+    false-positive rates over those was reporting partly on training data.
+
+    Default is `test`, because that is the number the manuscript quotes. Pass
+    --split validation while tuning; TEST is read once, at the end."""
+    splits.assert_disjoint()
     rows = []
-    for path in sorted(glob.glob(os.path.join(DATA_COLLECTED_DIR, "*_labelled.json"))):
+    for path in splits.labelled_session_paths(split):
         with open(path) as f:
             session = json.load(f)
+        sid = splits.session_id_of(path)
         for r in session:
             r["_session"] = os.path.basename(path)
+            r["_session_id"] = sid
+            r.setdefault("source_type", "REAL")
+            r.setdefault("sensor_type", "MPU6050")
+            r["split"] = split
         rows.extend(session)
-        print(f"  {os.path.basename(path)}: {len(session)} labelled records")
+        print(f"  {os.path.basename(path)} [session {sid}]: {len(session)} labelled records")
     return rows
 
 
@@ -165,14 +181,17 @@ def score_all(rows):
 
 
 def main():
+    split = sys.argv[sys.argv.index("--split") + 1] if "--split" in sys.argv else "test"
     print("=" * 78)
     print("REAL HARDWARE EVALUATION -- operator-labelled ESP32 + MPU6050 telemetry")
+    print(f"split = {split.upper()}   (allocation: data/splits/session_split.json)")
     print("=" * 78)
-    rows = load_sessions()
+    rows = load_sessions(split)
     if not rows:
         raise SystemExit(
-            "No *_labelled.json sessions found. Capture one with:\n"
-            "    python collect_hardware_session.py --labelled")
+            f"No *_labelled.json sessions allocated to the {split} split. Capture one with:\n"
+            "    python collect_hardware_session.py --labelled\n"
+            "then add its session id to data/splits/session_split.json.")
 
     scored = score_all(rows)
     by = collections.defaultdict(list)

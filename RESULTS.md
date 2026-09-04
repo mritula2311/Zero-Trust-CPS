@@ -1,5 +1,11 @@
 # Results and Evaluation
 
+> **SECTION 0.12 (2026-09-03) SUPERSEDES EARLIER FIGURES.** A session-level
+> train/validation/test split and a leakage-free fusion meta-learner were
+> introduced. Three previously published claims do not survive the correction —
+> the real-hardware 0/49 false-positive rate, GNN superiority, and adaptive-policy
+> superiority. See §0.12 and docs/CLAIM_EVIDENCE_MATRIX.md.
+
 This is the standalone results record for the Zero-Trust CPS project —
 every number below comes from actually running `scripts/evaluate_*.py`
 against this repository's real trained models and a held-out test split
@@ -1269,6 +1275,745 @@ this document's numbers can never silently drift apart. Regenerate all
 
 ---
 
+---
+
+## 0.12 Leakage-free re-measurement (2026-09-03)
+
+A session-level train/validation/test split was introduced
+(`data/splits/session_split.json`, reviewer concern E). Before it,
+`merge_real_hardware_data.py` folded the at-rest rows of **every** labelled
+session into training while `evaluate_real_hardware.py` scored the disturbance
+rows of **those same sessions** — one physical acquisition session feeding both
+sides. The fusion meta-learner was likewise trained on the session its own base
+models were fitted on (concern H).
+
+**Three previously published claims do not survive the correction.** They are
+withdrawn here rather than quietly restated. Reproduce everything below with the
+commands in `docs/EXPERIMENTAL_PROTOCOL.md` §7.
+
+### 0.12.1 Real hardware — the withdrawn 0/49
+
+**OBSERVATION.** On the untouched TEST session (`20260902_221217`):
+
+| | detection | false positives on a resting board |
+|---|---|---|
+| TEST split | **30/30 (100%)**, 95% CI [88.6%, 100%] | **5/12 (41.7%)**, 95% CI [19.3%, 68.0%] |
+| VALIDATION split (`20260902_173108`) | 14/14 (100%) | 0/3, 95% CI [0%, 56.2%] |
+
+Per phase (TEST, median scores): `at_rest` fused 0.701 (42% flagged),
+`fault_weak` 0.000 (100% flagged), `fault_strong` 0.000 (100% flagged).
+
+**INTERPRETATION.** Detection is unaffected by the correction — real physical
+disturbance, including the sustained low-amplitude `fault_weak` condition, is
+detected in every scored window. The false-positive rate is not: it moves from
+**0/49 to 5/12**.
+
+**ALTERNATIVE EXPLANATION.** Is the test session simply unusual? Its resting rms
+median (1.0485) sits *inside* the training range (1.0410–1.0571), so it is not
+out-of-distribution by centre. But its spread is wider (sd 0.0134, min 1.0172)
+than either training session (sd 0.0025 and 0.0106). The learned normal region
+appears narrower than the true cross-session spread — which is what ADR-18
+warned about, reached from the other direction.
+
+**LIMITATION.** Twelve resting windows. The interval runs 19–68%. This does not
+establish that the false-positive rate *is* 42%; it establishes that 0/49 was an
+artefact of the leak and that the true rate is not near zero.
+
+**IMPLICATION.** The mounting/orientation experiment (concern D) becomes the
+highest-value outstanding capture — it is what would tell us whether the normal
+region is session-specific.
+
+**The 0/49 figure is withdrawn.** So is the `13/49 vs 0/49` synthetic-only
+ablation magnitude (§0.10.9): its direction stands, its baseline was the leaky
+number, and it needs re-measurement.
+
+### 0.12.2 Fusion meta-learner — the leak was visible in the coefficients
+
+Trained on the session its base models were fitted on, the meta-learner learned
+
+```
+[rule, iso, lstm, gnn] = [?, +4.41, -0.46, +5.51]
+```
+
+The **LSTM-AE coefficient was negative** — the wrong sign for a signal whose
+whole purpose is to fall on anomalies. Retrained on a held-out validation
+session (SIM_SESSION_VAL_001, seed 4242) with the base models frozen:
+
+```
+[rule, iso, lstm, gnn] = [-0.003, +2.972, +5.966, +8.332]
+```
+
+All three ML signals now carry the correct sign, and the LSTM-AE is the
+second-strongest contributor rather than a negative one.
+
+### 0.12.3 GNN vs same-information baselines — claim withdrawn
+
+`results/gnn_baselines/metrics.json`. Five comparators, byte-identical inputs
+(per-node `[rule, iso, lstm]` for all ten nodes), fit on TRAIN, all selection on
+VALIDATION, TEST read once.
+
+**Task 1 — per-node anomaly detection (test):**
+
+| model | precision | recall | F1 | FPR | event recall |
+|---|---|---|---|---|---|
+| B2 concat MLP | 0.9727 | 0.9980 | **0.9852** | 0.0045 | 1.000 |
+| B0 single-device | 0.9583 | 0.9967 | 0.9771 | 0.0070 | 1.000 |
+| **GNN** | 0.8000 | 0.8800 | **0.8381** | 0.0355 | **0.733** |
+| B1 concat logistic | 0.6560 | 0.9573 | 0.7785 | 0.0810 | 1.000 |
+| B3 coordinated rule | 0.4629 | 0.9187 | 0.6156 | 0.1719 | 1.000 |
+
+**Task 2 — network coordination pattern, 4-way (accuracy):**
+
+| model | validation | test |
+|---|---|---|
+| B2 concat MLP | 0.6475 | **0.6567** |
+| B1 concat logistic | 0.6592 | 0.6433 |
+| **GNN node embeddings** | 0.5792 | **0.6058** |
+| B0 anomalous-node count | 0.4592 | 0.4142 |
+
+Self-loop weight swept `{1, 2, 3, 5}` on validation; 5.0 selected (validation
+F1 0.8254). **The GNN loses at its own best swept setting**, and is the only comparator whose EVENT recall falls below 1.000 (0.733).
+
+**INTERPRETATION.** Cross-device information clearly helps: on task 2, which a
+single-node view cannot answer even in principle, accuracy rises 0.4142 → 0.6567.
+Graph structure does not — the GNN is beaten by a concatenated MLP on both tasks.
+
+**ALTERNATIVE EXPLANATION.** On task 1, B0 (one node) nearly matches B2 (ten
+nodes), because a node's own label is largely determined by its own sub-scores.
+That is a property of the *target*, not evidence about graphs — which is why
+task 2 was declared alongside it rather than after seeing task 1.
+
+**LIMITATION.** One topology, one graph size, one GCN architecture, one testbed,
+and `esp32-vib-002` contributed no rows. This shows the GNN did not help *here*,
+not that graph learning cannot help.
+
+**IMPLICATION.** Any claim of GNN necessity or superiority is withdrawn. The
+defensible claim concerns cross-device information.
+
+### 0.12.4 Policy comparison — the adaptive policy loses to a tuned static table
+
+> **SUPERSEDED BY §0.13.6.** Re-measured on the consistent chain; P2, P3 and P5
+> all moved. The conclusion (the bandit loses to a tuned static table) survives.
+
+`results/policy_comparison/metrics.json`, untouched test split, 2933 decisions.
+
+| policy | 2933 | 0.0083 | 0.0127 | 0.0060 | 0.0146 | 0.0223 | 0.5192 |
+|---|---|---|---|---|---|
+| P2 static optimised | **0.8936** | **0.5879** | 0.8995 | 0.0048 | 0.0014 |
+| P3 decision tree | 0.4722 | 0.5834 | 0.6183 | **0.5272** | 0.0000 |
+| P5 adaptive bandit | 0.7300 | 0.5329 | 0.7896 | 0.0000 | 0.0007 |
+| P4 multiclass LR | 0.6502 | 0.4355 | 0.7284 | 0.0755 | 0.0483 |
+| P1 static (deployed) | 0.6577 | 0.2744 | 0.7029 | 0.0000 | 0.0000 |
+
+**P5 is a contextual bandit with sample-average action-value estimation, not
+reinforcement learning** — no discount factor, no next-state bootstrapping,
+reward a fixed function of (state, action).
+
+**Rare combined class (BLOCK), support 33 — reported, not hidden:**
+
+| policy | tp | fp | fn | precision | recall |
+|---|---|---|---|---|---|
+| P1 static | 0 | 0 | 33 | 0.0000 | 0.0000 |
+| P2 static optimised | 0 | 14 | 33 | 0.0000 | 0.0000 |
+| P3 decision tree | 33 | **1529** | 0 | **0.0211** | 1.0000 |
+| P4 multiclass LR | 1 | 219 | 32 | 0.0045 | 0.0303 |
+| P5 adaptive bandit | 0 | 0 | 33 | 0.0000 | 0.0000 |
+
+Recall on the combined class is effectively zero for every policy that keeps a
+usable false-block rate. The one policy achieving full recall does so at 2.1%
+precision and a 52.7% false-block burden — not deployable. The class is
+`stealthy_forged_values`, whose `(s_sec, s_proc)` state is by construction
+indistinguishable from normal, so no policy over those two inputs can separate
+it. A known architectural blind spot, not a tuning failure.
+
+### 0.12.5 Common vs separate thresholds (concern J)
+
+Both selected on VALIDATION by macro-F1, reported on TEST:
+
+| configuration | test macro-F1 |
+|---|---|
+| A — common `θ = 0.7` | 0.4876 |
+| B — separate `θ_sec = 0.7`, `θ_proc = 0.05` | 0.5879 |
+
+Separate scored higher, **but the selected `θ_proc = 0.05` would make the
+deployed system nearly blind to process anomalies.** It maximises macro-F1 on a
+class mix dominated by normal and security-concern examples. The selection
+objective is not the deployment objective; deployed thresholds remain 0.6/0.6
+and the gap is reported as the finding rather than adopted.
+
+### 0.12.6 Per-stage latency (concern P)
+
+`results/latency/latency.json`. Warm, `time.perf_counter_ns`, host in
+`docs/ENVIRONMENT.md`. Cold start 1268 ms, reported separately, never amortised.
+
+| stage | n | mean | sd | p50 | p95 | p99 | max |
+|---|---|---|---|---|---|---|---|
+| authentication | 2933 | 0.0192 | 0.0137 | 0.0142 | 0.0354 | 0.0546 | 0.3471 |
+| security_trust | 2933 | 0.0109 | 0.0993 | 0.0067 | 0.0167 | 0.0266 | 5.3754 |
+| rule_detector | 2933 | 0.0038 | 0.0050 | 0.0030 | 0.0073 | 0.0101 | 0.2446 |
+| isolation_forest | 1000 | 5.1201 | 2.3546 | 4.1168 | 8.9815 | 10.6815 | 20.7264 |
+| lstm_ae | 1000 | 1.3823 | 2.7923 | 1.1738 | 2.4624 | 3.1695 | 85.8246 |
+| gnn | 2933 | 0.9104 | 3.3473 | 0.8608 | 1.5682 | 1.9930 | 180.9994 |
+| fusion | 2933 | 0.2723 | 0.1531 | 0.2018 | 0.5383 | 0.7931 | 1.5842 |
+| policy | 2933 | 0.0083 | 0.0127 | 0.0060 | 0.0146 | 0.0223 | 0.5192 |
+| explainability | 2933 | 0.0157 | 0.0109 | 0.0108 | 0.0277 | 0.0547 | 0.1683 |
+| audit_logging | 2933 | 0.0254 | 0.0186 | 0.0182 | 0.0498 | 0.0754 | 0.3398 |
+| **total_pipeline** | 2933 | **3.4891** | 5.3890 | **1.4540** | 11.3009 | **13.8442** | **201.3477** |
+
+All values in milliseconds. **Max is ~138× the median** — a mean alone
+materially misrepresents this pipeline, which is exactly why percentiles are now
+reported. `audit_logging` is the hash-chain link computation only; the SQLite
+write is I/O-bound and excluded (stated, not omitted).
+
+10-node hybrid network tick: mean 70.67 ms, p50 67.65, p95 100.34, p99 112.95,
+max 129.15 → ~14.1 network ticks/s ≈ **141 messages/s sustained**. Ten nodes is not
+evidence of industrial scalability and is not presented as such.
+
+### 0.12.7 What changed in the data
+
+Enforcing the split removed 18 real at-rest rows from training (121 → 103) and
+withheld two entire sessions from evaluation that had previously contributed to
+both sides.
+
+---
+
+## 0.13 Chain-consistency re-measurement and the cross-device architecture study (2026-09-04)
+
+Every number in §2, §2.1 and §0.12.4 was produced while the training chain was
+**internally inconsistent**: Isolation Forest and LSTM-AE artifacts were written
+at 23:32, while the Transformer (22:32), GNN (22:32), fusion meta-learner (22:33)
+and RL Q-table (22:36) all pre-dated them by an hour. Steps 3–6 therefore
+described base models that no longer existed.
+
+`test_no_model_artifact_is_older_than_its_training_data` passed throughout,
+because it only compares each artifact against `training_session.json` (22:28).
+It has no notion of the chain being a dependency order.
+`test_chain_artifacts_are_not_older_than_the_artifacts_they_replay` now closes
+that gap, and its falsifier was injected and verified: advancing the Isolation
+Forest mtime by two hours fails it with
+`lstm_ae is older than isolation_forest`.
+
+Steps 3–6 were retrained in order. Everything below is measured on the
+consistent chain.
+
+### 0.13.1 The deployed GNN does not survive a clean retrain
+
+| `gnn_score` (ablation, 3050 held-out messages) | stale chain | consistent chain |
+|---|---|---|
+| accuracy | 0.901 | **0.281** |
+| precision | 0.985 | 0.984 |
+| recall | 0.906 | **0.223** |
+| F1 | 0.944 | **0.364** |
+| `coordinated` recall | 0.974 | 1.000 |
+| `stealthy_forged_values` recall | 0.000 | 0.697 |
+
+The per-class recalls rise because the model now flags roughly 78% of legitimate
+traffic. `train_gnn.py` weights the suspicious class at 24.4× the normal class
+(347,220 normal against 7,260 suspicious node-targets), and on the current data a
+fresh fit answers "anomalous" to almost everything. This is the invariant in
+CLAUDE.md §4 doing exactly what it says: a number going up is not the model
+improving.
+
+**This is a TRAINING result, not an architectural one, and the two must not be
+cited together.** The architectural evidence is §0.13.3, where a GCN trained in
+the same loop, with the same class weighting and the same epoch count as six
+other models, still fails on isolated anomalies.
+
+Fusion coefficients on `[rule, iso, lstm, gnn]`, refitted on the held-out
+validation session with the base models frozen:
+
+```
+stale chain      [-0.003, +2.972, +5.966, +8.332]
+consistent chain [-0.018, +2.979, +4.500, +6.062]
+```
+
+The `rule` coefficient is ≈0 in both. The deployed fusion is effectively
+`iso + lstm + gnn`, and describing it as a four-signal fusion without that
+number beside it overstates what the rule input contributes.
+
+### 0.13.2 Corrected ablation (supersedes §2 and §2.1)
+
+`scripts/evaluate_ablation.py`, 3050 held-out messages, 117 excluded
+(`auth_ok=False`, rejected at Module 2 and never scored). 2700 legitimate,
+233 suspicious. Deployed threshold 0.6.
+
+| Signal | Accuracy | Precision | Recall | F1 |
+|---|---|---|---|---|
+| rule_score | 0.921 | 0.921 | 1.000 | 0.959 |
+| isolation_forest_score | 0.919 | 0.960 | 0.951 | 0.956 |
+| lstm_ae_score | 0.753 | 0.957 | 0.766 | 0.851 |
+| transformer_score | 0.754 | 0.957 | 0.768 | 0.852 |
+| gnn_score | **0.281** | 0.984 | **0.223** | **0.364** |
+| **fused_score** | 0.704 | 0.993 | 0.684 | 0.810 |
+
+Per-event-type recall:
+
+| Signal | anomalous_shock | coordinated | high_rate | stealthy_forged_values |
+|---|---|---|---|---|
+| rule_score | 0.000 | 0.000 | n/a | 0.000 |
+| isolation_forest_score | 1.000 | 0.316 | n/a | 0.212 |
+| lstm_ae_score | 1.000 | 0.308 | n/a | 0.606 |
+| transformer_score | 1.000 | 0.308 | n/a | 0.606 |
+| gnn_score | 1.000 | 1.000 | n/a | 0.697 |
+| **fused_score** | 1.000 | 0.983 | n/a | 0.667 |
+
+**`rule_score`'s 0.959 F1 must never be cited as detection performance.** It
+scores 0.000 recall on all four attack types; its headline number is entirely the
+label mix, because none of the four attacks produce a physically out-of-range
+reading. It is the correct free first gate and nothing more.
+
+LSTM-AE vs Transformer on the fair, undiluted comparison (esp32-vib-001 only,
+254 rows after excluding window-residue): **identical at 0.945 / 0.878 / 1.000 /
+0.935**. §0.10.13's rejection of the Transformer as a fifth fusion input stands.
+
+### 0.13.3 Cross-device architecture benchmark, seven models
+
+`scripts/benchmark_crossdevice_models.py`, `results/crossdevice_benchmark/`.
+Ten-node network, 10,800 scoreable test rows (1500 anomalous: 150 isolated,
+1350 coordinated) across 15 events. Fit on TRAIN, every threshold and the GCN
+self-loop weight selected on VALIDATION, TEST read once. All seven receive the
+identical per-node `[rule, iso, lstm]` sub-scores for all ten nodes.
+
+| model | macro-F1 | detection | FPR | event rec | **isolated rec** | coord rec | params | infer ms |
+|---|---|---|---|---|---|---|---|---|
+| M1 concat MLP | **0.9914** | 0.9980 | 0.0045 | 15/15 | 0.9800 | 1.0000 | 1857 | **0.0591** |
+| M2 grad boosting | 0.9906 | 0.9993 | 0.0052 | 15/15 | 0.9933 | 1.0000 | n/a | 1.3069 |
+| M5 GATv2 | 0.9896 | 0.9933 | 0.0047 | 15/15 | 0.9400 | 0.9993 | **881** | 1.5086 |
+| M6 set transformer | 0.9876 | 0.9973 | 0.0066 | 15/15 | 0.9800 | 0.9993 | 2593 | 1.1235 |
+| M7 NP-ST | 0.9872 | 0.9973 | 0.0068 | 15/15 | 0.9800 | 0.9993 | 3746 | 1.8629 |
+| M3 deep sets | 0.9799 | 1.0000 | 0.0115 | 15/15 | **1.0000** | 1.0000 | 2097 | 0.7395 |
+| M4 GCN | 0.9052 | 0.8800 | 0.0355 | **11/15** | **0.0067** | 0.9770 | 1217 | 0.7637 |
+
+**Six of the seven sit inside 0.011 macro-F1.** On one split with one seed that
+is not a ranking, and no architectural claim may rest on it. The accuracy table
+is at ceiling and the informative results are the structural probes below.
+
+A second operating point is reported per model: isotonically calibrated on one
+half of validation, threshold read off the ROC of the disjoint other half at a
+declared 1% false-positive budget. Calibration and threshold selection use
+disjoint halves, cut contiguously per scenario, because neighbouring ticks share
+LSTM windows and events.
+
+| at FPR ≤ 1% | detection | achieved test FPR | budget held | precision |
+|---|---|---|---|---|
+| M1 concat MLP | 1.0000 | 0.0097 | **yes** | 0.9434 |
+| M6 set transformer | 1.0000 | **0.0209** | **no** | 0.8855 |
+| M7 NP-ST | 0.9973 | 0.0075 | yes | 0.9553 |
+
+Isotonic calibration made the Brier score **worse** for M1, M2 and M3
+(M1: 0.00310 → 0.00506). It helped only M4 (0.05415 → 0.03043), the model that
+is not being adopted. Reported because the calibration step was expected to help
+and did not.
+
+### 0.13.4 Neighbourhood-induced anomaly dilution (the primary finding)
+
+One anomalous device among n−1 healthy ones, 400 trials per cell, feature vectors
+drawn from real scored test rows rather than synthesised. Recall on the anomalous
+node at each model's own validation-selected threshold:
+
+| model | n=2 | n=3 | n=5 | n=10 | n=20 |
+|---|---|---|---|---|---|
+| M4 GCN | 0.8625 | 0.7550 | 0.1700 | 0.0025 | **0.0000** |
+| M5 GATv2 | 0.9950 | 0.9425 | 0.7675 | 0.2225 | **0.2025** |
+| M6 set transformer | 0.9650 | 0.9700 | 0.9900 | 1.0000 | 0.9950 |
+| M7 NP-ST | 1.0000 | 0.9950 | 0.9975 | 0.9925 | 0.9950 |
+| M3 deep sets | 0.9925 | 0.9975 | 1.0000 | 1.0000 | 1.0000 |
+
+**A defect in the first version of this probe, recorded because it changed two
+published cells.** The declared 15-edge topology exists only at ten nodes, so the
+first run used it at n=10 and a complete graph everywhere else. The n=10 cell was
+therefore drawn from a different graph than its neighbours, and GATv2 showed a
+non-monotone bump (0.7675 → 0.8775 → 0.2025) that read as a property of device
+count and was an artifact of the adjacency changing. With a complete graph at
+every n both graph models decay monotonically. The superseded cells were GCN
+n=10 = 0.0400 and GATv2 n=10 = 0.8775.
+
+**The confound, once controlled, became the strongest single result.** Holding
+the device count fixed at ten and changing only the adjacency:
+
+| model | complete graph (9 neighbours) | declared topology (avg degree 3) |
+|---|---|---|
+| M4 GCN | 0.0025 | 0.0600 |
+| M5 GATv2 | **0.2225** | **0.8725** |
+| M6 set transformer | 1.0000 | 0.9925 |
+| M3 deep sets | 1.0000 | 0.9975 |
+
+GATv2's isolated recall changes roughly four-fold at a fixed device count when
+only the neighbour count changes. The mechanism is therefore
+**healthy-neighbour aggregation degree**, not network size. The set models are
+unaffected because they never aggregate over a neighbourhood.
+
+The mirror experiment, k of 10 devices anomalous at once, confirms nothing was
+traded away:
+
+| model | k=1 | k=2 | k=3 | k=5 | k=10 |
+|---|---|---|---|---|---|
+| M4 GCN | 0.0400 | 0.6150 | 0.9500 | 1.0000 | 1.0000 |
+| M5 GATv2 | 0.8650 | 0.9725 | 0.9900 | 0.9750 | 1.0000 |
+| M6 set transformer | 1.0000 | 0.9975 | 0.9975 | 0.9975 | 1.0000 |
+| M3 deep sets | 0.9975 | 1.0000 | 1.0000 | 1.0000 | 1.0000 |
+
+Devices relabelled, adjacency deliberately NOT permuted with them; max absolute
+score difference:
+
+```
+M3 deep sets        0.000000    invariant
+M6 set transformer  0.000000    invariant
+M7 NP-ST            0.000000    invariant
+M5 GATv2            0.124339    order-dependent
+M4 GCN              0.755786    order-dependent
+```
+
+**Stated precisely, because the loose form is wrong:** GCN and GATv2 are
+permutation-equivariant when node features and adjacency are permuted together.
+What is measured here is that under a FIXED deployment topology indexed to
+slots, the verdict depends on which physical device occupies which graph
+position. That is a deployment property, not a deficiency of graph learning.
+
+M1 and M2 are absent from every probe: their input is a fixed 10·3+10 vector and
+cannot be evaluated at any other device count. That inability is the scaling
+result, not a missing row.
+
+**LIMITATION, load-bearing — since addressed, see §0.13.11.** Every model in
+this table was trained at n=10 only, so all n ≠ 10 columns are extrapolation for
+all seven — which is why M3 reads 0.2555
+mean P(anomaly) at n=2, its worst cell. The neighbour-degree comparison above is
+the part of this section that holds n fixed and is therefore not subject to it.
+
+### 0.13.5 NP-ST: proposed, measured, not adopted
+
+A Node-Preserving Set Transformer (set attention plus a gated local residual the
+context can modulate but not replace) was implemented as the candidate novel
+architecture. It is **not adopted**, on its own numbers: 7th of 7 on macro-F1,
+tied with the plain Set Transformer at n=20 dilution (0.9950 vs 0.9950), 3746
+parameters against 2593, and the highest inference latency in the field.
+
+The reason is visible in M3. Deep Sets already concatenates each node's own
+un-aggregated embedding with the pooled context before its head — a protected
+local path by another name — and already scores 1.000 isolated recall. The idea
+NP-ST was built to contribute was already present in a baseline.
+
+Recorded here rather than dropped silently, per CLAUDE.md §7: a fix that was
+built, measured and rejected is worth more than its absence.
+
+### 0.13.6 Policy comparison on the consistent chain (supersedes §0.12.4)
+
+`results/policy_comparison/metrics.json`, untouched test split, 2933 decisions.
+
+| policy | accuracy | macro-F1 | weighted F1 | false-block | false-step-up | ALERT recall |
+|---|---|---|---|---|---|---|
+| P3 decision tree | 0.7770 | **0.6453** | 0.8398 | **0.1510** | 0.0000 | 0.9850 |
+| P2 static optimised | **0.8646** | 0.5614 | **0.8797** | 0.0076 | 0.0014 | **0.5850** |
+| P5 adaptive bandit | 0.7238 | 0.5271 | 0.7846 | 0.0000 | 0.0022 | 0.9600 |
+| P4 multiclass LR | 0.6679 | 0.4410 | 0.7408 | 0.0669 | 0.0483 | 0.5900 |
+| P6 static constrained | 0.6662 | 0.2777 | 0.7088 | 0.0000 | 0.0000 | 0.9900 |
+| P1 static (deployed) | 0.6577 | 0.2744 | 0.7029 | 0.0000 | 0.0000 | 0.9900 |
+
+Superseded §0.12.4 values: P2 0.8936/0.5879, P3 0.4722/0.5834 with false-block
+0.5272, P5 0.7300/0.5329. P3's false-block rate improved from 0.5272 to 0.1510
+and its macro-F1 now leads the table — but 15.1% of legitimate traffic blocked
+is still not deployable.
+
+Common vs separate thresholds (concern J): A common θ = 0.7 → test macro-F1
+0.4865; B separate (0.7, 0.05) → 0.5614.
+
+### 0.13.7 Deployment-constrained policy selection (P6)
+
+P2 shows what unconstrained selection does: it picks `theta_proc = 0.05`, which
+maximises macro-F1 by declaring nearly every reading physically healthy. That is
+not a tuning accident — macro-F1 over a class mix dominated by normal and
+security examples genuinely is maximised by ignoring the rare physical class.
+
+P6 uses the same grid and the same objective under bounds declared before the
+search: ALERT recall ≥ 0.90 (ALERT is the physical-fault action, so its recall
+is process-anomaly recall at the policy layer) and false-block rate ≤ 0.01.
+130 of 361 grid points were feasible.
+
+| | θ_sec | θ_proc | macro-F1 | ALERT recall | false-block |
+|---|---|---|---|---|---|
+| P2 unconstrained | 0.7 | **0.05** | 0.5614 | **0.5850** | 0.0076 |
+| **P6 constrained** | 0.05 | 0.5 | **0.2777** | **0.9900** | 0.0000 |
+
+Constraints held on test. **P2's entire macro-F1 advantage was purchased by
+going blind to physical faults**: enforcing a deployment-valid process recall
+drops 0.5614 to 0.2777, barely above the deployed P1's 0.2744. §0.12.5 reported
+the gap as a finding about the metric; this quantifies what closing it costs.
+
+The deployed thresholds remain 0.6 / 0.6.
+
+### 0.13.8 What is withdrawn
+
+**The claim that the GNN is an architecturally necessary relational layer is
+withdrawn.** §0.12.3 already withdrew GNN superiority against same-information
+baselines; §0.13.3 and §0.13.4 go further and identify the mechanism. Under a
+controlled comparison the GCN scores 0.0067 isolated recall, and a fixed-n
+intervention shows the cause is healthy-neighbour aggregation degree.
+
+What survives is narrower and better supported:
+
+> Cross-device relational information helps. Conventional graph message passing
+> is not an appropriate mechanism for it in this setting, because neighbourhood
+> aggregation suppresses isolated anomalies as healthy-neighbour degree rises.
+> Graph attention substantially reduces but does not eliminate the effect.
+> Set-based relational modelling avoids it while preserving coordinated-anomaly
+> detection.
+
+### 0.13.10 Two dilution mechanisms, separated by intervention
+
+> Both tables here are **seed 0**. §0.13.14 repeats both probes over ten
+> training seeds; the direction of every effect below reproduces, the magnitude
+> of the GATv2 one does not, and one wording in this section is corrected there.
+
+§0.13.4 established that isolated-anomaly recall falls as healthy context grows,
+but the dilution sweep confounds two variables: as n rises, so does the target's
+neighbourhood degree. Two interventions at **fixed n = 10** separate them.
+
+**D. Target degree.** The healthy population 1..9 is complete among itself in
+every condition; only the number of those peers node 0 connects to varies.
+
+| model | d=1 | d=2 | d=3 | d=5 | d=9 |
+|---|---|---|---|---|---|
+| M4 GCN | 0.9100 | 0.8125 | 0.5875 | 0.0675 | **0.0175** |
+| M5 GATv2 | 0.1875 | 0.2050 | 0.2125 | 0.2150 | 0.2225 |
+| M6 set transformer | 0.9925 | 0.9925 | 0.9925 | 0.9925 | 0.9925 |
+| M3 deep sets | 0.9975 | 0.9975 | 0.9975 | 0.9975 | 0.9975 |
+
+**E. Peer density.** Node 0's own degree is held at 3; what varies is how densely
+the nine healthy peers are wired to *each other* (36 edges = complete).
+
+| model | 0 edges | 4 | 9 | 18 | 36 |
+|---|---|---|---|---|---|
+| M4 GCN | 0.3775 | 0.4075 | 0.4200 | 0.3875 | 0.5875 |
+| M5 GATv2 | **0.9925** | 0.8950 | 0.6950 | 0.2125 | **0.2125** |
+| M6 set transformer | 0.9925 | 0.9925 | 0.9925 | 0.9925 | 0.9925 |
+| M3 deep sets | 0.9975 | 0.9975 | 0.9975 | 0.9975 | 0.9975 |
+
+**The two graph models fail for different reasons, and only one of them is the
+mechanism originally hypothesised.**
+
+- **GCN — direct dilution.** Driven by the target's own degree (0.9100 → 0.0175),
+  essentially unaffected by peer density (0.3775 → 0.5875, non-monotone).
+  Fixed averaging over more healthy neighbours erases the node's own evidence.
+- **GATv2 — propagated dilution.** Essentially unaffected by the target's own
+  degree (0.1875 → 0.2225 across d=1..9), driven instead by peer density
+  (0.9925 → 0.2125). Attention successfully protects the node from its own
+  neighbourhood; it does not protect it from neighbours that have already
+  homogenised one hop away.
+- **Set models — neither.** Flat at 0.9925 / 0.9975 in every cell of both
+  interventions, because they have no neighbourhood to aggregate over. Their
+  rows are flat by construction and are a reference line, not a result.
+
+This resolves the apparent contradiction in §0.13.4, where GATv2 read 0.8725 on
+the sparse declared topology and 0.2225 on a complete graph at the same device
+count: the declared graph has average degree 3, so its peers are not homogenised,
+while a complete graph's are.
+
+**A wrong turn, recorded.** The first version of probe D left nodes 1..9 isolated
+(self-loops only) instead of complete among themselves. With nothing else to
+attend to, node 0's neighbours absorbed its anomaly and reflected it straight
+back, so GATv2 read a flat 0.99 at every degree — while reading 0.2225 on a
+complete graph at the same n. The probe was measuring the peers' isolation, not
+the target's degree. The contradiction is what exposed it.
+
+**Correct statement of the finding**, replacing "attention delays dilution":
+
+> Graph message passing suppresses isolated anomalies through two separable
+> channels. Fixed neighbourhood averaging dilutes a node in proportion to its own
+> degree. Learned attention removes that direct channel but not the propagated
+> one: the anomaly is still erased when the node's neighbours have themselves
+> aggregated a homogeneous healthy population. Set-based relational modelling is
+> subject to neither.
+
+### 0.13.11 Mixed-cardinality training (M8)
+
+§0.13.4's stated limitation was that every model was fitted at n=10, making all
+other cardinalities extrapolation. M8 is the same Set Transformer architecture
+and the same optimiser, learning rate, epoch count and class weighting as M6,
+trained with the cardinality cycling over n ∈ {2, 3, 5, 10}.
+
+**The subsets are real.** A size-k network is k of the ten real scored node
+streams at a real tick — never a synthesised or duplicated device. n = 10 is
+therefore the ceiling here; going above it requires the virtual-device generator,
+not a resampling trick that would quietly reuse one physical device as several.
+
+| | macro-F1 | detection | FPR | isolated rec | coord rec | params |
+|---|---|---|---|---|---|---|
+| M6 (n=10 only) | 0.9876 | 0.9973 | 0.0066 | 0.9800 | 0.9993 | 2593 |
+| **M8 (mixed n)** | 0.9761 | 0.9993 | 0.0137 | **1.0000** | 0.9993 | 2593 |
+
+Dilution recall, the measurement mixed-cardinality training was meant to fix:
+
+| model | n=2 | n=3 | n=5 | n=10 | n=20 |
+|---|---|---|---|---|---|
+| M6 set transformer | 0.9650 | 0.9700 | 0.9900 | 1.0000 | 0.9950 |
+| **M8 mixed n** | **1.0000** | **1.0000** | 0.9975 | 0.9975 | **1.0000** |
+| M3 deep sets | 0.9925 | 0.9975 | 1.0000 | 1.0000 | 1.0000 |
+
+Mean P(anomaly) is where the effect is clearest, because recall was already near
+ceiling: M3's worst cell was **0.2555 at n=2**, and M8 reads **0.9975** there.
+M8's curve is the flattest in the study (0.9975 → 0.9490 across n=2..20).
+
+**This retires the extrapolation limitation and confirms it was one.** M3's odd
+small-n behaviour was an artifact of being fitted only at n=10, not a property of
+Deep Sets. M8 is also exactly permutation-invariant (max |Δ| = 0.000000) and
+holds 1.0000 recall across every cell of probes D and E.
+
+The cost is real and reported: **−0.0115 macro-F1 and roughly double the FPR**
+(0.0066 → 0.0137) against M6, and M8's 1% alarm budget does not transfer to test
+either (achieved 0.0127, cap not held; detection 0.9993, precision 0.9270).
+Cardinality robustness is bought, not free.
+
+### 0.13.12 What was NOT done
+
+Stated so the gap is not mistaken for a result.
+
+- **No hardware validation of any of this.** The testbed has two physical devices
+  (`esp32-vib-001`, and `esp32-vib-002` which has no capture and contributes
+  `PENDING_REAL_HARDWARE_DATA` rows only). Every cross-device number in §0.13.3
+  through §0.13.11 comes from the ten-node hybrid network, eight of whose nodes
+  are simulated. No claim of physical validation at n = 10 or above is supported.
+- **No real-derived virtual device generator.** Training above n = 10 needs
+  telemetry synthesised from real-device distributions with per-device bias,
+  noise and drift, then replayed through the Isolation Forest and LSTM-AE
+  scorers. Not built. M8's ceiling of n = 10 is a consequence.
+- **The Set Transformer is not wired into the deployed fusion.** `gnn_score` in
+  `fusion_engine.py` comes from `src/gnn_scorer.py` over **three** devices, while
+  every model in §0.13.3 is the ten-node network. Substituting it is not a
+  drop-in: it needs a three-device variant, then a retrain of fusion and the
+  policy layer (chain steps 5-6). Until that runs, the fusion coefficient that
+  would show whether set-based relational context adds information the Isolation
+  Forest and LSTM-AE do not already carry is unmeasured.
+- **Repeated seeds cover the two dilution probes only.** §0.13.14 re-runs
+  probes D and E under ten training seeds. Every other number in §0.13.3
+  through §0.13.11 is one seed on one split, and all of them are one split. The
+  six models inside 0.011 macro-F1 in §0.13.3 are not separated by this
+  experiment and are not claimed to be.
+
+### 0.13.13 Reproduction
+
+```
+python scripts/train_transformer.py                # steps 3-6, in order
+python scripts/train_gnn.py
+python scripts/train_fusion_meta_learner.py
+python scripts/train_adaptive_pdp.py
+python scripts/evaluate_ablation.py                # 0.13.1, 0.13.2
+python scripts/benchmark_crossdevice_models.py     # 0.13.3, 0.13.4, 0.13.5
+python scripts/benchmark_crossdevice_models.py --selfcheck
+python scripts/evaluate_policy_comparison.py       # 0.13.6, 0.13.7
+# the benchmark run above also produces 0.13.10 (probes D, E) and 0.13.11 (M8)
+python scripts/benchmark_crossdevice_models.py --seeds 10   # 0.13.14, ~6 min
+python -m unittest discover -s tests               # 65 tests
+```
+
+### 0.13.14 The two mechanisms under ten training seeds
+
+§0.13.10 separated direct from propagated dilution on **one** seed. Both probes
+were re-run under ten training seeds, refitting M3/M4/M5/M6 *and each model's
+decision threshold* per seed. The GCN self-loop weight is held at the 5.0 it won
+on validation in the main run — re-sweeping it per seed would turn a seed study
+into a second hyperparameter search. The interval is over training seeds at a
+fixed dataset: it answers "does this reproduce on a refit", not "does this hold
+on another split".
+
+**D. Target degree**, mean ± 95% CI over ten seeds:
+
+| model | d=1 | d=2 | d=3 | d=5 | d=9 |
+|---|---|---|---|---|---|
+| M4 GCN | 0.837 ±0.033 | 0.802 ±0.006 | 0.577 ±0.076 | 0.086 ±0.031 | **0.021 ±0.006** |
+| M5 GATv2 | 0.726 ±0.195 | 0.716 ±0.202 | 0.716 ±0.205 | 0.686 ±0.197 | 0.660 ±0.201 |
+| M6 set transformer | 0.995 ±0.004 | 0.995 ±0.004 | 0.995 ±0.004 | 0.995 ±0.004 | 0.995 ±0.004 |
+| M3 deep sets | 0.996 ±0.002 | 0.996 ±0.002 | 0.996 ±0.002 | 0.996 ±0.002 | 0.996 ±0.002 |
+
+**E. Peer density**, same:
+
+| model | 0 edges | 4 | 9 | 18 | 36 |
+|---|---|---|---|---|---|
+| M4 GCN | 0.387 ±0.060 | 0.442 ±0.069 | 0.430 ±0.090 | 0.406 ±0.111 | 0.577 ±0.076 |
+| M5 GATv2 | **0.989 ±0.005** | 0.946 ±0.033 | 0.885 ±0.075 | 0.733 ±0.206 | **0.716 ±0.205** |
+| M6 set transformer | 0.995 ±0.004 | 0.995 ±0.004 | 0.995 ±0.004 | 0.995 ±0.004 | 0.995 ±0.004 |
+| M3 deep sets | 0.996 ±0.002 | 0.996 ±0.002 | 0.996 ±0.002 | 0.996 ±0.002 | 0.996 ±0.002 |
+
+**The per-level intervals are the wrong statistic for this claim, and reading
+them as if they were the claim understates the result.** GATv2's d=1 cell spans
+0.19 to 0.91 across the ten seeds — but that spread is a *level* offset, how
+detectable a given refit finds an isolated anomaly at all, and it is present
+almost identically at every level of both probes. The mechanism claim is not
+about the level, it is about the *change* across an intervention. Pairing each
+seed against itself cancels the offset.
+
+**Per-seed change between each intervention's extreme levels**, paired,
+two-sided 95%, t critical 2.262 at nine degrees of freedom:
+
+| model | intervention | mean Δ | 95% CI | t | seeds down |
+|---|---|---|---|---|---|
+| M4 GCN | target degree 1→9 | **−0.8160** | [−0.850, −0.782] | −53.90 | 10/10 |
+| M4 GCN | peer density 0→36 | **+0.1895** | [+0.140, +0.239] | +8.74 | 0/10 |
+| M5 GATv2 | target degree 1→9 | −0.0655 | [−0.265, +0.134] | −0.74 | 4/10 |
+| M5 GATv2 | peer density 0→36 | **−0.2733** | [−0.477, −0.069] | −3.03 | 10/10 |
+| M6, M3 | either | 0.0000 | — | — | flat by construction |
+
+**Not a double dissociation — the GCN is significantly affected by both
+interventions**, negatively by its own degree and *positively* by peer density
+(+0.19, t=+8.7). "Each architecture responds to one intervention and not the
+other" is false as stated and is not claimed. What the table supports is:
+
+> The two architectures exhibit distinct and directionally opposed topology
+> sensitivities.
+
+**The interaction is tested directly, not inferred from the intervals above.**
+Two separate intervals, one excluding zero and one including it, do not establish
+that two effects differ; that is the difference-of-significance error, and this
+study is unusually exposed to it because GATv2's degree interval is wide. Each
+quantity below is formed inside a seed before averaging, so the between-seed
+level offset cancels in the contrast as well as in the effects:
+
+| contrast | mean | 95% CI | t | seeds down |
+|---|---|---|---|---|
+| GCN: degree effect − density effect | **−1.0055** | [−1.073, −0.938] | −33.72 | 10/10 |
+| GATv2: degree effect − density effect | +0.2078 | [−0.131, +0.546] | +1.39 | 2/10 |
+| **interaction**: (GCN − GATv2) of that contrast | **−1.2132** | [−1.583, −0.843] | **−7.42** | 10/10 |
+
+The interaction clears comfortably and in every seed: the two architectures do
+not merely have different effect sizes on a shared axis, the *pattern* across the
+two interventions differs between them. **The GATv2 row is the honest weak
+point.** Its own within-model contrast does not clear — the evidence that GATv2
+is driven by peer density and not by target degree rests on those two effects
+measured separately (−0.273 significant, −0.066 not), and a test asking directly
+whether those two differ from each other returns ns at ten seeds. The GCN's
+within-model contrast clears by a factor of fifteen in t.
+
+**A correction to §0.13.10.** That section described the GCN's peer-density row
+as "essentially unaffected ... non-monotone", read off seed 0's 0.3775 → 0.5875.
+Over ten seeds it is small but significant and consistently positive, 0/10 seeds
+falling. GCN is still driven far more by its own degree than by peer density —
+that is what the within-model contrast above establishes — but "unaffected" is
+the wrong word for a +0.19 effect that no seed contradicts.
+
+**Three qualifications the single-seed table cannot show.**
+
+- **Seed 0 is the largest peer-density effect of the ten.** Its Δ is −0.780
+  against a ten-seed mean of −0.273. The per-seed deltas are −0.780, −0.305,
+  −0.105, −0.285, −0.055, −0.778, −0.003, −0.245, −0.070, −0.108: a 260× spread
+  in magnitude with a perfectly consistent sign. §0.13.10's headline
+  0.9925 → 0.2125 is a real effect measured on the most extreme draw available.
+  **The direction is what reproduces; the magnitude is not**, and the paper must
+  quote the paired mean with its interval rather than the seed-0 pair.
+- **Five seeds is not enough for the GATv2 leg.** The same paired test on seeds
+  0–4 gives mean −0.306, CI [−0.662, +0.050], t = −2.39 against a critical
+  2.776 — the interval crosses zero. Only at ten seeds does it clear
+  (t = −3.03, critical 2.262). The GCN leg clears at either count by more than
+  an order of magnitude in t. Recorded because a five-seed run would have read
+  as a null result on the propagated mechanism, and it is not one.
+- **One split is still one split.** These intervals cover refit variance at a
+  fixed dataset. Nothing here widens to cover a different train/test split, and
+  the ten-node network is still eight simulated nodes (§0.13.12).
+
+Persisted to `results/crossdevice_benchmark/seed_study.json` under
+`paired_effects` and `interaction`, with the raw per-seed values under each probe
+cell — a ±0.36 interval on a metric bounded in [0,1] can hide a bimodal outcome,
+and a mean reported over one describes a value no seed produced. Every figure in
+this section is emitted by `--seeds 10`; none is computed by hand for the paper.
+
 ## 1. What Was Verified Live (Not Just Measured Offline)
 
 Before any of the numeric results below, these are the qualitative,
@@ -1295,6 +2040,12 @@ log — not inferred from code review:
 ---
 
 ## 2. Ablation Study — Does Fusing the Process Anomaly Signals Help?
+
+> **SUPERSEDED BY §0.13.2.** The table below was measured on an inconsistent
+> training chain (fusion and GNN artifacts older than the Isolation Forest and
+> LSTM-AE they replay through). The `gnn_score` row in particular is wrong by a
+> wide margin: 0.929 accuracy here, 0.281 on a consistent chain. Kept visible
+> rather than overwritten.
 
 `scripts/evaluate_ablation.py`, 610 held-out messages, 23 excluded
 (`auth_ok=False` or `event_type=="replay"` — rejected at Module 2 in the

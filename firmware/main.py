@@ -49,16 +49,16 @@ from machine import I2C, Pin
 from umqtt.simple import MQTTClient
 
 # ==================== CONFIGURE BEFORE FLASHING ====================
-WIFI_SSID = "YOUR_WIFI_SSID"          # your hotspot SSID (from the boot log)
-WIFI_PASSWORD = "YOUR_WIFI_PASSWORD"
-MQTT_HOST = "192.168.x.x"             # the laptop's IP on ITS OWN hotspot subnet
+# Copy device_secrets.example.py to device_secrets.py and upload it alongside
+# this file when flashing. device_secrets.py is deliberately gitignored.
+from device_secrets import (
+    WIFI_SSID, WIFI_PASSWORD, MQTT_HOST, DEVICE_ID, DEVICE_SECRET,
+    MQTT_USERNAME, MQTT_PASSWORD,
+)
+
 MQTT_TLS_PORT = 8883
 MQTT_USE_TLS = True
-DEVICE_ID = "esp32-vib-001"
-DEVICE_SECRET = "CHANGE-ME-match-secrets_local.py-DEVICE_SECRETS"
 MQTT_USE_AUTH = True
-MQTT_USERNAME = "esp32-vib-001"
-MQTT_PASSWORD = "CHANGE-ME-match-secrets_local.py-MQTT_PASSWORDS"
 
 # Offset to convert this board's RTC to UTC when NTP could NOT be reached.
 #
@@ -641,4 +641,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

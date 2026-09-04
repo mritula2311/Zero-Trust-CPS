@@ -1,0 +1,492 @@
+{
+  "protocol": {
+    "fitted_on": "validation (SIM_SESSION_VAL_002)",
+    "reported_on": "test (SIM_SESSION_TEST_001)",
+    "threshold_objective": "macro-F1 on validation",
+    "terminology": "P5 is a contextual bandit with sample-average action-value estimation, not reinforcement learning"
+  },
+  "validation_choices": {
+    "P2_static_optimised": {
+      "theta_sec": 0.7,
+      "theta_proc": 0.05,
+      "objective": "macro-F1 on validation"
+    },
+    "P6_static_constrained": {
+      "theta_sec": 0.05,
+      "theta_proc": 0.5,
+      "objective": "macro-F1 on validation subject to constraints",
+      "constraints": {
+        "min_alert_recall": 0.9,
+        "max_false_block_rate": 0.01
+      },
+      "feasible_grid_points": 130
+    },
+    "P3_decision_tree": {
+      "max_depth": 4,
+      "class_weight": "balanced"
+    }
+  },
+  "threshold_configurations": {
+    "A_common": {
+      "theta": 0.7,
+      "test_macro_f1": 0.4865
+    },
+    "B_separate": {
+      "theta_sec": 0.7,
+      "theta_proc": 0.05,
+      "test_macro_f1": 0.5614
+    }
+  },
+  "results": {
+    "P1_static": {
+      "accuracy": 0.6577,
+      "macro_f1": 0.2744,
+      "weighted_f1": 0.7029,
+      "false_block_rate": 0.0,
+      "false_step_up_rate": 0.0,
+      "per_class": {
+        "ALLOW": {
+          "support": 2541,
+          "precision": 0.9311,
+          "recall": 0.6812,
+          "f1": 0.7868,
+          "tp": 1731,
+          "fp": 128,
+          "fn": 810,
+          "tn": 264
+        },
+        "ALERT": {
+          "support": 200,
+          "precision": 0.1844,
+          "recall": 0.99,
+          "f1": 0.3108,
+          "tp": 198,
+          "fp": 876,
+          "fn": 2,
+          "tn": 1857
+        },
+        "STEP_UP": {
+          "support": 159,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 159,
+          "tn": 2774
+        },
+        "BLOCK": {
+          "support": 33,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 33,
+          "tn": 2900
+        }
+      },
+      "confusion_matrix": [
+        [
+          1731,
+          810,
+          0,
+          0
+        ],
+        [
+          2,
+          198,
+          0,
+          0
+        ],
+        [
+          115,
+          44,
+          0,
+          0
+        ],
+        [
+          11,
+          22,
+          0,
+          0
+        ]
+      ]
+    },
+    "P2_static_optimised": {
+      "accuracy": 0.8646,
+      "macro_f1": 0.5614,
+      "weighted_f1": 0.8797,
+      "false_block_rate": 0.0076,
+      "false_step_up_rate": 0.0014,
+      "per_class": {
+        "ALLOW": {
+          "support": 2541,
+          "precision": 0.9576,
+          "recall": 0.8973,
+          "f1": 0.9265,
+          "tp": 2280,
+          "fp": 101,
+          "fn": 261,
+          "tn": 291
+        },
+        "ALERT": {
+          "support": 200,
+          "precision": 0.3023,
+          "recall": 0.585,
+          "f1": 0.3986,
+          "tp": 117,
+          "fp": 270,
+          "fn": 83,
+          "tn": 2463
+        },
+        "STEP_UP": {
+          "support": 159,
+          "precision": 0.972,
+          "recall": 0.8742,
+          "f1": 0.9205,
+          "tp": 139,
+          "fp": 4,
+          "fn": 20,
+          "tn": 2770
+        },
+        "BLOCK": {
+          "support": 33,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "fp": 22,
+          "fn": 33,
+          "tn": 2878
+        }
+      },
+      "confusion_matrix": [
+        [
+          2280,
+          261,
+          0,
+          0
+        ],
+        [
+          77,
+          117,
+          4,
+          2
+        ],
+        [
+          0,
+          0,
+          139,
+          20
+        ],
+        [
+          24,
+          9,
+          0,
+          0
+        ]
+      ]
+    },
+    "P6_static_constrained": {
+      "accuracy": 0.6662,
+      "macro_f1": 0.2777,
+      "weighted_f1": 0.7088,
+      "false_block_rate": 0.0,
+      "false_step_up_rate": 0.0,
+      "per_class": {
+        "ALLOW": {
+          "support": 2541,
+          "precision": 0.9306,
+          "recall": 0.6911,
+          "f1": 0.7931,
+          "tp": 1756,
+          "fp": 131,
+          "fn": 785,
+          "tn": 261
+        },
+        "ALERT": {
+          "support": 200,
+          "precision": 0.1893,
+          "recall": 0.99,
+          "f1": 0.3178,
+          "tp": 198,
+          "fp": 848,
+          "fn": 2,
+          "tn": 1885
+        },
+        "STEP_UP": {
+          "support": 159,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 159,
+          "tn": 2774
+        },
+        "BLOCK": {
+          "support": 33,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 33,
+          "tn": 2900
+        }
+      },
+      "confusion_matrix": [
+        [
+          1756,
+          785,
+          0,
+          0
+        ],
+        [
+          2,
+          198,
+          0,
+          0
+        ],
+        [
+          117,
+          42,
+          0,
+          0
+        ],
+        [
+          12,
+          21,
+          0,
+          0
+        ]
+      ]
+    },
+    "P3_decision_tree": {
+      "accuracy": 0.777,
+      "macro_f1": 0.6453,
+      "weighted_f1": 0.8398,
+      "false_block_rate": 0.151,
+      "false_step_up_rate": 0.0,
+      "per_class": {
+        "ALLOW": {
+          "support": 2541,
+          "precision": 0.9927,
+          "recall": 0.7505,
+          "f1": 0.8548,
+          "tp": 1907,
+          "fp": 14,
+          "fn": 634,
+          "tn": 378
+        },
+        "ALERT": {
+          "support": 200,
+          "precision": 0.4937,
+          "recall": 0.985,
+          "f1": 0.6578,
+          "tp": 197,
+          "fp": 202,
+          "fn": 3,
+          "tn": 2531
+        },
+        "STEP_UP": {
+          "support": 159,
+          "precision": 1.0,
+          "recall": 0.9748,
+          "f1": 0.9873,
+          "tp": 155,
+          "fp": 0,
+          "fn": 4,
+          "tn": 2774
+        },
+        "BLOCK": {
+          "support": 33,
+          "precision": 0.0437,
+          "recall": 0.6061,
+          "f1": 0.0815,
+          "tp": 20,
+          "fp": 438,
+          "fn": 13,
+          "tn": 2462
+        }
+      },
+      "confusion_matrix": [
+        [
+          1907,
+          197,
+          0,
+          437
+        ],
+        [
+          2,
+          197,
+          0,
+          1
+        ],
+        [
+          0,
+          4,
+          155,
+          0
+        ],
+        [
+          12,
+          1,
+          0,
+          20
+        ]
+      ]
+    },
+    "P4_multiclass_lr": {
+      "accuracy": 0.6679,
+      "macro_f1": 0.441,
+      "weighted_f1": 0.7408,
+      "false_block_rate": 0.0669,
+      "false_step_up_rate": 0.0483,
+      "per_class": {
+        "ALLOW": {
+          "support": 2541,
+          "precision": 0.9842,
+          "recall": 0.6612,
+          "f1": 0.791,
+          "tp": 1680,
+          "fp": 27,
+          "fn": 861,
+          "tn": 365
+        },
+        "ALERT": {
+          "support": 200,
+          "precision": 0.1601,
+          "recall": 0.59,
+          "f1": 0.2519,
+          "tp": 118,
+          "fp": 619,
+          "fn": 82,
+          "tn": 2114
+        },
+        "STEP_UP": {
+          "support": 159,
+          "precision": 0.5427,
+          "recall": 1.0,
+          "f1": 0.7035,
+          "tp": 159,
+          "fp": 134,
+          "fn": 0,
+          "tn": 2640
+        },
+        "BLOCK": {
+          "support": 33,
+          "precision": 0.0102,
+          "recall": 0.0606,
+          "f1": 0.0175,
+          "tp": 2,
+          "fp": 194,
+          "fn": 31,
+          "tn": 2706
+        }
+      },
+      "confusion_matrix": [
+        [
+          1680,
+          599,
+          124,
+          138
+        ],
+        [
+          16,
+          118,
+          10,
+          56
+        ],
+        [
+          0,
+          0,
+          159,
+          0
+        ],
+        [
+          11,
+          20,
+          0,
+          2
+        ]
+      ]
+    },
+    "P5_adaptive_bandit": {
+      "accuracy": 0.7238,
+      "macro_f1": 0.5271,
+      "weighted_f1": 0.7846,
+      "false_block_rate": 0.0,
+      "false_step_up_rate": 0.0022,
+      "per_class": {
+        "ALLOW": {
+          "support": 2541,
+          "precision": 0.9894,
+          "recall": 0.6997,
+          "f1": 0.8197,
+          "tp": 1778,
+          "fp": 19,
+          "fn": 763,
+          "tn": 373
+        },
+        "ALERT": {
+          "support": 200,
+          "precision": 0.1965,
+          "recall": 0.96,
+          "f1": 0.3263,
+          "tp": 192,
+          "fp": 785,
+          "fn": 8,
+          "tn": 1948
+        },
+        "STEP_UP": {
+          "support": 159,
+          "precision": 0.9623,
+          "recall": 0.9623,
+          "f1": 0.9623,
+          "tp": 153,
+          "fp": 6,
+          "fn": 6,
+          "tn": 2768
+        },
+        "BLOCK": {
+          "support": 33,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 33,
+          "tn": 2900
+        }
+      },
+      "confusion_matrix": [
+        [
+          1778,
+          763,
+          0,
+          0
+        ],
+        [
+          2,
+          192,
+          6,
+          0
+        ],
+        [
+          4,
+          2,
+          153,
+          0
+        ],
+        [
+          13,
+          20,
+          0,
+          0
+        ]
+      ]
+    }
+  }
+}

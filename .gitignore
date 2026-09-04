@@ -7,6 +7,23 @@ venv/
 .venv/
 env/
 
+# Environment files and local credential backups. Commit only sanitized
+# templates such as .env.example and src/secrets_local.example.py.
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.p12
+*.pfx
+*.keystore
+*.jks
+secrets/
+credentials/
+*_secrets*.json
+*_credentials*.json
+*_tokens*.json
+
 # Secrets / private key material -- generated locally per docs/03_add_tls.md
 # and docs/07_transport_zero_trust.md, never committed. ca.key/server.key/
 # coap_server.key are real TLS private keys; mosquitto_passwd holds hashed
@@ -25,6 +42,7 @@ certs/mosquitto_acl
 # template. config.py imports from this file if it exists, falling back
 # to placeholder values otherwise.
 src/secrets_local.py
+firmware/device_secrets.py
 
 # Runtime databases -- regenerate every run, not source
 data/audit_log.db

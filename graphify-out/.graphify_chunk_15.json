@@ -1,0 +1,72 @@
+{
+  "nodes": [
+    {
+      "id": "docs_figures_fig4_capacity_vs_accuracy_tradeoff_image",
+      "label": "Fig 4: Capacity vs. Accuracy Tradeoff",
+      "file_type": "image",
+      "source_file": "D:\\zt-cps\\zt-cps-starter\\docs\\figures\\fig4_capacity_vs_accuracy_tradeoff.png",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "docs_figures_fig4_capacity_vs_accuracy_tradeoff_lstm_ae_model",
+      "label": "LSTM-AE Model (3,029 params)",
+      "file_type": "concept",
+      "source_file": "D:\\zt-cps\\zt-cps-starter\\docs\\figures\\fig4_capacity_vs_accuracy_tradeoff.png",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "docs_figures_fig4_capacity_vs_accuracy_tradeoff_transformer_model",
+      "label": "Transformer Model (17,701 params)",
+      "file_type": "concept",
+      "source_file": "D:\\zt-cps\\zt-cps-starter\\docs\\figures\\fig4_capacity_vs_accuracy_tradeoff.png",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    }
+  ],
+  "edges": [
+    {
+      "source": "docs_figures_fig4_capacity_vs_accuracy_tradeoff_image",
+      "target": "docs_figures_fig4_capacity_vs_accuracy_tradeoff_lstm_ae_model",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\zt-cps\\zt-cps-starter\\docs\\figures\\fig4_capacity_vs_accuracy_tradeoff.png",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "docs_figures_fig4_capacity_vs_accuracy_tradeoff_image",
+      "target": "docs_figures_fig4_capacity_vs_accuracy_tradeoff_transformer_model",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\zt-cps\\zt-cps-starter\\docs\\figures\\fig4_capacity_vs_accuracy_tradeoff.png",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "docs_figures_fig4_capacity_vs_accuracy_tradeoff_lstm_ae_model",
+      "target": "docs_figures_fig4_capacity_vs_accuracy_tradeoff_transformer_model",
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "D:\\zt-cps\\zt-cps-starter\\docs\\figures\\fig4_capacity_vs_accuracy_tradeoff.png",
+      "source_location": null,
+      "weight": 0.85
+    }
+  ],
+  "hyperedges": [],
+  "input_tokens": 0,
+  "output_tokens": 0
+}

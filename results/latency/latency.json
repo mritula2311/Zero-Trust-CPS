@@ -1,0 +1,117 @@
+{
+  "environment_note": "see docs/ENVIRONMENT.md for host CPU/RAM/GPU and versions",
+  "timer": "time.perf_counter_ns (monotonic, nanosecond resolution)",
+  "warm": true,
+  "cold_start_ms": 1288.5,
+  "audit_logging_note": "hash-chain link computation only; the sqlite write is I/O-bound and excluded, stated rather than omitted",
+  "stages": {
+    "authentication": {
+      "count": 2933,
+      "mean_ms": 0.0192,
+      "sd_ms": 0.0137,
+      "p50_ms": 0.0142,
+      "p95_ms": 0.0354,
+      "p99_ms": 0.0546,
+      "max_ms": 0.3471
+    },
+    "security_trust": {
+      "count": 2933,
+      "mean_ms": 0.0109,
+      "sd_ms": 0.0993,
+      "p50_ms": 0.0067,
+      "p95_ms": 0.0167,
+      "p99_ms": 0.0266,
+      "max_ms": 5.3754
+    },
+    "rule_detector": {
+      "count": 2933,
+      "mean_ms": 0.0038,
+      "sd_ms": 0.005,
+      "p50_ms": 0.003,
+      "p95_ms": 0.0073,
+      "p99_ms": 0.0101,
+      "max_ms": 0.2446
+    },
+    "isolation_forest": {
+      "count": 1000,
+      "mean_ms": 5.1201,
+      "sd_ms": 2.3546,
+      "p50_ms": 4.1168,
+      "p95_ms": 8.9815,
+      "p99_ms": 10.6815,
+      "max_ms": 20.7264
+    },
+    "lstm_ae": {
+      "count": 1000,
+      "mean_ms": 1.3823,
+      "sd_ms": 2.7923,
+      "p50_ms": 1.1738,
+      "p95_ms": 2.4624,
+      "p99_ms": 3.1695,
+      "max_ms": 85.8246
+    },
+    "gnn": {
+      "count": 2933,
+      "mean_ms": 0.9104,
+      "sd_ms": 3.3473,
+      "p50_ms": 0.8608,
+      "p95_ms": 1.5682,
+      "p99_ms": 1.993,
+      "max_ms": 180.9994
+    },
+    "fusion": {
+      "count": 2933,
+      "mean_ms": 0.2723,
+      "sd_ms": 0.1531,
+      "p50_ms": 0.2018,
+      "p95_ms": 0.5383,
+      "p99_ms": 0.7931,
+      "max_ms": 1.5842
+    },
+    "policy": {
+      "count": 2933,
+      "mean_ms": 0.0083,
+      "sd_ms": 0.0127,
+      "p50_ms": 0.006,
+      "p95_ms": 0.0146,
+      "p99_ms": 0.0223,
+      "max_ms": 0.5192
+    },
+    "explainability": {
+      "count": 2933,
+      "mean_ms": 0.0157,
+      "sd_ms": 0.0109,
+      "p50_ms": 0.0108,
+      "p95_ms": 0.0277,
+      "p99_ms": 0.0547,
+      "max_ms": 0.1683
+    },
+    "audit_logging": {
+      "count": 2933,
+      "mean_ms": 0.0254,
+      "sd_ms": 0.0186,
+      "p50_ms": 0.0182,
+      "p95_ms": 0.0498,
+      "p99_ms": 0.0754,
+      "max_ms": 0.3398
+    },
+    "total_pipeline": {
+      "count": 2933,
+      "mean_ms": 3.4891,
+      "sd_ms": 5.389,
+      "p50_ms": 1.454,
+      "p95_ms": 11.3009,
+      "p99_ms": 13.8442,
+      "max_ms": 201.3477
+    },
+    "network_10_node_tick": {
+      "count": 600,
+      "mean_ms": 70.6737,
+      "sd_ms": 16.3242,
+      "p50_ms": 67.6454,
+      "p95_ms": 100.3415,
+      "p99_ms": 112.9533,
+      "max_ms": 129.1536
+    }
+  }
+}

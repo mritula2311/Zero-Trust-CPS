@@ -22,6 +22,7 @@ never written to by this suite.
 """
 
 import json
+import re
 import math
 import os
 import random
@@ -807,6 +808,50 @@ class TestOperatorMarkedLabels(unittest.TestCase):
             f"model artifact(s) older than training_session.json: {sorted(stale)} -- "
             f"retrain the FULL chain (IF -> LSTM-AE -> Transformer -> GNN -> fusion -> RL)")
 
+    def test_chain_artifacts_are_not_older_than_the_artifacts_they_replay(self):
+        """The test above catches an artifact older than the training DATA. It
+        does not catch an artifact older than the MODEL it replays through, and
+        that is the failure that actually happened: Isolation Forest and LSTM-AE
+        were retrained while the Transformer, GNN, fusion meta-learner and RL
+        Q-table kept builds from an hour earlier, so the fusion coefficients
+        described base models that no longer existed. The data check passed the
+        whole time, because every artifact was newer than training_session.json.
+
+        The training order is a dependency chain -- IF -> LSTM-AE -> Transformer
+        -> GNN -> fusion -> RL -- and each step replays through every earlier
+        one. A step older than its input is stale by definition."""
+        models_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                  "..", "models")
+        if not os.path.isdir(models_dir):
+            raise unittest.SkipTest("no models directory")
+        import glob
+
+        def newest(pattern):
+            hits = glob.glob(os.path.join(models_dir, pattern))
+            return max((os.path.getmtime(h) for h in hits), default=None)
+
+        # (step name, glob) in training order.
+        chain = [("isolation_forest", "isolation_forest_*.joblib"),
+                 ("lstm_ae", "lstm_ae_*.pt"),
+                 ("transformer", "transformer_ae_*.pt"),
+                 ("gnn", "gnn*.pt"),
+                 ("fusion", "fusion_meta_learner.joblib"),
+                 ("rl_qtable", "adaptive_pdp_qtable.json")]
+        present = [(n, newest(g)) for n, g in chain]
+        present = [(n, t) for n, t in present if t is not None]
+
+        stale = []
+        for i in range(1, len(present)):
+            name, mtime = present[i]
+            for upstream_name, upstream_mtime in present[:i]:
+                if mtime < upstream_mtime:
+                    stale.append(f"{name} is older than {upstream_name}")
+        self.assertFalse(
+            stale,
+            "training chain out of order: " + "; ".join(stale)
+            + " -- retrain forward from the earliest stale step "
+              "(IF -> LSTM-AE -> Transformer -> GNN -> fusion -> RL)")
+
     def test_audit_db_and_its_checkpoint_store_are_not_co_located(self):
         """The checkpoint store attests the audit database. Putting them in one
         directory means a single deletion or a single mis-scoped restore removes
@@ -867,6 +912,216 @@ class TestOperatorMarkedLabels(unittest.TestCase):
         rate on a resting board is measured from these blocks."""
         for name, target, _ in self.c.LABELLED_EVENTS:
             self.assertGreater(target, self.c.MIN_EVENT_SECONDS, name)
+
+
+def _load_sw420_firmware_maths():
+    """Extracts `extract_features` STRAIGHT OUT OF firmware/main_sw420.py and
+    executes it, rather than transcribing it into this file the way
+    _firmware_feature_maths() has to for the MPU6050 node.
+
+    That transcription exists only because firmware/main.py's feature code
+    touches MicroPython-only modules. The SW-420 firmware's extract_features
+    uses nothing but builtins and two module-level constants, so the real file
+    can be exercised directly -- which is strictly stronger: a transcription
+    can silently drift from the file it claims to mirror, and then the
+    equivalence test passes while the flashed board disagrees."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "firmware", "main_sw420.py")
+    with open(path, encoding="utf-8") as f:
+        src = f.read()
+    start = src.index("def extract_features(")
+    end = src.index("# ---------- HMAC-SHA256", start)
+    ns = {}
+    rate = int(re.search(r"^SAMPLE_RATE_HZ = (\d+)", src, re.M).group(1))
+    window_size = int(re.search(r"^WINDOW_SIZE = (\d+)", src, re.M).group(1))
+    exec(f"SAMPLE_RATE_HZ = {rate}\n" + src[start:end], ns)
+    return ns["extract_features"], float(rate), window_size
+
+
+class TestSW420SamplingContract(unittest.TestCase):
+    """The SW-420 acquisition chain is one decision, exactly as the MPU6050's
+    is: rate and window size move together and both sides must agree. A rate
+    mismatch between firmware and config silently rescales trigger_rate and
+    burst_max_ms -- the same class of defect that cost three retrains on the
+    other node (RESULTS.md 13.4c)."""
+
+    def setUp(self):
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "firmware", "main_sw420.py")
+        with open(path, encoding="utf-8") as f:
+            self.src = f.read()
+        import config
+        self.config = config
+
+    def test_declared_rates_agree_across_the_boundary(self):
+        rate = int(re.search(r"^SAMPLE_RATE_HZ = (\d+)", self.src, re.M).group(1))
+        size = int(re.search(r"^WINDOW_SIZE = (\d+)", self.src, re.M).group(1))
+        self.assertEqual(float(rate), self.config.SW420_SAMPLE_RATE_HZ,
+                         "firmware/main_sw420.py sample rate != config.SW420_SAMPLE_RATE_HZ")
+        self.assertEqual(size, self.config.SW420_WINDOW_SIZE,
+                         "firmware/main_sw420.py window size != config.SW420_WINDOW_SIZE")
+
+    def test_gpio_pin_agrees_with_config(self):
+        pin = int(re.search(r"^SW420_PIN = (\d+)", self.src, re.M).group(1))
+        self.assertEqual(pin, self.config.SW420_GPIO_PIN)
+
+    def test_sample_window_paces_itself(self):
+        """A bare read loop with no delay is the defect that produced a 12.3x
+        rate overstatement on the other node. Deadline scheduling, not a fixed
+        post-read sleep, for the same accumulation reason."""
+        self.assertIn("ticks_add", self.src, "SW-420 sample_window is not deadline-scheduled")
+        self.assertIn("ticks_diff", self.src)
+
+    def test_input_is_pulled_down_not_floating(self):
+        """A floating ESP32 input fabricates edges indistinguishable from real
+        vibration. PULL_DOWN makes an unplugged wire read a steady 0."""
+        self.assertIn("PULL_DOWN", self.src)
+
+
+class TestSW420FirmwareReferenceEquivalence(unittest.TestCase):
+    """Same contract as TestFirmwareReferenceEquivalence, for the second real
+    node: the board computes the features, the models train against
+    src/feature_engineering_sw420.py, and a divergence is train/serve skew
+    that no offline evaluation can detect."""
+
+    def test_all_four_features_match_the_reference(self):
+        import feature_engineering_sw420 as fes
+        device_fn, rate, n = _load_sw420_firmware_maths()
+        random.seed(20260903)
+        mismatches = {k: 0 for k in fes.FEATURE_NAMES_SW420}
+        trials = 200
+        for i in range(trials):
+            style = i % 5
+            if style == 0:                                    # still board
+                w = [0] * n
+            elif style == 1:                                  # sparse taps
+                w = [0] * n
+                for _ in range(random.randint(1, 6)):
+                    s = random.randrange(n - 5)
+                    for j in range(s, s + random.randint(1, 5)):
+                        w[j] = 1
+            elif style == 2:                                  # sustained shaking
+                w = [1 if random.random() < 0.45 else 0 for _ in range(n)]
+            elif style == 3:                                  # one long closure
+                w = [0] * n
+                s = random.randrange(n - 40)
+                for j in range(s, s + random.randint(10, 40)):
+                    w[j] = 1
+            else:                                             # regular firing
+                period = random.randint(8, 60)
+                w = [1 if (t % period) < max(1, period // 8) else 0 for t in range(n)]
+            device = device_fn(w)
+            reference = fes.extract_features(w, rate)
+            for k in fes.FEATURE_NAMES_SW420:
+                if device[k] != reference[k]:
+                    mismatches[k] += 1
+        self.assertEqual(
+            {k: v for k, v in mismatches.items() if v}, {},
+            f"firmware/main_sw420.py maths diverges from feature_engineering_sw420.py "
+            f"over {trials} randomised windows")
+
+    def test_the_two_sensors_share_no_feature_names(self):
+        """feature_engineering.feature_vector() dispatches on the reading's own
+        keys. That is only safe while the two feature sets stay disjoint; this
+        is the check that fails first if a third sensor breaks the assumption."""
+        import feature_engineering as fe_mpu
+        import feature_engineering_sw420 as fes
+        self.assertEqual(set(fe_mpu.FEATURE_NAMES) & set(fes.FEATURE_NAMES_SW420), set())
+
+    def test_a_binary_switch_publishes_no_accelerometer_features(self):
+        """Guards the integrity requirement directly: rms/kurtosis/dominant_freq
+        are physically undefined for a contact switch and must never appear in
+        this device's payload or its registry ranges."""
+        import config
+        ranges = config.DEVICE_REGISTRY["esp32-vib-002"]["expected_ranges"]
+        for forbidden in ("rms", "peak", "crest_factor", "kurtosis", "dominant_freq"):
+            self.assertNotIn(forbidden, ranges,
+                             f"'{forbidden}' is not a physical quantity an SW-420 can measure")
+
+
+class TestSessionSplit(unittest.TestCase):
+    """Guards docs/REPOSITORY_AUDIT.md 2.2, which was a live defect and not a
+    hypothetical: merge_real_hardware_data.py globbed every *_labelled.json into
+    the training set while evaluate_real_hardware.py globbed the same files for
+    evaluation, so one physical session fed both sides. Removing that overlap
+    moved the measured real-hardware false-positive rate from 0/49 to 5/12 --
+    the whole reported number had been resting on the leak."""
+
+    def setUp(self):
+        import splits
+        self.splits = splits
+
+    def test_splits_are_pairwise_disjoint(self):
+        self.splits.assert_disjoint()   # raises AssertionError with the offending ids
+
+    def test_no_session_is_both_allocated_and_excluded(self):
+        excluded = set(self.splits.excluded())
+        for name, ids in self.splits.splits().items():
+            self.assertFalse(ids & excluded,
+                             f"{sorted(ids & excluded)} is both in {name} and excluded")
+
+    def test_every_labelled_file_on_disk_is_allocated_or_excluded(self):
+        """A newly captured session that nobody allocated must be visible, not
+        silently absorbed. This fails loudly the moment a capture lands in
+        data/collected/ without a manifest entry."""
+        import glob
+        from config import DATA_COLLECTED_DIR
+        known = set().union(*self.splits.splits().values()) | set(self.splits.excluded())
+        for path in glob.glob(os.path.join(DATA_COLLECTED_DIR, "*_labelled.json")):
+            sid = self.splits.session_id_of(path)
+            self.assertIn(sid, known,
+                          f"session {sid} ({os.path.basename(path)}) is in no split and not "
+                          f"excluded -- add it to data/splits/session_split.json deliberately")
+
+    def test_training_data_contains_no_validation_or_test_session(self):
+        """The end-to-end version of the above: read the merged training file
+        and assert no row carries a session id from the held-out splits."""
+        import json
+        from config import DATA_COLLECTED_DIR
+        path = os.path.join(DATA_COLLECTED_DIR, "training_session.json")
+        if not os.path.exists(path):
+            self.skipTest("training_session.json not built yet")
+        held_out = self.splits.splits()["validation"] | self.splits.splits()["test"]
+        with open(path) as f:
+            rows = json.load(f)
+        leaked = {r.get("session_id") for r in rows} & held_out
+        self.assertFalse(leaked, f"training set contains rows from held-out session(s) {sorted(leaked)}")
+
+    def test_every_real_training_row_declares_its_provenance(self):
+        """source_type/session_id are load-bearing: without them no result can
+        report real and simulated evidence separately (audit 2.9)."""
+        import json
+        from config import DATA_COLLECTED_DIR
+        path = os.path.join(DATA_COLLECTED_DIR, "training_session.json")
+        if not os.path.exists(path):
+            self.skipTest("training_session.json not built yet")
+        with open(path) as f:
+            rows = json.load(f)
+        self.assertTrue(rows, "empty training session")
+        for r in rows:
+            self.assertIn(r.get("source_type"), ("REAL", "SIMULATED"),
+                          f"row at tick {r.get('tick')} declares no source_type")
+            self.assertTrue(r.get("session_id"), f"row at tick {r.get('tick')} declares no session_id")
+
+    def test_fusion_and_policy_do_not_train_on_the_same_session(self):
+        """The policy consumes fusion's output. Training both on one session
+        leaves the policy reading in-sample fusion scores -- the same optimism
+        the VALIDATION split removed one level down."""
+        import train_fusion_meta_learner as fusion_trainer
+        import train_adaptive_pdp as policy_trainer
+        self.assertNotEqual(
+            os.path.basename(fusion_trainer.SESSION_PATH),
+            os.path.basename(policy_trainer.SESSION_PATH),
+            "fusion meta-learner and policy train on the same session")
+
+    def test_no_trainer_reads_the_test_session(self):
+        """A blunt but load-bearing check: no scripts/train_*.py may name the
+        test session file at all."""
+        import glob
+        scripts_dir = os.path.join(os.path.dirname(__file__), "..", "scripts")
+        for path in glob.glob(os.path.join(scripts_dir, "train_*.py")):
+            with open(path, encoding="utf-8") as f:
+                src = f.read()
+            self.assertNotIn("test_session.json", src,
+                             f"{os.path.basename(path)} references the held-out test session")
 
 
 if __name__ == "__main__":

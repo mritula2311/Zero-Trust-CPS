@@ -57,6 +57,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import paho.mqtt.client as mqtt
 
 from config import (
+    feature_names_for,
     MQTT_HOST,
     MQTT_PORT,
     MQTT_TLS_PORT,
@@ -156,7 +157,7 @@ def _extract_reading(device_id: str, payload: dict):
     """Module 1's `kind` field decides the shape: a plain float for scalar
     devices, or a dict of Section-5.1 features for feature_vector devices."""
     if is_feature_vector(device_id):
-        return {name: payload.get(name) for name in FEATURE_NAMES}
+        return {name: payload.get(name) for name in feature_names_for(device_id)}
     return payload.get("value")
 
 

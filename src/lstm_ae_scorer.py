@@ -85,12 +85,16 @@ class LSTMAEScorer:
             model_path, meta_path = lstm_ae_path(device_id), lstm_ae_meta_path(device_id)
             if not (os.path.exists(model_path) and os.path.exists(meta_path)):
                 continue  # no model for this device yet -- score() defers to the neutral fallback
-            model = LSTMAutoencoder()
+            with open(meta_path) as f:
+                meta = json.load(f)
+            # Sized from the meta this model was SAVED with, not from the
+            # module-level INPUT_DIM: devices now carry different feature-set
+            # lengths (5 for MPU6050-type, 4 for SW-420-type), and a fixed
+            # width here silently fails to load half of them.
+            model = LSTMAutoencoder(input_dim=len(meta["mean"]))
             model.load_state_dict(torch.load(model_path, map_location=_TORCH_DEVICE, weights_only=True))
             model.eval()
             self.models[device_id] = model.to(_TORCH_DEVICE)
-            with open(meta_path) as f:
-                meta = json.load(f)
             self.stats[device_id] = {
                 "mean": np.array(meta["mean"]),
                 "std": np.array(meta["std"]),

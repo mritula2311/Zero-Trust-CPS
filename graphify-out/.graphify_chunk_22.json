@@ -1,0 +1,186 @@
+{
+  "nodes": [
+    {
+      "id": "docs_figures_figa_real_hardware_discrimination",
+      "label": "Figure A: Real-Hardware Discrimination",
+      "file_type": "image",
+      "source_file": "D:\\zt-cps\\zt-cps-starter\\docs\\figures\\figA_real_hardware_discrimination.png",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "docs_figures_figa_real_hardware_discrimination_fused_process_anomaly_score",
+      "label": "Fused Process Anomaly Score by Physical State (real hardware, 4 sessions)",
+      "file_type": "image",
+      "source_file": "D:\\zt-cps\\zt-cps-starter\\docs\\figures\\figA_real_hardware_discrimination.png",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "docs_figures_figa_real_hardware_discrimination_deployed_threshold_0_6",
+      "label": "Deployed Threshold Line (0.6)",
+      "file_type": "image",
+      "source_file": "D:\\zt-cps\\zt-cps-starter\\docs\\figures\\figA_real_hardware_discrimination.png",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "docs_figures_figa_real_hardware_discrimination_peak_amplitude_panel",
+      "label": "Peak Amplitude by Physical State (log scale)",
+      "file_type": "image",
+      "source_file": "D:\\zt-cps\\zt-cps-starter\\docs\\figures\\figA_real_hardware_discrimination.png",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "docs_figures_figa_real_hardware_discrimination_resting_p99",
+      "label": "Resting p99 Peak Amplitude (0.0411 g)",
+      "file_type": "image",
+      "source_file": "D:\\zt-cps\\zt-cps-starter\\docs\\figures\\figA_real_hardware_discrimination.png",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "docs_figures_figa_real_hardware_discrimination_false_positive_detection_summary",
+      "label": "False Positives 1/29, Detection 103/103 (headline summary)",
+      "file_type": "image",
+      "source_file": "D:\\zt-cps\\zt-cps-starter\\docs\\figures\\figA_real_hardware_discrimination.png",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "docs_figures_figa_real_hardware_discrimination_operator_marked_physical_states",
+      "label": "Operator-Marked Physical States (at_rest, gentle_tap, tilt_rotate, fault_weak, fault_strong, sharp_impact, moderate_shake)",
+      "file_type": "image",
+      "source_file": "D:\\zt-cps\\zt-cps-starter\\docs\\figures\\figA_real_hardware_discrimination.png",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    }
+  ],
+  "edges": [
+    {
+      "source": "docs_figures_figa_real_hardware_discrimination",
+      "target": "docs_figures_figa_real_hardware_discrimination_fused_process_anomaly_score",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\zt-cps\\zt-cps-starter\\docs\\figures\\figA_real_hardware_discrimination.png",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "docs_figures_figa_real_hardware_discrimination",
+      "target": "docs_figures_figa_real_hardware_discrimination_peak_amplitude_panel",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\zt-cps\\zt-cps-starter\\docs\\figures\\figA_real_hardware_discrimination.png",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "docs_figures_figa_real_hardware_discrimination",
+      "target": "docs_figures_figa_real_hardware_discrimination_false_positive_detection_summary",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\zt-cps\\zt-cps-starter\\docs\\figures\\figA_real_hardware_discrimination.png",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "docs_figures_figa_real_hardware_discrimination_fused_process_anomaly_score",
+      "target": "docs_figures_figa_real_hardware_discrimination_deployed_threshold_0_6",
+      "relation": "conceptually_related_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\zt-cps\\zt-cps-starter\\docs\\figures\\figA_real_hardware_discrimination.png",
+      "source_location": null,
+      "weight": 0.9
+    },
+    {
+      "source": "docs_figures_figa_real_hardware_discrimination_fused_process_anomaly_score",
+      "target": "docs_figures_figa_real_hardware_discrimination_operator_marked_physical_states",
+      "relation": "conceptually_related_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\zt-cps\\zt-cps-starter\\docs\\figures\\figA_real_hardware_discrimination.png",
+      "source_location": null,
+      "weight": 0.9
+    },
+    {
+      "source": "docs_figures_figa_real_hardware_discrimination_peak_amplitude_panel",
+      "target": "docs_figures_figa_real_hardware_discrimination_resting_p99",
+      "relation": "conceptually_related_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\zt-cps\\zt-cps-starter\\docs\\figures\\figA_real_hardware_discrimination.png",
+      "source_location": null,
+      "weight": 0.9
+    },
+    {
+      "source": "docs_figures_figa_real_hardware_discrimination_peak_amplitude_panel",
+      "target": "docs_figures_figa_real_hardware_discrimination_operator_marked_physical_states",
+      "relation": "conceptually_related_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\zt-cps\\zt-cps-starter\\docs\\figures\\figA_real_hardware_discrimination.png",
+      "source_location": null,
+      "weight": 0.9
+    },
+    {
+      "source": "docs_figures_figa_real_hardware_discrimination_false_positive_detection_summary",
+      "target": "docs_figures_figa_real_hardware_discrimination_deployed_threshold_0_6",
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "D:\\zt-cps\\zt-cps-starter\\docs\\figures\\figA_real_hardware_discrimination.png",
+      "source_location": null,
+      "weight": 0.8
+    },
+    {
+      "source": "docs_figures_figa_real_hardware_discrimination_deployed_threshold_0_6",
+      "target": "src_config_py",
+      "relation": "references",
+      "confidence": "INFERRED",
+      "confidence_score": 0.65,
+      "source_file": "D:\\zt-cps\\zt-cps-starter\\docs\\figures\\figA_real_hardware_discrimination.png",
+      "source_location": null,
+      "weight": 0.6
+    },
+    {
+      "source": "docs_figures_figa_real_hardware_discrimination",
+      "target": "results_md",
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.55,
+      "source_file": "D:\\zt-cps\\zt-cps-starter\\docs\\figures\\figA_real_hardware_discrimination.png",
+      "source_location": null,
+      "weight": 0.5
+    }
+  ],
+  "hyperedges": [],
+  "input_tokens": 0,
+  "output_tokens": 0
+}

@@ -264,6 +264,43 @@ DEVICE_REGISTRY = {
             "dominant_freq": None,   # set below, once FEATURE_SAMPLE_RATE_HZ exists
         },
     },
+    # SECOND REAL NODE. ESP32 + SW-420 digital vibration switch -- a comparator-
+    # gated mechanical contact on one GPIO, NOT an accelerometer. It publishes
+    # the four event-statistics features defined in
+    # src/feature_engineering_sw420.py; rms/peak/crest_factor/kurtosis/
+    # dominant_freq are physically undefined for a binary switch and are
+    # deliberately absent rather than synthesised (see that module's docstring).
+    #
+    # This heterogeneity is the point: two physical nodes with different sensing
+    # modalities test cross-device behaviour, NOT same-model MPU6050
+    # sensor-to-sensor replication. Reported as such.
+    #
+    # expected_ranges are the Part A hard physical bounds only -- deliberately
+    # wide, because the fine-grained judgement belongs to the ML scorers. They
+    # are derived, not guessed:
+    #   trigger_rate   [0, SW420_SAMPLE_RATE_HZ/2] -- an edge needs at least one
+    #                  low sample between two highs, so the rate cannot exceed
+    #                  half the sampling rate. Nyquist for an edge stream, set
+    #                  below once SW420_SAMPLE_RATE_HZ exists, for the same
+    #                  reason dominant_freq's bound is derived rather than typed.
+    #   duty_cycle     [0, 1] by construction.
+    #   burst_max_ms   [0, window duration] -- a closure cannot outlast the window.
+    #   inter_event_cv [0, 5] -- unbounded above in principle; 5 is far past any
+    #                  physically plausible gap-irregularity and exists only to
+    #                  catch a corrupt payload.
+    "esp32-vib-002": {
+        "secret": DEVICE_SECRETS.get("esp32-vib-002", "CHANGE-ME-generate-your-own-secret"),
+        "kind": "vibration_switch",
+        "mqtt_username": "esp32-vib-002",
+        "mqtt_password": MQTT_PASSWORDS.get("esp32-vib-002", "CHANGE-ME-generate-your-own-password"),
+        "sensor_type": "SW-420",
+        "expected_ranges": {
+            "trigger_rate": None,     # set below, once SW420_SAMPLE_RATE_HZ exists
+            "duty_cycle": (0.0, 1.0),
+            "burst_max_ms": None,     # set below, once the window duration is known
+            "inter_event_cv": (0.0, 5.0),
+        },
+    },
     "sensor-002": {
         "secret": DEVICE_SECRETS["sensor-002"], "kind": "scalar", "expected_range": (20.0, 80.0),   # humidity sensor, %
         "mqtt_username": "sensor-002", "mqtt_password": MQTT_PASSWORDS["sensor-002"],
@@ -284,6 +321,87 @@ DEVICE_REGISTRY = {
 # trust_engine.rotate_key(), and cleared once KEY_ROTATION_GRACE_SECONDS
 # has elapsed since `key_rotated_at` or on the next rotation, whichever
 # comes first.
+# --- The eight SIMULATED nodes of the 10-node hybrid network (03-10) ---
+#
+# Loaded from config/simulated_nodes.json rather than typed here, so the
+# profile parameters, the seeds, and the registry entries cannot drift apart.
+# JSON not YAML: docs/11 records dropping pyyaml, and it is not installed.
+#
+# These are NOT physical devices. Every record they produce carries
+# source_type = "SIMULATED", and no result mixes them with real evidence
+# without saying which is which. See docs/EXPERIMENTAL_PROTOCOL.md.
+#
+# Each gets its own HMAC secret and MQTT password derived deterministically from
+# its seed. Real secrets for real devices live in the gitignored secrets_local.py;
+# a simulated node has no physical secure element to hold a key, so deriving one
+# reproducibly is honest about what it is rather than pretending otherwise.
+import hashlib as _hashlib
+import json as _json
+
+SIMULATED_NODES_PATH = os.path.join(_SRC_DIR, "..", "config", "simulated_nodes.json")
+GRAPH_TOPOLOGY_PATH = os.path.join(_SRC_DIR, "..", "config", "graph_topology.json")
+
+with open(SIMULATED_NODES_PATH) as _f:
+    SIMULATED_NODE_PROFILES = {n["device_id"]: n for n in _json.load(_f)["nodes"]}
+
+for _did, _profile in SIMULATED_NODE_PROFILES.items():
+    _derived = _hashlib.sha256(f"ztcps-sim-{_profile['seed']}".encode()).hexdigest()
+    DEVICE_REGISTRY[_did] = {
+        "secret": _derived[:32],
+        "kind": _profile["kind"],
+        "mqtt_username": _did,
+        "mqtt_password": _derived[32:56],
+        "source_type": "SIMULATED",
+        "sensor_type": "MPU6050-like" if _profile["kind"] == "feature_vector" else "SW-420-like",
+        "simulation_profile": _profile["variation"],
+        "seed": _profile["seed"],
+        # Same wide physical bounds as the corresponding real node's kind --
+        # a simulated node is a stand-in for a device of that type, so it is
+        # range-checked by the same rule, not given looser bounds that would
+        # quietly make the rule signal unable to fire on it.
+        "expected_ranges": (
+            {"rms": (0.1, 3.0), "peak": (0.0, 6.0), "crest_factor": (0.0, 10.0),
+             "kurtosis": (-3.0, 30.0), "dominant_freq": None}
+            if _profile["kind"] == "feature_vector" else
+            {"trigger_rate": None, "duty_cycle": (0.0, 1.0),
+             "burst_max_ms": None, "inter_event_cv": (0.0, 5.0)}
+        ),
+    }
+del _did, _profile, _derived, _f
+
+with open(GRAPH_TOPOLOGY_PATH) as _f:
+    GRAPH_TOPOLOGY = _json.load(_f)
+del _f
+
+# The ten nodes of the principal network experiment, in a fixed order.
+# sensor-002 and actuator-001 remain in DEVICE_REGISTRY -- they are the original
+# starter-kit demo devices and the live gateway/simulator still use them -- but
+# they are NOT part of the 10-node network and are inactive throughout every
+# network experiment, so they contribute only a self-loop and influence nothing.
+# Reported network_size is therefore 10, which is what participates.
+NETWORK_NODES = [n["device_id"] for n in GRAPH_TOPOLOGY["nodes"]]
+REAL_NODES = [n["device_id"] for n in GRAPH_TOPOLOGY["nodes"] if n["source_type"] == "REAL"]
+SIMULATED_NODES = [n["device_id"] for n in GRAPH_TOPOLOGY["nodes"] if n["source_type"] == "SIMULATED"]
+assert len(NETWORK_NODES) == 10 and len(REAL_NODES) == 2 and len(SIMULATED_NODES) == 8, \
+    "the hybrid network is 2 REAL + 8 SIMULATED = 10 by definition; graph_topology.json disagrees"
+
+
+def network_edges() -> set:
+    """Undirected edge set (frozensets of two device_ids) from the topology:
+    complete within each process group, plus the declared inter-group backbone.
+    One implementation, used by the GNN adjacency and by every baseline that
+    needs the same neighbourhood, so a baseline can never be handed a different
+    graph than the GNN and then lose to it."""
+    edges = set()
+    for members in (g["members"] for g in GRAPH_TOPOLOGY["groups"].values()):
+        for i, a in enumerate(members):
+            for b in members[i + 1:]:
+                edges.add(frozenset((a, b)))
+    for a, b in GRAPH_TOPOLOGY["inter_group_edges"]:
+        edges.add(frozenset((a, b)))
+    return edges
+
+
 for _device_id, _info in DEVICE_REGISTRY.items():
     _info.setdefault("status", "active")           # active | revoked
     _info.setdefault("key_version", 1)              # increments on every rotate_key() call
@@ -292,17 +410,53 @@ for _device_id, _info in DEVICE_REGISTRY.items():
 del _device_id, _info
 
 
+# Device kinds that publish a multi-feature vector and therefore carry their own
+# per-device ML scorers, as opposed to `scalar` devices which have a single value
+# and mirror rule_score into the ML slots.
+#   feature_vector    -- MPU6050 accelerometer, 5 features (feature_engineering.py)
+#   vibration_switch  -- SW-420 binary switch, 4 features (feature_engineering_sw420.py)
+# The two feature sets are different LENGTHS and different QUANTITIES. That is
+# fine and is the point: every model that consumes raw features is per-device
+# (see the model-path helpers below), and everything shared downstream -- the
+# GNN and the fusion meta-learner -- consumes already-normalised [0,1]
+# sub-scores rather than raw features, so neither changes shape.
+ML_FEATURE_KINDS = ("feature_vector", "vibration_switch")
+
+
 def is_feature_vector(device_id: str) -> bool:
-    """Single source of truth for 'does this device publish the 5-feature
-    vibration vector (feature_vector kind) rather than a single scalar?'.
-    Every place that decides whether to run the feature-vector ML scorers
-    (Isolation Forest / LSTM-AE / Transformer) vs. mirror rule_score into
-    those slots -- the live gateway AND every offline train_*/evaluate_*
-    script -- keys off THIS, not a hardcoded "esp32-vib-001" string, so the
-    live and offline paths can never disagree about a device's shape and a
-    second feature_vector device (simulated or real hardware) is handled
-    identically everywhere without touching each call site."""
-    return DEVICE_REGISTRY.get(device_id, {}).get("kind") == "feature_vector"
+    """Single source of truth for 'does this device publish a multi-feature
+    vector, and therefore run the per-device ML scorers (Isolation Forest /
+    LSTM-AE / Transformer), rather than a single scalar?'.
+    Every place that decides that -- the live gateway AND every offline
+    train_*/evaluate_* script -- keys off THIS, not a hardcoded
+    "esp32-vib-001" string, so the live and offline paths can never disagree
+    about a device's shape and an additional feature-carrying device
+    (simulated or real hardware) is handled identically everywhere without
+    touching each call site.
+
+    Widened from `kind == "feature_vector"` to cover the SW-420 second real
+    node. The NAME is unchanged deliberately: it is called at ~20 sites and
+    every one of them means "does this device have an ML feature vector",
+    which is still exactly what this answers."""
+    return DEVICE_REGISTRY.get(device_id, {}).get("kind") in ML_FEATURE_KINDS
+
+
+def feature_names_for(device_id: str) -> list[str]:
+    """The ordered feature names THIS device publishes. Callers that used the
+    module-level FEATURE_NAMES global were implicitly assuming one sensor type;
+    with a heterogeneous second node that assumption is no longer safe, so any
+    site handling more than one device must ask here."""
+    kind = DEVICE_REGISTRY.get(device_id, {}).get("kind")
+    if kind == "vibration_switch":
+        return list(SW420_FEATURE_NAMES)
+    return list(FEATURE_NAMES)
+
+
+def feature_vector_for(device_id: str, features: dict) -> list[float]:
+    """Fixed-order feature list for `device_id`, dispatching on its kind. The
+    one place that knows which reference implementation belongs to which
+    device, so no scorer or training script has to."""
+    return [features[name] for name in feature_names_for(device_id)]
 
 
 # Every device that carries its OWN per-device Isolation Forest / LSTM-AE /
@@ -313,7 +467,7 @@ def is_feature_vector(device_id: str) -> bool:
 # GNN (a graph over ALL devices) and the fusion meta-learner (operates on the
 # four already-normalised [0,1] sub-scores, not raw features) stay SHARED --
 # they are device-agnostic by construction.
-FEATURE_VECTOR_DEVICE_IDS = [d for d, i in DEVICE_REGISTRY.items() if i.get("kind") == "feature_vector"]
+FEATURE_VECTOR_DEVICE_IDS = [d for d, i in DEVICE_REGISTRY.items() if i.get("kind") in ML_FEATURE_KINDS]
 
 KEY_ROTATION_GRACE_SECONDS = 24 * 3600   # docs/02 Section 3's "24 hours in hardware-time-equivalent" default
 
@@ -324,7 +478,7 @@ KEY_ROTATION_GRACE_SECONDS = 24 * 3600   # docs/02 Section 3's "24 hours in hard
 # race on boot_id/seq (trust_engine.check_boot_replay()) and the real
 # board's messages would intermittently get rejected as replays of the
 # simulator's, or vice versa. Empty by default (pure simulation mode).
-REAL_HARDWARE_DEVICE_IDS: set = {"esp32-vib-001"}
+REAL_HARDWARE_DEVICE_IDS: set = {"esp32-vib-001", "esp32-vib-002"}
 
 # --- Feature Engineering (Module 3, CLAUDE.md Section 5.1) ---
 FEATURE_NAMES = ["rms", "peak", "crest_factor", "kurtosis", "dominant_freq"]
@@ -347,10 +501,53 @@ FEATURE_WINDOW_SIZE = 32         # samples per on-device window, matches firmwar
 # did: left at 50.0 after the rate moved to 500 Hz, it marked 35 of 114 genuine
 # resting readings 'out of range' purely as an artefact of a stale constant.
 # Deriving it means the bound can never drift from the acquisition chain again.
+#
+# Guarded on kind == "feature_vector". Without the guard this loop reaches the
+# SW-420 node too, whose expected_ranges legitimately has no dominant_freq key,
+# and `.get(...) is None` would be satisfied -- inventing a frequency bound for
+# a device that publishes no frequency. rule_range_score would then check a
+# feature that never arrives.
 for _info in DEVICE_REGISTRY.values():
+    if _info.get('kind') != 'feature_vector':
+        continue
     if _info.get('expected_ranges', {}).get('dominant_freq') is None:
         _info.setdefault('expected_ranges', {})['dominant_freq'] = (0.0, FEATURE_SAMPLE_RATE_HZ / 2)
 del _info
+
+# --- SW-420 acquisition chain (esp32-vib-002, firmware/main_sw420.py) ---
+# Same "the acquisition chain is one decision" rule as the MPU6050 node: rate
+# and window size move together, both sides must agree exactly, and a change to
+# either requires retraining that device's models. Enforced by
+# tests/test_invariants.py::TestSW420SamplingContract.
+#
+# 1000 Hz / 256 samples = a 256 ms window. Chosen for the sensor, not copied
+# from the MPU6050 node: an SW-420 fires as a sparse train of brief contact
+# closures, so a 64 ms window (the MPU6050's) would frequently contain zero
+# edges even during genuine shaking and every feature would read 0 -- the
+# feature set would be mostly silence. 256 ms is long enough to hold several
+# closures of a hand-shaken board while staying well inside the 1 s telemetry
+# interval. 1 kHz sampling resolves a contact closure (order 1-30 ms) into tens
+# of samples rather than one or two.
+SW420_SAMPLE_RATE_HZ = 1000.0
+SW420_WINDOW_SIZE = 256
+SW420_WINDOW_MS = 1000.0 * SW420_WINDOW_SIZE / SW420_SAMPLE_RATE_HZ
+SW420_FEATURE_NAMES = ["trigger_rate", "duty_cycle", "burst_max_ms", "inter_event_cv"]
+SW420_GPIO_PIN = 4               # D0 -> GPIO4; documented in firmware/HARDWARE_SETUP_SW420.md
+
+# Derived bounds, for the same reason dominant_freq's is derived: a literal here
+# silently becomes wrong when the acquisition chain moves.
+#   trigger_rate: a rising edge needs a low sample between two highs, so edges
+#                 cannot exceed half the sample rate.
+#   burst_max_ms: a closure cannot outlast the window that observed it.
+for _info in DEVICE_REGISTRY.values():
+    if _info.get('kind') != 'vibration_switch':
+        continue
+    _er = _info['expected_ranges']
+    if _er.get('trigger_rate') is None:
+        _er['trigger_rate'] = (0.0, SW420_SAMPLE_RATE_HZ / 2)
+    if _er.get('burst_max_ms') is None:
+        _er['burst_max_ms'] = (0.0, SW420_WINDOW_MS)
+del _info, _er
 
 # --- Trust Evaluation (Module 3, Section A: Security Behaviour Engine) ---
 # Two-score rearchitecture: these now apply ONLY to the Security Trust

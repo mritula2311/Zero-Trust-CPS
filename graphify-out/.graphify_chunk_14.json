@@ -1,0 +1,114 @@
+{
+  "nodes": [
+    {
+      "id": "docs_figures_fig3_fair_lstm_vs_transformer_image",
+      "label": "Fig3: Fair LSTM-AE vs Transformer Comparison",
+      "file_type": "image",
+      "source_file": "D:\\zt-cps\\zt-cps-starter\\docs\\figures\\fig3_fair_lstm_vs_transformer.png",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "docs_figures_fig3_fair_lstm_vs_transformer_lstm_ae_model",
+      "label": "LSTM-AE Model",
+      "file_type": "image",
+      "source_file": "D:\\zt-cps\\zt-cps-starter\\docs\\figures\\fig3_fair_lstm_vs_transformer.png",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "docs_figures_fig3_fair_lstm_vs_transformer_transformer_model",
+      "label": "Transformer Model",
+      "file_type": "image",
+      "source_file": "D:\\zt-cps\\zt-cps-starter\\docs\\figures\\fig3_fair_lstm_vs_transformer.png",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "docs_figures_fig3_fair_lstm_vs_transformer_esp32_vib_001",
+      "label": "esp32-vib-001 (real hardware device)",
+      "file_type": "image",
+      "source_file": "D:\\zt-cps\\zt-cps-starter\\docs\\figures\\fig3_fair_lstm_vs_transformer.png",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "docs_figures_fig3_fair_lstm_vs_transformer_results_md_section_2_2",
+      "label": "RESULTS.md Section 2.2",
+      "file_type": "image",
+      "source_file": "D:\\zt-cps\\zt-cps-starter\\docs\\figures\\fig3_fair_lstm_vs_transformer.png",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    }
+  ],
+  "edges": [
+    {
+      "source": "docs_figures_fig3_fair_lstm_vs_transformer_image",
+      "target": "docs_figures_fig3_fair_lstm_vs_transformer_lstm_ae_model",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\zt-cps\\zt-cps-starter\\docs\\figures\\fig3_fair_lstm_vs_transformer.png",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "docs_figures_fig3_fair_lstm_vs_transformer_image",
+      "target": "docs_figures_fig3_fair_lstm_vs_transformer_transformer_model",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\zt-cps\\zt-cps-starter\\docs\\figures\\fig3_fair_lstm_vs_transformer.png",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "docs_figures_fig3_fair_lstm_vs_transformer_image",
+      "target": "docs_figures_fig3_fair_lstm_vs_transformer_esp32_vib_001",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\zt-cps\\zt-cps-starter\\docs\\figures\\fig3_fair_lstm_vs_transformer.png",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "docs_figures_fig3_fair_lstm_vs_transformer_image",
+      "target": "docs_figures_fig3_fair_lstm_vs_transformer_results_md_section_2_2",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\zt-cps\\zt-cps-starter\\docs\\figures\\fig3_fair_lstm_vs_transformer.png",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "docs_figures_fig3_fair_lstm_vs_transformer_lstm_ae_model",
+      "target": "docs_figures_fig3_fair_lstm_vs_transformer_transformer_model",
+      "relation": "semantically_similar_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\zt-cps\\zt-cps-starter\\docs\\figures\\fig3_fair_lstm_vs_transformer.png",
+      "source_location": null,
+      "weight": 1.0
+    }
+  ],
+  "hyperedges": [],
+  "input_tokens": 0,
+  "output_tokens": 0
+}
