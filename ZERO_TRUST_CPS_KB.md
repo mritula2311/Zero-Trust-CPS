@@ -1053,23 +1053,28 @@ gap widened, not narrowed, when the network grew from 10 to 20 nodes
 `scripts/evaluate_gnn_baselines.py` runs five comparators on byte-identical inputs
 (single-device, concatenated logistic regression, a small MLP, a coordinated rule,
 and the GNN), fit on TRAIN, all selection on VALIDATION (self-loop weight swept
-`{1,2,3,5}`), TEST read once. Current 20-node figures / ⚠ superseded 10-node
-figures — Task 1 (per-node anomaly, test F1): concat MLP **0.9662 / 0.9852**,
+`{1,2,3,5}`), TEST read once. Corrected 20-node figures (RESULTS.md §0.13.24 —
+a pending-node masking bug found in this project's own B1/B2/B3 concat
+baselines, mirroring the one already found and fixed in
+`benchmark_crossdevice_models.py`, §0.13.19) / ⚠ superseded 10-node
+figures — Task 1 (per-node anomaly, test F1): concat MLP **0.9174 / 0.9852**,
 single-device 0.9708 / 0.9771, **GNN 0.5865 / 0.8381**, concat logistic
-0.7351 / 0.7785, rule 0.3082 / 0.6156. Task 2 (coordination pattern, test
-accuracy): concat MLP **0.5283 / 0.6567**, logistic 0.5208 / 0.6433,
+0.7371 / 0.7785, rule 0.3082 / 0.6156. Task 2 (coordination pattern, test
+accuracy): concat MLP **0.5267 / 0.6567**, logistic 0.5433 / 0.6433,
 **GNN 0.5375 / 0.6058**, node-count 0.3958 / 0.4142. The GNN loses *at its own
 best swept setting* (self-loop weight 5.0, VALIDATION F1 0.8646 → **0.5797** at
 20 nodes), more decisively than before. **The defensible claim is about
-cross-device information** (node-count 0.3958 → concat 0.5283 at 20 nodes,
+cross-device information** (node-count 0.3958 → concat 0.5267 at 20 nodes,
 was 0.4142 → 0.6567 at 10 — the advantage persists but shrank, cause not
-isolated), **not graph structure.** Bounded: one topology, two graph sizes now
-measured, one GCN architecture, one testbed, `esp32-vib-002` TRAIN-only — this
-shows the GNN did not help *here*, and got worse as the network grew, not that
-graph learning cannot help. The GNN stays in the deployed fusion (it carries
-real weight there); what is withdrawn is any claim that graph structure is
+isolated; the masking fix moved this delta only marginally, from the
+pre-audit 20-node 0.3958 → 0.5283, §0.13.20, now superseded), **not graph
+structure.** Bounded: one topology, two graph sizes now measured, one GCN
+architecture, one testbed, `esp32-vib-002` TRAIN-only — this shows the GNN
+did not help *here*, and got worse as the network grew, not that graph
+learning cannot help. The GNN stays in the deployed fusion (it carries real
+weight there); what is withdrawn is any claim that graph structure is
 architecturally necessary. See
-`docs/CLAIM_EVIDENCE_MATRIX.md` C2/C3, `RESULTS.md` §0.13.3.
+`docs/CLAIM_EVIDENCE_MATRIX.md` C2/C3, `RESULTS.md` §0.13.3/§0.13.24.
 
 **A validation-tuned static policy beats the adaptive policy -- reported as a
 negative result.** `scripts/evaluate_policy_comparison.py` scores five policies on

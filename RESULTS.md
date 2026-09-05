@@ -2442,6 +2442,12 @@ coverage: `tests/test_setmodel_pending_node_masking.py`.
 
 ### 0.13.20 `evaluate_gnn_baselines.py` Task 1/2 numbers at 20 nodes — novelty claim #3's headline figure regressed (2026-09-05)
 
+> **⚠ The pre-audit 20-node figures in this section are SUPERSEDED by
+> §0.13.24**, which found and fixed the unmasked-placeholder issue flagged
+> below as this section's own open audit target. Corrected 20-node figures
+> and the pre-audit-vs-corrected comparison are in §0.13.24; the 10-node
+> figures here remain the unchanged earlier chronological record.
+
 **This is a separate script and a separate finding from §0.13.19.**
 `evaluate_gnn_baselines.py` (Task 1: per-node anomaly; Task 2: 4-way network
 coordination-pattern classification — `results/gnn_baselines/metrics.json`,
@@ -2658,6 +2664,113 @@ stress-regime numbers (LOW/MEDIUM/HIGH) are in §0.13.15/§0.13.21, not this
 table.
 
 Full detail: `results/crossdevice_benchmark/metrics.json`.
+
+### 0.13.24 `evaluate_gnn_baselines.py` B1/B2/B3/Task-2 pending-node masking fixed — §0.13.20's flagged audit target closed (2026-09-05/06)
+
+**What §0.13.20 flagged, resolved.** §0.13.20 found that
+`evaluate_gnn_baselines.py` shares `flatten_for_concat()` with
+`benchmark_crossdevice_models.py` but was explicitly left out of scope for
+§0.13.19's masking fix, and flagged its own B1/B2/B3 (Task 1) and
+B0/B1/B2 (Task 2) baselines as possibly carrying the same unmasked-placeholder
+issue. They did: `flatten_for_concat()`'s raw `flat` row bakes every node's
+sub-scores into a fixed-width vector, including a PENDING node's 0.9
+placeholder, with no masking before B1 (LogisticRegression), B2
+(MLPClassifier) or B3's hand-written coordinated-count rule ever saw it; the
+same was true of Task 2's `snapshot_matrix()` (B1/B2) and the anomalous-node
+count (B0). Only B0 (Task 1's single-device baseline) was already immune, by
+construction — it discards every column but the target node's own three
+before any model sees it. The GNN path (`normalized_adjacency`'s
+`valid`-gated adjacency) was already correct, as §0.13.20/C3 already noted,
+and needed no change.
+
+**The invariance contract, and how it was verified.** A PENDING node's raw
+feature *content* must never change a valid node's score, independent of
+whatever validity bit is attached — a lesson already learned the hard way in
+§0.13.19 (a validity CHANNEL alone did not stop a set model from pooling the
+raw values it was attached to). `tests/test_gnn_baseline_pending_node_masking.py`
+(11 tests, new) builds pairs of snapshots differing ONLY in one (or several)
+PENDING node's raw values — the historical 0.9 placeholder vs. large
+positive, large negative, and plausible-but-wrong tampered values — and
+asserts every quantity that should ignore that node is identical: B0's
+extractor, B1/B2's fitted-on representation (`masked_concat_features`), B3's
+coordinated count (`rule_scores`), Task 2's snapshot representation
+(`snapshot_matrix`) and node-count (`anomalous_node_count`), and the GNN path
+at the network's actual 20-node cardinality using real device provenance
+(`esp32-vib-001` MPU6050 target, `esp32-vib-002` SW-420 PENDING), including
+two simultaneously-PENDING nodes. All pass.
+
+**The fix.** `masked_concat_features()` (Task 1) and `snapshot_matrix()` /
+`anomalous_node_count()` (Task 2) now zero each invalid node's raw
+`[rule, iso, lstm]` block deterministically and add an explicit per-node
+validity channel for any model that can use it (B1/B2's LogisticRegression/
+MLPClassifier). B3's rule and Task 2's node-count read raw content directly
+rather than through a model, so a naive zero-fill is not enough on its own —
+a zeroed block reads as `[0, 0, 0]`, below `PROCESS_THRESHOLD`, which would
+make a PENDING node always count as "anomalous" regardless of `k`; both were
+additionally rewritten to gate that count on the validity channel explicitly.
+No threshold, split, seed, class weight, or hyperparameter changed — the
+masking correction is isolated exactly as §0.13.19's fix was.
+
+**Task 1 (test F1), pre-audit 20-node (buggy) vs. corrected 20-node
+(masked), same TRAIN/VALIDATION/TEST split, same seed:**
+
+| model | pre-audit 20-node | corrected 20-node |
+|---|---|---|
+| B0 single-device | 0.9708 | 0.9708 (unchanged — already immune) |
+| B1 concat logistic | 0.7351 | 0.7371 |
+| B2 concat MLP | 0.9662 | **0.9174** |
+| B3 coordinated rule | 0.3082 | 0.3082 (unchanged) |
+| GNN | 0.5865 | 0.5865 (unchanged — path was already correct) |
+
+B2's drop is real and attributable to the fix (a wider, correctly-masked
+input changes what the MLP fits) — it does not reverse C3: the GNN
+(0.5865) is still beaten by every simple baseline. B3 and B0 are bit-for-bit
+unchanged because the historical PENDING placeholder (0.9) already sits
+above `PROCESS_THRESHOLD` (0.6) on the real data, so the leak was
+demonstrable (via the tampered-value tests above) but dormant on this
+particular dataset for those two paths.
+
+**Task 2 (coordination-pattern, test accuracy) — the source of novelty
+claim #3 — old (10-node, superseded) / pre-audit 20-node (buggy) /
+corrected 20-node (masked):**
+
+| model | 10-node (superseded) | pre-audit 20-node | corrected 20-node |
+|---|---|---|---|
+| B0 anomalous-node count | 0.4175 | 0.3958 | 0.3958 (unchanged) |
+| B1 concat logistic | 0.6533 | 0.5208 | **0.5433** |
+| B2 concat MLP | 0.6567 | 0.5283 | 0.5267 |
+| GNN node embeddings | 0.6117 | 0.5375 | 0.5375 (unchanged) |
+
+Cross-device delta (best concat baseline − B0), same three points:
+10-node **+0.2392** (B2−B0) → pre-audit 20-node **+0.1325** (B2−B0) →
+corrected 20-node **+0.1309** (B2−B0) / **+0.1475** (B1−B0, now the better
+of the two concat baselines on TEST). **The fix changed which concat model
+is nominally best (B1 edges out B2 post-correction) but did not materially
+move the headline delta**, and did not change its sign. The masking bug was
+real and independently demonstrated (regression tests above), but on the
+actual measured dataset it was close to inert for Task 2 specifically,
+for the same reason noted for B0/B3 above.
+
+**Novelty claim #3 status: unchanged — SUPPORTED.** Cross-device information
+still improves the measured Task-2 score in the current 20-node benchmark,
+by a margin (~0.13–0.15) smaller than the superseded 10-node experiment
+(~0.24), consistent with what §0.13.20 already reported — this audit adds
+that the smaller-at-20-nodes result is not an artifact of the masking bug,
+since correcting the bug barely moved the number. The 10→20 change still
+confounds network cardinality, sensor-type composition and provenance
+together; isolating network size alone would need a controlled ablation
+(10-node benchmark, corrected masking, same old split/protocol) that has
+not been run and is not required to interpret this claim.
+
+**Docs updated:** `docs/CLAIM_EVIDENCE_MATRIX.md` (C2/C3),
+`docs/REVIEW_RESPONSE_TRACKER.md`, `METHODOLOGY.md` §6, `PRD.md` FR-P2,
+`ZERO_TRUST_CPS_KB.md`, `CLAUDE.md`'s status banner — all now cite the
+corrected 20-node figures above, with the pre-audit 20-node figures marked
+superseded and pointed here. The 10-node figures remain as the earlier
+chronological record, unchanged.
+
+Full detail: `results/gnn_baselines/metrics.json`, `results/gnn_baselines/self_loop_sweep.json`.
+Test coverage: `tests/test_gnn_baseline_pending_node_masking.py`.
 
 ## 1. What Was Verified Live (Not Just Measured Offline)
 

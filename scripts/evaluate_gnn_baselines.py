@@ -32,7 +32,15 @@ PROTOCOL, fixed before any number was looked at:
 
 Rows whose source_type is PENDING_REAL_HARDWARE_DATA carry no features. They
 are excluded from every fit and every metric, and counted in the output. They
-are never imputed.
+are never imputed. That excludes a PENDING node's OWN row from being scored --
+it does not, by itself, stop its raw placeholder value from riding along as a
+FEATURE inside another node's row once multiple nodes are concatenated or
+pooled. B1/B2/B3 and the Task-2 snapshot classifiers zero a PENDING node's raw
+block and add an explicit per-node validity channel before it reaches any
+model (masked_concat_features / snapshot_matrix); the GNN instead excludes a
+PENDING node from message passing entirely via normalized_adjacency's
+`valid`-gated adjacency. Both are the same masking contract applied at the
+point each baseline actually consumes multi-node input.
 
 Outputs machine-readable results to results/gnn_baselines/.
 """
@@ -74,6 +82,7 @@ SELF_LOOP_SWEEP = [1.0, 2.0, 3.0, 5.0]
 _TORCH_DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 _NODE_INDEX = {d: i for i, d in enumerate(NETWORK_NODES)}
 N_NODES = len(NETWORK_NODES)
+N_FLAT = N_NODES * GNN_NODE_FEATURE_DIM   # width of the raw (unmasked) per-node sub-score block
 
 
 def normalized_adjacency(self_loop_weight: float, valid: np.ndarray | None = None) -> torch.Tensor:
@@ -164,7 +173,15 @@ def flatten_for_concat(X, y, meta):
     node being predicted]. The one-hot is what lets a single concatenated model
     answer "is node i anomalous" while seeing the whole network -- without it,
     the model has the same information but no way to say which node it is being
-    asked about, which would handicap the baseline rather than test it."""
+    asked about, which would handicap the baseline rather than test it.
+
+    NOTE: this raw form still bakes every OTHER node's raw sub-scores into
+    `flat`, including a PENDING node's 0.9 placeholder (or, if that placeholder
+    were ever anything else, whatever that is) -- verbatim, with no masking.
+    Callers that hand this straight to a model (B1/B2/B3 below) must go
+    through zero_invalid_concat_blocks() / rule_scores' own validity gating
+    first; only B0's own() extractor is naturally immune, because it discards
+    every column except the target node's own three."""
     rows, targets, keep = [], [], []
     for t in range(len(X)):
         flat = X[t].reshape(-1)
@@ -177,6 +194,98 @@ def flatten_for_concat(X, y, meta):
             targets.append(y[t][i])
             keep.append((t, i))
     return np.array(rows), np.array(targets), keep
+
+
+def zero_invalid_concat_blocks(flat_X, keep, meta):
+    """Deterministically zero each invalid node's raw [rule, iso, lstm] block
+    in flatten_for_concat()'s output, in place, and return it.
+
+    flatten_for_concat() bakes every node's raw sub-scores into `flat`,
+    including an invalid node's 0.9 placeholder -- B1/B2/B3 have no
+    pooling/masking step of their own to gate that through, so the placeholder
+    (or anything else in that block) is just as visible to their weights as
+    real data. Zeroing here is a canonical representation instead of relying
+    on a model having learned to treat 0.9 as special."""
+    valid_by_tick = np.array([m["valid"] for m in meta])                    # (n_ticks, N_NODES)
+    zero_mask_by_tick = np.repeat(valid_by_tick, GNN_NODE_FEATURE_DIM, axis=1).astype(np.float32)
+    row_ticks = np.array([t for t, _i in keep])
+    n_flat = zero_mask_by_tick.shape[1]
+    flat_X[:, :n_flat] *= zero_mask_by_tick[row_ticks]
+    return flat_X
+
+
+def masked_concat_features(X, y, meta):
+    """flatten_for_concat(), with each invalid node's raw sub-score block
+    zeroed and an explicit per-node validity channel inserted BEFORE the
+    target one-hot -- so the one-hot stays the last N_NODES columns, which is
+    what own() (B0) and rule_scores' own `idx` extraction (B3) both assume via
+    `flat_X[:, -N_NODES:]`. A validity bit alone is not enough: B3's rule
+    reads raw sub-score content directly (not through a model that could learn
+    to use the channel), so it is handed the validity block explicitly too --
+    see rule_scores below."""
+    flat_X, flat_y, keep = flatten_for_concat(X, y, meta)
+    flat_X = zero_invalid_concat_blocks(flat_X, keep, meta)
+    valid_by_tick = np.array([m["valid"] for m in meta], dtype=np.float32)
+    row_ticks = np.array([t for t, _i in keep])
+    validity_block = valid_by_tick[row_ticks]
+    flat_X = np.concatenate([flat_X[:, :N_FLAT], validity_block, flat_X[:, N_FLAT:]], axis=1)
+    return flat_X, flat_y, keep
+
+
+def own_features(d):
+    """B0's extractor: the target node's own 3 sub-scores, and nothing else --
+    selected out of the (zeroed, validity-widened) concat row via the one-hot,
+    which masked_concat_features() guarantees stays the last N_NODES columns.
+    Immune to another node's raw content by construction: every column but
+    the target's own three is discarded before it ever reaches a model."""
+    return d["flat_X"][:, :N_FLAT].reshape(
+        len(d["flat_X"]), N_NODES, GNN_NODE_FEATURE_DIM)[
+        np.arange(len(d["flat_X"])), d["flat_X"][:, -N_NODES:].argmax(1)]
+
+
+def rule_scores(d, k):
+    """B3: flag a node if it looks bad by its own sub-scores AND at least k
+    nodes network-wide do too (k chosen on VALIDATION in main()).
+
+    Reads raw sub-score content directly rather than through a model that
+    could learn to discount a zeroed/placeholder block, so it is handed the
+    validity block masked_concat_features() inserted and uses it explicitly:
+    a PENDING node's zeroed block reads as [0, 0, 0], which is BELOW
+    PROCESS_THRESHOLD and would otherwise always count as "anomalous" in
+    n_anom regardless of k -- the validity mask excludes it instead."""
+    own_min = d["flat_X"][:, :N_FLAT].reshape(
+        len(d["flat_X"]), N_NODES, GNN_NODE_FEATURE_DIM).min(axis=2)
+    valid_by_row = d["flat_X"][:, N_FLAT:N_FLAT + N_NODES] > 0.5
+    n_anom = ((own_min < PROCESS_THRESHOLD) & valid_by_row).sum(axis=1)
+    idx = d["flat_X"][:, -N_NODES:].argmax(1)
+    own_anom = own_min[np.arange(len(own_min)), idx] < PROCESS_THRESHOLD
+    # score = 0 (anomalous) when this node looks bad AND the network-wide
+    # count reaches k; otherwise 1.
+    return np.where(own_anom & (n_anom >= k), 0.0, 1.0)
+
+
+def snapshot_matrix(d):
+    """Task 2 (network-level coordination pattern) input: one row per
+    snapshot, each invalid (PENDING) node's raw [rule, iso, lstm] block
+    zeroed to a canonical value -- rather than left as its 0.9 placeholder,
+    which this classifier (unlike the GNN's masked message passing) has no
+    other way to discount -- plus an explicit per-node validity channel so
+    the model can still use "which nodes are pending" as a feature, without
+    ever seeing what a pending node's raw content happened to be."""
+    valid = np.array([m["valid"] for m in d["meta"]], dtype=np.float32)   # (n_snap, N_NODES)
+    zeroed = d["X"] * valid[:, :, None]
+    return np.concatenate([zeroed.reshape(len(d["X"]), -1), valid], axis=1)
+
+
+def anomalous_node_count(d):
+    """Task 2's B0: the target-agnostic "how many nodes look bad" count --
+    the most a single-node view can contribute to a network question. A
+    PENDING node's zeroed/placeholder block must never be countable as
+    "anomalous" here, so its own validity bit gates it out of the count
+    explicitly, the same way rule_scores (B3, Task 1) does above."""
+    valid = np.array([m["valid"] for m in d["meta"]])
+    own_min = d["X"].min(axis=2)
+    return ((own_min < PROCESS_THRESHOLD) & valid).sum(axis=1).reshape(-1, 1)
 
 
 def train_network_gnn(X, y, meta, self_loop_weight):
@@ -283,7 +392,7 @@ def main():
     data = {}
     for split in ("train", "validation", "test"):
         X, y, meta, pending = build_snapshots(split)
-        flat_X, flat_y, keep = flatten_for_concat(X, y, meta)
+        flat_X, flat_y, keep = masked_concat_features(X, y, meta)
         data[split] = dict(X=X, y=y, meta=meta, flat_X=flat_X, flat_y=flat_y, keep=keep)
         print(f"{split:11s} {len(X):5d} snapshots  {len(flat_X):6d} scoreable (tick,node) rows  "
               f"{pending} PENDING rows excluded")
@@ -293,11 +402,8 @@ def main():
     results, val_choices = {}, {}
 
     # ---- B0 single_device -------------------------------------------------
-    own = lambda d: d["flat_X"][:, :N_NODES * GNN_NODE_FEATURE_DIM].reshape(
-        len(d["flat_X"]), N_NODES, GNN_NODE_FEATURE_DIM)[
-        np.arange(len(d["flat_X"])), d["flat_X"][:, -N_NODES:].argmax(1)]
-    b0 = LogisticRegression(max_iter=1000, class_weight="balanced").fit(own(tr), tr["flat_y"])
-    for name, model, feat in (("B0_single_device", b0, own),
+    b0 = LogisticRegression(max_iter=1000, class_weight="balanced").fit(own_features(tr), tr["flat_y"])
+    for name, model, feat in (("B0_single_device", b0, own_features),
                               ("B1_concat_logreg",
                                LogisticRegression(max_iter=2000, class_weight="balanced").fit(
                                    tr["flat_X"], tr["flat_y"]),
@@ -319,16 +425,6 @@ def main():
     # ---- B3 coordinated rule ---------------------------------------------
     # "flag a node if at least k nodes in the network look anomalous by their
     # own sub-scores". k chosen on VALIDATION only.
-    def rule_scores(d, k):
-        own_min = d["flat_X"][:, :N_NODES * GNN_NODE_FEATURE_DIM].reshape(
-            len(d["flat_X"]), N_NODES, GNN_NODE_FEATURE_DIM).min(axis=2)
-        n_anom = (own_min < PROCESS_THRESHOLD).sum(axis=1)
-        idx = d["flat_X"][:, -N_NODES:].argmax(1)
-        own_anom = own_min[np.arange(len(own_min)), idx] < PROCESS_THRESHOLD
-        # score = 0 (anomalous) when this node looks bad AND the network-wide
-        # count reaches k; otherwise 1.
-        return np.where(own_anom & (n_anom >= k), 0.0, 1.0)
-
     best_k = max(range(1, N_NODES + 1),
                  key=lambda k: metrics(rule_scores(va, k), va["flat_y"], 0.5)["f1"])
     val_choices["B3_coordinated_rule"] = {"k": best_k, "threshold": 0.5}
@@ -386,13 +482,6 @@ def main():
     scen_names = sorted(set(m["scenario"] for m in tr["meta"]))
     scen_index = {s: i for i, s in enumerate(scen_names)}
 
-    def snapshot_matrix(d):
-        """One row per snapshot. Invalid (PENDING) nodes contribute their
-        neutral 0.9 placeholder -- which is what the live gateway would also
-        see from a device it has not heard from -- and the fact is recorded
-        rather than hidden."""
-        return d["X"].reshape(len(d["X"]), -1)
-
     def snapshot_labels(d):
         return np.array([scen_index[m["scenario"]] for m in d["meta"]])
 
@@ -411,12 +500,10 @@ def main():
     # B0 for this task: only the target-agnostic "how many nodes look bad"
     # count -- the most a single-node view can contribute to a network question.
     for split_name, d in (("validation", va), ("test", te)):
-        own_min = d["X"].min(axis=2)
-        counts = (own_min < PROCESS_THRESHOLD).sum(axis=1).reshape(-1, 1)
+        counts = anomalous_node_count(d)
         if split_name == "validation":
             b0m = LogisticRegression(max_iter=2000, class_weight="balanced").fit(
-                (tr["X"].min(axis=2) < PROCESS_THRESHOLD).sum(axis=1).reshape(-1, 1),
-                snapshot_labels(tr))
+                anomalous_node_count(tr), snapshot_labels(tr))
         task2.setdefault("B0_anomalous_node_count", {})[split_name] = round(
             float(b0m.score(counts, snapshot_labels(d))), 4)
 

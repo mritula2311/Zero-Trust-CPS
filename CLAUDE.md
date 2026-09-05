@@ -11,10 +11,15 @@
 > from 10. §0.13.18.2's original M1/M2 diagnosis is SUPERSEDED — §0.13.19
 > found and fixed a pending-node masking bug (a validity feature was appended
 > but never actually excluded invalid nodes from pooling/attention), which
-> was the real cause, not a training-distribution gap. §0.13.20 covers a
-> separate, still-live regression in `evaluate_gnn_baselines.py`'s Task 1/2
-> numbers (novelty claim #3) and flags its own B1/B2 concat baselines as
-> possibly sharing the same unmasked-placeholder issue — not yet fixed.
+> was the real cause, not a training-distribution gap. §0.13.20 flagged a
+> separate regression in `evaluate_gnn_baselines.py`'s Task 1/2 numbers
+> (novelty claim #3) and its own B1/B2/B3 concat baselines as possibly
+> sharing the same unmasked-placeholder issue; §0.13.24 confirmed and fixed
+> it (masking correction only, no hyperparameter/threshold/split changes).
+> The fix barely moved Task 2's headline cross-device delta (0.3958 → 0.5267,
+> was 0.3958 → 0.5283 pre-fix) but changed Task 1's concat-MLP F1 materially
+> (0.9662 → 0.9174) — GNN still loses to every simple baseline either way.
+> Novelty claim #3 remains SUPPORTED.
 
 Guidance for coding agents working in `zt-cps-starter`. Read `METHODOLOGY.md` for the
 method and its mathematics, `ZERO_TRUST_CPS_KB.md` for architecture decisions,

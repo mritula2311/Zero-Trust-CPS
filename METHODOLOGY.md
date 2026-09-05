@@ -178,7 +178,9 @@ model matches or beats the GNN, so no claim of GNN necessity or superiority is m
 (C3). The GNN's 1.000 recall here also comes with badly collapsed precision — on a
 consistent retrain it flags most traffic (overall accuracy 0.281, §0.13.2) — so the
 recall figure alone overstates it; the defensible claim is that cross-device
-information helps (task-2 accuracy 0.414 → 0.657, C2).
+information helps (task-2 accuracy 0.396 → 0.527 on the current 20-node
+network, RESULTS.md §0.13.24; ⚠ 0.414 → 0.657 is the superseded 10-node
+figure, C2).
 
 ### 3.2 Security Trust  `s_sec ∈ [0,1]`
 
@@ -611,11 +613,13 @@ from a leaky **0/49** to an honest **5/12 (41.7%)** on the untouched test sessio
 detection unaffected at 30/30; (b) against five comparators on byte-identical
 inputs the **GNN did not beat simpler models, and the gap widened, not
 narrowed, when the cross-device network grew from 10 to 20 nodes**
-(Task 1 test F1: concat MLP 0.966 vs GNN 0.587 at its own best swept
-self-loop weight, was 0.985 vs 0.838 at 10 nodes — RESULTS.md §0.13.20), so
-the defensible claim is about cross-device *information* (0.3958 → 0.5283 at
-20 nodes, was 0.4142 → 0.6567 at 10 — advantage smaller but still positive,
-cause not isolated), not graph structure; (c) a
+(Task 1 test F1: concat MLP 0.917 vs GNN 0.587 at its own best swept
+self-loop weight, was 0.985 vs 0.838 at 10 nodes — RESULTS.md §0.13.24,
+corrected for a pending-node masking bug found in this project's own
+concat baselines and fixed there; §0.13.20's pre-audit 0.966 is superseded),
+so the defensible claim is about cross-device *information* (0.3958 → 0.5267
+at 20 nodes, was 0.4142 → 0.6567 at 10 — advantage smaller but still
+positive, cause not isolated), not graph structure; (c) a
 **validation-tuned static policy beat the adaptive contextual-bandit policy**
 (saved-chain macro-F1 0.5614 vs 0.5271, with different ALERT recall; §3.5), which itself only beats the deployed static table
 (0.274). A framework that withdraws its own overstated results under a stricter
