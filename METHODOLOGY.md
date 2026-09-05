@@ -129,7 +129,8 @@ anomaly detection that the Isolation Forest already does well.
 **Why only `at_rest` real hardware rows become training data.** The 192 captured
 disturbance records are deliberately excluded: folding a shaken board in as
 "normal" would teach the models a fault is healthy. They are held out as the
-labelled test set, which is what makes 103/103 detection a result rather than
+labelled test set, which is what makes real-hardware detection (30/30 on the
+untouched test session under session-level splitting; C4) a result rather than
 recall of memorised data.
 
 **Measured evidence that the shapes are not redundant**, on `coordinated` — a
@@ -283,10 +284,14 @@ weight. It is **monotone in each input given a positive coefficient**, so "a
 signal improved" can never make the fused verdict worse for a reason nobody can
 explain. It admits an **exact** SHAP decomposition (§4.1) rather than an
 approximation. And with four inputs and ~11k training examples, capacity is not
-the binding constraint — the deployed coefficients are
-`[rule 0.071, iso 3.07, lstm 7.408, gnn 9.922]`, which are themselves a finding:
+the binding constraint — under leakage-free held-out stacking (fusion fit on a
+validation session disjoint from the base models', concern H) the coefficients are
+`[rule −0.003, iso +2.97, lstm +5.97, gnn +8.33]`, which are themselves a finding:
 the GNN carries the most weight and is also the least seed-stable signal
-(±0.011 against the fused model's ±0.002).
+(±0.011 against the fused model's ±0.002). The leak was visible in the sign —
+fitted in-sample the LSTM-AE coefficient came out **−0.46**, the wrong sign for a
+signal whose whole purpose is to fall on anomalies; the clean fit restores it to
+**+5.97** (`docs/CLAIM_EVIDENCE_MATRIX.md` C13, `RESULTS.md` §0.12.2).
 
 **Trained with `class_weight='balanced'`, deliberately at a cost.** Unweighted,
 the numerous easy examples dominate and the GNN's contribution on the rare
@@ -316,7 +321,13 @@ Verified on live hardware: shaking the board drove `s_proc` to 0.00001 across 16
 consecutive messages while `s_sec` held at **0.895–0.909**, and the transition
 took **one message**.
 
-### 3.5 Adaptive policy (reinforcement learning)
+### 3.5 Adaptive policy (contextual bandit — not reinforcement learning)
+
+**Terminology, corrected.** This is a **contextual bandit with sample-average
+action-value estimation**, not reinforcement learning: there is no discount
+factor and no next-state bootstrapping, and the reward is a fixed function of
+`(state, action)`. (`RL_*` config names are retained only to avoid a ~20-site
+rename; the method is described correctly everywhere it is discussed.)
 
 The 2×2 table is a fixed prior. An optional learned policy discretises
 `(s_sec, s_proc)` into a state and learns an action value by **incremental sample
@@ -344,6 +355,16 @@ from learning, not from reporting.
 **Never on the live path.** All training is offline and produces artifacts;
 `gateway.py` only runs inference. An online-learning policy decision point is an
 attack surface: anyone who can generate traffic can move the model.
+
+**What the comparison actually shows — a reported negative result.** On the
+untouched test split, five policies on identical inputs give macro-F1:
+static-optimised **0.5879**, decision tree 0.5834, **adaptive bandit 0.5329**,
+multiclass LR 0.4355, deployed static 0.2744. The bandit clearly beats the
+*deployed* static table (0.533 vs 0.274) but is **beaten by the same table with
+thresholds selected on validation** (0.588). The honest claim is therefore that
+the adaptive policy improves on the deployed configuration, **not** that it
+outperforms a well-tuned static baseline (`docs/CLAIM_EVIDENCE_MATRIX.md` C6,
+`RESULTS.md` §0.13.6).
 
 ### 3.6 Tamper-evident audit
 
@@ -381,9 +402,13 @@ produces intervals extending outside [0,1] and badly wrong coverage. Both
 conditions hold here.
 
 **Why report intervals at all?** Because the headline is otherwise misleading:
-the false-positive rate of **3.4% (1/29)** carries a 95% CI of **[0.6%, 17.2%]**.
-It cannot be quoted to one decimal place. Detection, at 100% (103/103), is
-genuinely tight: **[96.4%, 100%]**.
+under session-level splitting the resting false-positive rate on the untouched
+TEST session is **41.7% (5/12)** with a 95% CI of **[19.3%, 68.0%]** — a 12-window
+denominator cannot be quoted to one decimal place, and the interval is what makes
+that legible. (The earlier tight-looking **1/29 (3.4%)** was measured with the
+test session's own at-rest rows in the training set and is withdrawn —
+`docs/CLAIM_EVIDENCE_MATRIX.md` C4.) Detection, at 100% (30/30), remains the
+better-supported number: **[88.6%, 100%]**.
 
 ---
 
@@ -515,10 +540,14 @@ for. *If a validation check
 cannot fail, it is not a check.*
 
 **3. Hardware-in-the-loop training, quantified.** Real hardware is **3.0%** of the
-training normals. Withholding it and retraining the whole chain moves
-operator-marked false positives from **0/49 to 13/49** with detection unchanged.
-Synthetic data alone cannot place the normal region where the board actually
-sits, however well calibrated.
+training normals. Withholding it and retraining the whole chain **materially
+increases** operator-marked false positives with detection unchanged — synthetic
+data alone cannot place the normal region where the board actually sits, however
+well calibrated. ⚠ The previously quoted magnitude (0/49 → 13/49) was measured
+under the pre-split regime and its 0/49 baseline is the withdrawn leaky figure
+(novelty #6 below); the *direction* is unaffected, but the exact synthetic-only
+magnitude must be re-measured under session-level splitting before it is quoted
+again (`docs/CLAIM_EVIDENCE_MATRIX.md` C14).
 
 **4. Sim-to-real calibration that survives contact with a second session.** The
 same board's resting DC measured 1.041 / 1.056 / 1.011 g — a 0.045 g spread
@@ -536,6 +565,22 @@ threshold set at the resting p99 has, by construction, no discriminative power a
 all. This is the evidence that the sequence model contributes something an
 amplitude rule cannot, and it came from an unengineered bench source rather than
 an injected fault.
+
+**6. Leakage-free re-measurement that withdrew the project's own headline
+numbers.** Enforcing session-level train/validation/test splitting exposed that
+several previously published figures rested on overlap between training and test
+data, and each was re-measured and, where it changed, withdrawn rather than the
+result being discarded: (a) the real-hardware resting false-positive rate moved
+from a leaky **0/49** to an honest **5/12 (41.7%)** on the untouched test session,
+detection unaffected at 30/30; (b) against five comparators on byte-identical
+inputs the **GNN did not beat simpler models** (Task 1 test F1: concat MLP 0.985
+vs GNN 0.838 at its own best swept self-loop weight), so the defensible claim is
+about cross-device *information* (0.4142 → 0.6567), not graph structure; (c) a
+**validation-tuned static policy beat the adaptive contextual-bandit policy**
+(macro-F1 0.588 vs 0.533), which itself only beats the deployed static table
+(0.274). A framework that withdraws its own overstated results under a stricter
+protocol is the honest-reporting principle applied to itself
+(`docs/CLAIM_EVIDENCE_MATRIX.md` C2/C3/C4/C6, `RESULTS.md` §0.12–§0.13).
 
 **7. Live adversarial testing that found a real vulnerability.** Five hostile
 messages delivered over the actual MQTT transport against a running gateway, all

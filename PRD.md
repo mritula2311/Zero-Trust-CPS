@@ -98,13 +98,22 @@ vulnerability invisible to every offline evaluation.
 
 | Metric | Threshold | Achieved |
 |---|---|---|
-| Real-hardware detection of physical disturbance | ≥ 95% | **100% (103/103)** |
-| Real-hardware false-positive rate (operator-marked rest) | ≤ 10% | **3.4% (1/29)** |
-| Live cyber attacks rejected before scoring | 100% | **100% (5/5)** |
-| Two-score separation holds (Security unmoved by physical disturbance) | required | **Security 0.895–0.909 through a full shake** |
-| NIST tenets validated with a working falsifier | 7/7 | **7/7 + 7/7 falsifiers** |
-| On-device duty cycle | < 25% | **8.6%** |
-| End-to-end gateway latency (PC-class) | < 100 ms | **22 ms mean full pipeline** |
+| Real-hardware detection of physical disturbance | ≥ 95% | **100% (30/30 on untouched TEST session)** ✓ |
+| Real-hardware false-positive rate (operator-marked rest) | ≤ 10% | **41.7% (5/12), 95% CI 19–68%** ✗ — target NOT met under session-level splitting (see below) |
+| Live cyber attacks rejected before scoring | 100% | **100% (5/5)** ✓ |
+| Two-score separation holds (Security unmoved by physical disturbance) | required | **Security 0.895–0.909 through a full shake** ✓ |
+| NIST tenets validated with a working falsifier | 7/7 | **7/7 + 7/7 falsifiers** ✓ |
+| On-device duty cycle | < 25% | **8.6%** ✓ |
+| End-to-end gateway latency (PC-class) | < 100 ms | **2.93 ms mean, 14.48 ms p99 full pipeline** ✓ |
+
+> **The false-positive threshold is not met, and this is reported rather than
+> hidden.** The earlier "3.4% (1/29)" was measured while the test session's own
+> at-rest rows were in the training set; with session-level train/validation/test
+> splitting enforced, the honest figure on the 12 resting windows of the untouched
+> TEST session is 5/12. The 12-window denominator makes the interval very wide.
+> Detection is unaffected (`docs/CLAIM_EVIDENCE_MATRIX.md` C4). Reducing this rate
+> — which the wide interval and the mounting-robustness capture (`docs/REVIEW_RESPONSE_TRACKER.md`
+> D) are the levers for — is named as required future work, not claimed as met.
 
 ---
 
@@ -214,8 +223,8 @@ Each requirement carries a verification method and its current status.
 | ID | Requirement | Verification | Status |
 |---|---|---|---|
 | FR-P1 | The physical axis MUST NOT consume any cyber evidence, and vice versa | `TestTwoScoreSeparation` (signature inspection) | **Met** |
-| FR-P2 | The ensemble MUST include a relational (graph) signal capable of detecting cross-device anomalies | GNN `coordinated` recall 0.974 vs 0.308 single-device | **Met** |
-| FR-P3 | Detection of real physical disturbance MUST be ≥ 95% | 103/103 real hardware | **Met (100%)** |
+| FR-P2 | The ensemble MUST include a relational (graph) signal capable of detecting cross-device anomalies | Cross-device information improves coordinated detection 0.4142 → 0.6567 (concat MLP). **The GNN specifically does not beat simpler models on identical information (Task 1 test F1: MLP 0.985 vs GNN 0.838); GNN-superiority is withdrawn** (`docs/CLAIM_EVIDENCE_MATRIX.md` C2/C3) | **Relational signal present; graph structure not shown superior** |
+| FR-P3 | Detection of real physical disturbance MUST be ≥ 95% | 30/30 on untouched TEST session, 95% CI [88.6%, 100%] (C4) | **Met (100%)** |
 | FR-P4 | Isolation Forest scores MUST be calibrated so a median-normal reading scores above the deployed threshold | `TestIsolationForestCalibration` | **Met** |
 | FR-P5 | Per-signal score orientation MUST be consistent (1 = normal) so fusion composes correctly | fusion coefficients, ablation | **Met** |
 | FR-P6 | The system MUST detect a sustained low-amplitude disturbance below a per-sample amplitude threshold | controlled test: 14/14 flagged vs 0/14 rest, amplitude-capped (0.10.14) | **Met below threshold; equal-amplitude case is future scope** |
@@ -227,7 +236,7 @@ Each requirement carries a verification method and its current status.
 | FR-C1 | The policy MUST be a pure function of the two scores plus staleness | `decide()` signature enforced by test | **Met** |
 | FR-C2 | The policy MUST be monotone: improving either score MUST NOT make the decision stricter | `test_static_policy_is_monotonic_in_both_axes`; GNN-ripple decision test | **Met** |
 | FR-C3 | A physically abnormal but authenticated device MUST receive ALERT, not BLOCK | policy table; live shake → ALERT | **Met** |
-| FR-C4 | An adaptive policy MAY be trained offline and MUST beat the static baseline to be used | RL macro-F1 0.538 vs static 0.278, ~130 sd apart | **Met** |
+| FR-C4 | An adaptive policy MAY be trained offline; it MUST beat the *deployed* static table to be considered | Contextual-bandit macro-F1 0.5329 vs deployed static 0.2744 — beats deployed. **But a validation-tuned static table scores 0.5879, higher than the bandit; the adaptive policy does NOT beat a well-tuned static baseline** (`docs/CLAIM_EVIDENCE_MATRIX.md` C6). Not RL — a contextual bandit with sample-average action-value estimation | **Beats deployed static; loses to tuned static → not adopted over static** |
 | FR-C5 | No model MUST be trained or updated on the live path | `docs/04`; inference-only gateway | **Met** |
 
 ### 5.4 Governance and audit (M7)
@@ -318,9 +327,13 @@ check cannot fail, it is not a check.* *(0.10.16, §5.)*
 
 ### 8.3 Hardware-in-the-loop training, quantified
 Real hardware is 3.0% of the training normals, yet withholding it and retraining
-the whole chain moves operator-marked false positives from **0/49 to 13/49** with
-detection unchanged. Synthetic data alone cannot place the normal region where the
-board actually sits. *(0.10.9.)*
+the whole chain **materially increases** operator-marked false positives with
+detection unchanged — synthetic data alone cannot place the normal region where
+the board actually sits. ⚠ The previously quoted magnitude (0/49 → 13/49) was
+measured under the pre-split regime and its 0/49 baseline is the withdrawn leaky
+figure; the *direction* is unaffected, but the exact synthetic-only magnitude must
+be re-measured under session-level splitting before it is quoted again.
+*(`docs/CLAIM_EVIDENCE_MATRIX.md` C14; 0.10.9.)*
 
 ### 8.4 Sim-to-real calibration sized on cross-session spread (ADR-18)
 The same board's resting DC measured 1.041 / 1.056 / 1.011 g. Centring the
@@ -352,6 +365,20 @@ Fixed and regression-guarded. *(0.10.17.)*
 
 Stated because the boundary of a method is part of it. Honestly-reported
 limitations are a design principle of this project, not an afterthought.
+
+**Claims overturned by leakage-free re-measurement (2026-09-03/04), reported not hidden:**
+- **The GNN does not beat simpler models on identical multi-device information.**
+  Task 1 test F1: concat MLP 0.985, single-device 0.977, GNN 0.838 (at its own
+  best swept self-loop weight). The defensible claim is about *cross-device
+  information* (0.4142 → 0.6567), not graph structure. GNN-superiority is
+  withdrawn (`docs/CLAIM_EVIDENCE_MATRIX.md` C3).
+- **A validation-tuned static policy beats the adaptive policy.** Macro-F1:
+  static-optimised 0.5879 > adaptive bandit 0.5329 > deployed static 0.2744. The
+  adaptive policy improves on the *deployed* table but not on a well-tuned static
+  one. It is a contextual bandit, not reinforcement learning (C6).
+- **The real-hardware false-positive rate is 5/12, not 0/49.** The 0/49 was
+  measured under session-level train/test leakage and is withdrawn; the honest
+  figure on the untouched TEST session is 41.7% over 12 resting windows (C4).
 
 **Reframed by measurement (not open defects):**
 - GNN seed variance (accuracy sd 0.011) lives in aggregate accuracy, not in

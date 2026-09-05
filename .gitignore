@@ -72,6 +72,12 @@ src/data/gateway_boot_id.txt
 data/audit_key.bin
 data/checkpoint_log.jsonl
 
+# graphify knowledge-graph cache -- regenerable build artifact
+# (`graphify update .`), AST cache + internal chunk/state files. Not source;
+# 84 cache files landed in a commit once. Durable nav artifacts (graph.json,
+# wiki/, GRAPH_REPORT.md) are regenerated locally and not tracked either.
+graphify-out/
+
 # OS / editor
 .DS_Store
 Thumbs.db

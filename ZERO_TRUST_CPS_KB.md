@@ -616,9 +616,10 @@ std of 0.009 g. Accelerometer bias and resting orientation both move it.
 and widen the stationary spread to ~0.020 (`REST_DC_WALK` 0.019,
 `REST_DC_MIN/MAX` 0.975/1.10), so all three observed states sit within ±1.3 sigma.
 *Rejected:* centring on the latest measured median (1.053). It was implemented and
-measured -- real-hardware false positives went 2/49 to 0/49 -- and then the next
-live resting board read 1.011 g, i.e. **-4.0 sigma** under the model that had just
-"improved". Tuning the centre optimises for the last session captured.
+measured -- real-hardware false positives went 2/49 to 0/49 (pre-split figures,
+now withdrawn as leaky per C4 — cited here only to show the *movement*) -- and then
+the next live resting board read 1.011 g, i.e. **-4.0 sigma** under the model that
+had just "improved". Tuning the centre optimises for the last session captured.
 *Verified on the opposite case, because widening a normal region is exactly the
 change that can destroy detection:* real-hardware detection stayed 94/94, the
 same session's disturbed readings stayed pinned at `iso` 0.000, synthetic
@@ -856,15 +857,18 @@ every real disturbance at z = 4,200-48,000, the middle empty. Ranking severity
 needs a peak-aware statistic alongside the sequence model. See `RESULTS.md`
 0.10.9.
 
-**Real hardware is 3.0% of training but removes 100% of the false positives.**
+**Real hardware is 3.0% of training and materially reduces false positives.**
 Measured by withholding it and retraining the whole chain
-(`merge_real_hardware_data.py --synthetic-only`): synthetic-only gives **13/49**
-operator-marked false positives, adding the 121 real at-rest rows gives **0/49**,
-with detection unchanged at 94/94 either way (both arms measured under the
-pre-0.10.10 warm-up rule; the comparison is internally valid, the absolute
-figures are not comparable to the 1/29 headline). Synthetic data alone cannot
-place the normal region where the real board actually sits, however well
-calibrated.
+(`merge_real_hardware_data.py --synthetic-only`): synthetic-only gave **13/49**
+operator-marked false positives, adding the real at-rest rows gave **0/49**, with
+detection unchanged. ⚠ **Both figures here are pre-split and the 0/49 baseline is
+withdrawn** — this ablation was measured before session-level train/test splitting
+was enforced (see the resting-FP entry below and `docs/CLAIM_EVIDENCE_MATRIX.md`
+C4/C14). The *direction* — the real rows materially reduce false positives — is
+unaffected and load-bearing, but the exact synthetic-only magnitude must be
+re-measured under the corrected splits before "13/49 vs 0/49" is quoted again.
+Synthetic data alone cannot place the normal region where the real board actually
+sits, however well calibrated.
 *Do not treat the real rows as a rounding error because they are 3% of the count.*
 
 **A rejected message COULD mutate anti-replay state -- found by live adversarial
@@ -886,7 +890,9 @@ window. Result: the real device shows **73.0%** false positives on all normals b
 simulated devices show no such effect (9.3% vs 11.3%) because they mirror
 `rule_score` and have no window to contaminate. *The blended fused accuracy of
 0.717 is a property of the injection schedule, not of the models*, and the
-real-hardware figure (1/29) is the trustworthy one. Keep injection density low
+dedicated real-hardware evaluation on operator-marked resting windows is the
+trustworthy one (now **5/12** under session-level splitting, superseding the
+withdrawn 1/29 — see the resting-FP entry below). Keep injection density low
 relative to the sequence window in any dataset extension. See `RESULTS.md` 0.10.15.
 
 **Governance is 7/7 tenets and 7/7 falsifiers.** Tenet 5 was excluded from the
@@ -920,8 +926,11 @@ estimator variance (**wrong** -- IQR ~0.37 across `n_estimators` 100-1000 and
 `max_samples` 256-4088), and `contamination=0.1` misplacing the threshold (real,
 but lowering it trades resting dips for missed anomalies: 0.005 gives 8/121
 resting dips but 15/192 missed disturbances against 8/192 today). It stays at
-0.1. Fusion absorbs the weakness entirely -- 0/49 false positives, 136/136
-detection -- so this is margin, not a live defect. See `RESULTS.md` 0.10.8.
+0.1. Fusion still absorbs most of the weakness (detection unaffected), but note
+the resting false-positive rate is **5/12 on the untouched test session under
+session-level splitting**, not the pre-split 0/49 quoted in the original entry
+(withdrawn — see the resting-FP entry below) -- so this is margin plus a real,
+reported residual FP cost, not a fully-clean signal. See `RESULTS.md` 0.10.8.
 
 **Level-2 explainability: two metrics, both reported.** The single-channel flip
 test (literature-comparable, [21]'s method) is **37%** and stays. What it measures
@@ -938,16 +947,26 @@ number and do not delete the 37% -- both are printed together, and making the
 single-channel test itself pass is a model-architecture change (a rank-1 feature
 representation), which is future work.*
 
-**Resting-board false positives: 1/29 (3.4%) on operator-marked data, detection
-103/103.** Four labelled sessions now exist, including one sustained-fault
-capture. The earlier **0/49** figure was measured under a warm-up rule that was
-later found to contradict its own rationale -- it dropped enough records to FILL
-the LSTM window but left the block's own settling disturbance inside it, so the
-first scored window of every block still contained the seconds right after the
-operator pressed ENTER. Corrected to drop `2*LSTM_SEQ_LEN-1`; the permissive rule
-reads 10/83 (12.0%) on the full corpus, the corrected one 1/29 (3.4%), detection
-100% either way. Resting sample size falls 83 -> 29, which is the real cost and
-is reported. See `RESULTS.md` 0.10.10.
+**Resting-board false positives: 5/12 (41.7%) on the untouched TEST session under
+session-level splitting, detection 30/30.** ⚠ **This supersedes and withdraws the
+earlier 1/29 (3.4%) and 0/49 headlines**, which were measured while the test
+session's own at-rest rows were in the training set (`docs/REPOSITORY_AUDIT.md`
+§2.2). With TRAIN/VALIDATION/TEST split by session (`src/splits.py`,
+`data/splits/session_split.json`), the honest figures are: TEST
+(`20260902_221217`) detection **30/30**, 95% CI [88.6%, 100%], resting FP **5/12
+(41.7%)**, 95% CI [19.3%, 68.0%]; VALIDATION (`20260902_173108`) detection 14/14,
+FP 0/3. The 12-window denominator makes the interval very wide, and the jump from
+0/49 is direct evidence the learned normal region may be session- or
+mounting-specific — the mounting-robustness capture (`docs/REVIEW_RESPONSE_TRACKER.md`
+D) is the highest-value outstanding experiment for it. Reducing this rate is
+required future work, not a solved item. See `docs/CLAIM_EVIDENCE_MATRIX.md` C4,
+`RESULTS.md` §0.12.1.
+
+*(Historical, retained for the reasoning:* the pre-split correction from a warm-up
+rule that dropped enough records to FILL the LSTM window but left the block's own
+settling disturbance inside it — corrected to drop `2*LSTM_SEQ_LEN-1` — is what
+moved the leaky figure from 10/83 to 1/29; both are now withdrawn as leaky. See
+`RESULTS.md` 0.10.10.)*
 
 The hypothesis this entry used to carry -- that short per-phase blocks deny the
 autoencoder its steady run -- was **tested and refuted**. Control for input sigma
@@ -986,7 +1005,8 @@ sequence so the next reader does not repeat it.
 rather than fixed.** 25 violations across a 51-point sweep, confined to the
 saturated regions (0.00-0.20 and 0.70-1.00); the transition between them is sharp
 and correct. It matters more than it looks because the GNN carries the largest
-fusion coefficient (9.922 against rule's 0.071) -- so the decision-level question
+fusion coefficient (leakage-free set `[rule −0.003, iso +2.97, lstm +5.97, gnn
++8.33]`, concern H / C13) -- so the decision-level question
 was asked directly: worst fused excursion **0.00295**, one decision change across
 the sweep and it is in the correct direction, **zero** cases of a verdict getting
 stricter as a neighbourhood improves. Ripple inside a saturated region, not a
@@ -995,13 +1015,46 @@ training data for input combinations the live system never produces, which is
 risk for no decision-level benefit. `TestTwoScoreSeparation` now pins the property
 that matters instead. See `RESULTS.md` 0.10.12.
 
+**The GNN does not beat simpler models on identical multi-device information --
+measured against fair baselines, and the superiority claim is withdrawn.**
+`scripts/evaluate_gnn_baselines.py` runs five comparators on byte-identical inputs
+(single-device, concatenated logistic regression, a small MLP, a coordinated rule,
+and the GNN), fit on TRAIN, all selection on VALIDATION (self-loop weight swept
+`{1,2,3,5}`), TEST read once. Task 1 (per-node anomaly, test F1): concat MLP
+**0.9852**, single-device 0.9771, **GNN 0.8381**, concat logistic 0.7785, rule
+0.6156. Task 2 (coordination pattern, test accuracy): concat MLP **0.6567**,
+logistic 0.6433, **GNN 0.6058**, node-count 0.4142. The GNN loses *at its own best
+swept setting*. **The defensible claim is about cross-device information**
+(node-count 0.4142 → concat 0.6567), **not graph structure.** Bounded: one
+topology, one graph size, one GCN architecture, one testbed, node 02 absent — this
+shows the GNN did not help *here*, not that graph learning cannot help. The GNN
+stays in the deployed fusion (it carries real weight there); what is withdrawn is
+any claim that graph structure is architecturally necessary. See
+`docs/CLAIM_EVIDENCE_MATRIX.md` C2/C3, `RESULTS.md` §0.13.3.
+
+**A validation-tuned static policy beats the adaptive policy -- reported as a
+negative result.** `scripts/evaluate_policy_comparison.py` scores five policies on
+identical inputs on the untouched test split. Macro-F1: static-optimised
+**0.5879**, decision tree 0.5834, **adaptive bandit 0.5329**, multiclass LR
+0.4355, deployed static 0.2744. The adaptive policy clearly beats the *deployed*
+static table but is beaten by the same table with thresholds selected on
+validation. **Terminology corrected: it is a contextual bandit with sample-average
+action-value estimation, not reinforcement learning** (no discount factor, no
+next-state bootstrapping; `RL_*` config names retained only to avoid a ~20-site
+rename). Caveat on the tuned static winner: its selected `θ_proc = 0.05` would make
+the deployed system nearly blind to process anomalies — the selection objective is
+not the deployment objective, so deployed thresholds stay 0.6/0.6. See
+`docs/CLAIM_EVIDENCE_MATRIX.md` C6/C7, `RESULTS.md` §0.13.6.
+
 **The transformer is NOT a fusion input, and that was re-tested rather than
 inherited.** It recalls `stealthy_forged_values` at 0.970 against the deployed
 fusion's 0.606, which looks like a free fix for the one attack class this design
 admits it cannot see. Adding it as a 5th input was measured offline: synthetic
 stealthy recall 0.636 -> 0.970 for +6.3 points of false positives, but on REAL
-hardware resting FP went **5/29 -> 15/29** and detection **92/92 -> 87/92**.
-Rejected before shipping. The transfer failure is the signature of a model keying
+hardware resting FP went **5/29 -> 15/29** and detection **92/92 -> 87/92** (the
+/29 denominator is the pre-split corpus, now superseded by session-level splitting
+— the *direction*, adding the transformer worsens real FP, is what the decision
+rests on). Rejected before shipping. The transfer failure is the signature of a model keying
 on an artefact of how `stealthy_forged_values` is *generated* rather than a
 property of stealthy attacks -- inference, not proof, since no real-hardware
 stealthy data exists. *Read the ablation table's per-class recalls with that in
@@ -1009,16 +1062,22 @@ mind: a class measured only on generated attacks can reward recognising the
 generator.* See `RESULTS.md` 0.10.13.
 
 **Seed sensitivity is measured, not assumed.** `TRAINING_SEED` (env `ZTCPS_SEED`)
-threads through all five models. Across seeds 0-4: `fused` 0.715 +/- 0.002, RL
-macro-F1 0.537 +/- 0.002 against static 0.278 +/- 0.001 (the RL-beats-static claim
-is ~130 sd apart, a property not a draw), real-hardware detection 103/103 on every
-seed. **The GNN is the seed-sensitive component** at +/- 0.011, ~10x the fused
-spread, while also being the heaviest-weighted input. `lstm_ae` and `transformer`
-show +/- 0.000, which was verified rather than trusted: seeds 11 and 12 produce
-weights differing by up to 1.40 per tensor, so they genuinely converge to the same
-held-out accuracy from different initialisations. Headline rates also carry Wilson
-intervals now -- **FP 3.4% (1/29) has a 95% CI of [0.6%, 17.2%]** and must not be
-quoted to one decimal. See `RESULTS.md` 0.10.11.
+threads through all five models. Across seeds 0-4: `fused` 0.715 +/- 0.002, the
+adaptive policy (**a contextual bandit, not RL** — no discount factor, no
+next-state bootstrapping; C6/concern N) macro-F1 0.537 +/- 0.002 against the
+*deployed* static table 0.278 +/- 0.001. ⚠ **The "beats static" claim is now
+qualified and partly withdrawn:** on the leakage-free test split the bandit
+(0.5329) beats the *deployed* static table (0.2744) but is **beaten by a
+validation-tuned static table (0.5879)** — so it does not outperform a well-tuned
+static baseline (`docs/CLAIM_EVIDENCE_MATRIX.md` C6, `RESULTS.md` §0.13.6). **The
+GNN is the seed-sensitive component** at +/- 0.011, ~10x the fused spread, while
+also being the heaviest-weighted input. `lstm_ae` and `transformer` show
++/- 0.000, which was verified rather than trusted: seeds 11 and 12 produce weights
+differing by up to 1.40 per tensor, so they genuinely converge to the same
+held-out accuracy from different initialisations. Headline rates carry Wilson
+intervals — **resting FP is now 5/12 (41.7%), 95% CI [19.3%, 68.0%]** on the
+untouched test session (the tight-looking 1/29 [0.6%, 17.2%] was leaky and is
+withdrawn, C4). See `RESULTS.md` 0.10.11, §0.12–§0.13.
 
 **`data/` and `src/data/` split -- deliberate, and now guarded.** The audit
 database lives under `src/data/`; the checkpoint store that ATTESTS it lives at

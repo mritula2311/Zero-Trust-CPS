@@ -16,8 +16,9 @@ trip), boot_id/seq anti-replay, **two permanently-separate scores**
 the final policy step), four real ML Process Anomaly signals (rule-based,
 Isolation Forest, LSTM-Autoencoder, GNN — GPU-accelerated when available)
 fused by a real stacking meta-learner with a full per-signal SHAP
-breakdown, a real offline-trained RL-adaptive policy over the two-score
-state, a hash-chained + independently-checkpointed audit log, NIST SP
+breakdown, a real offline-trained adaptive policy (a contextual bandit
+with sample-average action-value estimation — not reinforcement learning)
+over the two-score state, a hash-chained + independently-checkpointed audit log, NIST SP
 800-207 + IEC 62443 governance mapping, and a real live dashboard (served
 by `gateway.py` itself, no separate script) — all logged to SQLite.
 
@@ -56,8 +57,8 @@ outcomes, silence) and a **Process Anomaly Score** (physical sensor
 evidence only — rule-based range check + Isolation Forest + LSTM-
 Autoencoder + GNN, fused by a stacking meta-learner with a full per-signal
 SHAP breakdown). The two scores meet **only** inside a 2×2 policy table
-(static, or an offline-trained RL bandit reading the same two-dimensional
-state) producing `ALLOW` / `ALERT` / `STEP_UP` / `BLOCK` — `STEP_UP` now
+(static, or an offline-trained contextual-bandit policy reading the same
+two-dimensional state) producing `ALLOW` / `ALERT` / `STEP_UP` / `BLOCK` — `STEP_UP` now
 triggers a real gateway-issued nonce the device must echo back, not just a
 label. Every step is logged, hash-chained (with a separately-stored,
 separately-keyed checkpoint catching an attacker who rewrites the in-DB
@@ -116,12 +117,19 @@ still TODO. Operator-labelled hardware capture is **done**: four sessions,
 429 records, six physical event classes (rest, gentle tap, tilt, moderate
 shake, sharp impact, and a sustained no-contact fault), labels marked by the
 operator at the moment of each action rather than inferred from a timetable.
-Measured on it: detection of real physical disturbance **100% (103/103)**,
-false positives on a genuinely resting board **1/29 (3.4%)**, Wilson 95% CI
-[0.6%, 17.2%] (`RESULTS.md` 0.10.10). The real at-rest rows are only **3%**
-of the training normals but they carry the result: retraining the whole
-chain without them gives **13/49** false positives instead of 0/49,
-detection unchanged (`RESULTS.md` 0.10.9).
+Measured under **session-level train/validation/test splitting** (the leaky
+overlap removed — see `docs/REPOSITORY_AUDIT.md` §2.2): on the untouched TEST
+session (`20260902_221217`) detection of real physical disturbance is **30/30
+(100%)**, 95% CI [88.6%, 100%], and false positives on a genuinely resting
+board are **5/12 (41.7%)**, 95% CI [19.3%, 68.0%]; the validation session
+detects 14/14 with 0/3 false positives (`docs/CLAIM_EVIDENCE_MATRIX.md` C4).
+**The earlier 0/49 and 1/29 (3.4%) figures are withdrawn** — they were measured
+while the test session's own at-rest rows were in the training set. The real
+at-rest rows are only **3%** of the training normals but they still carry the
+result: withholding them and retraining materially increases false positives,
+and enforcing the split moved the honest figure from a leaky 0/49 to 5/12
+(the exact synthetic-only magnitude must be re-measured under the corrected
+splits — `docs/CLAIM_EVIDENCE_MATRIX.md` C14).
 
 **Adversarial testing is now live, not synthetic**: five hostile MQTT attacks
 delivered over the real transport against a running gateway, all rejected at

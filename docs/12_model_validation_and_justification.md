@@ -466,10 +466,20 @@ over any single input's 0.000–0.606, but still not "reliable detection").
 
 ---
 
-## 8. Adaptive PDP — Reinforcement Learning (Contextual Bandit, Q-Learning)
+## 8. Adaptive PDP — Contextual Bandit (sample-average action values)
+
+> **Terminology, corrected (`docs/CLAIM_EVIDENCE_MATRIX.md` C6, concern N).**
+> This is a **contextual bandit with sample-average action-value estimation**,
+> **not reinforcement learning and not Q-learning**: the update is
+> `Q(s,a) ← Q(s,a) + (1/N(s,a))·(r − Q(s,a))` with **no discount factor and no
+> next-state bootstrapping**, and the reward is a fixed function of
+> `(state, action)`. The `RL_*` config names and the "Q-learning" wording below
+> are retained only to avoid a ~20-site rename; read them as the bandit described
+> here. Prose in this section that argues "why an RL formulation belongs here"
+> should be read as "why an *adaptive/contextual-bandit* formulation belongs here".
 
 **File**: `src/adaptive_pdp.py` / `scripts/train_adaptive_pdp.py`.
-Tabular Q-learning, epsilon-greedy training, state = (security_bucket,
+Tabular action-value estimation, epsilon-greedy training, state = (security_bucket,
 process_bucket) — a 2D discretized state space, 4 actions
 (ALLOW/ALERT/STEP_UP/BLOCK).
 
@@ -516,8 +526,19 @@ rewards, because there are no live rewards).
 
 | Policy | Avg reward | macro-F1 (4-class) | `security_concern` recall |
 |---|---|---|---|
-| Static 2x2 table | 0.282 | 0.269 | 0.000 |
-| **RL (greedy, deployed)** | **0.606** | **0.583** | **1.000** |
+| Static 2x2 table (deployed) | 0.282 | 0.269 | 0.000 |
+| **Bandit (greedy, deployed)** | **0.606** | **0.583** | **1.000** |
+
+> ⚠ **Leakage-free re-measurement qualifies this (C6, `RESULTS.md` §0.13.6).** On
+> the untouched test split with five policies on identical inputs, macro-F1 is:
+> **static-optimised 0.5879 > decision tree 0.5834 > adaptive bandit 0.5329 >
+> multiclass LR 0.4355 > deployed static 0.2744.** The bandit beats the *deployed*
+> static table but is **beaten by a validation-tuned static table**. The
+> "beats static" claim therefore holds only against the deployed configuration, not
+> against a well-tuned static baseline — and the rare `combined`
+> (`stealthy_forged_values`) class stays effectively undetectable for every policy
+> with a usable false-block rate (C8). The mechanistic `security_concern` result
+> below is unaffected.
 
 **The 0.000 → 1.000 jump on `security_concern` is the single clearest,
 most mechanistically-explained result in this whole document**: it is
@@ -563,7 +584,7 @@ follow-up: report per-bucket visit counts alongside the confusion matrix).
 | Transformer | DL (sequential, attention) | A measurable, reproducible +0.010 F1 over the LSTM-AE from removing the recurrent bottleneck | That the gain justifies production adoption (Section 5.3) |
 | GNN | DL (relational) | The ONLY signal that reliably catches `coordinated` (1.000 recall) | Generalization beyond a 3-node demo-scale graph |
 | Fusion meta-learner | ML (stacking) | A principled, verified precision/recall trade favoring rare-attack recall | Recovery from an architecturally-capped scenario (`stealthy_forged_values`) no input signal can see |
-| Adaptive PDP (RL) | RL (tabular Q-learning) | A learned, more sensitive decision boundary than any static threshold, safely frozen at inference | Uniform reliability across sparsely-visited state buckets |
+| Adaptive PDP (bandit) | Contextual bandit (sample-average action values — **not RL/Q-learning**, §8) | A learned, more sensitive decision boundary than the *deployed* static table, safely frozen at inference | Beating a *validation-tuned* static table (it does not — C6); uniform reliability across sparsely-visited state buckets |
 
 **The overall research claim this file supports**: not that any one
 model here is individually novel, but that a disciplined, falsifiable

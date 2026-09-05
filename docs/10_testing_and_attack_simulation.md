@@ -10,12 +10,16 @@
 > (situation classes: `normal`/`physical_fault`/`security_concern`/`combined`,
 > derived from `event_type` via `situation_for_event_type()` in
 > `scripts/generate_training_data.py`). Real measured results (held-out
-> test set, re-measured after the dataset scale-up, `RESULTS.md` Section
-> 12): static-table macro-F1 = 0.269, RL(greedy) macro-F1 = 0.583 — RL's
-> `security_concern` recall (1.000) and `combined`/stealthy recall (0.394)
-> both meaningfully beat the static table's 0.000 on both, at a real
-> precision cost from the aggressive inverse-frequency reward weighting
-> needed to catch any `combined` cases at all (see
+> test set, leakage-free re-measurement, `docs/CLAIM_EVIDENCE_MATRIX.md`
+> C6 / `RESULTS.md` §0.13.6): the adaptive policy — **a contextual bandit,
+> not reinforcement learning** — scores macro-F1 **0.5329**, beating the
+> *deployed* static table (**0.2744**) but **losing to a validation-tuned
+> static table (0.5879)**. The bandit's `security_concern` recall meaningfully
+> beats the deployed table's, at a real precision cost from the aggressive
+> inverse-frequency reward weighting needed to catch any `combined` cases at
+> all — and the rare `combined` (`stealthy_forged_values`) class remains
+> effectively undetectable for any policy with a usable false-block rate, an
+> architectural blind spot reported in full (C8). (see
 > `06_module5_access_control.md`'s AS-BUILT note and `RESULTS.md` Section
 > 3 for the full numbers and the honest trade-off). Section 5's ablation
 > table is implemented in

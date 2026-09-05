@@ -125,7 +125,8 @@ previous was fixed (ADR-16).
 The same board's resting rms measured 1.041 / 1.056 / 1.011 g on three
 occasions — a 0.045 g spread against a 0.009 g within-session std. Centring
 `REST_DC_CENTRE` on the newest median was implemented, measured (real-hardware
-false positives 2/49 → 0/49), and then the next live resting board landed at
+false positives 2/49 → 0/49 — pre-split figures now withdrawn as leaky, cited only
+for the *movement*), and then the next live resting board landed at
 **−4.0σ**. Centre on the midpoint of the observed range and widen the spread to
 span it. Do not re-tune it onto one session (ADR-18).
 
@@ -146,11 +147,14 @@ windows with `lstm` 0.000 while `iso` read 0.265–1.000 on the same samples.
 `MIN_EVENT_SECONDS` is derived from the same `2*LSTM_SEQ_LEN` (36 s, not 20 s).
 
 ### Real hardware is 3% of training and carries the result
-Withholding the 121 real at-rest rows and retraining the whole chain gives
-**13/49** operator-marked false positives instead of **0/49**, detection
-unchanged. Do not treat them as a rounding error because they are 3% of the
-count, and do not "clean up" `merge_real_hardware_data.py` in a way that drops
-them (`RESULTS.md` 0.10.9).
+Withholding the real at-rest rows and retraining the whole chain **materially
+increases** operator-marked false positives, detection unchanged. Do not treat
+them as a rounding error because they are 3% of the count, and do not "clean up"
+`merge_real_hardware_data.py` in a way that drops them (`RESULTS.md` 0.10.9).
+⚠ The old "13/49 vs 0/49" magnitude is pre-split and its 0/49 baseline is the
+withdrawn leaky figure — the *direction* holds, the magnitude needs re-measuring
+under session-level splitting (`docs/CLAIM_EVIDENCE_MATRIX.md` C4/C14). The honest
+deployed resting FP is **5/12 (41.7%)** on the untouched test session, not 0/49.
 
 ### Window-averaged error is not severity
 `sharp_impact` (max peak 2.968 g) scores a LOWER reconstruction-error z than
