@@ -10,16 +10,22 @@ temporal Transformer ablation-only and NP-ST a rejected ablation.
 
 Saved metrics predate the Astra temporal-training correction. They remain the
 historical evidence for their archived model chain, not a validation of models
-trained with the corrected sequence builder. Read RESULTS.md §0.13.17
-and `RESULTS.md` §0.13.17 before quoting them. Missing-node context, resampled
+trained with the corrected sequence builder. Read RESULTS.md §0.13.17, then
+§0.13.18–§0.13.22, before quoting them. Missing-node context, resampled
 hardware trajectories and non-independent calibration halves qualify the network
 experiments. M9 trains through 15 slots but has no persisted 15-node test; the
-virtual-only advantage is retained, and broader-coverage benefit is unproved.
+virtual-only-vs-hybrid comparison (RESULTS.md §0.13.16) did **not** reproduce
+at 20 nodes with corrected masking — CIs now overlap and two of five checked
+slices reversed direction (§0.13.21). Neither direction is currently
+supported; broader-coverage benefit remains unproved either way.
 
-Only `esp32-vib-001` (MPU6050) has captures. `esp32-vib-002` is a configured SW-420
-with capture pending; it does not test MPU6050 manufacturing variation. LOW passes
-TRAIN resting-residual consistency checks (not held-out realism validation).
-MEDIUM/HIGH remain OOD stress regimes. Production readiness is not established.
+`esp32-vib-001` (MPU6050) has a full TRAIN/VALIDATION/TEST capture.
+`esp32-vib-002` (SW-420) has its **first real capture, TRAIN split only**
+(§0.13.18) — VALIDATION/TEST capture is still pending, so it does not yet
+test MPU6050-vs-SW-420 cross-modality or same-model manufacturing variation
+end to end. LOW passes TRAIN resting-residual consistency checks (not
+held-out realism validation). MEDIUM/HIGH remain OOD stress regimes.
+Production readiness is not established.
 
 This document states the method: what is computed, the mathematics behind each
 step, **why each expression is required rather than an arbitrary choice**, and
@@ -603,9 +609,13 @@ data, and each was re-measured and, where it changed, withdrawn rather than the
 result being discarded: (a) the real-hardware resting false-positive rate moved
 from a leaky **0/49** to an honest **5/12 (41.7%)** on the untouched test session,
 detection unaffected at 30/30; (b) against five comparators on byte-identical
-inputs the **GNN did not beat simpler models** (Task 1 test F1: concat MLP 0.985
-vs GNN 0.838 at its own best swept self-loop weight), so the defensible claim is
-about cross-device *information* (0.4142 → 0.6567), not graph structure; (c) a
+inputs the **GNN did not beat simpler models, and the gap widened, not
+narrowed, when the cross-device network grew from 10 to 20 nodes**
+(Task 1 test F1: concat MLP 0.966 vs GNN 0.587 at its own best swept
+self-loop weight, was 0.985 vs 0.838 at 10 nodes — RESULTS.md §0.13.20), so
+the defensible claim is about cross-device *information* (0.3958 → 0.5283 at
+20 nodes, was 0.4142 → 0.6567 at 10 — advantage smaller but still positive,
+cause not isolated), not graph structure; (c) a
 **validation-tuned static policy beat the adaptive contextual-bandit policy**
 (saved-chain macro-F1 0.5614 vs 0.5271, with different ALERT recall; §3.5), which itself only beats the deployed static table
 (0.274). A framework that withdraws its own overstated results under a stricter
@@ -701,15 +711,23 @@ and absent-node placeholders enter model context; matched corrections need new
 results. Thresholds are selected on validation, with LOW thresholds frozen for
 MEDIUM/HIGH. The capped-FPR calibration halves require source-level separation.
 
-The ten-seed topology interaction is −1.2132 (95% CI −1.583 to −0.843): GCN has
-strong negative target-degree sensitivity and positive peer-density sensitivity;
-GATv2 has negative peer-density sensitivity and uncertain target-degree effect.
-Set-model invariance to adjacency is by construction. This is evidence of
-different topology-sensitivity patterns, not a strict double dissociation.
+The ten-seed topology interaction was −1.2132 (95% CI −1.583 to −0.843) on the
+superseded 10-node network; re-measured at 20 nodes it is −0.7580 (95% CI
+−1.124 to −0.392, RESULTS.md §0.13.22) — GCN has strong negative
+target-degree sensitivity and negative peer-density sensitivity (density
+sensitivity's sign flipped between the two measurements, degree sensitivity
+did not); GATv2 has negative peer-density sensitivity and, at 20 nodes, a
+now-significant negative target-degree effect (was CI-includes-zero at 10
+nodes). Set-model invariance to adjacency is by construction. This is
+evidence of different topology-sensitivity patterns, not a strict double
+dissociation.
 
 LOW's residual checks use 103 TRAIN rest rows. They do not validate cross-device
 manufacturing variation, independent held-out realism, or the full 300/600-tick
 fault-injected workload. MEDIUM/HIGH deliberately stress beyond that narrow
-consistency scope. Preserve the virtual-only F1 advantage (0.9769 vs 0.9671 on
-existing hybrid test); neither n=15 superiority nor a coverage benefit has yet
-been demonstrated. See the audit for source, seam and uncertainty limitations.
+consistency scope. ⚠ The virtual-only-vs-hybrid F1 comparison did NOT
+reproduce at 20 nodes (was 0.9769 vs 0.9671; now 0.9640 vs 0.9675 with
+overlapping CIs, RESULTS.md §0.13.21) — do not preserve or quote either
+direction as a supported advantage. Neither n=15 superiority nor a coverage
+benefit has been demonstrated. See the audit for source, seam and
+uncertainty limitations.

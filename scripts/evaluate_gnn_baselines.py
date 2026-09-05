@@ -277,7 +277,7 @@ def event_metrics(scores, labels, meta, keep_idx, threshold):
 def main():
     os.makedirs(RESULTS_DIR, exist_ok=True)
     print("=" * 78)
-    print("GNN vs SAME-INFORMATION MULTI-DEVICE BASELINES -- 10-node hybrid network")
+    print(f"GNN vs SAME-INFORMATION MULTI-DEVICE BASELINES -- {len(NETWORK_NODES)}-node hybrid network")
     print("=" * 78)
 
     data = {}

@@ -2,7 +2,8 @@
 
 > **2026-09-05 update:** Historical audit retained. Current evidence and
 > limitations, including temporal continuity and M9 claim qualifications:
-> RESULTS §0.13.17.
+> RESULTS §0.13.17, then §0.13.18–§0.13.22 (network grown again, 10→20 nodes,
+> since this audit; a further pending-node masking bug found and fixed).
 
 **Date:** 2026-09-03
 **Commit at audit:** `6a56ba5`

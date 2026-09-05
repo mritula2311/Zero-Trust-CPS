@@ -1,7 +1,12 @@
 {
   "_README": [
-    "Profiles for the eight SIMULATED nodes (03-10) of the 10-node hybrid CPS",
-    "network. JSON, not YAML, deliberately: docs/11 records dropping pyyaml from",
+    "Profiles for the eighteen SIMULATED nodes (03-20) of the 20-node hybrid CPS",
+    "network -- 10 MPU6050-type + 10 SW-420-type total (2 real + 18 simulated),",
+    "grown from the original 10-node/8-simulated network to equalise sensor-type",
+    "representation once esp32-vib-002 (SW-420) had real captured data to",
+    "calibrate against (see sw420_measured below). esp32-sim-03..10 are the",
+    "original profiles; esp32-sim-11..20 are the addition.",
+    "JSON, not YAML, deliberately: docs/11 records dropping pyyaml from",
     "this project's dependency list, and pyyaml is not installed. Adding a",
     "dependency to hold eight dictionaries would be exactly the kind of",
     "convenience the project already decided against.",
@@ -44,12 +49,31 @@
     "kurtosis": {"mean": -0.0588, "sd": 1.0812},
     "dominant_freq": {"mean": 82.22, "sd": 58.75},
     "sw420_reference_node": "esp32-vib-002",
+    "sw420_measured": {
+      "session": "20260905_162002",
+      "split_used": "train",
+      "at_rest": {
+        "n_rows": 140,
+        "note": "trigger_rate, duty_cycle, burst_max_ms and inter_event_cv are all EXACTLY 0.0 across every one of the 140 at-rest rows -- the real board produced zero false triggers at rest. No spread exists to measure from this sample; rest_* baseline parameters below are anchored at this true zero rather than a datasheet guess, and rest_cv/noise sd terms stay a documented judgement call, not a measurement, for the same reason ADR-18 gives for MPU6050 spread: one session cannot establish a distribution from a constant."
+      },
+      "disturbance_phase_means": {
+        "gentle_tap": {"n": 43, "trigger_rate": 10.992, "duty_cycle": 0.0878, "burst_max_ms": 15.0, "inter_event_cv": 0.3428},
+        "moderate_shake": {"n": 52, "trigger_rate": 21.259, "duty_cycle": 0.1875, "burst_max_ms": 28.635, "inter_event_cv": 0.6641},
+        "tilt_rotate": {"n": 51, "trigger_rate": 45.113, "duty_cycle": 0.2766, "burst_max_ms": 29.824, "inter_event_cv": 1.1672},
+        "sharp_impact": {"n": 35, "trigger_rate": 38.170, "duty_cycle": 0.2094, "burst_max_ms": 20.886, "inter_event_cv": 0.7879}
+      }
+    },
     "sw420_note": [
-      "No SW-420 telemetry has been captured yet. The two simulated switch nodes",
-      "are parameterised from the SENSOR's documented behaviour (contact closure",
-      "duration, comparator threshold) rather than from measurement, and are",
-      "marked accordingly. Once esp32-vib-002 sessions exist, re-derive these two",
-      "profiles from them and regenerate."
+      "esp32-sim-07/10's rest_* parameters were originally the SENSOR's",
+      "documented behaviour (contact closure duration, comparator threshold),",
+      "not a measurement, because no SW-420 capture existed yet. Session",
+      "20260905_162002 now exists (TRAIN split only -- no held-out SW-420",
+      "session, see data/splits/session_split.json) and both profiles plus the",
+      "esp32-sim-11..20 SW-420-type additions below are anchored to it: rest",
+      "state at true zero, anomaly magnitude_scale chosen so the simulated",
+      "disturbance response spans the measured gentle_tap..tilt_rotate range",
+      "above via generate_network_data.py's `rate*(14*magnitude_scale)+12*",
+      "magnitude_scale` formula."
     ]
   },
 
@@ -108,9 +132,9 @@
       "kind": "vibration_switch",
       "reference_real_node": "esp32-vib-002",
       "seed": 10007,
-      "variation": "SW-420-like. Sensitive threshold: fires often even at rest, so its resting duty cycle is non-zero.",
-      "baseline_parameters": {"rest_trigger_rate": 1.8, "rest_duty_cycle": 0.010, "rest_burst_ms": 3.0, "rest_cv": 0.85},
-      "noise_parameters": {"trigger_rate_sd": 0.9, "duty_sd": 0.006, "burst_sd_ms": 1.5},
+      "variation": "SW-420-like. Sensitive threshold: fires occasionally even at rest, so its resting duty cycle is non-zero -- the measured real board (session 20260905_162002) was completely silent at rest (0/140), so this is now a deliberately WORSE-than-measured node representing a looser/more sensitive mount, not the typical case.",
+      "baseline_parameters": {"rest_trigger_rate": 0.20, "rest_duty_cycle": 0.0015, "rest_burst_ms": 2.0, "rest_cv": 0.40},
+      "noise_parameters": {"trigger_rate_sd": 0.15, "duty_sd": 0.001, "burst_sd_ms": 0.8},
       "timing_parameters": {"interval_s": 1.0, "jitter_sd_s": 0.03},
       "anomaly_parameters": {"magnitude_scale": 1.0, "duration_scale": 1.0, "recovery_scale": 1.0}
     },
@@ -144,11 +168,131 @@
       "kind": "vibration_switch",
       "reference_real_node": "esp32-vib-002",
       "seed": 10010,
-      "variation": "SW-420-like. Conservative threshold: silent at rest, fires only on real disturbance. The opposite configuration to node 07.",
-      "baseline_parameters": {"rest_trigger_rate": 0.05, "rest_duty_cycle": 0.0002, "rest_burst_ms": 1.0, "rest_cv": 0.20},
-      "noise_parameters": {"trigger_rate_sd": 0.08, "duty_sd": 0.0004, "burst_sd_ms": 0.6},
+      "variation": "SW-420-like. Conservative threshold: silent at rest, fires only on real disturbance. The opposite configuration to node 07, and now the one that MATCHES the measured real board's rest state (0/140 triggers) most closely.",
+      "baseline_parameters": {"rest_trigger_rate": 0.0, "rest_duty_cycle": 0.0, "rest_burst_ms": 1.0, "rest_cv": 0.0},
+      "noise_parameters": {"trigger_rate_sd": 0.02, "duty_sd": 0.0002, "burst_sd_ms": 0.4},
       "timing_parameters": {"interval_s": 1.0, "jitter_sd_s": 0.02},
       "anomaly_parameters": {"magnitude_scale": 1.2, "duration_scale": 1.0, "recovery_scale": 0.9}
+    },
+    {
+      "device_id": "esp32-sim-11",
+      "source_type": "SIMULATED",
+      "kind": "feature_vector",
+      "reference_real_node": "esp32-vib-001",
+      "seed": 10011,
+      "variation": "Extra accelerometer on the real bench (group A), vibration-damped mount -- lower baseline noise than sim-03/04. Added to bring the MPU6050-type node count to 10, matching the SW-420-type count.",
+      "baseline_parameters": {"rms_offset": -0.0060, "peak_scale": 0.60, "kurtosis_offset": -0.10, "dominant_freq_scale": 0.90},
+      "noise_parameters": {"rms_sd_scale": 0.5, "peak_sd_scale": 0.6, "drift_amplitude": 0.0006},
+      "timing_parameters": {"interval_s": 2.0, "jitter_sd_s": 0.02},
+      "anomaly_parameters": {"magnitude_scale": 1.0, "duration_scale": 1.0, "recovery_scale": 1.0}
+    },
+    {
+      "device_id": "esp32-sim-12",
+      "source_type": "SIMULATED",
+      "kind": "vibration_switch",
+      "reference_real_node": "esp32-vib-002",
+      "seed": 10012,
+      "variation": "Second switch node on the real bench (group A). Rest state anchored at the measured real board's true zero (0/140 triggers); disturbance magnitude tuned to the measured gentle_tap mean (trigger_rate ~11/s).",
+      "baseline_parameters": {"rest_trigger_rate": 0.0, "rest_duty_cycle": 0.0, "rest_burst_ms": 1.0, "rest_cv": 0.0},
+      "noise_parameters": {"trigger_rate_sd": 0.02, "duty_sd": 0.0002, "burst_sd_ms": 0.4},
+      "timing_parameters": {"interval_s": 1.0, "jitter_sd_s": 0.02},
+      "anomaly_parameters": {"magnitude_scale": 0.9, "duration_scale": 2.0, "recovery_scale": 1.0}
+    },
+    {
+      "device_id": "esp32-sim-13",
+      "source_type": "SIMULATED",
+      "kind": "vibration_switch",
+      "reference_real_node": "esp32-vib-002",
+      "seed": 10013,
+      "variation": "Third switch, group A. Looser bracket than sim-12 -- occasional spurious rest trigger (a documented judgement call, not measured -- see sw420_note); disturbance magnitude tuned near the measured moderate_shake mean (~21/s).",
+      "baseline_parameters": {"rest_trigger_rate": 0.15, "rest_duty_cycle": 0.0010, "rest_burst_ms": 1.5, "rest_cv": 0.30},
+      "noise_parameters": {"trigger_rate_sd": 0.10, "duty_sd": 0.0008, "burst_sd_ms": 0.6},
+      "timing_parameters": {"interval_s": 1.0, "jitter_sd_s": 0.03},
+      "anomaly_parameters": {"magnitude_scale": 1.7, "duration_scale": 2.0, "recovery_scale": 1.0}
+    },
+    {
+      "device_id": "esp32-sim-14",
+      "source_type": "SIMULATED",
+      "kind": "feature_vector",
+      "reference_real_node": "esp32-vib-001",
+      "seed": 10014,
+      "variation": "Third accelerometer on machine 2 (group B), off-axis mount -- moderate baseline shift and stronger anomaly transients than sim-05/06.",
+      "baseline_parameters": {"rms_offset": 0.0080, "peak_scale": 1.20, "kurtosis_offset": 0.30, "dominant_freq_scale": 1.10},
+      "noise_parameters": {"rms_sd_scale": 1.2, "peak_sd_scale": 1.1, "drift_amplitude": 0.0018},
+      "timing_parameters": {"interval_s": 2.0, "jitter_sd_s": 0.05},
+      "anomaly_parameters": {"magnitude_scale": 1.15, "duration_scale": 0.9, "recovery_scale": 1.0}
+    },
+    {
+      "device_id": "esp32-sim-15",
+      "source_type": "SIMULATED",
+      "kind": "vibration_switch",
+      "reference_real_node": "esp32-vib-002",
+      "seed": 10015,
+      "variation": "Machine-2 switch (group B). Silent at rest like the measured board; disturbance magnitude tuned to the measured tilt_rotate mean, the strongest of the four real disturbance phases (~45/s).",
+      "baseline_parameters": {"rest_trigger_rate": 0.0, "rest_duty_cycle": 0.0, "rest_burst_ms": 1.0, "rest_cv": 0.0},
+      "noise_parameters": {"trigger_rate_sd": 0.02, "duty_sd": 0.0002, "burst_sd_ms": 0.5},
+      "timing_parameters": {"interval_s": 1.0, "jitter_sd_s": 0.02},
+      "anomaly_parameters": {"magnitude_scale": 3.7, "duration_scale": 2.0, "recovery_scale": 1.2}
+    },
+    {
+      "device_id": "esp32-sim-16",
+      "source_type": "SIMULATED",
+      "kind": "vibration_switch",
+      "reference_real_node": "esp32-vib-002",
+      "seed": 10016,
+      "variation": "Machine-2 switch (group B). Silent at rest; short, intense burst response (impact-prone mount) rather than sustained shaking -- tuned near the measured sharp_impact mean (~38/s), with a short burst/duration rather than sim-15's sustained one.",
+      "baseline_parameters": {"rest_trigger_rate": 0.0, "rest_duty_cycle": 0.0, "rest_burst_ms": 1.0, "rest_cv": 0.0},
+      "noise_parameters": {"trigger_rate_sd": 0.02, "duty_sd": 0.0002, "burst_sd_ms": 0.5},
+      "timing_parameters": {"interval_s": 1.0, "jitter_sd_s": 0.02},
+      "anomaly_parameters": {"magnitude_scale": 3.2, "duration_scale": 1.2, "recovery_scale": 0.8}
+    },
+    {
+      "device_id": "esp32-sim-17",
+      "source_type": "SIMULATED",
+      "kind": "vibration_switch",
+      "reference_real_node": "esp32-vib-002",
+      "seed": 10017,
+      "variation": "Machine-2 switch (group B), the SW-420 HARD CASE -- weak/borderline disturbance response near the noise floor, mirroring sim-08's MPU6050 hard-case philosophy for the switch modality.",
+      "baseline_parameters": {"rest_trigger_rate": 0.05, "rest_duty_cycle": 0.0003, "rest_burst_ms": 1.0, "rest_cv": 0.15},
+      "noise_parameters": {"trigger_rate_sd": 0.05, "duty_sd": 0.0004, "burst_sd_ms": 0.5},
+      "timing_parameters": {"interval_s": 1.0, "jitter_sd_s": 0.02},
+      "anomaly_parameters": {"magnitude_scale": 0.5, "duration_scale": 1.0, "recovery_scale": 1.0}
+    },
+    {
+      "device_id": "esp32-sim-18",
+      "source_type": "SIMULATED",
+      "kind": "feature_vector",
+      "reference_real_node": "esp32-vib-001",
+      "seed": 10018,
+      "variation": "Fourth accelerometer on machine 3 (group C), a different frequency band than sim-08/09 (secondary shaft speed) -- moderate hard case.",
+      "baseline_parameters": {"rms_offset": -0.0020, "peak_scale": 1.00, "kurtosis_offset": 0.10, "dominant_freq_scale": 1.40},
+      "noise_parameters": {"rms_sd_scale": 1.0, "peak_sd_scale": 1.0, "drift_amplitude": 0.0014},
+      "timing_parameters": {"interval_s": 2.0, "jitter_sd_s": 0.04},
+      "anomaly_parameters": {"magnitude_scale": 0.5, "duration_scale": 1.2, "recovery_scale": 1.1}
+    },
+    {
+      "device_id": "esp32-sim-19",
+      "source_type": "SIMULATED",
+      "kind": "vibration_switch",
+      "reference_real_node": "esp32-vib-002",
+      "seed": 10019,
+      "variation": "Machine-3 switch (group C). Silent at rest; disturbance magnitude blended between the measured gentle_tap and moderate_shake means.",
+      "baseline_parameters": {"rest_trigger_rate": 0.0, "rest_duty_cycle": 0.0, "rest_burst_ms": 1.0, "rest_cv": 0.0},
+      "noise_parameters": {"trigger_rate_sd": 0.02, "duty_sd": 0.0002, "burst_sd_ms": 0.4},
+      "timing_parameters": {"interval_s": 1.0, "jitter_sd_s": 0.02},
+      "anomaly_parameters": {"magnitude_scale": 1.3, "duration_scale": 2.0, "recovery_scale": 1.0}
+    },
+    {
+      "device_id": "esp32-sim-20",
+      "source_type": "SIMULATED",
+      "kind": "vibration_switch",
+      "reference_real_node": "esp32-vib-002",
+      "seed": 10020,
+      "variation": "Machine-3 switch (group C), slow-developing-fault analogue to sim-09's MPU6050 case for the switch modality -- long, growing bursts rather than a brief spike, and slow to recover.",
+      "baseline_parameters": {"rest_trigger_rate": 0.0, "rest_duty_cycle": 0.0, "rest_burst_ms": 1.0, "rest_cv": 0.0},
+      "noise_parameters": {"trigger_rate_sd": 0.02, "duty_sd": 0.0002, "burst_sd_ms": 0.4},
+      "timing_parameters": {"interval_s": 1.0, "jitter_sd_s": 0.02},
+      "anomaly_parameters": {"magnitude_scale": 1.0, "duration_scale": 4.0, "recovery_scale": 2.5}
     }
   ]
 }

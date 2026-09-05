@@ -146,6 +146,30 @@ GAT_HEADS = 4
 
 LATENCY_SAMPLES = 200   # single-sample forward passes timed per model
 
+# M3/M5/M6/M7 input width: the [rule, iso, lstm] sub-scores plus one validity
+# channel (1.0 = real observation this snapshot, 0.0 = PENDING_REAL_HARDWARE_DATA
+# placeholder). Without it these models see a fixed 0.9 for a pending node
+# indistinguishably from a genuinely neutral-scoring real one, and pool/attend/
+# message-pass it as if it were data (RESULTS.md 0.13.17). M4 GCN does not need
+# this: it already excludes a pending node from message passing entirely via
+# normalized_adjacency()'s `valid`-gated adjacency.
+NODE_FEATURE_DIM_WITH_VALIDITY = GNN_NODE_FEATURE_DIM + 1
+
+
+def _with_validity(X, meta=None):
+    """Appends the per-node validity channel described above.
+
+    meta=None treats every node as valid -- used by the structural probes and
+    the M9 studies, whose X is already drawn from pools pre-filtered to valid
+    rows only (`_pools()` below), where "every node valid" is simply the true
+    value, not a fallback."""
+    n_snap, n_nodes = X.shape[0], X.shape[1]
+    if meta is None:
+        valid = np.ones((n_snap, n_nodes), dtype=np.float32)
+    else:
+        valid = np.array([m["valid"] for m in meta], dtype=np.float32)
+    return np.concatenate([X, valid[..., None]], axis=-1)
+
 # Alarm budgets, declared before any threshold was fitted. 1% of the ~9300
 # normal test rows is ~93 false alarms; at one tick per 2 s per node that is the
 # order of what an operator will tolerate before muting the channel.
@@ -170,7 +194,7 @@ class DeepSets(nn.Module):
     set-based equivalent of the one-hot the concat baselines get.
     """
 
-    def __init__(self, in_dim=GNN_NODE_FEATURE_DIM):
+    def __init__(self, in_dim=NODE_FEATURE_DIM_WITH_VALIDITY):
         super().__init__()
         self.phi = nn.Sequential(
             nn.Linear(in_dim, DEEPSETS_ENC_HIDDEN), nn.ReLU(),
@@ -179,10 +203,24 @@ class DeepSets(nn.Module):
             nn.Linear(DEEPSETS_EMBED_DIM * 3, DEEPSETS_HEAD_HIDDEN), nn.ReLU(),
             nn.Linear(DEEPSETS_HEAD_HIDDEN, 1), nn.Sigmoid())
 
-    def forward(self, x):
-        """x: (batch, n_nodes, in_dim) -> (batch, n_nodes) probability-of-NORMAL."""
+    def forward(self, x, valid=None):
+        """x: (batch, n_nodes, in_dim) -> (batch, n_nodes) probability-of-NORMAL.
+
+        valid: (batch, n_nodes) bool, True where that node is a real
+        observation this snapshot. An invalid node's raw feature values (a
+        0.9 placeholder, or anything else) still reach phi() -- the append-only
+        validity CHANNEL from _with_validity does not stop that -- so without
+        this, an invalid node's embedding still shifts the sum/max pool every
+        valid node's head reads. Excluding it from the pool, not just flagging
+        it, is what actually prevents the leak (RESULTS.md 0.13.18/0.13.19)."""
         h = self.phi(x)                                                  # (b, n, e)
-        pooled = torch.cat([h.sum(dim=1), h.max(dim=1).values], dim=1)   # (b, 2e)
+        if valid is None:
+            pooled = torch.cat([h.sum(dim=1), h.max(dim=1).values], dim=1)
+        else:
+            v = valid.unsqueeze(-1).to(h.dtype)                          # (b, n, 1)
+            summed = (h * v).sum(dim=1)
+            maxed = h.masked_fill(~valid.unsqueeze(-1), float("-inf")).max(dim=1).values
+            pooled = torch.cat([summed, maxed], dim=1)
         ctx = pooled.unsqueeze(1).expand(-1, x.shape[1], -1)             # (b, n, 2e)
         return self.rho(torch.cat([h, ctx], dim=2)).squeeze(-1)
 
@@ -202,7 +240,7 @@ class GATv2(nn.Module):
     edge list -- ten nodes is far below the size where sparsity pays, and a
     dense mask keeps this comparable to the GCN's shared-A_hat batching."""
 
-    def __init__(self, in_dim=GNN_NODE_FEATURE_DIM, hidden=GAT_HIDDEN, heads=GAT_HEADS):
+    def __init__(self, in_dim=NODE_FEATURE_DIM_WITH_VALIDITY, hidden=GAT_HIDDEN, heads=GAT_HEADS):
         super().__init__()
         self.h, self.d = heads, hidden
         self.proj = nn.Linear(in_dim, heads * hidden)
@@ -252,7 +290,7 @@ class SetTransformer(nn.Module):
     declared. Permutation-equivariant by construction, so the node ordering
     carries no information -- which is the property the concat models lack."""
 
-    def __init__(self, in_dim=GNN_NODE_FEATURE_DIM, dim=ATTN_DIM,
+    def __init__(self, in_dim=NODE_FEATURE_DIM_WITH_VALIDITY, dim=ATTN_DIM,
                  heads=ATTN_HEADS, blocks=ATTN_BLOCKS):
         super().__init__()
         self.embed = nn.Linear(in_dim, dim)
@@ -261,14 +299,21 @@ class SetTransformer(nn.Module):
         self.norms = nn.ModuleList([nn.LayerNorm(dim) for _ in range(blocks)])
         self.head = nn.Sequential(nn.Linear(dim, dim), nn.ReLU(), nn.Linear(dim, 1))
 
-    def context(self, x):
+    def context(self, x, valid=None):
+        """valid: (batch, n_nodes) bool. Passed to nn.MultiheadAttention as a
+        key_padding_mask (True = ignore as key/value) -- plain self-attention
+        with no mask lets every valid node attend to an invalid node's raw
+        feature values directly; only excluding it as a key, not merely adding
+        a validity feature to it, stops that (RESULTS.md 0.13.18/0.13.19)."""
         h = self.embed(x)
+        key_padding_mask = None if valid is None else ~valid
         for attn, norm in zip(self.blocks, self.norms):
-            h = norm(h + attn(h, h, h, need_weights=False)[0])
+            h = norm(h + attn(h, h, h, key_padding_mask=key_padding_mask,
+                              need_weights=False)[0])
         return h
 
-    def forward(self, x):
-        return torch.sigmoid(self.head(self.context(x))).squeeze(-1)
+    def forward(self, x, valid=None):
+        return torch.sigmoid(self.head(self.context(x, valid))).squeeze(-1)
 
 
 class NodePreservingSetTransformer(nn.Module):
@@ -288,7 +333,7 @@ class NodePreservingSetTransformer(nn.Module):
     from a GCN whose node state IS the aggregate. A hard guarantee would need a
     non-negative or monotone modulation, and is not what is implemented here."""
 
-    def __init__(self, in_dim=GNN_NODE_FEATURE_DIM, dim=ATTN_DIM):
+    def __init__(self, in_dim=NODE_FEATURE_DIM_WITH_VALIDITY, dim=ATTN_DIM):
         super().__init__()
         self.local = nn.Sequential(nn.Linear(in_dim, dim), nn.ReLU(),
                                    nn.Linear(dim, dim), nn.ReLU())
@@ -296,9 +341,12 @@ class NodePreservingSetTransformer(nn.Module):
         self.gate = nn.Linear(dim * 2, dim)
         self.head = nn.Sequential(nn.Linear(dim, dim), nn.ReLU(), nn.Linear(dim, 1))
 
-    def forward(self, x):
+    def forward(self, x, valid=None):
+        # self.local is per-node (a plain nn.Linear stack), so an invalid
+        # node's own row never reaches a valid node through it; only the
+        # attention path (self.ctx.context) can leak, and it is masked there.
         local = self.local(x)
-        ctx = self.ctx.context(x)
+        ctx = self.ctx.context(x, valid)
         gate = torch.sigmoid(self.gate(torch.cat([local, ctx], dim=-1)))
         return torch.sigmoid(self.head(local + gate * ctx)).squeeze(-1)
 
@@ -311,7 +359,7 @@ def train_deep_sets(X, y, meta, factory=DeepSets, adjacency=None, seed=None):
     were meant to be identical is how a comparison quietly stops being one."""
     torch.manual_seed(TRAINING_SEED if seed is None else seed)
     model = factory().to(_TORCH_DEVICE)
-    x = torch.tensor(X, dtype=torch.float32, device=_TORCH_DEVICE)
+    x = torch.tensor(_with_validity(X, meta), dtype=torch.float32, device=_TORCH_DEVICE)
     t = torch.tensor(y, dtype=torch.float32, device=_TORCH_DEVICE)
     mask = torch.tensor(np.array([m["valid"] for m in meta]), dtype=torch.bool,
                         device=_TORCH_DEVICE)
@@ -321,12 +369,18 @@ def train_deep_sets(X, y, meta, factory=DeepSets, adjacency=None, seed=None):
     w_pos = (n_pos + n_neg) / (2 * max(n_pos, 1.0))
     w_neg = (n_pos + n_neg) / (2 * max(n_neg, 1.0))
 
+    # GATv2 (adjacency is not None) gets validity ANDed into the structural
+    # mask it already takes, matching M4_gcn's valid-gated adjacency. DeepSets/
+    # SetTransformer/NP-ST (adjacency is None) take the validity mask directly
+    # -- see each class's own masking (pooling / key_padding_mask).
+    full_adjacency = None if adjacency is None else adjacency & mask[:, None, None, :]
+
     opt = torch.optim.Adam(model.parameters(), lr=DEEPSETS_LR)
     model.train()
     t0 = time.perf_counter_ns()
     for _ in range(DEEPSETS_EPOCHS):
         opt.zero_grad()
-        out = model(x) if adjacency is None else model(x, adjacency)
+        out = model(x, valid=mask) if adjacency is None else model(x, full_adjacency)
         w = torch.where(t > 0.5, w_pos, w_neg)
         loss = (nn.functional.binary_cross_entropy(out, t, reduction="none") * w)[mask].mean()
         loss.backward()
@@ -358,7 +412,7 @@ def train_mixed_cardinality(X, y, meta, factory=SetTransformer,
     torch.manual_seed(TRAINING_SEED)
     rng = np.random.default_rng(TRAINING_SEED)
     model = factory().to(_TORCH_DEVICE)
-    x_all = torch.tensor(X, dtype=torch.float32, device=_TORCH_DEVICE)
+    x_all = torch.tensor(_with_validity(X, meta), dtype=torch.float32, device=_TORCH_DEVICE)
     t_all = torch.tensor(y, dtype=torch.float32, device=_TORCH_DEVICE)
     m_all = torch.tensor(np.array([m["valid"] for m in meta]), dtype=torch.bool,
                          device=_TORCH_DEVICE)
@@ -377,7 +431,7 @@ def train_mixed_cardinality(X, y, meta, factory=SetTransformer,
                             device=_TORCH_DEVICE)
         x, t, mask = x_all[:, cols], t_all[:, cols], m_all[:, cols]
         opt.zero_grad()
-        out = model(x)
+        out = model(x, valid=mask)
         w = torch.where(t > 0.5, w_pos, w_neg)
         loss = (nn.functional.binary_cross_entropy(out, t, reduction="none") * w)[mask].mean()
         loss.backward()
@@ -476,7 +530,11 @@ def _train_pooled_sets(sources, sizes, factory=SetTransformer, seed=None):
     torch.manual_seed(TRAINING_SEED if seed is None else seed)
     rng = np.random.default_rng(TRAINING_SEED if seed is None else seed)
     model = factory().to(_TORCH_DEVICE)
-    x_all_t = torch.tensor(X_all, dtype=torch.float32, device=_TORCH_DEVICE)
+    # Same validity channel as train_deep_sets/train_mixed_cardinality --
+    # valid_all is already computed above, so append it directly rather than
+    # going through _with_validity()'s meta-list form.
+    x_all_np = np.concatenate([X_all, valid_all.astype(np.float32)[..., None]], axis=-1)
+    x_all_t = torch.tensor(x_all_np, dtype=torch.float32, device=_TORCH_DEVICE)
     t_all_t = torch.tensor(y_all, dtype=torch.float32, device=_TORCH_DEVICE)
     m_all_t = torch.tensor(valid_all, dtype=torch.bool, device=_TORCH_DEVICE)
 
@@ -494,7 +552,7 @@ def _train_pooled_sets(sources, sizes, factory=SetTransformer, seed=None):
                             device=_TORCH_DEVICE)
         x, t, mask = x_all_t[:, cols], t_all_t[:, cols], m_all_t[:, cols]
         opt.zero_grad()
-        out = model(x)
+        out = model(x, valid=mask)
         w = torch.where(t > 0.5, w_pos, w_neg)
         loss = (nn.functional.binary_cross_entropy(out, t, reduction="none") * w)[mask].mean()
         loss.backward()
@@ -572,7 +630,8 @@ def m9_sanity_check():
 
     def _scores_labels(X, y, meta, k):
         cols = np.arange(k)
-        scores = deep_sets_scores(model, X[:, cols])
+        meta_k = [{"valid": m["valid"][:k]} for m in meta]
+        scores = deep_sets_scores(model, X[:, cols], meta=meta_k)
         valid = np.array([m["valid"][:k] for m in meta])
         return scores, y[:, cols], valid, scores[valid], y[:, cols][valid]
 
@@ -641,10 +700,39 @@ def m9_sanity_check():
                   f"std={norm.std():.4f}")
 
 
-def deep_sets_scores(model, X, adjacency=None):
-    x = torch.tensor(X, dtype=torch.float32, device=_TORCH_DEVICE)
+def deep_sets_scores(model, X, adjacency=None, meta=None):
+    """Central scoring path for M3/M5/M6/M7/M8/M9 -- every real (train-time
+    validation/test) scoring call in this file goes through here, so masking
+    validity in exactly this one place (instead of at each call site) is what
+    makes train_deep_sets's fix apply everywhere scores are read back, not
+    just where the model was trained."""
+    x = torch.tensor(_with_validity(X, meta), dtype=torch.float32, device=_TORCH_DEVICE)
+    valid = None if meta is None else torch.tensor(
+        np.array([m["valid"] for m in meta]), dtype=torch.bool, device=_TORCH_DEVICE)
     with torch.no_grad():
-        return (model(x) if adjacency is None else model(x, adjacency)).cpu().numpy()
+        if adjacency is None:
+            return model(x, valid=valid).cpu().numpy()
+        full_adjacency = adjacency if valid is None else adjacency & valid[:, None, None, :]
+        return model(x, full_adjacency).cpu().numpy()
+
+
+def zero_invalid_concat_blocks(flat_X, keep, meta):
+    """Deterministically zero each invalid node's raw [rule, iso, lstm] block
+    in flatten_for_concat()'s output, in place, and return it.
+
+    flatten_for_concat() (shared with evaluate_gnn_baselines.py's own B1/B2
+    concat baselines, out of scope here) bakes every node's raw sub-scores
+    into `flat`, including an invalid node's 0.9 placeholder -- M1/M2 have no
+    pooling/attention step to gate that through, so the placeholder (or
+    anything else in that block) is just as visible to their weights as real
+    data. Zeroing here is a canonical representation instead of relying on
+    the model having learned to ignore raw content."""
+    valid_by_tick = np.array([m["valid"] for m in meta])                    # (n_ticks, N_NODES)
+    zero_mask_by_tick = np.repeat(valid_by_tick, GNN_NODE_FEATURE_DIM, axis=1).astype(np.float32)
+    row_ticks = np.array([t for t, _i in keep])
+    n_flat = zero_mask_by_tick.shape[1]
+    flat_X[:, :n_flat] *= zero_mask_by_tick[row_ticks]
+    return flat_X
 
 
 def n_params(model):
@@ -653,7 +741,8 @@ def n_params(model):
 
 def _eval_at_threshold(model, X, y, meta, k, thr):
     cols = np.arange(k)
-    scores = deep_sets_scores(model, X[:, cols])
+    meta_k = [{"valid": m["valid"][:k]} for m in meta]
+    scores = deep_sets_scores(model, X[:, cols], meta=meta_k)
     valid = np.array([m["valid"][:k] for m in meta])
     s, lab = scores[valid], y[:, cols][valid]
     m = metrics(s, lab, thr)
@@ -671,7 +760,8 @@ def _fit_and_eval(model, va, te, k):
     scoring TEST -- returns (threshold, test metrics dict)."""
     X_va, y_va, meta_va = va
     cols = np.arange(k)
-    s_va = deep_sets_scores(model, X_va[:, cols])
+    meta_va_k = [{"valid": m["valid"][:k]} for m in meta_va]
+    s_va = deep_sets_scores(model, X_va[:, cols], meta=meta_va_k)
     valid_va = np.array([m["valid"][:k] for m in meta_va])
     thr = choose_threshold(s_va[valid_va], y_va[:, cols][valid_va])
     return thr, _eval_at_threshold(model, *te, k, thr)
@@ -770,7 +860,7 @@ def _eval_slice(model, X, y, meta, thr, col_idx=None, scenario=None):
     threshold would look best here'), restricted to a column subset and/or a
     single scenario."""
     k = X.shape[1]
-    scores = deep_sets_scores(model, X[:, np.arange(k)])
+    scores = deep_sets_scores(model, X[:, np.arange(k)], meta=meta)
     valid = np.array([m["valid"] for m in meta])
     if scenario is not None:
         row_idx = np.array([i for i, m in enumerate(meta) if m["scenario"] == scenario])
@@ -973,7 +1063,7 @@ def _pools(X, y, meta):
     return np.array(anom), np.array(norm)
 
 
-def probe_scores(name, model, batch, n, self_loop_weight, force_complete=False):
+def probe_scores(name, model, batch, n, self_loop_weight, force_complete=False, meta=None):
     """Score a (b, n, 3) probe batch through whichever calling convention the
     model uses, and return probability-of-NORMAL for every node.
 
@@ -983,16 +1073,24 @@ def probe_scores(name, model, batch, n, self_loop_weight, force_complete=False):
     devices). Feeding a complete graph at n=10 would have made the permutation
     probe trivially pass -- with all 45 edges present, relabelling changes
     nothing, and the declared graph has 15."""
-    x = torch.tensor(batch, dtype=torch.float32, device=_TORCH_DEVICE)
     declared = (n == N_NODES) and not force_complete
     with torch.no_grad():
         if name == "M4_gcn":
+            # Unaugmented: the GCN never took a validity channel -- it excludes a
+            # pending node from message passing via the adjacency mask instead.
+            x = torch.tensor(batch, dtype=torch.float32, device=_TORCH_DEVICE)
             a = normalized_adjacency(self_loop_weight) if declared                 else complete_adjacency(n, self_loop_weight)
             out = model(x, a)
-        elif name == "M5_gatv2":
-            out = model(x, topology_mask() if declared else topology_mask(n))
         else:
-            out = model(x)
+            # meta=None (dilution/degree/density probes' synthesized batches from
+            # anom_pool/norm_pool) means every node really is valid -- those pools
+            # are pre-filtered by _pools(). permutation_probe passes real meta
+            # since its batch is an unfiltered slice of te["X"].
+            x = torch.tensor(_with_validity(batch, meta), dtype=torch.float32, device=_TORCH_DEVICE)
+            if name == "M5_gatv2":
+                out = model(x, topology_mask() if declared else topology_mask(n))
+            else:
+                out = model(x)
     return out.cpu().numpy()
 
 
@@ -1020,9 +1118,9 @@ def dilution_probe(models, anom, norm, thresholds, self_loop_weight,
     score that drifts without crossing the threshold is a different finding from
     one that stops detecting.
 
-    M1/M2 are absent by construction: their input is a fixed 10*3+10 vector, so
-    they cannot be evaluated at any other device count. That is itself the
-    scaling result.
+    M1/M2 are absent by construction: their input is a fixed N_NODES*3+N_NODES
+    vector (plus the validity block), so they cannot be evaluated at any other
+    device count. That is itself the scaling result.
 
     EVERY model here was TRAINED at n=10 only. The n != 10 columns are therefore
     extrapolation for all of them, not just the graph ones, and a model that
@@ -1113,6 +1211,9 @@ def degree_probe(models, anom, norm, thresholds, self_loop_weight,
     for j in range(1, n):
         batch[:, j] = norm[rng.integers(0, len(norm), trials)]
     x = torch.tensor(batch, dtype=torch.float32, device=_TORCH_DEVICE)
+    # anom/norm are drawn from _pools(), already valid-only -- "every node
+    # valid" is the true value for the non-GCN models' validity channel here.
+    x_valid = torch.tensor(_with_validity(batch), dtype=torch.float32, device=_TORCH_DEVICE)
 
     out = {}
     for name, model in models.items():
@@ -1122,9 +1223,9 @@ def degree_probe(models, anom, norm, thresholds, self_loop_weight,
                 if name == "M4_gcn":
                     sc = model(x, degree_adjacency(n, d, self_loop_weight))
                 elif name == "M5_gatv2":
-                    sc = model(x, degree_mask(n, d))
+                    sc = model(x_valid, degree_mask(n, d))
                 else:
-                    sc = model(x)          # no neighbourhood; d is inapplicable
+                    sc = model(x_valid)          # no neighbourhood; d is inapplicable
             sc = sc.cpu().numpy()[:, 0]
             rows[d] = {"mean_p_anomaly": round(float(1.0 - sc.mean()), 4),
                        "recall_at_threshold": round(float((sc < thresholds[name]).mean()), 4)}
@@ -1160,6 +1261,9 @@ def neighbour_density_probe(models, anom, norm, thresholds, self_loop_weight,
     for j in range(1, n):
         batch[:, j] = norm[rng.integers(0, len(norm), trials)]
     x = torch.tensor(batch, dtype=torch.float32, device=_TORCH_DEVICE)
+    # anom/norm are drawn from _pools(), already valid-only -- "every node
+    # valid" is the true value for the non-GCN models' validity channel here.
+    x_valid = torch.tensor(_with_validity(batch), dtype=torch.float32, device=_TORCH_DEVICE)
     edges = _peer_edges(n)
 
     out = {}
@@ -1181,9 +1285,9 @@ def neighbour_density_probe(models, anom, norm, thresholds, self_loop_weight,
                                                device=_TORCH_DEVICE))
                 elif name == "M5_gatv2":
                     msk = torch.tensor(adj.astype(bool), device=_TORCH_DEVICE).view(1, 1, n, n)
-                    sc = model(x, msk)
+                    sc = model(x_valid, msk)
                 else:
-                    sc = model(x)
+                    sc = model(x_valid)
             sc = sc.cpu().numpy()[:, 0]
             rows[m_edges] = {"mean_p_anomaly": round(float(1.0 - sc.mean()), 4),
                              "recall_at_threshold": round(float((sc < thresholds[name]).mean()), 4)}
@@ -1218,6 +1322,10 @@ def coordination_probe(models, anom, norm, thresholds, self_loop_weight,
 
 
 def permutation_probe(models, X, self_loop_weight, rng_seed=TRAINING_SEED):
+    # meta=None (probe_scores' default) treats every node as valid, including any
+    # PENDING row this X slice may contain -- a known simplification for this
+    # probe specifically (invariance under relabelling, not an accuracy claim),
+    # not extended to real per-row validity here.
     """Relabel the devices and check whether the verdict follows the device or
     the slot.
 
@@ -1280,13 +1388,22 @@ def macro_f1(scores, labels, threshold):
 def main():
     os.makedirs(RESULTS_DIR, exist_ok=True)
     print("=" * 96)
-    print("CROSS-DEVICE PROCESS ANOMALY -- ARCHITECTURE BENCHMARK (10-node hybrid network)")
+    print(f"CROSS-DEVICE PROCESS ANOMALY -- ARCHITECTURE BENCHMARK ({N_NODES}-node hybrid network)")
     print("=" * 96)
 
     data = {}
     for split in ("train", "validation", "test"):
         X, y, meta, pending = build_snapshots(split)
         flat_X, flat_y, keep = flatten_for_concat(X, y, meta)
+        flat_X = zero_invalid_concat_blocks(flat_X, keep, meta)
+        # Appends the SAME per-node validity block described at
+        # NODE_FEATURE_DIM_WITH_VALIDITY, kept local to this file rather than
+        # changed in flatten_for_concat() (shared with evaluate_gnn_baselines.py's
+        # own B1/B2 concat baselines, out of scope here): one row per kept
+        # (tick, node), so M1/M2 see which of the 10 blocks in their fixed-width
+        # input is the PENDING placeholder instead of a real neutral reading.
+        validity_block = np.array([meta[t]["valid"].astype(np.float32) for t, i in keep])
+        flat_X = np.concatenate([flat_X, validity_block], axis=1)
         data[split] = dict(X=X, y=y, meta=meta, flat_X=flat_X, flat_y=flat_y, keep=keep)
         print(f"{split:11s} {len(X):5d} snapshots  {len(flat_X):6d} scoreable (tick,node) rows  "
               f"{pending} PENDING rows excluded")
@@ -1378,15 +1495,16 @@ def main():
 
     # ---- M3 Deep Sets -----------------------------------------------------
     ds, ds_ms, ds_epochs = train_deep_sets(tr["X"], tr["y"], tr["meta"])
-    ds_va_all = deep_sets_scores(ds, va["X"])
-    ds_te_all = deep_sets_scores(ds, te["X"])
+    ds_va_all = deep_sets_scores(ds, va["X"], meta=va["meta"])
+    ds_te_all = deep_sets_scores(ds, te["X"], meta=te["meta"])
     record("M3_deep_sets",
            np.array([ds_va_all[t][i] for t, i in va["keep"]]),
            np.array([ds_te_all[t][i] for t, i in te["keep"]]),
            ds_ms, ds_epochs,
            time_inference_per_sample(
-               lambda i: deep_sets_scores(ds, te["X"][i % len(te["X"]):
-                                                      i % len(te["X"]) + 1])),
+               lambda i: deep_sets_scores(
+                   ds, te["X"][i % len(te["X"]): i % len(te["X"]) + 1],
+                   meta=te["meta"][i % len(te["X"]): i % len(te["X"]) + 1])),
            params=n_params(ds))
 
     # ---- M4 GCN -----------------------------------------------------------
@@ -1425,28 +1543,30 @@ def main():
                                ("M7_np_st", NodePreservingSetTransformer, None)):
         mdl, ms, eps = train_deep_sets(tr["X"], tr["y"], tr["meta"], factory, adj)
         attn_models[name] = mdl
-        s_va_all = deep_sets_scores(mdl, va["X"], adj)
-        s_te_all = deep_sets_scores(mdl, te["X"], adj)
+        s_va_all = deep_sets_scores(mdl, va["X"], adj, meta=va["meta"])
+        s_te_all = deep_sets_scores(mdl, te["X"], adj, meta=te["meta"])
         record(name,
                np.array([s_va_all[t][i] for t, i in va["keep"]]),
                np.array([s_te_all[t][i] for t, i in te["keep"]]),
                ms, eps,
                time_inference_per_sample(
                    lambda i, m=mdl, a=adj: deep_sets_scores(
-                       m, te["X"][i % len(te["X"]):i % len(te["X"]) + 1], a)),
+                       m, te["X"][i % len(te["X"]):i % len(te["X"]) + 1], a,
+                       meta=te["meta"][i % len(te["X"]): i % len(te["X"]) + 1])),
                params=n_params(mdl))
 
     # ---- M8: the same Set Transformer, trained across mixed cardinalities --
     mx, mx_ms, mx_eps = train_mixed_cardinality(tr["X"], tr["y"], tr["meta"])
-    mx_va = deep_sets_scores(mx, va["X"])
-    mx_te = deep_sets_scores(mx, te["X"])
+    mx_va = deep_sets_scores(mx, va["X"], meta=va["meta"])
+    mx_te = deep_sets_scores(mx, te["X"], meta=te["meta"])
     record("M8_set_transformer_mixed_n",
            np.array([mx_va[t][i] for t, i in va["keep"]]),
            np.array([mx_te[t][i] for t, i in te["keep"]]),
            mx_ms, mx_eps,
            time_inference_per_sample(
-               lambda i: deep_sets_scores(mx, te["X"][i % len(te["X"]):
-                                                      i % len(te["X"]) + 1])),
+               lambda i: deep_sets_scores(
+                   mx, te["X"][i % len(te["X"]): i % len(te["X"]) + 1],
+                   meta=te["meta"][i % len(te["X"]): i % len(te["X"]) + 1])),
            params=n_params(mx))
 
     # ---- report -----------------------------------------------------------
@@ -1533,7 +1653,7 @@ def main():
     print("=" * 96)
     print(f"drawn from real test feature vectors: {len(anom_pool)} anomalous, "
           f"{len(norm_pool)} normal; 400 trials per cell")
-    print("M1/M2 are absent: a fixed 10*3+10 input cannot be evaluated at any other")
+    print(f"M1/M2 are absent: a fixed {N_NODES}*3+{N_NODES} input cannot be evaluated at any other")
     print("device count. That inability IS the scaling result, not a missing row.")
 
     probe_table("A. DILUTION -- one anomalous device among n-1 healthy ones",
@@ -1664,7 +1784,7 @@ def main():
                "dilution_graph_regime": "complete graph at every n, so the curve "
                                         "is one experiment; declared topology "
                                         "reported separately",
-               "excluded": "M1/M2 accept a fixed 10*3+10 vector only"},
+               "excluded": f"M1/M2 accept a fixed {N_NODES}*3+{N_NODES} vector only"},
            "gcn_self_loop_sweep_validation": {str(k): v for k, v in sweep.items()},
            "results": results,
            "recommendation": {"highest_macro_f1": best_f1, "lowest_latency": fastest,
@@ -1742,9 +1862,9 @@ def seed_study(data, seeds, best_w):
             if name == "M4_gcn":
                 sv = gnn_scores(m, va["X"], best_w, va["meta"])
             elif name == "M5_gatv2":
-                sv = deep_sets_scores(m, va["X"], topology_mask())
+                sv = deep_sets_scores(m, va["X"], topology_mask(), meta=va["meta"])
             else:
-                sv = deep_sets_scores(m, va["X"])
+                sv = deep_sets_scores(m, va["X"], meta=va["meta"])
             thr[name] = choose_threshold(
                 np.array([sv[t][i] for t, i in va["keep"]]), va["flat_y"])
 

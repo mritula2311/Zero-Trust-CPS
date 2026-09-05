@@ -10,16 +10,22 @@ temporal Transformer ablation-only and NP-ST a rejected ablation.
 
 Saved metrics predate the Astra temporal-training correction. They remain the
 historical evidence for their archived model chain, not a validation of models
-trained with the corrected sequence builder. Read RESULTS.md §0.13.17
-and `RESULTS.md` §0.13.17 before quoting them. Missing-node context, resampled
+trained with the corrected sequence builder. Read RESULTS.md §0.13.17, then
+§0.13.18–§0.13.22, before quoting them. Missing-node context, resampled
 hardware trajectories and non-independent calibration halves qualify the network
 experiments. M9 trains through 15 slots but has no persisted 15-node test; the
-virtual-only advantage is retained, and broader-coverage benefit is unproved.
+virtual-only-vs-hybrid comparison (RESULTS.md §0.13.16) did **not** reproduce
+at 20 nodes with corrected masking — CIs now overlap and two of five checked
+slices reversed direction (§0.13.21). Neither direction is currently
+supported; broader-coverage benefit remains unproved either way.
 
-Only `esp32-vib-001` (MPU6050) has captures. `esp32-vib-002` is a configured SW-420
-with capture pending; it does not test MPU6050 manufacturing variation. LOW passes
-TRAIN resting-residual consistency checks (not held-out realism validation).
-MEDIUM/HIGH remain OOD stress regimes. Production readiness is not established.
+`esp32-vib-001` (MPU6050) has a full TRAIN/VALIDATION/TEST capture.
+`esp32-vib-002` (SW-420) has its **first real capture, TRAIN split only**
+(§0.13.18) — VALIDATION/TEST capture is still pending, so it does not yet
+test MPU6050-vs-SW-420 cross-modality or same-model manufacturing variation
+end to end. LOW passes TRAIN resting-residual consistency checks (not
+held-out realism validation). MEDIUM/HIGH remain OOD stress regimes.
+Production readiness is not established.
 ## Explainable Zero-Trust Trust Evaluation for Cyber-Physical Systems Using Ensemble Anomaly Detection and Graph Neural Networks
 
 | | |
@@ -244,7 +250,7 @@ Each requirement carries a verification method and its current status.
 | ID | Requirement | Verification | Status |
 |---|---|---|---|
 | FR-P1 | The physical axis MUST NOT consume any cyber evidence, and vice versa | `TestTwoScoreSeparation` (signature inspection) | **Met** |
-| FR-P2 | The ensemble MUST include a relational signal (graph or set/concatenated alternative) capable of detecting cross-device anomalies | Cross-device information improves coordinated detection 0.4142 → 0.6567 (concat MLP). **The GNN specifically does not beat simpler models on identical information (Task 1 test F1: MLP 0.985 vs GNN 0.838); GNN-superiority is withdrawn** (`docs/CLAIM_EVIDENCE_MATRIX.md` C2/C3) | **Relational signal present; graph structure not shown superior** |
+| FR-P2 | The ensemble MUST include a relational signal (graph or set/concatenated alternative) capable of detecting cross-device anomalies | Cross-device information improves coordinated detection: 0.3958 → 0.5283 (concat MLP) on the current 20-node network — smaller than the ⚠ superseded 10-node figure (0.4142 → 0.6567), cause not isolated (RESULTS.md §0.13.20). **The GNN specifically does not beat simpler models on identical information, and the gap widened at 20 nodes (Task 1 test F1: MLP 0.966 vs GNN 0.587, was MLP 0.985 vs GNN 0.838 at 10 nodes); GNN-superiority is withdrawn** (`docs/CLAIM_EVIDENCE_MATRIX.md` C2/C3) | **Relational signal present; graph structure not shown superior** |
 | FR-P3 | Detection of real physical disturbance MUST be ≥ 95% | 30/30 on untouched TEST session, 95% CI [88.6%, 100%] (C4) | **Met (100%)** |
 | FR-P4 | Isolation Forest scores MUST be calibrated so a median-normal reading scores above the deployed threshold | `TestIsolationForestCalibration` | **Met** |
 | FR-P5 | Per-signal score orientation MUST be consistent (1 = normal) so fusion composes correctly | fusion coefficients, ablation | **Met** |
@@ -388,11 +394,15 @@ Stated because the boundary of a method is part of it. Honestly-reported
 limitations are a design principle of this project, not an afterthought.
 
 **Claims overturned by leakage-free re-measurement (2026-09-03/04), reported not hidden:**
-- **The GNN does not beat simpler models on identical multi-device information.**
-  Task 1 test F1: concat MLP 0.985, single-device 0.977, GNN 0.838 (at its own
-  best swept self-loop weight). The defensible claim is about *cross-device
-  information* (0.4142 → 0.6567), not graph structure. GNN-superiority is
-  withdrawn (`docs/CLAIM_EVIDENCE_MATRIX.md` C3).
+- **The GNN does not beat simpler models on identical multi-device information,
+  and the gap widened when the network grew from 10 to 20 nodes.**
+  Task 1 test F1 (20-node current / 10-node ⚠ superseded): concat MLP
+  0.966 / 0.985, single-device 0.971 / 0.977, GNN 0.587 / 0.838 (at its own
+  best swept self-loop weight, which itself fell 0.865 → 0.580 on
+  VALIDATION — RESULTS.md §0.13.18.1/§0.13.20). The defensible claim is about
+  *cross-device information* (0.3958 → 0.5283 at 20 nodes, was 0.4142 → 0.6567
+  at 10), not graph structure. GNN-superiority is withdrawn
+  (`docs/CLAIM_EVIDENCE_MATRIX.md` C3).
 - **A validation-tuned static policy beats the adaptive policy.** Macro-F1:
   static-optimised 0.5614 > adaptive bandit 0.5271 (with materially different ALERT recall) > deployed static 0.2744. The
   adaptive policy improves on the *deployed* table but not on a well-tuned static

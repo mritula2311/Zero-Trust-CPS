@@ -13,8 +13,8 @@
   0.6878507733345032,
   73.12914276123047
  ],
- "baseline_error_mean": 0.5392253994941711,
- "baseline_error_std": 3.4188523292541504,
+ "baseline_error_mean": 0.3070300221443176,
+ "baseline_error_std": 2.902864694595337,
  "feature_names": [
   "rms",
   "peak",

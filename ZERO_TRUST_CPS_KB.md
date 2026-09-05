@@ -10,16 +10,22 @@ temporal Transformer ablation-only and NP-ST a rejected ablation.
 
 Saved metrics predate the Astra temporal-training correction. They remain the
 historical evidence for their archived model chain, not a validation of models
-trained with the corrected sequence builder. Read RESULTS.md §0.13.17
-and `RESULTS.md` §0.13.17 before quoting them. Missing-node context, resampled
+trained with the corrected sequence builder. Read RESULTS.md §0.13.17, then
+§0.13.18–§0.13.22, before quoting them. Missing-node context, resampled
 hardware trajectories and non-independent calibration halves qualify the network
 experiments. M9 trains through 15 slots but has no persisted 15-node test; the
-virtual-only advantage is retained, and broader-coverage benefit is unproved.
+virtual-only-vs-hybrid comparison (RESULTS.md §0.13.16) did **not** reproduce
+at 20 nodes with corrected masking — CIs now overlap and two of five checked
+slices reversed direction (§0.13.21). Neither direction is currently
+supported; broader-coverage benefit remains unproved either way.
 
-Only `esp32-vib-001` (MPU6050) has captures. `esp32-vib-002` is a configured SW-420
-with capture pending; it does not test MPU6050 manufacturing variation. LOW passes
-TRAIN resting-residual consistency checks (not held-out realism validation).
-MEDIUM/HIGH remain OOD stress regimes. Production readiness is not established.
+`esp32-vib-001` (MPU6050) has a full TRAIN/VALIDATION/TEST capture.
+`esp32-vib-002` (SW-420) has its **first real capture, TRAIN split only**
+(§0.13.18) — VALIDATION/TEST capture is still pending, so it does not yet
+test MPU6050-vs-SW-420 cross-modality or same-model manufacturing variation
+end to end. LOW passes TRAIN resting-residual consistency checks (not
+held-out realism validation). MEDIUM/HIGH remain OOD stress regimes.
+Production readiness is not established.
 
 > Single source of truth for humans and coding agents. Every number in this
 > document was measured on this repository, not estimated. Where a result is
@@ -1041,20 +1047,28 @@ risk for no decision-level benefit. `TestTwoScoreSeparation` now pins the proper
 that matters instead. See `RESULTS.md` 0.10.12.
 
 **The GNN does not beat simpler models on identical multi-device information --
-measured against fair baselines, and the superiority claim is withdrawn.**
+measured against fair baselines, and the superiority claim is withdrawn. The
+gap widened, not narrowed, when the network grew from 10 to 20 nodes
+(RESULTS.md §0.13.18/§0.13.20).**
 `scripts/evaluate_gnn_baselines.py` runs five comparators on byte-identical inputs
 (single-device, concatenated logistic regression, a small MLP, a coordinated rule,
 and the GNN), fit on TRAIN, all selection on VALIDATION (self-loop weight swept
-`{1,2,3,5}`), TEST read once. Task 1 (per-node anomaly, test F1): concat MLP
-**0.9852**, single-device 0.9771, **GNN 0.8381**, concat logistic 0.7785, rule
-0.6156. Task 2 (coordination pattern, test accuracy): concat MLP **0.6567**,
-logistic 0.6433, **GNN 0.6058**, node-count 0.4142. The GNN loses *at its own best
-swept setting*. **The defensible claim is about cross-device information**
-(node-count 0.4142 → concat 0.6567), **not graph structure.** Bounded: one
-topology, one graph size, one GCN architecture, one testbed, node 02 absent — this
-shows the GNN did not help *here*, not that graph learning cannot help. The GNN
-stays in the deployed fusion (it carries real weight there); what is withdrawn is
-any claim that graph structure is architecturally necessary. See
+`{1,2,3,5}`), TEST read once. Current 20-node figures / ⚠ superseded 10-node
+figures — Task 1 (per-node anomaly, test F1): concat MLP **0.9662 / 0.9852**,
+single-device 0.9708 / 0.9771, **GNN 0.5865 / 0.8381**, concat logistic
+0.7351 / 0.7785, rule 0.3082 / 0.6156. Task 2 (coordination pattern, test
+accuracy): concat MLP **0.5283 / 0.6567**, logistic 0.5208 / 0.6433,
+**GNN 0.5375 / 0.6058**, node-count 0.3958 / 0.4142. The GNN loses *at its own
+best swept setting* (self-loop weight 5.0, VALIDATION F1 0.8646 → **0.5797** at
+20 nodes), more decisively than before. **The defensible claim is about
+cross-device information** (node-count 0.3958 → concat 0.5283 at 20 nodes,
+was 0.4142 → 0.6567 at 10 — the advantage persists but shrank, cause not
+isolated), **not graph structure.** Bounded: one topology, two graph sizes now
+measured, one GCN architecture, one testbed, `esp32-vib-002` TRAIN-only — this
+shows the GNN did not help *here*, and got worse as the network grew, not that
+graph learning cannot help. The GNN stays in the deployed fusion (it carries
+real weight there); what is withdrawn is any claim that graph structure is
+architecturally necessary. See
 `docs/CLAIM_EVIDENCE_MATRIX.md` C2/C3, `RESULTS.md` §0.13.3.
 
 **A validation-tuned static policy beats the adaptive policy -- reported as a

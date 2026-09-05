@@ -291,7 +291,7 @@ def main():
     splits.assert_disjoint()
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     print("=" * 78)
-    print("10-NODE HYBRID NETWORK -- 2 REAL + 8 SIMULATED")
+    print(f"{len(NETWORK_NODES)}-NODE HYBRID NETWORK -- {len(REAL_NODES)} REAL + {len(SIMULATED_NODES)} SIMULATED")
     print(f"  real      : {REAL_NODES}")
     print(f"  simulated : {len(SIMULATED_NODES)} nodes, profiles in config/simulated_nodes.json")
     print("=" * 78)

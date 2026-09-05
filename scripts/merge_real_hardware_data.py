@@ -1,5 +1,5 @@
 """
-Merges real esp32-vib-001 captures (data/collected/hardware_session_*.json,
+Merges real hardware captures (data/collected/hardware_session_*.json,
 from scripts/collect_hardware_session.py) into the synthetic training
 session (data/collected/training_session.json, from
 generate_training_data.py), so scripts/train_isolation_forest.py,
@@ -8,11 +8,17 @@ real hardware statistics without any of them needing to change -- see
 generate_training_data.py's module docstring for why this is the intended
 mechanism for folding real data in.
 
+Each real row keeps its OWN device_id/sensor_type/reading from the capture
+(esp32-vib-001/MPU6050's 5-feature vector, esp32-vib-002/SW-420's 4-feature
+vector) rather than being coerced onto one schema -- train_isolation_forest.py
+and train_lstm_ae.py already train one model per device via
+config.FEATURE_VECTOR_DEVICE_IDS, so a heterogeneous second device merges
+in cleanly with no downstream change.
+
 All real records are genuinely legitimate readings under varying physical
 conditions (at rest / tapped / shaken / tilted), not attacks -- they're
-folded in as additional NORMAL esp32-vib-001 examples (label=1,
-event_type="normal"), exactly like the synthetic normal examples they sit
-alongside.
+folded in as additional NORMAL examples (label=1, event_type="normal"),
+exactly like the synthetic normal examples they sit alongside.
 
 Re-running this script is idempotent: it always starts from a fresh
 synthetic generate() call (same seed=42) rather than reading back a
@@ -34,7 +40,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from config import DATA_COLLECTED_DIR
+from config import DATA_COLLECTED_DIR, DEVICE_REGISTRY
 from generate_training_data import generate as generate_synthetic
 import splits
 
@@ -130,7 +136,7 @@ def main():
         merged_real.append({
             "tick": next_tick,
             "source_tick": r["tick"],
-            "device_id": "esp32-vib-001",
+            "device_id": r["device_id"],
             "reading": r["reading"],
             "auth_ok": True,
             "ts": r.get("ts") or 0,
@@ -138,7 +144,10 @@ def main():
             "event_type": "normal",
             "simulated_flood": False,
             "source_type": "REAL",
-            "sensor_type": "MPU6050",
+            # Older esp32-vib-001 captures predate the "sensor_type" field on
+            # each record; DEVICE_REGISTRY is the fallback for those.
+            "sensor_type": r.get("sensor_type")
+            or DEVICE_REGISTRY.get(r["device_id"], {}).get("sensor_type", "MPU6050"),
             "session_id": r.get("_session_id"),
             "phase": r.get("phase"),
             "label_source": r.get("label_source"),
@@ -155,8 +164,12 @@ def main():
     with open(OUTPUT_PATH, "w") as f:
         json.dump(combined, f, indent=1)
 
+    by_device = {}
+    for r in merged_real:
+        by_device[r["device_id"]] = by_device.get(r["device_id"], 0) + 1
+    real_breakdown = ", ".join(f"{n} {d}" for d, n in sorted(by_device.items()))
     print(f"wrote {len(combined)} total records to {OUTPUT_PATH} "
-          f"({len(synthetic)} synthetic + {len(merged_real)} real esp32-vib-001)")
+          f"({len(synthetic)} synthetic + {len(merged_real)} real: {real_breakdown or 'none'})")
 
 
 if __name__ == "__main__":

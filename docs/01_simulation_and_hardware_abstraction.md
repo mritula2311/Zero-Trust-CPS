@@ -1,7 +1,7 @@
 # 01 — Simulation and Hardware Abstraction Layer
 
-> **2026-09-05 audit update:** One captured MPU6050, one configured SW-420 with capture pending. The legacy live simulator is scoped to its original identities; network research uses generate_network_data.py and explicit provenance.
-> Current evidence and limitations: RESULTS §0.13.17.
+> **2026-09-05 audit update:** One fully-captured MPU6050 (`esp32-vib-001`), one SW-420 (`esp32-vib-002`) with its **first real capture, TRAIN split only** — VALIDATION/TEST capture still pending. The legacy live simulator is scoped to its original identities; network research uses generate_network_data.py and explicit provenance (now 20 nodes, grown from 10 — RESULTS §0.13.18).
+> Current evidence and limitations: RESULTS §0.13.17, then §0.13.18–§0.13.22.
 
 > **AS-BUILT NOTE:** the message schema below (Section 2) is implemented
 > exactly, including `boot_id`/`seq` and the optional `step_up_nonce_echo`

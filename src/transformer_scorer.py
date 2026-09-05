@@ -42,7 +42,7 @@ from config import (
     transformer_path,
     transformer_meta_path,
     FEATURE_VECTOR_DEVICE_IDS,
-    FEATURE_NAMES, TRAINING_SEED,
+    FEATURE_NAMES, TRAINING_SEED, feature_names_for,
 )
 
 torch.manual_seed(TRAINING_SEED)
@@ -114,12 +114,16 @@ class TransformerScorer:
             model_path, meta_path = transformer_path(device_id), transformer_meta_path(device_id)
             if not (os.path.exists(model_path) and os.path.exists(meta_path)):
                 continue  # no model for this device yet -- score() defers to the neutral fallback
-            model = TransformerAutoencoder()
+            with open(meta_path) as f:
+                meta = json.load(f)
+            # Sized from the meta this model was SAVED with, not from the
+            # module-level INPUT_DIM -- same fix as LSTMAEScorer._load(),
+            # for the same reason (5 features for MPU6050-type, 4 for
+            # SW-420-type).
+            model = TransformerAutoencoder(input_dim=len(meta["mean"]))
             model.load_state_dict(torch.load(model_path, map_location=_TORCH_DEVICE, weights_only=True))
             model.eval()
             self.models[device_id] = model.to(_TORCH_DEVICE)
-            with open(meta_path) as f:
-                meta = json.load(f)
             self.stats[device_id] = {
                 "mean": np.array(meta["mean"]),
                 "std": np.array(meta["std"]),
@@ -185,7 +189,7 @@ class TransformerScorer:
             base_error = float(((model(x) - x) ** 2).mean())
 
             best_name, best_drop, best_cf_error = None, -1.0, base_error
-            for c, name in enumerate(FEATURE_NAMES):
+            for c, name in enumerate(feature_names_for(device_id)):
                 perturbed = x.clone()
                 perturbed[:, :, c] = 0.0
                 perturbed_error = float(((model(perturbed) - perturbed) ** 2).mean())

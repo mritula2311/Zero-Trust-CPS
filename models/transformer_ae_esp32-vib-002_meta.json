@@ -1,0 +1,22 @@
+{
+ "mean": [
+  0.0,
+  0.0,
+  0.0,
+  0.0
+ ],
+ "std": [
+  1.0,
+  1.0,
+  1.0,
+  1.0
+ ],
+ "baseline_error_mean": 0.00014245262718759477,
+ "baseline_error_std": 1.4551915228366852e-11,
+ "feature_names": [
+  "trigger_rate",
+  "duty_cycle",
+  "burst_max_ms",
+  "inter_event_cv"
+ ]
+}

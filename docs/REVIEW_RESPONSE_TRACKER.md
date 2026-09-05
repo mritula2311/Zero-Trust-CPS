@@ -72,13 +72,13 @@ Status vocabulary, used strictly:
 
 | | |
 |---|---|
-| **Status** | `COMPLETED` — **and the GNN lost.** |
+| **Status** | `COMPLETED` — **and the GNN lost, more decisively as the network grew (10→20 nodes, RESULTS.md §0.13.20).** |
 | **Code** | `scripts/evaluate_gnn_baselines.py`. Five comparators on byte-identical inputs, built once and shared: B0 single-device, B1 concatenated logistic regression, B2 small MLP (32,16 / ReLU / Adam / lr 1e-3 / 400 iters), B3 coordinated rule (`k` from validation), GNN. |
 | **Experimental** | Two declared tasks. Fit on TRAIN, all selection on VALIDATION (thresholds by F1, `k`, self-loop weight from `{1,2,3,5}`), TEST read once. |
-| **Evidence** | Task 1 test F1 — MLP **0.9852**, single-device 0.9771, GNN **0.8381**, logistic 0.7785, rule 0.6156. Task 2 test accuracy — MLP **0.6567**, logistic 0.6433, GNN **0.6058**, node-count 0.4142. |
+| **Evidence** | Current 20-node / ⚠ superseded 10-node. Task 1 test F1 — MLP **0.9662 / 0.9852**, single-device 0.9708 / 0.9771, GNN **0.5865 / 0.8381**, logistic 0.7351 / 0.7785, rule 0.3082 / 0.6156. Task 2 test accuracy — MLP **0.5283 / 0.6567**, logistic 0.5208 / 0.6433, GNN **0.5375 / 0.6058**, node-count 0.3958 / 0.4142. |
 | **Files** | `results/gnn_baselines/metrics.json`, `self_loop_sweep.json` |
-| **Consequence** | GNN-superiority claims are **withdrawn**. The defensible claim is about cross-device information (0.4142 → 0.6567), not graph structure. See `docs/CLAIM_EVIDENCE_MATRIX.md` C2/C3. |
-| **Remaining limitation** | One topology, one graph size, one GCN architecture. Node 02 absent. This shows the GNN did not help *here*, not that graph learning cannot help. |
+| **Consequence** | GNN-superiority claims are **withdrawn**. The defensible claim is about cross-device information (0.3958 → 0.5283 at 20 nodes, was 0.4142 → 0.6567 at 10 — smaller advantage, cause not isolated), not graph structure. See `docs/CLAIM_EVIDENCE_MATRIX.md` C2/C3. |
+| **Remaining limitation** | One topology, one GCN architecture, two graph sizes now measured. `esp32-vib-002` (SW-420) has a first real capture (TRAIN-only) but no held-out VALIDATION/TEST session yet. This shows the GNN did not help *here*, and got worse as the network grew, not that graph learning cannot help. `evaluate_gnn_baselines.py`'s own B1/B2 concat baselines may share a pending-node-masking issue found and fixed elsewhere in `benchmark_crossdevice_models.py` (RESULTS.md §0.13.19) — not yet checked here. |
 
 ---
 

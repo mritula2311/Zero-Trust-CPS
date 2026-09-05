@@ -20,6 +20,13 @@
     "  20260902_221217 -> TEST. Operator-marked, and the only session containing",
     "                     graded fault_weak / fault_strong phases, so the untouched",
     "                     test set is the one that can speak to detection floor.",
+    "  20260905_162002 -> TRAIN. esp32-vib-002 (SW-420), the FIRST and ONLY real",
+    "                     capture for this device -- it anchors the learned normal",
+    "                     region the same way 20260902_171313 does for",
+    "                     esp32-vib-001, but there is currently NO held-out real",
+    "                     SW-420 session: every real SW-420 evaluation number is",
+    "                     against synthetic data only until a second session is",
+    "                     captured and allocated to validation/test.",
     "",
     "TEST is untouched by model fitting, normalization, threshold selection,",
     "hyperparameter tuning, fusion training, reward design, and model selection.",
@@ -31,7 +38,8 @@
   ],
   "train_sessions": [
     "20260902_171313",
-    "20260902_102448"
+    "20260902_102448",
+    "20260905_162002"
   ],
   "validation_sessions": [
     "20260902_173108"

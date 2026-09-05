@@ -374,17 +374,17 @@ with open(GRAPH_TOPOLOGY_PATH) as _f:
     GRAPH_TOPOLOGY = _json.load(_f)
 del _f
 
-# The ten nodes of the principal network experiment, in a fixed order.
+# The twenty nodes of the principal network experiment, in a fixed order.
 # sensor-002 and actuator-001 remain in DEVICE_REGISTRY -- they are the original
 # starter-kit demo devices and the live gateway/simulator still use them -- but
-# they are NOT part of the 10-node network and are inactive throughout every
+# they are NOT part of the network and are inactive throughout every
 # network experiment, so they contribute only a self-loop and influence nothing.
-# Reported network_size is therefore 10, which is what participates.
+# Reported network_size is therefore 20, which is what participates.
 NETWORK_NODES = [n["device_id"] for n in GRAPH_TOPOLOGY["nodes"]]
 REAL_NODES = [n["device_id"] for n in GRAPH_TOPOLOGY["nodes"] if n["source_type"] == "REAL"]
 SIMULATED_NODES = [n["device_id"] for n in GRAPH_TOPOLOGY["nodes"] if n["source_type"] == "SIMULATED"]
-assert len(NETWORK_NODES) == 10 and len(REAL_NODES) == 2 and len(SIMULATED_NODES) == 8, \
-    "the hybrid network is 2 REAL + 8 SIMULATED = 10 by definition; graph_topology.json disagrees"
+assert len(NETWORK_NODES) == 20 and len(REAL_NODES) == 2 and len(SIMULATED_NODES) == 18, \
+    "the hybrid network is 2 REAL + 18 SIMULATED = 20 by definition; graph_topology.json disagrees"
 
 
 def network_edges() -> set:

@@ -1,10 +1,10 @@
 {
   "_README": [
-    "Edge structure for the 10-node hybrid CPS network.",
+    "Edge structure for the 20-node hybrid CPS network.",
     "",
     "WHY THIS FILE EXISTS. The previous graph connected every pair of active",
     "devices -- a complete graph. With three nodes that is unremarkable and",
-    "needed no defence. At ten nodes a complete graph is a modelling CHOICE, and",
+    "needed no defence. At many nodes a complete graph is a modelling CHOICE, and",
     "an undefended one is indistinguishable from 'whatever scored best'.",
     "",
     "EDGE SEMANTICS, stated before any result was looked at:",
@@ -17,11 +17,21 @@
     "thing the topology is supposed to explain.",
     "",
     "Three process groups, plus a sparse backbone between group representatives",
-    "standing for the shared monitoring segment (all ten report to one gateway,",
-    "so a network-wide event has SOME path, but not a direct one between every",
-    "pair). Density is 15/45 = 33% of a complete graph: 6 edges within group A,",
+    "standing for the shared monitoring segment (all twenty report to one",
+    "gateway, so a network-wide event has SOME path, but not a direct one",
+    "between every pair). Density is 60/190 = 32% of a complete graph: 21 edges",
+    "within group A, 21 within B, 15 within C, and 3 on the inter-group backbone.",
     "",
-    "3 within B, 3 within C, and 3 on the inter-group backbone.",
+    "GROWN FROM THE ORIGINAL 10-NODE NETWORK (esp32-sim-11..20 added) to equalise",
+    "sensor-type representation -- 10 MPU6050-type + 10 SW-420-type -- once",
+    "esp32-vib-002 (SW-420) had a real captured session to calibrate the new",
+    "SW-420-type simulated nodes against (config/simulated_nodes.json's",
+    "sw420_measured). The original 10 nodes and their SCENARIOS anomaly",
+    "assignments (scripts/generate_network_data.py) are UNCHANGED -- the ten new",
+    "nodes are added as additional healthy context within their group, not as",
+    "new anomaly targets, so the original adversarial scenario design (SCENARIO_C",
+    "spread across non-adjacent nodes, etc.) stays exactly as documented and",
+    "comparable to prior results.",
     "",
     "GROUP A is where the two REAL nodes sit, together, because they physically",
     "do: esp32-vib-001 (MPU6050) and esp32-vib-002 (SW-420) are mounted on the",
@@ -35,10 +45,10 @@
     "search."
   ],
 
-  "network_experiment_id": "HYBRID_10_NODE_001",
-  "network_size": 10,
+  "network_experiment_id": "HYBRID_20_NODE_001",
+  "network_size": 20,
   "real_node_count": 2,
-  "simulated_node_count": 8,
+  "simulated_node_count": 18,
 
   "nodes": [
     {"device_id": "esp32-vib-001", "source_type": "REAL",      "group": "A", "sensor_type": "MPU6050"},
@@ -50,24 +60,37 @@
     {"device_id": "esp32-sim-07",  "source_type": "SIMULATED", "group": "B", "sensor_type": "SW-420-like"},
     {"device_id": "esp32-sim-08",  "source_type": "SIMULATED", "group": "C", "sensor_type": "MPU6050-like"},
     {"device_id": "esp32-sim-09",  "source_type": "SIMULATED", "group": "C", "sensor_type": "MPU6050-like"},
-    {"device_id": "esp32-sim-10",  "source_type": "SIMULATED", "group": "C", "sensor_type": "SW-420-like"}
+    {"device_id": "esp32-sim-10",  "source_type": "SIMULATED", "group": "C", "sensor_type": "SW-420-like"},
+    {"device_id": "esp32-sim-11",  "source_type": "SIMULATED", "group": "A", "sensor_type": "MPU6050-like"},
+    {"device_id": "esp32-sim-12",  "source_type": "SIMULATED", "group": "A", "sensor_type": "SW-420-like"},
+    {"device_id": "esp32-sim-13",  "source_type": "SIMULATED", "group": "A", "sensor_type": "SW-420-like"},
+    {"device_id": "esp32-sim-14",  "source_type": "SIMULATED", "group": "B", "sensor_type": "MPU6050-like"},
+    {"device_id": "esp32-sim-15",  "source_type": "SIMULATED", "group": "B", "sensor_type": "SW-420-like"},
+    {"device_id": "esp32-sim-16",  "source_type": "SIMULATED", "group": "B", "sensor_type": "SW-420-like"},
+    {"device_id": "esp32-sim-17",  "source_type": "SIMULATED", "group": "B", "sensor_type": "SW-420-like"},
+    {"device_id": "esp32-sim-18",  "source_type": "SIMULATED", "group": "C", "sensor_type": "MPU6050-like"},
+    {"device_id": "esp32-sim-19",  "source_type": "SIMULATED", "group": "C", "sensor_type": "SW-420-like"},
+    {"device_id": "esp32-sim-20",  "source_type": "SIMULATED", "group": "C", "sensor_type": "SW-420-like"}
   ],
 
   "groups": {
     "A": {
-      "label": "Bench 1 -- both physical nodes plus two simulated peers",
-      "members": ["esp32-vib-001", "esp32-vib-002", "esp32-sim-03", "esp32-sim-04"],
-      "rationale": "The two real boards share one bench surface; sim-03/04 stand for further sensors on the same machine."
+      "label": "Bench 1 -- both physical nodes plus five simulated peers",
+      "members": ["esp32-vib-001", "esp32-vib-002", "esp32-sim-03", "esp32-sim-04",
+                  "esp32-sim-11", "esp32-sim-12", "esp32-sim-13"],
+      "rationale": "The two real boards share one bench surface; sim-03/04/11 (MPU6050-like) and sim-12/13 (SW-420-like) stand for further sensors on the same machine, grown to keep group A's sensor-type mix balanced after the network-wide equalisation."
     },
     "B": {
       "label": "Machine group 2",
-      "members": ["esp32-sim-05", "esp32-sim-06", "esp32-sim-07"],
-      "rationale": "Independent machine; one switch-type node among two accelerometer-type, mirroring the real heterogeneity."
+      "members": ["esp32-sim-05", "esp32-sim-06", "esp32-sim-07",
+                  "esp32-sim-14", "esp32-sim-15", "esp32-sim-16", "esp32-sim-17"],
+      "rationale": "Independent machine; originally one switch-type node among two accelerometer-type, now four switch-type (07/15/16/17) among three accelerometer-type (05/06/14) -- the group carrying most of the added SW-420-type nodes."
     },
     "C": {
       "label": "Machine group 3",
-      "members": ["esp32-sim-08", "esp32-sim-09", "esp32-sim-10"],
-      "rationale": "Independent machine carrying the two hard cases (weak anomalies, slow-developing fault)."
+      "members": ["esp32-sim-08", "esp32-sim-09", "esp32-sim-10",
+                  "esp32-sim-18", "esp32-sim-19", "esp32-sim-20"],
+      "rationale": "Independent machine carrying the two original hard cases (weak anomalies, slow-developing fault) plus sim-18 (a third frequency band) and sim-19/20 (switch-type analogues of the same two hard-case philosophies)."
     }
   },
 

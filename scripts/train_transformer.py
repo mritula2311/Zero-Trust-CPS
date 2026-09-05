@@ -39,7 +39,7 @@ from config import (
     TRANSFORMER_NOISE_STD,
     LSTM_SEQ_LEN,
     FEATURE_VECTOR_DEVICE_IDS,
-    FEATURE_NAMES, TRAINING_SEED,
+    FEATURE_NAMES, TRAINING_SEED, feature_names_for,
 )
 import feature_engineering as fe
 import datasets
@@ -76,7 +76,10 @@ def train_one(records, device_id) -> bool:
     windows = np.stack(windows)
     clean = torch.tensor(windows, dtype=torch.float32, device=_TORCH_DEVICE)
 
-    model = TransformerAutoencoder().to(_TORCH_DEVICE)
+    # input_dim from THIS device's own feature set, not the module-level
+    # FEATURE_NAMES -- SW-420-type nodes publish four features, not five,
+    # same fix as train_lstm_ae.py's.
+    model = TransformerAutoencoder(input_dim=raw.shape[1]).to(_TORCH_DEVICE)
     n_params = sum(p.numel() for p in model.parameters())
     print(f"[{device_id}] {len(windows)} training windows, {n_params} model parameters")
 
@@ -112,7 +115,7 @@ def train_one(records, device_id) -> bool:
             "std": std.tolist(),
             "baseline_error_mean": baseline_error_mean,
             "baseline_error_std": baseline_error_std,
-            "feature_names": FEATURE_NAMES,
+            "feature_names": feature_names_for(device_id),
         }, f, indent=1)
 
     print(f"[{device_id}] trained Transformer-AE on {len(windows)} windows -> {transformer_path(device_id)} "

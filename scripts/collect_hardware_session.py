@@ -269,6 +269,16 @@ MIN_EVENT_SECONDS = 2 * MARK_MARGIN_S + 2 * LSTM_SEQ_LEN * TELEMETRY_INTERVAL_S
 
 marked_intervals = []     # (event_name, t_start, t_end) in wall-clock seconds
 
+# The live "[n samples received] ..." status line (on_message, below) is only
+# safe to print while genuinely inside a START/STOP marking window. Telemetry
+# arrives continuously on the background MQTT thread, including during every
+# input() prompt outside that window (the initial "gateway ready?" prompt,
+# between-event pauses, the retry y/n prompt) -- an unguarded \r-line there
+# overwrites the prompt itself mid-keystroke, and the operator sees no
+# question to answer at all. Found live: a labelled run appeared to hang at
+# the very first prompt because the prompt was being redrawn over.
+_marking = False
+
 
 def label_for_wall_time(t):
     """The event whose MARKED interval contains t, after margin trimming.
@@ -284,6 +294,7 @@ def run_labelled_capture():
     """Walks the operator through LABELLED_EVENTS, recording a start and stop
     mark for each. Telemetry keeps arriving on the MQTT client's background
     thread while this blocks on input(), so nothing is missed."""
+    global _marking
     print()
     print("=" * 78)
     print("OPERATOR-MARKED CAPTURE")
@@ -311,7 +322,9 @@ def run_labelled_capture():
             print(f"  Keep going for about {target}s ({MIN_EVENT_SECONDS:g}s absolute minimum),")
             print(f"  then press ENTER to stop.")
             print()
+            _marking = True
             input("  >>> Press ENTER when you have STOPPED... ")
+            _marking = False
             t1 = time.time()
             duration = t1 - t0
             if duration >= MIN_EVENT_SECONDS:
@@ -446,13 +459,17 @@ def on_message(client, userdata, msg):
         # eight intervals came out 0.6-12s long against 25-50s of real activity.
         # Every record was discarded. A capture UI that talks over its own
         # instructions cannot be driven, so during a labelled run this collapses
-        # to one rewritten status line.
-        print(f"\r    [{len(records)} samples received]  rms={reading['rms']:.3f} "
-              f"peak={reading['peak']:.3f}   ", end="", flush=True)
+        # to one rewritten status line -- and ONLY while _marking is True (inside
+        # an actual recording window), never over an input() prompt outside one.
+        # Telemetry arrives continuously, including during every prompt, so an
+        # unguarded \r-line here overwrote the very first "gateway ready?" prompt
+        # before the operator could see there was anything to answer.
+        if _marking:
+            summary = "  ".join(f"{name}={reading[name]:.3f}" for name in feature_names_for(src_device))
+            print(f"\r    [{len(records)} samples received]  {summary}   ", end="", flush=True)
     else:
-        print(f"[collector] [{phase:16s}] rms={reading['rms']:.3f} peak={reading['peak']:.3f} "
-              f"crest={reading['crest_factor']:.3f} kurt={reading['kurtosis']:.3f} "
-              f"freq={reading['dominant_freq']:.2f}  (n={len(records)})")
+        summary = " ".join(f"{name}={reading[name]:.3f}" for name in feature_names_for(src_device))
+        print(f"[collector] [{phase:16s}] {summary}  (n={len(records)})")
 
 
 def fetch_fused_scores(session_start, session_end):
@@ -559,8 +576,14 @@ def write_outputs(by_phase):
     # table.
     md_path = os.path.join(DATA_COLLECTED_DIR, f"hardware_session_{stamp}{suffix}.md")
     matched = sum(1 for r in records if "fused_score" in r)
+    # Feature columns from what was actually captured, not a fixed MPU6050
+    # schema -- a single-device SW-420 session has trigger_rate/duty_cycle/
+    # burst_max_ms/inter_event_cv instead of rms/peak/crest_factor/kurtosis/
+    # dominant_freq, and a --coordinated session mixes both devices' fields
+    # (rng() below already scopes each column to the records that HAVE it).
+    feature_cols = sorted({k for r in records for k in r["reading"]})
     lines = [
-        "# Hardware Data Log -- esp32-vib-001 (real MPU6050)",
+        f"# Hardware Data Log -- {', '.join(DEVICE_IDS)}",
         "",
         f"Session captured {time.strftime('%Y-%m-%d %H:%M:%S')} via "
         f"`scripts/collect_hardware_session.py`. Raw records: "
@@ -582,9 +605,9 @@ def write_outputs(by_phase):
         "",
         "## Per-phase observed feature ranges + live gateway scoring",
         "",
-        "| phase | n | rms (g) | peak (g) | crest_factor | kurtosis | dominant_freq (Hz) "
-        "| avg security_trust | avg fused (process) | decisions |",
-        "|---|---|---|---|---|---|---|---|---|---|",
+        "| phase | n | " + " | ".join(feature_cols)
+        + " | avg security_trust | avg fused (process) | decisions |",
+        "|---|---|" + "---|" * len(feature_cols) + "---|---|---|",
     ]
     # In --labelled mode the phase names come from the operator's marks, not
     # from PHASES, so iterate what was actually captured.
@@ -592,11 +615,13 @@ def write_outputs(by_phase):
     for name in phase_names:
         phase_records = by_phase.get(name, [])
         if not phase_records:
-            lines.append(f"| {name} | 0 | -- | -- | -- | -- | -- | -- | -- | -- |")
+            lines.append(f"| {name} | 0 | " + " | ".join("--" for _ in feature_cols) + " | -- | -- | -- |")
             continue
 
         def rng(key):
-            vals = [r["reading"][key] for r in phase_records]
+            vals = [r["reading"][key] for r in phase_records if key in r["reading"]]
+            if not vals:
+                return "--"
             return f"{min(vals):.4f} - {max(vals):.4f}"
 
         scored = [r for r in phase_records if "fused_score" in r]
@@ -613,9 +638,8 @@ def write_outputs(by_phase):
             sec_str = fused_str = decision_str = "n/a (no gateway match)"
 
         lines.append(
-            f"| {name} | {len(phase_records)} | {rng('rms')} | {rng('peak')} | "
-            f"{rng('crest_factor')} | {rng('kurtosis')} | {rng('dominant_freq')} | "
-            f"{sec_str} | {fused_str} | {decision_str} |"
+            f"| {name} | {len(phase_records)} | " + " | ".join(rng(c) for c in feature_cols)
+            + f" | {sec_str} | {fused_str} | {decision_str} |"
         )
     lines.append("")
     if LABELLED:
@@ -645,9 +669,10 @@ def write_outputs(by_phase):
     if all_readings:
         lines.append("## Overall observed range (all phases combined)")
         lines.append("")
-        for key in FEATURE_NAMES:
-            vals = [r[key] for r in all_readings]
-            lines.append(f"- `{key}`: {min(vals):.4f} to {max(vals):.4f}")
+        for key in feature_cols:
+            vals = [r[key] for r in all_readings if key in r]
+            if vals:
+                lines.append(f"- `{key}`: {min(vals):.4f} to {max(vals):.4f}")
         lines.append("")
 
     with open(md_path, "w") as f:

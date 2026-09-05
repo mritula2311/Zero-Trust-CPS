@@ -1,8 +1,11 @@
 # Results and Evaluation
 
 > **Current interpretation:** §0.13.17 qualifies M9, generator validation and
-> post-audit reproducibility. Earlier sections retain their original values and
-> chronology; read the latest qualification before quoting historical claims.
+> post-audit reproducibility; §0.13.18 covers the first SW-420 hardware
+> capture, the 10→20-node network equalisation, and the M1/M2 isolated-recall
+> finding that follows from it. Earlier sections retain their original values
+> and chronology; read the latest qualification before quoting historical
+> claims.
 
 > **SECTION 0.12 (2026-09-03) SUPERSEDES EARLIER FIGURES.** A session-level
 > train/validation/test split and a leakage-free fusion meta-learner were
@@ -1380,6 +1383,11 @@ VALIDATION, TEST read once.
 
 **Task 2 — network coordination pattern, 4-way (accuracy):**
 
+> **⚠ HISTORICAL — this table and Task 1's above are the 10-node network,
+> superseded by the 20-node re-measurement in §0.13.20.** Retained
+> intentionally as the chronological record; do not quote these numbers as
+> current.
+
 | model | validation | test |
 |---|---|---|
 | B2 concat MLP | 0.6475 | **0.6567** |
@@ -1393,6 +1401,8 @@ F1 0.8254). **The GNN loses at its own best swept setting**, and is the only com
 **INTERPRETATION.** Cross-device information clearly helps: on task 2, which a
 single-node view cannot answer even in principle, accuracy rises 0.4142 → 0.6567.
 Graph structure does not — the GNN is beaten by a concatenated MLP on both tasks.
+See §0.13.20 for the current 20-node figures (advantage smaller but still
+positive; GNN gap wider, not narrower).
 
 **ALTERNATIVE EXPLANATION.** On task 1, B0 (one node) nearly matches B2 (ten
 nodes), because a node's own label is largely determined by its own sub-scores.
@@ -2101,6 +2111,13 @@ per-seed values in `results/crossdevice_benchmark/m9_seed_study.json`.
 
 ### 0.13.16 The real+virtual vs. virtual-only ablation — a result that did not go the expected way
 
+> **⚠ Re-measured at 20 nodes with corrected pending-node masking (§0.13.19)
+> — the headline direction below did NOT reproduce; see §0.13.21.** This
+> section's numbers are the 10-node network as it stood before §0.13.18's
+> growth to 20 nodes, and are retained verbatim as the chronological record
+> of what was measured and concluded at the time. Do not quote its F1
+> figures or its H1/H2 conclusions as current.
+
 The planned methodology ablation was: train the identical architecture on
 ONLY the 5 virtual columns (no real hybrid columns at all), evaluate on real
 test, and expect it to lose to §0.13.15's real+virtual hybrid — evidence that
@@ -2176,8 +2193,16 @@ are unchanged; the following interpretations supersede their stronger wording.
 - Preserve virtual-only **0.9769** versus hybrid **0.9671** F1. This small peak
   advantage does not establish universal superiority, and hybrid pooling is not
   demonstrated to buy generalization in exchange for that cost.
+  **⚠ This directive is superseded — the comparison did not reproduce at 20
+  nodes with corrected masking (§0.13.21); do not preserve or quote either
+  direction.**
 - Pending hardware is excluded from targets/metrics but its 0.9 placeholder
-  remains in pooling, attention and adjacency. Thus original 10/15-slot runs
+  remains in pooling, attention and adjacency. **⚠ Fixed for M1/M3/M5/M6/M7
+  in `benchmark_crossdevice_models.py` (§0.13.19) — a placeholder no longer
+  reaches pooling/attention for those models. `evaluate_gnn_baselines.py`'s
+  GCN adjacency-masking was already correct at the time this bullet was
+  written; its own concat baselines may still have this issue (§0.13.20).**
+  Thus original 10/15-slot runs
   contain at most 9/14 observed streams. Physical network values are drawn with
   replacement; they are not contiguous hardware trajectories. The capped-FPR
   calibration split shares underlying source rows and boundary LSTM history.
@@ -2195,6 +2220,380 @@ are unchanged; the following interpretations supersede their stronger wording.
 
 The paired topology interaction and negative ablations are preserved; no
 seed, split or reported value was tuned.
+
+### 0.13.18 First SW-420 hardware capture merged; network grown 10→20 nodes to equalise sensor types (2026-09-05)
+
+**What changed.** `esp32-vib-002` (SW-420) got its first real hardware capture
+(session `20260905_162002`, TRAIN split only — no held-out SW-420
+validation/test session exists yet). Two consequences, kept separate because
+they feed different pipelines:
+
+- **Deployed per-device models** (`train_isolation_forest.py`,
+  `train_lstm_ae.py`, `train_transformer.py`) now train a real
+  `esp32-vib-002` model on 140 real at-rest SW-420 readings, alongside the
+  existing real `esp32-vib-001` (MPU6050) model. Previously `esp32-vib-002`
+  had no deployed model at all.
+- **The 10-node cross-device network** (`generate_network_data.py`,
+  `benchmark_crossdevice_models.py`) drew `esp32-vib-002`'s slot from the same
+  split manifest and picked up the real TRAIN rows too (`REAL=1200
+  PENDING=0`, previously 100% `PENDING_REAL_HARDWARE_DATA`). VALIDATION/TEST
+  still show `esp32-vib-002` as pending — that split gap is the real,
+  outstanding limitation, not a bug (§0.13.18.2 below is a direct measured
+  consequence of it).
+
+**The network was also grown from 10 to 20 nodes** (`esp32-sim-11..20`
+added) to equalise sensor-type representation — the original network was 7
+MPU6050-type (1 real + 6 simulated) against 3 SW-420-type (1 real + 2
+simulated); it is now 10 and 10. The two original SW-420 simulated profiles
+(`esp32-sim-07/10`) were also recalibrated: the real board reads **exactly
+zero** on all four SW-420 features (`trigger_rate`, `duty_cycle`,
+`burst_max_ms`, `inter_event_cv`) across every one of its 140 real at-rest
+rows — quieter than either profile's original datasheet-derived guess. The
+new SW-420-type profiles' disturbance magnitudes are anchored to the real
+measured phase means (`gentle_tap` ≈11 triggers/s → `tilt_rotate` ≈45/s,
+session `20260905_162002`). `SCENARIOS` in `generate_network_data.py` were
+left untouched — the ten new nodes are healthy context only, never an
+anomaly target, so the original adversarial scenario design (`SCENARIO_C`'s
+four non-adjacent nodes, etc.) stays exactly as documented and comparable to
+every prior result in this file.
+
+**M1–M8, test set, before vs. after** (`results/crossdevice_benchmark/metrics.json`):
+
+> **⚠ The "20-node, equalised" column below and §0.13.18.2's interpretation of
+> it are SUPERSEDED — see §0.13.19.** They were produced while
+> `benchmark_crossdevice_models.py`'s pending-node handling appended a
+> validity *feature* without actually excluding an invalid node from
+> pooling/attention (M3/M5–M7) or zeroing its raw block (M1/M2). The 10-node
+> columns and §0.13.18.1 (GCN) are unaffected and still stand — `M4_gcn`'s
+> own masking was already structural and is untouched by the §0.13.19 fix,
+> confirmed by its numbers matching bit-for-bit before and after.
+
+| model | 10-node, SW-420 pending (prior) F1 / isoRec | 10-node, real SW-420 TRAIN F1 / isoRec | 20-node, equalised F1 / isoRec (SUPERSEDED, §0.13.19) |
+|---|---|---|---|
+| M1 concat_mlp | 0.9785 / 1.0000 | 0.9802 / 0.8867 | ~~0.9538 / 0.1467~~ |
+| M2 grad_boosting | 0.9820 / 0.9933 | 0.9474 / **0.0000** | ~~0.9474 / 0.0000~~ |
+| M3 deep_sets | 0.9656 / 1.0000 | 0.9810 / 0.9800 | ~~0.9696 / 0.9800~~ |
+| M4 gcn | 0.8814 / 0.0067 | 0.8811 / 0.0267 | **0.5865 / 0.0000** (still current — see note above) |
+| M5 gatv2 | 0.9819 / 0.9800 | 0.9775 / 0.9800 | ~~0.9655 / 0.9800~~ |
+| M6 set_transformer | 0.9800 / 0.9800 | 0.9709 / 1.0000 | ~~0.9806 / 0.9800~~ |
+| M7 np_st | 0.9727 / 0.9800 | 0.9693 / 1.0000 | ~~0.9702 / 0.9800~~ |
+| M8 set_transformer_mixed_n | 0.9557 / 1.0000 | 0.9718 / 1.0000 | ~~0.9470 / 1.0000~~ |
+
+isoRec = recall on the isolated-anomaly slice (see below for what that slice
+actually is at 20 nodes). GCN self-loop weight, selected fresh on VALIDATION
+each time: 0.8628 → 0.8855 → **0.5797** (unaffected by §0.13.19, confirmed
+identical in the corrected rerun).
+
+#### 0.13.18.1 GCN dilution, sharper at n=20
+
+The GCN's validation F1 fell from 0.8855 (10-node) to 0.5797 (20-node), and
+test isolated-anomaly recall from 0.0267 to 0.0000. This is not a new
+finding — it is §0.13.4's already-documented neighbourhood-induced dilution
+mechanism (a lone anomalous node's evidence gets averaged toward its healthy
+neighbours), now measured at a network size that makes it unambiguous rather
+than marginal. No code change is implied: the GCN already stays out of the
+architecture-selection recommendation for exactly this reason, and doubling
+the neighbourhood size is expected, under the existing mechanism, to make it
+worse, not better. Reported because a number moving in the *predicted*
+direction is still a number, not an assumption.
+
+#### 0.13.18.2 M1/M2's isolated-recall collapse, root-caused (SUPERSEDED — see §0.13.19)
+
+> **⚠ This subsection's diagnosis was wrong, not just imprecise.** It
+> concluded the collapse was an irreducible training-distribution gap
+> (`esp32-vib-001` anomalous while `esp32-vib-002` shows PENDING is a joint
+> pattern never seen in TRAIN). §0.13.19 found the actual cause: the raw 0.9
+> placeholder was reaching M1/M2's input un-zeroed, and an MLP's first layer
+> is linear in its input, so an untrained (arbitrarily-weighted) dimension
+> set to a large nonzero value corrupts the whole hidden representation for
+> that row — set to exactly zero, that same untrained weight contributes
+> nothing (`w · 0 = 0` regardless of `w`). Once the invalid block is
+> deterministically zeroed, isolated recall recovers to 1.0000/0.9800 on the
+> SAME split, with the SAME never-seen-combination still present — proving
+> the joint-pattern explanation below was not the true cause. Kept verbatim
+> beneath this notice as the record of what was concluded and why it looked
+> right at the time; do not cite it as current.
+
+At 20 nodes, M1's isolated recall fell 0.9800→0.1467 and M2's fell to
+**exactly 0.0000** — investigated directly rather than left as noise, because
+the failure was suspiciously clean: every one of the 150 "isolated" TEST rows
+turned out to be `SCENARIO_A`'s `esp32-vib-001`, at ticks where its
+partner-in-scenario `esp32-vib-002` is `PENDING` (§0.13.18's split gap) —
+confirmed by direct inspection
+(`{('SCENARIO_A', 'esp32-vib-001')}` is the complete set of `(scenario,
+device)` pairs among the isolated rows).
+
+`SCENARIO_A` anomalies both real nodes **together**, always. In TRAIN
+(0 pending rows) that pairing never breaks, so "`esp32-vib-001` anomalous
+while `esp32-vib-002` shows the neutral pending placeholder" is a combination
+neither concat model ever saw during fitting — not a class they failed to
+learn, a joint input pattern missing from their training distribution
+entirely. M2's own score distribution on TEST confirms this is not a
+threshold-selection artifact: its isolated-anomaly scores (p10–p100 ≈
+0.999–1.0) sit almost exactly on top of its NORMAL-row scores (≈
+0.99999–1.0) — the model cannot tell the two apart at all, not merely at the
+wrong threshold. M3/M5–M8 do not share this failure because they apply one
+shared per-node function across every node slot (weights are not
+position-specific), so the general rule "validity=0 → this slot contributes
+nothing" transfers to `esp32-vib-002`'s slot even though it is the only slot
+ever observed pending; M1/M2's fixed-position concatenated input has no such
+transfer to lean on.
+
+**This is a direct, measured illustration of the cost of the missing SW-420
+held-out session** (§0.13.18) — not an abstract caveat. It is expected to
+resolve once a second SW-420 session exists and is allocated to
+VALIDATION/TEST in `data/splits/session_split.json`.
+
+Full per-model detail: `results/crossdevice_benchmark/metrics.json`;
+network/topology definitions: `config/simulated_nodes.json`,
+`config/graph_topology.json`.
+
+### 0.13.19 Pending-node handling was a validity CHANNEL, not a validity MASK — fixed, and §0.13.18.2 corrected (2026-09-05)
+
+**What was wrong.** §0.13.18's `_with_validity()` appended a 1.0/0.0 validity
+*feature* to every node's vector so models could see which slot was a
+`PENDING_REAL_HARDWARE_DATA` placeholder — but appending a feature does not
+exclude that node from computation, and reading the actual forward passes
+shows none of M1/M3/M5/M6/M7 did:
+
+- `DeepSets.forward`: `h.sum(dim=1)` / `h.max(dim=1)` pooled over **every**
+  node, invalid ones included — an invalid node's raw values still shifted
+  the pooled context every valid node's head read.
+- `GATv2._attend`: masked attention with the declared topology only — never
+  combined with validity, so an invalid node's key/value fully participated.
+- `SetTransformer.context` / `NodePreservingSetTransformer`: plain
+  `nn.MultiheadAttention` with no mask at all.
+- `M1`/`M2` (`flatten_for_concat`, fixed-width): an invalid node's raw 0.9
+  placeholder was baked directly into the shared flattened vector every row
+  at that tick read, validity bit or not.
+- Only `M4_gcn` was already correct — `normalized_adjacency()`'s existing
+  `valid`-gated adjacency actually removes an invalid node from message
+  passing, which is why §0.13.18.1's GCN numbers needed no correction.
+
+**The fix.** `DeepSets` now excludes invalid nodes from both the sum and max
+pool. `GATv2` ANDs per-sample validity into the mask it already takes,
+matching `M4_gcn`'s existing pattern. `SetTransformer`/
+`NodePreservingSetTransformer` pass validity to `nn.MultiheadAttention` as a
+`key_padding_mask`. `M1`/`M2` deterministically zero an invalid node's raw
+block before flattening (`zero_invalid_concat_blocks`) instead of leaving the
+placeholder in place. Regression coverage:
+`tests/test_setmodel_pending_node_masking.py` — two snapshots differing only
+in one invalid node's feature vector (the historical placeholder vs. an
+arbitrary tampered value) must produce identical valid-node outputs; these
+tests fail against the channel-only implementation and pass against the fix.
+
+**Corrected M1–M8, 20-node test-set numbers** (replaces the SUPERSEDED
+column in §0.13.18's table, same TEST split, same 20-node network):
+
+| model | F1 | isoRec | coordRec |
+|---|---|---|---|
+| M1 concat_mlp | 0.8969 | **1.0000** | 1.0000 |
+| M2 grad_boosting | 0.9094 | **0.9800** | 0.9652 |
+| M3 deep_sets | 0.9696 | 0.9800 | 1.0000 |
+| M4 gcn | 0.5865 | 0.0000 | 0.7844 |
+| M5 gatv2 | 0.9732 | 0.9733 | 0.9963 |
+| M6 set_transformer | 0.9810 | 0.9800 | 0.9993 |
+| M7 np_st | 0.9721 | 0.9800 | 1.0000 |
+| M8 set_transformer_mixed_n | 0.9467 | 1.0000 | 1.0000 |
+
+M4 is bit-for-bit identical to §0.13.18's table, confirming the fix touched
+only the models it was meant to.
+
+**§0.13.18.2's diagnosis is corrected, not merely updated.** M1's isolated
+recall recovers from 0.1467 to **1.0000** and M2's from 0.0000 to **0.9800**
+— on the exact same TEST split, where `esp32-vib-001` anomalous /
+`esp32-vib-002` PENDING is still a combination absent from TRAIN. If that
+missing combination were the true cause, zeroing the invalid block could not
+have fixed it; the recovery shows it did not need to be seen to be handled
+correctly, once handled correctly. The likely mechanism is simpler than a
+generalization story: `MLPClassifier`'s and the concat MLP's first layer are
+linear in their input, so an untrained (arbitrarily-weighted) input
+dimension set to a large nonzero value (0.9 across all three sub-scores)
+contributes an arbitrary, uncontrolled shift to the hidden layer — `w · 0.9`
+for whatever `w` gradient descent happened to leave there, never trained to
+respond sensibly to that dimension because TRAIN never varies it. Set to
+exactly zero, that same untrained weight contributes nothing (`w · 0 = 0`
+regardless of `w`), which is why zeroing, not merely flagging, corrects it.
+This is offered as the most defensible read of a clean before/after result,
+not as an exhaustively verified mechanism — the smallest ablation that would
+confirm it directly is scoring M1/M2 on the TEST split with the invalid
+block set to a few other constants (e.g. the training mean, or several other
+placeholder values) and checking whether recall tracks "far from training
+values" rather than "nonzero."
+
+**What still stands, unaffected.** §0.13.18.1 (GCN dilution sharper at
+n=20) — `M4_gcn` was never part of the bug, its numbers are identical before
+and after. §0.13.18's SW-420 capture and 10→20 node-growth narrative is
+unaffected; only the *modeling* of pending nodes was wrong, not the data.
+
+**Network provenance, stated explicitly** (per this project's
+REAL_HARDWARE / LEGACY_SIMULATED / REAL_DERIVED_VIRTUAL / HYBRID
+distinction): the 20-node network is 2 captured-real nodes
+(`esp32-vib-001`, full TRAIN/VALIDATION/TEST split; `esp32-vib-002`,
+TRAIN-only, VALIDATION/TEST still PENDING) + 18 LEGACY_SIMULATED nodes
+(`esp32-sim-03..20`, generated by the parametric simulator, with the
+SW-420-type profiles' disturbance magnitudes anchored to `esp32-vib-002`'s
+real measured phase means — calibrated against real data, not generated
+from it). "20-node equalised network" means equalised sensor-type
+representation in this constructed benchmark, not 20 physical devices.
+
+Full per-model detail: `results/crossdevice_benchmark/metrics.json`; test
+coverage: `tests/test_setmodel_pending_node_masking.py`.
+
+### 0.13.20 `evaluate_gnn_baselines.py` Task 1/2 numbers at 20 nodes — novelty claim #3's headline figure regressed (2026-09-05)
+
+**This is a separate script and a separate finding from §0.13.19.**
+`evaluate_gnn_baselines.py` (Task 1: per-node anomaly; Task 2: 4-way network
+coordination-pattern classification — `results/gnn_baselines/metrics.json`,
+the source of novelty claim #3 and `docs/CLAIM_EVIDENCE_MATRIX.md`'s C2/C3)
+shares `flatten_for_concat()` with `benchmark_crossdevice_models.py` but was
+explicitly left out of scope for §0.13.19's fix (its own B1/B2 concat
+baselines may carry the same unmasked-placeholder issue — flagged below as
+the next audit target, not fixed here). Its 10→20-node regression is
+therefore an already-final measurement of the node-growth/SW-420-data change
+alone, not something this fix changes.
+
+**Task 2 (coordination-pattern, test accuracy), old (10-node, committed) vs.
+new (20-node, working tree):**
+
+| model | 10-node (superseded) | 20-node (current) |
+|---|---|---|
+| B0 anomalous-node count | 0.4175 | 0.3958 |
+| B1 concat logistic | 0.6533 | 0.5208 |
+| B2 concat MLP | **0.6567** | **0.5283** |
+| GNN node embeddings | 0.6117 | 0.5375 |
+
+The measured cross-device advantage **remains positive** in the current
+20-node benchmark (single-node 0.3958 → concat-MLP 0.5283, a ~0.13 delta),
+but its magnitude is **substantially smaller** than in the superseded
+10-node experiment (0.4175 → 0.6567, a ~0.24 delta). The 10→20 change
+altered network cardinality, sensor-type composition and provenance
+together, not network size in isolation, so this result does **not** isolate
+size or context-dilution as the cause for B0/B1/B2 specifically — that
+would need a controlled ablation (e.g. re-running Task 2 at 10, 15 and 20
+nodes with sensor-type mix held fixed) that has not been run. One plausible,
+unverified contributor: B1/B2 see every node's raw sub-scores concatenated,
+so more healthy nodes means more dimensions the classifier must learn are
+irrelevant to the coordination pattern — a harder, higher-dimensional
+version of the same 4-way problem, not necessarily "dilution" in the
+neighbourhood-averaging sense.
+
+**Task 1 (per-node anomaly, test F1) moved the same direction, but its GNN
+column is explained, not merely hypothesized about** — the GNN's collapse
+(0.876 → 0.5865) is the identical `M4_gcn`/`normalized_adjacency` mechanism
+already measured directly in §0.13.18.1 and confirmed by probes there; it is
+not a new, separate mystery:
+
+| model | 10-node (superseded) | 20-node (current) |
+|---|---|---|
+| B0 single-device | 0.9736 | 0.9708 |
+| B1 concat logistic | 0.7762 | 0.7351 |
+| B2 concat MLP | **0.9823** | 0.9662 |
+| B3 coordinated rule | 0.6184 | 0.3082 |
+| GNN | 0.8760 | **0.5865** |
+
+The GNN-does-not-beat-simpler-models claim (C2/C3) is **reinforced, not
+weakened**, by the 20-node result — the gap between the best concat model
+and the GNN widened (0.9662 vs. 0.5865) rather than narrowed. No claim in
+`docs/CLAIM_EVIDENCE_MATRIX.md` needs softening here; the margin the claim
+is based on grew.
+
+**Deferred, not fixed here:** `evaluate_gnn_baselines.py`'s own B1/B2 concat
+baselines (both tasks) may share §0.13.19's now-fixed unmasked-placeholder
+issue in `flatten_for_concat()` — the audit finding that motivated §0.13.19
+explicitly named this script's concat baselines as sharing the code path and
+being out of scope for that fix. Recommended as the next audit target,
+particularly before quoting Task 2's B1/B2 numbers as final.
+
+**Provenance, stated explicitly:** as in §0.13.19 — 2 captured-real nodes
+(1 full split, 1 TRAIN-only) + 18 LEGACY_SIMULATED nodes calibrated against
+real measured values. Not 20 physical devices.
+
+### 0.13.21 M9 real+virtual vs. virtual-only ablation re-measured at 20 nodes — §0.13.16's headline direction did not reproduce (2026-09-05)
+
+**What was re-run.** `python scripts/benchmark_crossdevice_models.py
+--m9-seeds 10` and `--m9-ablation-investigation`, same 10 seeds and protocol
+as §0.13.15/§0.13.16, on the current 20-node network with §0.13.19's
+corrected pending-node masking (M9's hybrid/ablation models are
+`SetTransformer` instances trained through `_train_pooled_sets`, one of the
+functions §0.13.19 fixed).
+
+**Headline comparison, old vs. new:**
+
+| | hybrid (real+virtual) F1 | ablation (virtual-only) F1 |
+|---|---|---|
+| §0.13.16, 10-node (superseded) | 0.967 ±0.004 `[0.963, 0.971]` | **0.977 ±0.001** `[0.976, 0.978]` |
+| current, 20-node | **0.9675 ±0.0071** `[0.9604, 0.9746]` | 0.9640 ±0.0129 `[0.9511, 0.9769]` |
+
+§0.13.16's finding was a clean, non-overlapping split favouring the ablation.
+The current measurement is the **opposite nominal direction** (hybrid
+narrowly ahead) with **overlapping 95% CIs** — no confident directional claim
+is supportable from this alone, in either direction.
+
+**Per-slice breakdown, old vs. new** (ablation minus hybrid F1; positive =
+ablation ahead, matching §0.13.16's original framing):
+
+| slice | §0.13.16 (10-node) | current (20-node) |
+|---|---|---|
+| real physical columns | +0.011 (ablation ahead) | +0.020 (ablation ahead; hybrid CI now ±0.056, wide) |
+| simulated columns | +0.009 (ablation ahead) | **−0.007 (hybrid ahead — reversed)** |
+| SCENARIO_A (isolated) | +0.007 (ablation ahead) | +0.088 (ablation ahead by more; hybrid CI ±0.207, very wide) |
+| SCENARIO_B (spreading) | +0.009 (ablation ahead) | +0.003 (ablation ahead, smaller margin) |
+| SCENARIO_C (coordinated) | +0.011 (ablation ahead) | **−0.014 (hybrid ahead — reversed)** |
+
+Two of five slices (simulated columns, SCENARIO_C) **reversed direction**;
+the headline comparison also reversed nominal direction. §0.13.16's H1/H2
+confound checks (provenance artifact, easy-scenario artifact) were built on
+a pattern — "ablation ahead on every slice checked" — that no longer holds,
+so their specific "rejected" conclusions do not carry over as stated; they
+would need to be re-run against the current, mixed-direction pattern to mean
+anything.
+
+**What this measurement can and cannot attribute.** This is the *first* time
+M9 has been measured on the 20-node network at all — there is no same-network
+before/after-masking-fix comparison for M9 the way §0.13.19 had one for
+M1/M2 (where §0.13.19 could hold the network fixed and toggle only the fix).
+The node-count change (10→20, with `esp32-vib-002` newly TRAIN-only-real
+instead of fully pending) and the masking fix landed together here, so this
+result **cannot isolate which of the two** — or their interaction — caused
+the reversal. `M4_gcn`-style dilution is not a candidate mechanism for these
+SetTransformer-based models (§0.13.19 confirmed `SetTransformer` is
+permutation-invariant and attention-masked, not neighbourhood-averaged).
+The wide CIs on `real_physical_cols` and `SCENARIO_A` specifically (hybrid
+±0.056 and ±0.207, both far wider than any other cell) suggest at least part
+of this is seed-to-seed instability on the columns/scenario touching
+`esp32-vib-002`'s real-but-partial data, consistent with §0.13.18's split gap,
+rather than a clean effect — but this is offered as a plausible contributor,
+not a demonstrated cause.
+
+**What is claimed, and what is not.** §0.13.16's specific conclusion —
+"the virtual-only ablation beats the real+virtual hybrid, confirmed against
+two confounds" — is **not supported by the current measurement** and should
+not be quoted as a current finding. Neither is its opposite: the current
+headline CIs overlap, and the per-slice pattern is mixed rather than
+uniformly reversed. The honest reading is that this comparison is presently
+**inconclusive** at 20 nodes, where it was confidently (if narrowly) decided
+at 10. The smallest experiment that would clarify this: re-run
+`--m9-seeds 10` / `--m9-ablation-investigation` on the **10-node** network
+with §0.13.19's fix applied, isolating the masking-fix effect from the
+node-count effect directly — not attempted here.
+
+Full per-seed, per-slice values in
+`results/crossdevice_benchmark/m9_seed_study.json` and
+`results/crossdevice_benchmark/m9_ablation_investigation.json`.
+
+### 0.13.22 Mechanism-dissociation seed study (`--seeds 10`) re-run at 20 nodes with corrected masking
+
+`results/crossdevice_benchmark/seed_study.json` (§0.13.4's degree/peer-density
+dilution mechanism for `M4_gcn`/`M5_gatv2` vs. the flat, unaffected
+`M3_deep_sets`/`M6_set_transformer`) was re-run at 10 seeds on the current
+20-node network with §0.13.19's masking fix. The pattern is **qualitatively
+unchanged and sharper**: `M4_gcn` degree 1→9 mean delta −0.943 `[−0.977,
+−0.909]` (was −0.816 `[−0.850, −0.782]` at 10 nodes), `M5_gatv2` degree
+1→9 −0.269 `[−0.422, −0.115]` (was −0.066, not significant, at 10 nodes —
+now significant), set models still exactly flat (0/10 seeds show any
+change). No interpretation in §0.13.4 needs to change; this is reported as
+confirmation at the current network size, not a new finding.
 
 ## 1. What Was Verified Live (Not Just Measured Offline)
 

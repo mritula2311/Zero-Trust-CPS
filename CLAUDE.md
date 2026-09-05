@@ -1,9 +1,20 @@
 # CLAUDE.md — Zero-Trust CPS
 
-> **Current status:** read RESULTS §0.13.17 first. Keep archived artifacts/results intact when rebuilding
-> the corrected temporal chain. M9 is experimental, with no persisted n=15 test;
-> LOW validation is TRAIN residual consistency only. The virtual-only advantage
-> stays visible. Device 2 is SW-420 and capture is pending.
+> **Current status:** read RESULTS §0.13.17, then §0.13.18–§0.13.20 in order.
+> Keep archived artifacts/results intact when rebuilding the corrected
+> temporal chain. M9 is experimental, with no persisted n=15 test; LOW
+> validation is TRAIN residual consistency only. The virtual-only advantage
+> stays visible. Device 2 (SW-420) has its first real capture (TRAIN split
+> only, session 20260905_162002) — a held-out VALIDATION/TEST SW-420 session
+> is still pending. The cross-device network is now 20 nodes (2 captured-real
+> + 18 LEGACY_SIMULATED, equalised 10 MPU6050-type + 10 SW-420-type), grown
+> from 10. §0.13.18.2's original M1/M2 diagnosis is SUPERSEDED — §0.13.19
+> found and fixed a pending-node masking bug (a validity feature was appended
+> but never actually excluded invalid nodes from pooling/attention), which
+> was the real cause, not a training-distribution gap. §0.13.20 covers a
+> separate, still-live regression in `evaluate_gnn_baselines.py`'s Task 1/2
+> numbers (novelty claim #3) and flags its own B1/B2 concat baselines as
+> possibly sharing the same unmasked-placeholder issue — not yet fixed.
 
 Guidance for coding agents working in `zt-cps-starter`. Read `METHODOLOGY.md` for the
 method and its mathematics, `ZERO_TRUST_CPS_KB.md` for architecture decisions,

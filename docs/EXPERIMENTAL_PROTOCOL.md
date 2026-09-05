@@ -1,7 +1,11 @@
-# Experimental Protocol — ZT-Duo 10-Node Hybrid CPS Testbed
+# Experimental Protocol — ZT-Duo 20-Node Hybrid CPS Testbed
 
-> **2026-09-05 audit update:** Two physical identities are configured; only Device 001 contributes observations. The existing hybrid network uses resampled real rows and a pending context placeholder. This is not 10 independently observed streams or source-independent calibration.
-> Current evidence and limitations: RESULTS §0.13.17.
+> **2026-09-05 audit update:** Two physical identities are configured; Device 001 (MPU6050) contributes TRAIN/VALIDATION/TEST observations, Device 002 (SW-420) contributes TRAIN observations only (first capture, session `20260905_162002` — see §0.13.18). The network was grown from 10 to 20 configured slots the same day to equalise sensor-type representation (§1 below). VALIDATION/TEST still use a pending context placeholder for Device 002; this is not 20 independently observed streams or source-independent calibration.
+> Current evidence and limitations: RESULTS §0.13.17, then §0.13.18–§0.13.22
+> (§0.13.19 fixed a pending-node masking bug and corrected §0.13.18.2's
+> diagnosis; §0.13.20 covers a separate `evaluate_gnn_baselines.py`
+> regression; §0.13.21 found the M9 virtual-only-vs-hybrid comparison did not
+> reproduce at 20 nodes).
 
 Authoritative description of what is measured, on what, and how. Every number
 in the manuscript traces to a run described here.
@@ -11,29 +15,38 @@ in the manuscript traces to a run described here.
 ## 1. Testbed composition
 
 ```
-1 CAPTURED PHYSICAL SOURCE + 1 PENDING PHYSICAL SLOT
+1 CAPTURED PHYSICAL SOURCE (TRAIN/VAL/TEST) + 1 PARTIALLY-CAPTURED PHYSICAL SOURCE (TRAIN only, PENDING in VAL/TEST)
 +
-8 SIMULATED ESP32 STREAMS
+18 SIMULATED ESP32 STREAMS (9 MPU6050-type + 9 SW-420-type, equalising the two real sensor types)
 =
-10 CONFIGURED HYBRID SLOTS (9 OBSERVED STREAMS IN SAVED INPUTS)
+20 CONFIGURED HYBRID SLOTS
 ```
 
 | Node | device_id | source_type | Hardware | Features |
 |---|---|---|---|---|
 | 01 | `esp32-vib-001` | REAL | ESP32 + MPU6050 (I²C) | 5: rms, peak, crest_factor, kurtosis, dominant_freq |
-| 02 | `esp32-vib-002` | PENDING_REAL_HARDWARE_DATA (configured physical) | ESP32 + SW-420 vibration switch (GPIO4) | 4: trigger_rate, duty_cycle, burst_max_ms, inter_event_cv |
-| 03–10 | `esp32-sim-03` … `esp32-sim-10` | SIMULATED | none | parameterised from real telemetry (`config/simulated_nodes.json`) |
+| 02 | `esp32-vib-002` | REAL in TRAIN, PENDING_REAL_HARDWARE_DATA in VALIDATION/TEST | ESP32 + SW-420 vibration switch (GPIO4) | 4: trigger_rate, duty_cycle, burst_max_ms, inter_event_cv |
+| 03–10 | `esp32-sim-03` … `esp32-sim-10` | SIMULATED | none | parameterised from real telemetry (`config/simulated_nodes.json`), original 8 |
+| 11–20 | `esp32-sim-11` … `esp32-sim-20` | SIMULATED | none | added 2026-09-05 (§0.13.18) to equalise sensor-type counts (10 MPU6050-type / 10 SW-420-type total); the 7 new SW-420-type profiles are calibrated against Device 002's real measured stats, not the sensor datasheet |
 
 **The required wording, and the only accurate one:**
 
-> The evaluation used ten configured slots: one captured MPU6050 source, eight
-> simulated streams, and one pending SW-420 slot. Pending targets are excluded
-> from metrics, but their neutral placeholder remains in model context.
+> The evaluation used twenty configured slots: one fully-captured MPU6050
+> source (all three splits), one partially-captured SW-420 source (TRAIN
+> only), and eighteen simulated streams. Pending targets (Device 002 in
+> VALIDATION/TEST) are excluded from metrics and, as of RESULTS §0.13.19,
+> from every model's pooling/attention as well — an earlier measurement
+> (§0.13.18.2, superseded) attributed a concrete recall degradation to the
+> placeholder remaining in model context; §0.13.19 found and fixed a
+> separate masking bug that was the actual cause, and the degradation does
+> not reproduce once fixed.
 
-The captured MPU6050 supplies empirical physical values; SW-420 capture is pending; the eight
-simulated nodes provide controlled network-scale relational context. Full-network
-results are **hybrid testbed evidence, not physical replication across ten
-independent ESP32 devices**, and are never described as ten physical devices.
+The captured MPU6050 supplies empirical physical values across every split;
+the SW-420 supplies them for TRAIN only; the eighteen simulated nodes provide
+controlled network-scale relational context. Full-network results are
+**hybrid testbed evidence, not physical replication across twenty
+independent ESP32 devices**, and are never described as twenty physical
+devices.
 
 Because the two configured physical nodes use **different sensors**, the planned experiment after Device 2 capture
 evaluates cross-device and heterogeneous-sensor behaviour, **not** same-model
@@ -99,9 +112,9 @@ Enforced by `tests/test_invariants.py::TestSessionSplit`.
 
 | Split | Real sessions | Simulated sessions |
 |---|---|---|
-| TRAIN | `20260902_171313`, `20260902_102448` | `SIM_SESSION_TRAIN_001` (seed 42) |
-| VALIDATION | `20260902_173108` | `SIM_SESSION_VAL_001` (4242), `SIM_SESSION_VAL_002` (4243) |
-| TEST | `20260902_221217` | `SIM_SESSION_TEST_001` (999) |
+| TRAIN | `20260902_171313`, `20260902_102448` (MPU6050), `20260905_162002` (SW-420, first capture) | `SIM_SESSION_TRAIN_001` (seed 42) |
+| VALIDATION | `20260902_173108` (MPU6050 only — no SW-420 session yet) | `SIM_SESSION_VAL_001` (4242), `SIM_SESSION_VAL_002` (4243) |
+| TEST | `20260902_221217` (MPU6050 only — no SW-420 session yet) | `SIM_SESSION_TEST_001` (999) |
 
 Excluded from every split: the four `20260901_*` sessions — captured on the old
 unpaced acquisition chain, sitting on a different frequency axis.
@@ -214,6 +227,13 @@ never presented as evidence of hardware generalization.
 
 ## 7. Reproduction commands
 
+Compute environment (CPU/GPU/RAM/package versions) and measured wall-clock
+training times for every step below: `docs/ENVIRONMENT.md` §1/§1a. The full
+six-step chain runs in ~2.4 minutes on that hardware; the two network-scale
+scripts (`evaluate_gnn_baselines.py`, `benchmark_crossdevice_models.py`) take
+tens of minutes each at the current 20-node network size, dominated by the
+CPU-bound sklearn fits (M1/M2), not the GPU torch models.
+
 ### 7.1 Software-only (no hardware required)
 
 ```bash
@@ -294,15 +314,22 @@ silently land in TRAIN.
 
 ## 8. What this protocol does not establish
 
-- Only **two** physical ESP32 devices exist. Ten-node results are hybrid, not
-  physical replication.
+- Only **two** physical ESP32 devices exist. Twenty-node results are hybrid,
+  not physical replication.
 - The two physical sensors are **heterogeneous**, so no same-model MPU6050
   sensor-to-sensor replication is possible here.
 - Disturbances are **laboratory operator actions**, not industrial bearing
   degradation. Validation on rotating machinery and naturally developing faults
   remains future work.
-- Session count is small (four labelled sessions at time of writing), so the
-  test denominator is small and its intervals are wide. This is reported, not
-  smoothed over.
+- Session count is small (five labelled sessions at time of writing — four
+  MPU6050, one SW-420), so the test denominator is small and its intervals
+  are wide. This is reported, not smoothed over.
+- The SW-420 device has **no held-out VALIDATION or TEST session** — its one
+  capture is TRAIN only. Every SW-420-specific number (its deployed
+  per-device model, its slot in the 20-node network) is currently unvalidated
+  against held-out real data. (§0.13.18.2 originally claimed a concrete,
+  measured cost of this gap; §0.13.19 found that specific measurement was
+  actually a masking bug, now fixed, and the claimed cost did not
+  reproduce — the split gap itself remains real and unvalidated.)
 - Simulator-to-real domain shift is measured (`RESULTS.md` 0.10.9) but not
   eliminated.

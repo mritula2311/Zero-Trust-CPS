@@ -39,12 +39,12 @@ withdrawn, not the result.
 |---|---|
 | **Claim** | Information from multiple devices improves detection of coordinated network events over a single-node view. |
 | **Evidence** | `results/gnn_baselines/metrics.json`, task 2 (4-way coordination-pattern classification, untouched test split). |
-| **Experiment** | 10-node hybrid network, four scenarios, fit on TRAIN, selected on VALIDATION, reported on TEST. |
-| **Real / Sim / Hybrid** | **Hybrid** — 1 real node contributing real rows, 8 simulated, 1 real node PENDING. |
-| **Metric** | Test accuracy: single-node view (anomalous-node count only) **0.4175** → concatenated MLP **0.6567**. |
-| **Limitation** | Simulated-node-dominated. Node 02 contributed no data. A 4-way accuracy of 0.657 is a modest result, not a strong one. |
-| **Allowed** | "Cross-device relational information improved coordinated anomaly detection in the evaluated hybrid network." |
-| **Disallowed** | "Multi-device fusion is necessary for CPS anomaly detection." |
+| **Experiment** | 20-node hybrid network (grown from 10, RESULTS.md §0.13.18/§0.13.20), four scenarios, fit on TRAIN, selected on VALIDATION, reported on TEST. |
+| **Real / Sim / Hybrid** | **Hybrid** — 2 captured-real nodes (`esp32-vib-001` full split; `esp32-vib-002` TRAIN-only, VALIDATION/TEST still PENDING) + 18 LEGACY_SIMULATED nodes calibrated against real measured values. Not 20 physical devices. |
+| **Metric** | Test accuracy: single-node view (anomalous-node count only) **0.3958** → concatenated MLP **0.5283** (RESULTS.md §0.13.20). ⚠ Superseded 10-node figures: 0.4175 → 0.6567 — the advantage is smaller at 20 nodes but still positive; cause not isolated (§0.13.20). |
+| **Limitation** | Simulated-node-dominated. `esp32-vib-002` contributes TRAIN rows only, still PENDING in VALIDATION/TEST. A 4-way accuracy of 0.53 is a modest result, not a strong one — weaker than the superseded 10-node figure. `evaluate_gnn_baselines.py`'s own concat baselines may share an unmasked-placeholder issue found and fixed elsewhere (RESULTS.md §0.13.19/§0.13.20) — not yet fixed here. |
+| **Allowed** | "Cross-device relational information improved coordinated anomaly detection in the evaluated 20-node hybrid network, though by a smaller margin than in the superseded 10-node experiment." |
+| **Disallowed** | "Multi-device fusion is necessary for CPS anomaly detection." / quoting the 10-node 0.4175→0.6567 figures as current. |
 
 ---
 
@@ -54,10 +54,10 @@ withdrawn, not the result.
 |---|---|
 | **Claim tested** | Graph structure, as opposed to merely multi-device information, is what produces the benefit. |
 | **Evidence** | `results/gnn_baselines/metrics.json`, both tasks. |
-| **Result** | **The GNN does not beat simpler models given identical information.** Task 1 (per-node anomaly, test F1): concat MLP **0.9823**, single-device **0.9736**, GNN **0.8760**, concat logistic 0.7762, coordinated rule 0.6184. Task 2 (coordination pattern, test accuracy): concat MLP **0.6567**, concat logistic 0.6533, GNN **0.6117**, node-count 0.4175. |
-| **Self-loop weight** | Swept `{1,2,3,5}` on VALIDATION only; 5.0 selected (validation F1 0.8646). The GNN loses *at its own best swept setting*. |
-| **Real / Sim / Hybrid** | Hybrid. |
-| **Limitation** | One topology, one graph size, one GCN architecture, one testbed. This is not proof that graph learning cannot help — it is proof that **in this testbed it did not**. `evaluate_gnn_baselines.py::normalized_adjacency` now masks a PENDING node out of every other node's message-passing per snapshot instead of its placeholder propagating through the graph (`tests/test_gnn_pending_node_masking.py`); the numbers above reflect that fix and a full retrain of the deployed chain. |
+| **Result** | **The GNN does not beat simpler models given identical information — and the gap widened at 20 nodes.** Task 1 (per-node anomaly, test F1, 20-node current / 10-node superseded): concat MLP **0.9662 / 0.9823**, single-device 0.9708 / 0.9736, GNN **0.5865 / 0.8760**, concat logistic 0.7351 / 0.7762, coordinated rule 0.3082 / 0.6184. Task 2 (coordination pattern, test accuracy): concat MLP **0.5283 / 0.6567**, concat logistic 0.5208 / 0.6533, GNN **0.5375 / 0.6117**, node-count 0.3958 / 0.4175. RESULTS.md §0.13.20. |
+| **Self-loop weight** | Swept `{1,2,3,5}` on VALIDATION only; 5.0 selected (validation F1 0.8646 at 10 nodes, **0.5797 at 20 nodes** — RESULTS.md §0.13.18.1/§0.13.20). The GNN loses *at its own best swept setting*, more decisively at 20 nodes. |
+| **Real / Sim / Hybrid** | Hybrid — see C2's row for the current 2-real + 18-LEGACY_SIMULATED breakdown. |
+| **Limitation** | One topology, one GCN architecture, one testbed, now measured at two graph sizes (10 and 20 nodes). This is not proof that graph learning cannot help — it is proof that **in this testbed it did not, and got worse as the network grew**, consistent with the neighbourhood-dilution mechanism documented in RESULTS.md §0.13.4/§0.13.18.1. `evaluate_gnn_baselines.py::normalized_adjacency` masks a PENDING node out of every other node's message-passing per snapshot instead of its placeholder propagating through the graph (`tests/test_gnn_pending_node_masking.py`); this GNN result is unaffected by the separate pending-node bug found and fixed in `benchmark_crossdevice_models.py` (RESULTS.md §0.13.19) — `normalized_adjacency`'s masking was already correct. |
 | **Allowed** | "In the evaluated hybrid network, a graph convolutional model did not outperform simpler models receiving the same multi-device information; the benefit observed is attributable to cross-device information rather than to graph structure." |
 | **Disallowed** | "The GNN is architecturally necessary." / "Graph learning is required for coordinated anomaly detection." / any claim of GNN superiority. |
 
@@ -143,12 +143,12 @@ withdrawn, not the result.
 
 | | |
 |---|---|
-| **Claim** | The evaluation used a 10-node hybrid CPS network. |
-| **Evidence** | `config/graph_topology.json`, `config/simulated_nodes.json`, `data/collected/network/`. Asserted at import: `len(NETWORK_NODES) == 10 and len(REAL_NODES) == 2 and len(SIMULATED_NODES) == 8`. |
-| **Real / Sim / Hybrid** | 2 real (**one of which has no captured data yet**), 8 simulated. |
-| **Limitation** | `esp32-vib-002` currently contributes 0 rows; all its network records are `PENDING_REAL_HARDWARE_DATA` and excluded from every metric. So the network as *evaluated* is 1 real + 8 simulated + 1 pending. |
-| **Allowed** | "The evaluation used ten configured slots: one captured physical source, eight simulated streams and one pending physical slot. Pending targets are excluded from loss and metrics, while their neutral placeholder still enters model context." |
-| **Disallowed** | "Ten physical ESP32 nodes were tested." / any phrasing implying ten devices exist. |
+| **Claim** | The evaluation used a 20-node hybrid CPS network (⚠ grown from 10 — RESULTS.md §0.13.18; earlier sections of this document predating 2026-09-05 describe the superseded 10-node network). |
+| **Evidence** | `config/graph_topology.json`, `config/simulated_nodes.json`, `data/collected/network/`. Asserted at import: `len(NETWORK_NODES) == 20 and len(REAL_NODES) == 2 and len(SIMULATED_NODES) == 18`. |
+| **Real / Sim / Hybrid** | 2 real (`esp32-vib-001` full split; `esp32-vib-002` **TRAIN-only, VALIDATION/TEST still pending**), 18 LEGACY_SIMULATED (equalised 10 MPU6050-type + 10 SW-420-type; the SW-420-type profiles' disturbance magnitudes are anchored to `esp32-vib-002`'s real measured phase means). |
+| **Limitation** | `esp32-vib-002` contributes real TRAIN rows only; its VALIDATION/TEST network records are still `PENDING_REAL_HARDWARE_DATA` and excluded from every metric. So the network as *evaluated* on VALIDATION/TEST is 1 fully-real + 18 simulated + 1 TRAIN-only-real/pending-elsewhere. RESULTS.md §0.13.18.2/§0.13.19 measured a concrete cost of this gap and corrected an earlier misdiagnosis of it. |
+| **Allowed** | "The evaluation used twenty configured slots: two captured physical sources (one with a full split, one TRAIN-only) and eighteen calibrated simulated streams. Pending targets are excluded from loss and metrics, while their neutral placeholder still enters model context unless explicitly masked (RESULTS.md §0.13.19)." |
+| **Disallowed** | "Twenty physical ESP32 nodes were tested." / any phrasing implying twenty devices exist. |
 
 ---
 
@@ -202,9 +202,9 @@ withdrawn, not the result.
 
 | ID | Claim and status | Evidence | Boundary / prohibited extrapolation |
 |---|---|---|---|
-| C15 | **Supported on saved fixed-split refits:** different GCN/GATv2 topology-sensitivity patterns | `crossdevice_benchmark/seed_study.json`: GCN degree −0.8160, density +0.1895; GATv2 degree CI includes zero, density −0.2733; interaction −1.2132, CI [−1.583,−0.843] | Not strict double dissociation; ten training seeds are not ten datasets; rerun after corrected base training. |
+| C15 | **Supported on saved fixed-split refits, re-run at 20 nodes (RESULTS.md §0.13.22):** different GCN/GATv2 topology-sensitivity patterns, pattern unchanged and sharper | `crossdevice_benchmark/seed_study.json`: GCN degree −0.9430, density −0.3255 (⚠ was −0.8160 / +0.1895 at 10 nodes); GATv2 degree −0.2687 now significant (⚠ was CI-includes-zero at 10 nodes), density −0.4093; interaction (GCN−GATv2 of degree−density) −0.7580, CI [−1.124,−0.392] (⚠ was −1.2132, CI [−1.583,−0.843] at 10 nodes) | Not strict double dissociation; ten training seeds are not ten datasets. Direction/significance pattern held across the 10→20 node re-measurement; exact figures should not be quoted from the 10-node run. |
 | C16 | **Partially supported:** set models stable under evaluated topology/cardinality probes | `crossdevice_benchmark/metrics.json`, RESULTS 0.13.3–14 | Adjacency invariance is by construction. No universal superiority, no deployed M9 claim. Concat MLP remains efficiency baseline; NP-ST rejected. |
 | C17 | **Supported narrowly:** LOW TRAIN resting-residual consistency | `validate_virtual_device_generator.py`; audit validator transcript | 103 source rest rows; 0.086 correlation / 0.097 ACF difference; discriminator 0.466. Not held-out realism or long-stream/fault validation. MEDIUM/HIGH are OOD. |
 | C18 | **Partially supported:** mixed-cardinality training M8/M9 is implemented | benchmark training functions; `m9_seed_study.json` | M9 trains through 15 slots but evaluates only 10 existing / 5 virtual slots; pending neutral context remains. n=15 tested scalability is **pending**. |
 | C19 | **Supported for stored experiment:** shift degrades virtual performance | M9 LOW/MEDIUM/HIGH F1 0.7563/0.5436/0.3060, FPR 0.1126/0.2956/0.7921, AUC 0.9870/0.9578/0.6583 | Frozen LOW threshold; calibration shift dominates MEDIUM, discrimination also degrades at HIGH. No additional physical-node validation. |
-| C20 | **Supported result, rejected pooling-accuracy hypothesis:** virtual-only F1 0.9769 > hybrid 0.9671 on existing hybrid test | M9 seed study and ablation investigation | Physical output slice has one resampled hardware source with simulated context. Universal virtual-only superiority and demonstrated hybrid coverage benefit are both unsupported. |
+| C20 | ⚠ **WITHDRAWN — did not reproduce at 20 nodes (RESULTS.md §0.13.21).** Superseded 10-node result: virtual-only F1 0.9769 > hybrid 0.9671. Current 20-node result: hybrid F1 0.9675 ±0.0071 vs. virtual-only 0.9640 ±0.0129 — **overlapping CIs, opposite nominal direction**; 2 of 5 checked slices also reversed. **No directional claim is currently supported.** | M9 seed study and ablation investigation, both re-run at 20 nodes with corrected pending-node masking (RESULTS.md §0.13.19) | Node-count change and the masking fix landed together for M9 — this measurement cannot isolate which caused the reversal (RESULTS.md §0.13.21 names the controlled rerun that would). Do not claim either "virtual-only superiority" or "hybrid superiority" from current evidence. |

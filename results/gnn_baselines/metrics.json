@@ -16,9 +16,9 @@
     ]
   },
   "network": {
-    "size": 10,
+    "size": 20,
     "real": 2,
-    "simulated": 8,
+    "simulated": 18,
     "nodes": [
       "esp32-vib-001",
       "esp32-vib-002",
@@ -29,124 +29,134 @@
       "esp32-sim-07",
       "esp32-sim-08",
       "esp32-sim-09",
-      "esp32-sim-10"
+      "esp32-sim-10",
+      "esp32-sim-11",
+      "esp32-sim-12",
+      "esp32-sim-13",
+      "esp32-sim-14",
+      "esp32-sim-15",
+      "esp32-sim-16",
+      "esp32-sim-17",
+      "esp32-sim-18",
+      "esp32-sim-19",
+      "esp32-sim-20"
     ]
   },
   "validation_choices": {
     "B0_single_device": {
-      "threshold": 0.075
+      "threshold": 0.025
     },
     "B1_concat_logreg": {
-      "threshold": 0.375
+      "threshold": 0.85
     },
     "B2_concat_mlp": {
-      "threshold": 0.9
+      "threshold": 0.975
     },
     "B3_coordinated_rule": {
-      "k": 5,
+      "k": 14,
       "threshold": 0.5
     },
     "GNN": {
       "self_loop_weight": 5.0,
-      "threshold": 0.125
+      "threshold": 0.15
     }
   },
   "task2_network_coordination_pattern": {
     "B1_concat_logreg": {
-      "validation": 0.67,
-      "test": 0.6533
+      "validation": 0.5417,
+      "test": 0.5208
     },
     "B2_concat_mlp": {
-      "validation": 0.6492,
-      "test": 0.6567
+      "validation": 0.5333,
+      "test": 0.5283
     },
     "B0_anomalous_node_count": {
-      "validation": 0.4575,
-      "test": 0.4175
+      "validation": 0.3833,
+      "test": 0.3958
     },
     "GNN_node_embeddings": {
-      "validation": 0.5758,
-      "test": 0.6117
+      "validation": 0.5475,
+      "test": 0.5375
     }
   },
   "self_loop_sweep_validation": {
     "1.0": {
-      "threshold": 0.2,
-      "n": 10800,
-      "tp": 1033,
-      "fp": 351,
-      "tn": 8949,
-      "fn": 467,
-      "precision": 0.7464,
-      "recall": 0.6887,
-      "f1": 0.7164,
-      "false_positive_rate": 0.0377,
-      "detection_rate": 0.6887
+      "threshold": 0.225,
+      "n": 22800,
+      "tp": 1010,
+      "fp": 2116,
+      "tn": 19184,
+      "fn": 490,
+      "precision": 0.3231,
+      "recall": 0.6733,
+      "f1": 0.4367,
+      "false_positive_rate": 0.0993,
+      "detection_rate": 0.6733
     },
     "2.0": {
-      "threshold": 0.275,
-      "n": 10800,
-      "tp": 1235,
-      "fp": 728,
-      "tn": 8572,
-      "fn": 265,
-      "precision": 0.6291,
-      "recall": 0.8233,
-      "f1": 0.7133,
-      "false_positive_rate": 0.0783,
-      "detection_rate": 0.8233
+      "threshold": 0.2,
+      "n": 22800,
+      "tp": 998,
+      "fp": 1991,
+      "tn": 19309,
+      "fn": 502,
+      "precision": 0.3339,
+      "recall": 0.6653,
+      "f1": 0.4446,
+      "false_positive_rate": 0.0935,
+      "detection_rate": 0.6653
     },
     "3.0": {
-      "threshold": 0.25,
-      "n": 10800,
-      "tp": 1209,
-      "fp": 511,
-      "tn": 8789,
-      "fn": 291,
-      "precision": 0.7029,
-      "recall": 0.806,
-      "f1": 0.7509,
-      "false_positive_rate": 0.0549,
-      "detection_rate": 0.806
+      "threshold": 0.2,
+      "n": 22800,
+      "tp": 875,
+      "fp": 1574,
+      "tn": 19726,
+      "fn": 625,
+      "precision": 0.3573,
+      "recall": 0.5833,
+      "f1": 0.4432,
+      "false_positive_rate": 0.0739,
+      "detection_rate": 0.5833
     },
     "5.0": {
-      "threshold": 0.125,
-      "n": 10800,
-      "tp": 1200,
-      "fp": 76,
-      "tn": 9224,
-      "fn": 300,
-      "precision": 0.9404,
-      "recall": 0.8,
-      "f1": 0.8646,
-      "false_positive_rate": 0.0082,
-      "detection_rate": 0.8
+      "threshold": 0.15,
+      "n": 22800,
+      "tp": 1009,
+      "fp": 972,
+      "tn": 20328,
+      "fn": 491,
+      "precision": 0.5093,
+      "recall": 0.6727,
+      "f1": 0.5797,
+      "false_positive_rate": 0.0456,
+      "detection_rate": 0.6727
     }
   },
   "results": {
     "B0_single_device": {
       "validation": {
-        "n": 10800,
-        "tp": 1372,
-        "fp": 18,
-        "tn": 9282,
-        "fn": 128,
-        "precision": 0.9871,
-        "recall": 0.9147,
-        "f1": 0.9495,
-        "false_positive_rate": 0.0019,
-        "detection_rate": 0.9147
+        "n": 22800,
+        "tp": 1370,
+        "fp": 39,
+        "tn": 21261,
+        "fn": 130,
+        "precision": 0.9723,
+        "recall": 0.9133,
+        "f1": 0.9419,
+        "false_positive_rate": 0.0018,
+        "detection_rate": 0.9133
       },
       "test": {
-        "n": 10800,
+        "n": 22800,
         "tp": 1495,
-        "fp": 76,
-        "tn": 9224,
+        "fp": 85,
+        "tn": 21215,
         "fn": 5,
-        "precision": 0.9516,
+        "precision": 0.9462,
         "recall": 0.9967,
-        "f1": 0.9736,
-        "false_positive_rate": 0.0082,
+        "f1": 0.9708,
+        "false_positive_rate": 0.004,
         "detection_rate": 0.9967
       },
       "test_event": {
@@ -154,139 +164,139 @@
         "detected_events": 15,
         "missed_events": 0,
         "event_recall": 1.0,
-        "false_alarm_windows_on_normal_nodes": 76
+        "false_alarm_windows_on_normal_nodes": 85
       }
     },
     "B1_concat_logreg": {
       "validation": {
-        "n": 10800,
-        "tp": 1281,
-        "fp": 563,
-        "tn": 8737,
-        "fn": 219,
-        "precision": 0.6947,
-        "recall": 0.854,
-        "f1": 0.7661,
-        "false_positive_rate": 0.0605,
-        "detection_rate": 0.854
+        "n": 22800,
+        "tp": 1255,
+        "fp": 784,
+        "tn": 20516,
+        "fn": 245,
+        "precision": 0.6155,
+        "recall": 0.8367,
+        "f1": 0.7092,
+        "false_positive_rate": 0.0368,
+        "detection_rate": 0.8367
       },
       "test": {
-        "n": 10800,
-        "tp": 1448,
-        "fp": 783,
-        "tn": 8517,
-        "fn": 52,
-        "precision": 0.649,
-        "recall": 0.9653,
-        "f1": 0.7762,
-        "false_positive_rate": 0.0842,
-        "detection_rate": 0.9653
+        "n": 22800,
+        "tp": 1422,
+        "fp": 947,
+        "tn": 20353,
+        "fn": 78,
+        "precision": 0.6003,
+        "recall": 0.948,
+        "f1": 0.7351,
+        "false_positive_rate": 0.0445,
+        "detection_rate": 0.948
       },
       "test_event": {
         "total_events": 15,
         "detected_events": 15,
         "missed_events": 0,
         "event_recall": 1.0,
-        "false_alarm_windows_on_normal_nodes": 783
+        "false_alarm_windows_on_normal_nodes": 947
       }
     },
     "B2_concat_mlp": {
       "validation": {
-        "n": 10800,
-        "tp": 1433,
-        "fp": 5,
-        "tn": 9295,
-        "fn": 67,
-        "precision": 0.9965,
-        "recall": 0.9553,
-        "f1": 0.9755,
+        "n": 22800,
+        "tp": 1072,
+        "fp": 11,
+        "tn": 21289,
+        "fn": 428,
+        "precision": 0.9898,
+        "recall": 0.7147,
+        "f1": 0.83,
         "false_positive_rate": 0.0005,
-        "detection_rate": 0.9553
+        "detection_rate": 0.7147
       },
       "test": {
-        "n": 10800,
-        "tp": 1498,
-        "fp": 52,
-        "tn": 9248,
-        "fn": 2,
-        "precision": 0.9665,
-        "recall": 0.9987,
-        "f1": 0.9823,
-        "false_positive_rate": 0.0056,
-        "detection_rate": 0.9987
+        "n": 22800,
+        "tp": 1428,
+        "fp": 28,
+        "tn": 21272,
+        "fn": 72,
+        "precision": 0.9808,
+        "recall": 0.952,
+        "f1": 0.9662,
+        "false_positive_rate": 0.0013,
+        "detection_rate": 0.952
       },
       "test_event": {
         "total_events": 15,
         "detected_events": 15,
         "missed_events": 0,
         "event_recall": 1.0,
-        "false_alarm_windows_on_normal_nodes": 52
+        "false_alarm_windows_on_normal_nodes": 28
       }
     },
     "B3_coordinated_rule": {
       "validation": {
-        "n": 10800,
-        "tp": 1374,
-        "fp": 1381,
-        "tn": 7919,
-        "fn": 126,
-        "precision": 0.4987,
-        "recall": 0.916,
-        "f1": 0.6458,
-        "false_positive_rate": 0.1485,
-        "detection_rate": 0.916
+        "n": 22800,
+        "tp": 1085,
+        "fp": 4458,
+        "tn": 16842,
+        "fn": 415,
+        "precision": 0.1957,
+        "recall": 0.7233,
+        "f1": 0.3081,
+        "false_positive_rate": 0.2093,
+        "detection_rate": 0.7233
       },
       "test": {
-        "n": 10800,
-        "tp": 1383,
-        "fp": 1590,
-        "tn": 7710,
-        "fn": 117,
-        "precision": 0.4652,
-        "recall": 0.922,
-        "f1": 0.6184,
-        "false_positive_rate": 0.171,
-        "detection_rate": 0.922
+        "n": 22800,
+        "tp": 1184,
+        "fp": 4999,
+        "tn": 16301,
+        "fn": 316,
+        "precision": 0.1915,
+        "recall": 0.7893,
+        "f1": 0.3082,
+        "false_positive_rate": 0.2347,
+        "detection_rate": 0.7893
       },
       "test_event": {
         "total_events": 15,
         "detected_events": 15,
         "missed_events": 0,
         "event_recall": 1.0,
-        "false_alarm_windows_on_normal_nodes": 1590
+        "false_alarm_windows_on_normal_nodes": 4999
       }
     },
     "GNN": {
       "validation": {
-        "n": 10800,
-        "tp": 1200,
-        "fp": 76,
-        "tn": 9224,
-        "fn": 300,
-        "precision": 0.9404,
-        "recall": 0.8,
-        "f1": 0.8646,
-        "false_positive_rate": 0.0082,
-        "detection_rate": 0.8
+        "n": 22800,
+        "tp": 1009,
+        "fp": 972,
+        "tn": 20328,
+        "fn": 491,
+        "precision": 0.5093,
+        "recall": 0.6727,
+        "f1": 0.5797,
+        "false_positive_rate": 0.0456,
+        "detection_rate": 0.6727
       },
       "test": {
-        "n": 10800,
-        "tp": 1268,
-        "fp": 127,
-        "tn": 9173,
-        "fn": 232,
-        "precision": 0.909,
-        "recall": 0.8453,
-        "f1": 0.876,
-        "false_positive_rate": 0.0137,
-        "detection_rate": 0.8453
+        "n": 22800,
+        "tp": 1059,
+        "fp": 1052,
+        "tn": 20248,
+        "fn": 441,
+        "precision": 0.5017,
+        "recall": 0.706,
+        "f1": 0.5865,
+        "false_positive_rate": 0.0494,
+        "detection_rate": 0.706
       },
       "test_event": {
         "total_events": 15,
         "detected_events": 10,
         "missed_events": 5,
         "event_recall": 0.6667,
-        "false_alarm_windows_on_normal_nodes": 127
+        "false_alarm_windows_on_normal_nodes": 1052
       }
     }
   }

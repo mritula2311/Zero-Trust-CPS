@@ -54,13 +54,22 @@ the dedicated data-generation scripts. Configuration does not prove live presenc
 Ten-seed topology results support different GCN/GATv2 sensitivity patterns and
 an interaction between model and intervention, not a strict double dissociation.
 Seed refits on one dataset do not establish variation across physical populations.
+Re-run on the current 20-node network (RESULTS.md §0.13.22): pattern unchanged
+and sharper, not a new finding.
 
-M9's saved F1 is 0.9671 on the existing **hybrid** test and
-0.7563 / 0.5436 / 0.3060 on LOW / MEDIUM / HIGH virtual tests. The virtual-only
-ablation scores 0.9769 on the existing test. These are standalone archived
+M9's saved F1 is **0.9675** on the existing **hybrid** test (20-node network,
+was 0.9671 at 10 nodes) and 0.6812 / 0.4636 / 0.2952 on LOW / MEDIUM / HIGH
+virtual tests (⚠ was 0.7563 / 0.5436 / 0.3060 at 10 nodes — not directly
+comparable, the real-side network size changed). The virtual-only ablation
+scores **0.9640** on the existing test (was 0.9769 at 10 nodes) — the two are
+now within overlapping confidence intervals and **no longer show hybrid vs.
+virtual-only superiority in either direction** (RESULTS.md §0.13.21,
+`docs/CLAIM_EVIDENCE_MATRIX.md` C20, withdrawn). These are standalone archived
 results, not evidence of improved fused decisions. M9 trains with up to 15 slots;
-saved tests use 10 existing-network or 5 virtual slots. There is **no n=15 test**.
-Pending physical slots still enter model context even when masked from loss.
+saved tests use 20 existing-network or 5 virtual slots. There is **no n=15 test**.
+A pending slot's placeholder is excluded from pooling/attention as of
+RESULTS.md §0.13.19 (previously it entered model context even when masked
+from loss — that was the bug §0.13.19 fixed).
 
 LOW virtual-generator checks use the source TRAIN resting residuals; they are
 not held-out realism validation. MEDIUM/HIGH are stress presets with documented
