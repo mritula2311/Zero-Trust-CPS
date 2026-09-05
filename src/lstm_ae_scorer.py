@@ -23,6 +23,7 @@ import os
 import numpy as np
 import torch
 import torch.nn as nn
+from config import feature_names_for
 
 from config import LSTM_SEQ_LEN, LSTM_HIDDEN_SIZE, LSTM_NUM_LAYERS, lstm_ae_path, lstm_ae_meta_path, FEATURE_VECTOR_DEVICE_IDS, FEATURE_NAMES, TRAINING_SEED
 
@@ -162,7 +163,7 @@ class LSTMAEScorer:
             base_error = float(((model(x) - x) ** 2).mean())
 
             best_name, best_drop, best_cf_error = None, -1.0, base_error
-            for c, name in enumerate(FEATURE_NAMES):
+            for c, name in enumerate(feature_names_for(device_id)):
                 perturbed = x.clone()
                 perturbed[:, :, c] = 0.0  # 0.0 in NORMALIZED space == this channel's own training mean
                 perturbed_error = float(((model(perturbed) - perturbed) ** 2).mean())

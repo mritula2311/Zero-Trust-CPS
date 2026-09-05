@@ -23,6 +23,7 @@ import numpy as np
 
 from config import (
     isolation_forest_path, isolation_forest_meta_path, FEATURE_VECTOR_DEVICE_IDS, FEATURE_NAMES,
+    feature_names_for,
 )
 
 
@@ -114,4 +115,4 @@ class IsolationForestScorer:
         x = np.asarray([feature_vec], dtype=np.float64)
         shap_values = np.array(self._explainers[device_id].shap_values(x))[0]
         idx = int(np.argmax(np.abs(shap_values)))
-        return FEATURE_NAMES[idx], float(shap_values[idx])
+        return feature_names_for(device_id)[idx], float(shap_values[idx])
