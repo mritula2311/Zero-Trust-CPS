@@ -1,4 +1,25 @@
 # Product Requirements Document
+
+## Current audit status — 2026-09-05
+
+The runtime still uses Rule + IF + LSTM-AE + legacy GCN → logistic fusion;
+Security Trust stays separate until static/contextual-bandit policy evaluation.
+Set Transformer (M6/M8/M9) is a research candidate, concat MLP a fixed-size
+deployment baseline, Deep Sets a set baseline, GCN/GATv2 research baselines,
+temporal Transformer ablation-only and NP-ST a rejected ablation.
+
+Saved metrics predate the Astra temporal-training correction. They remain the
+historical evidence for their archived model chain, not a validation of models
+trained with the corrected sequence builder. Read RESULTS.md §0.13.17
+and `RESULTS.md` §0.13.17 before quoting them. Missing-node context, resampled
+hardware trajectories and non-independent calibration halves qualify the network
+experiments. M9 trains through 15 slots but has no persisted 15-node test; the
+virtual-only advantage is retained, and broader-coverage benefit is unproved.
+
+Only `esp32-vib-001` (MPU6050) has captures. `esp32-vib-002` is a configured SW-420
+with capture pending; it does not test MPU6050 manufacturing variation. LOW passes
+TRAIN resting-residual consistency checks (not held-out realism validation).
+MEDIUM/HIGH remain OOD stress regimes. Production readiness is not established.
 ## Explainable Zero-Trust Trust Evaluation for Cyber-Physical Systems Using Ensemble Anomaly Detection and Graph Neural Networks
 
 | | |
@@ -184,7 +205,7 @@ telemetry ─▶ identity ▶ revocation ▶ throttle ▶ HMAC-SHA256 ▶ boot/s
 | M2 Authentication | HMAC-SHA256, boot-aware anti-replay, freshness, step-up challenge | `docs/03` |
 | M3 Trust Evaluation | The two scores; the four-signal Process ensemble + fusion | `docs/04` |
 | M4 Continuous Verification | Per-message re-scoring, staleness, silence watchdog | `docs/05` |
-| M5 Access Control | The 2×2 policy, optional adaptive (RL) policy, auto-quarantine | `docs/06` |
+| M5 Access Control | The 2×2 policy, offline contextual-bandit policy, auto-quarantine | `docs/06` |
 | M6 Secure Communication | TLS MQTT, per-device broker credentials + topic ACLs | `docs/07` |
 | M7 Monitoring & Audit | Hash-chained log, NIST/IEC governance validation, dashboard | `docs/08` |
 
@@ -215,7 +236,7 @@ Each requirement carries a verification method and its current status.
 | FR-A3 | Replayed messages MUST be rejected via boot-aware anti-replay (a lower boot_id, or a non-increasing seq within a boot session) | live captured-replay attack → `replay_of_superseded_boot_session` | **Met** |
 | FR-A4 | Stale messages MUST be rejected via an independent freshness window | live stale attack → `stale_timestamp` | **Met** |
 | FR-A5 | A failed-auth message MUST NOT mutate the claimed device's own trust or anti-replay state | `TestBootReplayStateIsolation`; regression from a real vulnerability (0.10.17) | **Met (after fix)** |
-| FR-A6 | A failed-auth attempt MUST update `IdentityTargetingRisk` against the *claimed* ID only, never a registered device's score | `docs/03`; trust-poisoning-DoS defense | **Met** |
+| FR-A6 | A failed-auth attempt MUST update `IdentityTargetingRisk` against the *claimed* ID only, never a registered device's score | `docs/03`; failed-HMAC cooldown suppresses repeated rejection bookkeeping, and malformed envelopes are dropped | **Partial: attributed rejection updates are implemented, but not every dropped attempt is counted** |
 | FR-A7 | The gateway MAY issue a step-up nonce challenge and MUST record SUCCESS/TIMEOUT/MISMATCH | live step-up path | **Met** (firmware queue-drain fix, §9 history) |
 
 ### 5.2 Process anomaly detection (M3)
@@ -223,7 +244,7 @@ Each requirement carries a verification method and its current status.
 | ID | Requirement | Verification | Status |
 |---|---|---|---|
 | FR-P1 | The physical axis MUST NOT consume any cyber evidence, and vice versa | `TestTwoScoreSeparation` (signature inspection) | **Met** |
-| FR-P2 | The ensemble MUST include a relational (graph) signal capable of detecting cross-device anomalies | Cross-device information improves coordinated detection 0.4142 → 0.6567 (concat MLP). **The GNN specifically does not beat simpler models on identical information (Task 1 test F1: MLP 0.985 vs GNN 0.838); GNN-superiority is withdrawn** (`docs/CLAIM_EVIDENCE_MATRIX.md` C2/C3) | **Relational signal present; graph structure not shown superior** |
+| FR-P2 | The ensemble MUST include a relational signal (graph or set/concatenated alternative) capable of detecting cross-device anomalies | Cross-device information improves coordinated detection 0.4142 → 0.6567 (concat MLP). **The GNN specifically does not beat simpler models on identical information (Task 1 test F1: MLP 0.985 vs GNN 0.838); GNN-superiority is withdrawn** (`docs/CLAIM_EVIDENCE_MATRIX.md` C2/C3) | **Relational signal present; graph structure not shown superior** |
 | FR-P3 | Detection of real physical disturbance MUST be ≥ 95% | 30/30 on untouched TEST session, 95% CI [88.6%, 100%] (C4) | **Met (100%)** |
 | FR-P4 | Isolation Forest scores MUST be calibrated so a median-normal reading scores above the deployed threshold | `TestIsolationForestCalibration` | **Met** |
 | FR-P5 | Per-signal score orientation MUST be consistent (1 = normal) so fusion composes correctly | fusion coefficients, ablation | **Met** |
@@ -234,9 +255,9 @@ Each requirement carries a verification method and its current status.
 | ID | Requirement | Verification | Status |
 |---|---|---|---|
 | FR-C1 | The policy MUST be a pure function of the two scores plus staleness | `decide()` signature enforced by test | **Met** |
-| FR-C2 | The policy MUST be monotone: improving either score MUST NOT make the decision stricter | `test_static_policy_is_monotonic_in_both_axes`; GNN-ripple decision test | **Met** |
+| FR-C2 | The policy MUST be monotone: improving either score MUST NOT make the decision stricter | static-table invariant; learned Q-table has no monotonicity constraint | **Met for static policy; not established for bandit** |
 | FR-C3 | A physically abnormal but authenticated device MUST receive ALERT, not BLOCK | policy table; live shake → ALERT | **Met** |
-| FR-C4 | An adaptive policy MAY be trained offline; it MUST beat the *deployed* static table to be considered | Contextual-bandit macro-F1 0.5329 vs deployed static 0.2744 — beats deployed. **But a validation-tuned static table scores 0.5879, higher than the bandit; the adaptive policy does NOT beat a well-tuned static baseline** (`docs/CLAIM_EVIDENCE_MATRIX.md` C6). Not RL — a contextual bandit with sample-average action-value estimation | **Beats deployed static; loses to tuned static → not adopted over static** |
+| FR-C4 | An adaptive policy MAY be trained offline; it MUST beat the *deployed* static table to be considered | Saved-chain bandit macro-F1 0.5271 vs static 0.2744. Unconstrained static 0.5614 loses physical recall (0.585); constrained static 0.2777 and bandit both meet the stated test constraints. These are not a matched constrained selection across policy families (`docs/CLAIM_EVIDENCE_MATRIX.md` C6). Not RL — a contextual bandit with sample-average action-value estimation | **Configured bandit remains live; P6 is only the best constrained static grid point; see current audit** |
 | FR-C5 | No model MUST be trained or updated on the live path | `docs/04`; inference-only gateway | **Met** |
 
 ### 5.4 Governance and audit (M7)
@@ -260,7 +281,7 @@ Each requirement carries a verification method and its current status.
 
 | ID | Requirement | Verification | Status |
 |---|---|---|---|
-| FR-T1 | All device↔gateway traffic MUST use TLS | broker on 8883, TLS enforced | **Met** |
+| FR-T1 | All device↔gateway traffic MUST use TLS | host startup now requires TLS; MPU6050 firmware uses CERT_NONE | **Partial: peer verification and hardware revalidation pending** |
 | FR-T2 | Broker access MUST be per-device credentialled with least-privilege topic ACLs | `mosquitto_acl`, per-device passwords | **Met** |
 | FR-T3 | On-device features MUST be computed identically to the gateway reference implementation | `TestFirmwareReferenceEquivalence` (differential test) | **Met** |
 
@@ -273,7 +294,7 @@ Each requirement carries a verification method and its current status.
 | NFR-1 Performance (device) | On-device compute per message | < 25% duty | 172 ms / 2000 ms = **8.6%** |
 | NFR-2 Performance (gateway) | Full pipeline latency, PC-class | < 100 ms | **22 ms mean** |
 | NFR-3 Footprint | Device RAM headroom | comfortable | **14.8% of 115 KB used** |
-| NFR-4 Reproducibility | All models rebuildable deterministically | required | `ZTCPS_SEED`, six-step chain |
+| NFR-4 Reproducibility | All models rebuildable deterministically | required | **Partial:** seeds fixed, sequence construction corrected; saved chain and hash provenance need versioned rebuild |
 | NFR-5 Robustness | Headline metrics stable across training seeds | required | fused 0.715 ± 0.002; RL 0.537 ± 0.002 |
 | NFR-6 Recoverability | Device self-recovers from transient sensor/network faults | required | I²C re-init + MQTT reconnect verified live |
 | NFR-7 Statistical honesty | Proportions reported with confidence intervals | required | Wilson intervals on all hardware rates |
@@ -373,7 +394,7 @@ limitations are a design principle of this project, not an afterthought.
   information* (0.4142 → 0.6567), not graph structure. GNN-superiority is
   withdrawn (`docs/CLAIM_EVIDENCE_MATRIX.md` C3).
 - **A validation-tuned static policy beats the adaptive policy.** Macro-F1:
-  static-optimised 0.5879 > adaptive bandit 0.5329 > deployed static 0.2744. The
+  static-optimised 0.5614 > adaptive bandit 0.5271 (with materially different ALERT recall) > deployed static 0.2744. The
   adaptive policy improves on the *deployed* table but not on a well-tuned static
   one. It is a contextual bandit, not reinforcement learning (C6).
 - **The real-hardware false-positive rate is 5/12, not 0/49.** The 0/49 was
@@ -391,12 +412,12 @@ limitations are a design principle of this project, not an afterthought.
 - **Physical fault injection** — a worn bearing / imbalanced load, not a bench
   disturbance or an injected attack. All captured events are legitimate physical
   conditions; only transport-level attacks are real adversarial tests.
-- **A second sensor** — ADR-18 assumes the resting-DC spread is a sensor-class
-  property; one unit cannot distinguish that from this unit's quirk.
+- **Physical replication** — SW-420 capture is pending and supplies another modality.
+  A second MPU6050 is separately needed to test ADR-18 manufacturing variation.
 - **Detection floor at equal amplitude** — currently measured below the amplitude
   *threshold* but not with amplitude held equal (bench windows carry ~2× within
   the below-ceiling band).
-- **Tightening the false-positive interval** — [0.6%, 17.2%] needs ~120 clean
+- **Tightening the false-positive interval** — the saved held-out interval is [19.3%, 68.0%] (the earlier [0.6%, 17.2%] was leaky); tightening it needs more independent clean
   resting samples; blocked while the bench carries a variable ~31 Hz source.
 - **`stealthy_forged_values`** — undetectable from single-node telemetry by
   design; the transformer's apparent 0.970 recall was a stale-artifact and
@@ -418,9 +439,9 @@ The complete build and evaluation is scripted and deterministic. Acceptance =
 these commands reproduce the numbers in this document.
 
 ```bash
-# Full training chain — SIX steps, in dependency order (each replays through the
-# previous); omitting the Transformer once cost every Transformer result.
+# Research rebuild recipe; archive/version outputs first. Transformer is ablation-only.
 python scripts/merge_real_hardware_data.py       # fold real at-rest rows into synthetic
+python scripts/generate_validation_data.py
 python scripts/generate_test_data.py
 python scripts/train_isolation_forest.py
 python scripts/train_lstm_ae.py
@@ -434,7 +455,7 @@ python scripts/evaluate_real_hardware.py         # operator-labelled hardware, w
 python scripts/evaluate_ablation.py              # per-signal, AT the deployed threshold (0.6)
 python scripts/evaluate_governance.py            # 7/7 tenets + 7/7 falsifier injections
 python scripts/attack_live_gateway.py            # live adversarial test (gateway must be running)
-python -m unittest discover -s tests             # 50 invariant tests, each guarding a real past bug
+python -m unittest discover -s tests             # current count in RESULTS.md §0.13.17
 
 # Figures
 python scripts/generate_evaluation_graphs.py     # 17 pipeline-behaviour figures
@@ -460,3 +481,20 @@ and `ZTCPS_GNN_EPOCHS` expose the GNN training knobs.
 | `docs/00–13` | Per-module reference and the as-built architecture |
 | `firmware/HARDWARE_SETUP.md` | Pinout and bring-up |
 | `CLAUDE.md` | Engineering invariants for contributors and coding agents |
+
+## 12. Current research contribution and delivery boundary
+
+The contribution is dual-channel Zero Trust, evidence of architecture-specific
+topology sensitivity, evaluation of set-based relational alternatives, controlled
+mixed-cardinality research and deployment-constrained policy analysis. Merely
+using a GNN is not novelty, and graph superiority is withdrawn. Rank-aware
+explanations preserve physical feature meaning; the lower rank-1 score is retained.
+
+Implemented: authenticated telemetry, separate scores, legacy GCN fusion,
+contextual-bandit/static policy, audit/dashboard, virtual generator and M1–M9
+experiment code. Validated within stated scopes: software invariants, MPU6050
+captures on the saved chain, and LOW TRAIN residual consistency. Experimental:
+set-model selection and mixed cardinality. Pending: corrected-chain results,
+actual n=15 tests, fusion complementarity, SW-420 captures, same-sensor replication,
+source-independent validation, and verified firmware TLS. This is a research
+prototype with unmet production requirements, not a completed deployment claim.

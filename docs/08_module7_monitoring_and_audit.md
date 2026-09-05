@@ -1,5 +1,8 @@
 # 08 — Module 7: Monitoring and Audit
 
+> **2026-09-05 audit update:** SHAP additivity is in log-odds, not probability. SW-420 explanations now use its own four features. Hash-chain/checkpoint checks establish tamper evidence within their stated trust boundary, not certification.
+> Current evidence and limitations: RESULTS §0.13.17.
+
 > **AS-BUILT NOTE:** the hash chain and checkpoint design (Sections 2–3)
 > are implemented exactly, including the two-step tamper test Section 3.2
 > describes — verified live: editing one old row alone is caught by

@@ -45,11 +45,8 @@ def train_one(records, device_id) -> bool:
     normal readings, saving both to that device's per-device paths. Returns
     True if trained, False if too few examples (skipped, not fatal)."""
     torch.manual_seed(TRAINING_SEED)
-    normal = [
-        r for r in records
-        if r["device_id"] == device_id and r["label"] == 1 and r["auth_ok"]
-    ]
-    normal.sort(key=lambda r: r["tick"])
+    runs = datasets.normal_sequences(records, device_id)
+    normal = [r for run in runs for r in run]
     if len(normal) < LSTM_SEQ_LEN + 10:
         print(f"[skip] {device_id}: only {len(normal)} normal examples -- no model trained")
         return False
@@ -58,9 +55,16 @@ def train_one(records, device_id) -> bool:
     mean = raw.mean(axis=0)
     std = raw.std(axis=0)
     std[std < 1e-6] = 1.0
-    normalized = (raw - mean) / std
-
-    windows = np.stack([normalized[i:i + LSTM_SEQ_LEN] for i in range(len(normalized) - LSTM_SEQ_LEN + 1)])
+    windows = []
+    for run in runs:
+        normalized = (np.array([fe.feature_vector(r["reading"]) for r in run],
+                               dtype=np.float32) - mean) / std
+        windows.extend(normalized[i:i + LSTM_SEQ_LEN]
+                       for i in range(len(run) - LSTM_SEQ_LEN + 1))
+    if not windows:
+        print(f"[skip] {device_id}: no contiguous normal training windows")
+        return False
+    windows = np.stack(windows)
     x = torch.tensor(windows, dtype=torch.float32, device=_TORCH_DEVICE)
 
     # input_dim from THIS device's own feature set, not the module-level

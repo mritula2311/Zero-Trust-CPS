@@ -129,6 +129,7 @@ def main():
     for r in real:
         merged_real.append({
             "tick": next_tick,
+            "source_tick": r["tick"],
             "device_id": "esp32-vib-001",
             "reading": r["reading"],
             "auth_ok": True,

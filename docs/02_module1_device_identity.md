@@ -1,5 +1,8 @@
 # 02 — Module 1: Device Identity
 
+> **2026-09-05 audit update:** The registry has 12 identities, not 12 observed devices. Two physical IDs are configured; only MPU6050 has captured data. Placeholder HMAC keys are not accepted by the gateway.
+> Current evidence and limitations: RESULTS §0.13.17.
+
 > **AS-BUILT NOTE:** implemented as `src/config.py`'s `DEVICE_REGISTRY`
 > (a Python dict, not a SQLite table — this project keeps registry state
 > in code/config rather than a database row per device; `src/audit_log.py`

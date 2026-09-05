@@ -1,5 +1,9 @@
 # Repository Audit — ZT-Duo / zt-cps-starter
 
+> **2026-09-05 update:** Historical audit retained. Current evidence and
+> limitations, including temporal continuity and M9 claim qualifications:
+> RESULTS §0.13.17.
+
 **Date:** 2026-09-03
 **Commit at audit:** `6a56ba5`
 **Scope:** full recursive inspection of `src/`, `scripts/`, `firmware/`, `tests/`,

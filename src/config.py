@@ -19,7 +19,9 @@ _SRC_DIR = os.path.dirname(os.path.abspath(__file__))
 # --- Secrets (never committed -- see src/secrets_local.example.py) ---
 # Real values live in src/secrets_local.py, gitignored. Falls back to
 # obviously-fake placeholders if that file doesn't exist (fresh clone) so
-# the project still imports and runs for exploration -- auth against a
+# offline research still imports for exploration -- gateway startup refuses
+# unconfigured TLS/broker auth and placeholder device keys cannot authenticate.
+# Authentication against a
 # real broker/device won't work until you copy secrets_local.example.py
 # to secrets_local.py and fill in real values (or generate your own).
 try:
@@ -41,10 +43,9 @@ except ImportError:
     MQTT_GATEWAY_PASSWORD = "CHANGE-ME-generate-your-own-password"
 
 # --- MQTT broker (Module 6: Secure Communication) ---
-# NOTE: This starter uses plain MQTT on localhost for simplicity so you can see
-# the pipeline working immediately. Before you treat this as "done", follow
-# docs/03_add_tls.md to switch this to MQTT-over-TLS (port 8883) -- that step
-# is what actually satisfies Module 6 / references [23],[24] in the report.
+# Offline configuration may import without certificates. The gateway run()
+# guard requires TLS and broker authentication before starting live services;
+# follow docs/07_module6_secure_communication.md to provision them.
 MQTT_HOST = "localhost"
 MQTT_PORT = 1883
 MQTT_TLS_PORT = 8883

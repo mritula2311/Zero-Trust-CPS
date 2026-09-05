@@ -1,5 +1,8 @@
 # 04 — Module 3: Trust Evaluation
 
+> **2026-09-05 audit update:** Runtime remains Rule/IF/LSTM/legacy GCN fusion. M6/M8/M9 are experimental; temporal Transformer and NP-ST are not live inputs. Temporal training now preserves run boundaries; saved performance predates this fix.
+> Current evidence and limitations: RESULTS §0.13.17.
+
 > **AS-BUILT NOTE:** Section A (Security Behaviour Engine) is implemented
 > as `src/trust_engine.py::score_security_trust()` — rate/flood + step-up
 > outcomes only, exactly per this file's attribution rule. Section B

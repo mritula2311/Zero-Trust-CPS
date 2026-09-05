@@ -1,5 +1,8 @@
 # 12 — Model Validation and Research Justification
 
+> **2026-09-05 audit update:** Use RESULTS 0.13.2–17 for the latest saved-chain comparisons. Historical ablation/policy tables below are not current headlines. M9/virtual validation and temporal construction have the audit limitations.
+> Current evidence and limitations: RESULTS §0.13.17.
+
 This file exists for one reason: every other doc in this set describes
 *what* each model is; this one argues, from a research-methodology
 standpoint, *why each model belongs in the pipeline*, what evidence
@@ -524,6 +527,7 @@ rewards, because there are no live rewards).
 
 ### 8.2 Validation
 
+**Historical comparison below (superseded by RESULTS 0.13.6–7):**
 `scripts/evaluate_rl_policy.py`, `RESULTS.md` Section 3:
 
 | Policy | Avg reward | macro-F1 (4-class) | `security_concern` recall |
@@ -533,8 +537,8 @@ rewards, because there are no live rewards).
 
 > ⚠ **Leakage-free re-measurement qualifies this (C6, `RESULTS.md` §0.13.6).** On
 > the untouched test split with five policies on identical inputs, macro-F1 is:
-> **static-optimised 0.5879 > decision tree 0.5834 > adaptive bandit 0.5329 >
-> multiclass LR 0.4355 > deployed static 0.2744.** The bandit beats the *deployed*
+> **decision tree 0.6453 > static-optimised 0.5614 > adaptive bandit 0.5271 >
+> multiclass LR 0.4410 > deployed static 0.2744.** The bandit beats the *deployed*
 > static table but is **beaten by a validation-tuned static table**. The
 > "beats static" claim therefore holds only against the deployed configuration, not
 > against a well-tuned static baseline — and the rare `combined`

@@ -3203,3 +3203,31 @@ open item flagged, not touched: METHODOLOGY.md's repair-set table mixes a `/136`
 denominator with the `178/182` rank-aware headline; reconciling it needs the underlying
 run data, so it was not guessed at.
 
+
+
+## 2026-09-05 — Astra audit on isolated astra-audit branch
+
+Started from main at f78c7f005f76d89e33383a8ad399f73eb313aaac with existing
+uncommitted M9/generator/documentation work; saved baseline copies and preserved
+it. Baseline: 70 unittest tests passed. Reproduced and fixed malformed ingress,
+claimed-ID cooldown denial, first-check replay-state creation, false temporal
+training adjacency, SW-420 explanation shape/naming, legacy generator registry
+drift and persistent RNG state, and undefined-slice/FPR reporting. Host gateway
+startup now requires TLS/broker credentials and template HMAC keys are refused.
+
+The review qualified M9's physical/cardinality/coverage claims, TRAIN residual
+validation, missing-node context, resampled physical histories and calibration
+source reuse. Original results, models, captures and negative findings were not
+regenerated or discarded. docs/ASTRA_AUDIT.md records the findings, tests,
+remaining blockers and five prioritized actions. A manual external-review prompt
+was requested and prepared. Astra issued no push, merge, rebase or reset.
+The subsequent Git note distinguishes independent shared-session activity.
+
+Astra closing verification: 108 tests pass (18.218s), threshold selfcheck passes,
+generator validator exits 1 with MEDIUM/HIGH divergences preserved. Added
+small-n Student-t and undefined-statistic repairs after a failing regression.
+Shared Git activity advanced both branches to 7388338 and switched to main;
+Astra restored astra-audit before further edits. Five local code commits
+(3922db7, bcdfe4e, 0dcef4b, 2c953ab, 432f4c1) isolate the fixes; a final
+documentation/evidence commit follows. No Astra remote operation was made. Full inventory and external-review prompt accompany
+docs/ASTRA_AUDIT.md. Historical artifacts were not regenerated.

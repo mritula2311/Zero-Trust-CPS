@@ -1,5 +1,8 @@
 # 03 — Module 2: Authentication
 
+> **2026-09-05 audit update:** Typed, finite telemetry validation precedes state commitment. Replay checking does not create state. Claimed-ID cooldown suppresses repeated failed-HMAC logging only; it cannot deny authentic traffic.
+> Current evidence and limitations: RESULTS §0.13.17.
+
 > **AS-BUILT NOTE:** this file's design is implemented closely as
 > specified — `src/trust_engine.py::check_boot_replay()` /
 > `check_timestamp_freshness()` for Section 4, `IdentityTargetingRisk` for
@@ -192,7 +195,7 @@ State the rule plainly, in code comments wherever this boundary is implemented: 
 
 ### 5.1 Optional Gateway-Level Protective Response
 
-`IdentityTargetingRisk` crossing a configurable threshold (e.g., more than 20 failed attempts against one claimed `device_id` within 60 seconds) may trigger a temporary, gateway-level rate-limit on further verification attempts against that specific claimed ID (a cooldown period during which further attempts are dropped before even reaching `verify_message()`). This is a defensive measure against resource exhaustion, applied uniformly regardless of whether the targeted ID happens to be registered — it is deliberately kept separate from, and does not modify, any registered device's Security Trust Score.
+After a failed HMAC, a claimed-ID cooldown may suppress repeated rejection logging. HMAC is checked first: an attacker-controlled claimed ID must never make the gateway skip authentic traffic. This bounds rejection-log amplification for known IDs; it is not transport-level rate limiting. Rejected messages never change the claimed device's own trust or replay state.
 
 ## 6. Every Rejection Reason and Where It Is Routed
 

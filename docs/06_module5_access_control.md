@@ -1,5 +1,8 @@
 # 06 — Module 5: Access Control
 
+> **2026-09-05 audit update:** The live default is a contextual bandit (USE_RL_POLICY), not full RL. P6 is only the best constrained static grid point; P5 also meets the saved test bounds and scores higher macro-F1. Quarantine remains off.
+> Current evidence and limitations: RESULTS §0.13.17.
+
 > **AS-BUILT NOTE:** the 2×2 table (Section 2) is implemented exactly in
 > `src/policy_engine.py::decide()`, on the trust-style Process Anomaly
 > scale (see `04`'s AS-BUILT note — "process high" means "process anomaly

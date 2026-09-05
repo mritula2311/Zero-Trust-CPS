@@ -1,5 +1,8 @@
 # 11 — Project Structure and Configuration
 
+> **2026-09-05 audit update:** Authoritative implementation is flat src/, scripts/, JSON config and gateway-served dashboard. Network profiles and legacy runtime identities are separate experimental scopes. No standalone webapp_server.py exists.
+> Current evidence and limitations: RESULTS §0.13.17.
+
 > **AS-BUILT NOTE — this file's layout is NOT what's actually used.** The
 > real repository keeps its original flat layout: `src/*.py` (one file per
 > module/concern — `trust_engine.py`, `policy_engine.py`, `adaptive_pdp.py`,

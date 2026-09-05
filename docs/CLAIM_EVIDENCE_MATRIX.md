@@ -6,7 +6,12 @@ not permitted.
 
 A claim absent from this table has no evidence behind it and must not be made.
 
-Numbers below are the **measured, leakage-free** values as of 2026-09-03.
+Numbers below are archived measurements with corrections through 2026-09-05.
+Physical session separation does not establish generated-source or temporal
+independence. Deployed models (IF, LSTM-AE, Transformer, GNN, fusion, bandit)
+were retrained in order on the contiguous-window trainer repair
+(`datasets.normal_sequences`) as of 2026-09-05; figures elsewhere in this
+document predating that rebuild are noted where they differ.
 Several are worse than previously published; those are marked ⚠ and the reason
 is given. Where a result contradicts an earlier claim, the earlier claim is
 withdrawn, not the result.
@@ -36,7 +41,7 @@ withdrawn, not the result.
 | **Evidence** | `results/gnn_baselines/metrics.json`, task 2 (4-way coordination-pattern classification, untouched test split). |
 | **Experiment** | 10-node hybrid network, four scenarios, fit on TRAIN, selected on VALIDATION, reported on TEST. |
 | **Real / Sim / Hybrid** | **Hybrid** — 1 real node contributing real rows, 8 simulated, 1 real node PENDING. |
-| **Metric** | Test accuracy: single-node view (anomalous-node count only) **0.4142** → concatenated MLP **0.6567**. |
+| **Metric** | Test accuracy: single-node view (anomalous-node count only) **0.4175** → concatenated MLP **0.6567**. |
 | **Limitation** | Simulated-node-dominated. Node 02 contributed no data. A 4-way accuracy of 0.657 is a modest result, not a strong one. |
 | **Allowed** | "Cross-device relational information improved coordinated anomaly detection in the evaluated hybrid network." |
 | **Disallowed** | "Multi-device fusion is necessary for CPS anomaly detection." |
@@ -49,10 +54,10 @@ withdrawn, not the result.
 |---|---|
 | **Claim tested** | Graph structure, as opposed to merely multi-device information, is what produces the benefit. |
 | **Evidence** | `results/gnn_baselines/metrics.json`, both tasks. |
-| **Result** | **The GNN does not beat simpler models given identical information.** Task 1 (per-node anomaly, test F1): concat MLP **0.9852**, single-device **0.9771**, GNN **0.8381**, concat logistic 0.7785, coordinated rule 0.6156. Task 2 (coordination pattern, test accuracy): concat MLP **0.6567**, concat logistic 0.6433, GNN **0.6058**, node-count 0.4142. |
-| **Self-loop weight** | Swept `{1,2,3,5}` on VALIDATION only; 5.0 selected (validation F1 0.8254). The GNN loses *at its own best swept setting*. |
+| **Result** | **The GNN does not beat simpler models given identical information.** Task 1 (per-node anomaly, test F1): concat MLP **0.9823**, single-device **0.9736**, GNN **0.8760**, concat logistic 0.7762, coordinated rule 0.6184. Task 2 (coordination pattern, test accuracy): concat MLP **0.6567**, concat logistic 0.6533, GNN **0.6117**, node-count 0.4175. |
+| **Self-loop weight** | Swept `{1,2,3,5}` on VALIDATION only; 5.0 selected (validation F1 0.8646). The GNN loses *at its own best swept setting*. |
 | **Real / Sim / Hybrid** | Hybrid. |
-| **Limitation** | One topology, one graph size, one GCN architecture, one testbed. This is not proof that graph learning cannot help — it is proof that **in this testbed it did not**. |
+| **Limitation** | One topology, one graph size, one GCN architecture, one testbed. This is not proof that graph learning cannot help — it is proof that **in this testbed it did not**. `evaluate_gnn_baselines.py::normalized_adjacency` now masks a PENDING node out of every other node's message-passing per snapshot instead of its placeholder propagating through the graph (`tests/test_gnn_pending_node_masking.py`); the numbers above reflect that fix and a full retrain of the deployed chain. |
 | **Allowed** | "In the evaluated hybrid network, a graph convolutional model did not outperform simpler models receiving the same multi-device information; the benefit observed is attributable to cross-device information rather than to graph structure." |
 | **Disallowed** | "The GNN is architecturally necessary." / "Graph learning is required for coordinated anomaly detection." / any claim of GNN superiority. |
 
@@ -88,17 +93,15 @@ withdrawn, not the result.
 
 ## C6 — Adaptive policy ⚠ **CLAIM WITHDRAWN**
 
-| | |
+| Field | Current evidence |
 |---|---|
-| **Claim tested** | The adaptive policy outperforms static alternatives. |
-| **Evidence** | `results/policy_comparison/metrics.json`, untouched test split, five policies on identical inputs. |
-| **Result** | Macro-F1: **static-optimised 0.5879**, decision tree 0.5834, **adaptive bandit 0.5329**, multiclass LR 0.4355, deployed static 0.2744. A static threshold table with thresholds selected on validation **beats** the adaptive policy. |
-| **Terminology** | It is **not reinforcement learning**. The update is an incremental sample average; no discount factor, no next-state bootstrapping, reward a fixed function of (state, action). It is a **contextual bandit with sample-average action-value estimation**. |
-| **Limitation** | Synthetic test session; the class mix drives macro-F1 heavily. |
-| **Allowed** | "An adaptive contextual-bandit policy improved on the deployed static table (macro-F1 0.533 vs 0.274) but did not outperform the same table with thresholds selected on validation (0.588)." |
-| **Disallowed** | "Reinforcement learning" / "the adaptive policy outperforms static policies". |
+| Status | **Partially supported**: configured contextual bandit improves on deployed static; no overall constrained winner established. |
+| Evidence | `results/policy_comparison/metrics.json`; RESULTS 0.13.6–7. |
+| Result | Macro-F1 P3 0.6453, P2 0.5614, P5 0.5271, P4 0.4410, P6 0.2777, P1 0.2744. P3 false-block 0.1510; P2 ALERT recall 0.5850. P5 ALERT recall 0.9600 / false-block 0.0000; P6 0.9900 / 0.0000. |
+| Allowed | P6 is the best feasible static grid point under its declared constraints. P5 also meets those bounds on saved test data and has higher macro-F1. |
+| Disallowed | “P6 is the best constrained policy overall”; “full reinforcement learning”; silently replacing the configured bandit with a benchmark candidate. |
+| Limitation | Synthetic test session, fixed split, saved pre-Astra temporal artifacts. Compare every family under identical validation constraints before selection. |
 
----
 
 ## C7 — Common vs separate thresholds
 
@@ -106,7 +109,7 @@ withdrawn, not the result.
 |---|---|
 | **Claim** | Separate thresholds for the two channels are justified. |
 | **Evidence** | `results/policy_comparison/metrics.json`, both configurations selected on VALIDATION by macro-F1. |
-| **Metric** | Common `θ = 0.7`: test macro-F1 **0.4876**. Separate `θ_sec = 0.7`, `θ_proc = 0.05`: **0.5879**. |
+| **Metric** | Common `θ = 0.7`: test macro-F1 **0.4865**. Separate `θ_sec = 0.7`, `θ_proc = 0.05`: **0.5614**. |
 | **Limitation** | **Important caveat.** The selected `θ_proc = 0.05` would make the deployed system nearly blind to process anomalies — it maximises macro-F1 on a class mix dominated by normal and security-concern examples. The selection objective is not the deployment objective. The deployed thresholds remain 0.6/0.6. |
 | **Allowed** | "Separate thresholds scored higher macro-F1 on validation-selected settings, but the selected process threshold (0.05) is not operationally usable; the deployed configuration retains a common 0.6." |
 | **Disallowed** | "Separate thresholds are required." |
@@ -115,15 +118,14 @@ withdrawn, not the result.
 
 ## C8 — Rare combined class (BLOCK) — negative result, reported
 
-| | |
+| Field | Current evidence |
 |---|---|
-| **Claim** | The combined cyber+physical class is detected. |
-| **Result** | **It is essentially not.** Support 33. BLOCK recall: static 0.000, static-optimised 0.000, adaptive bandit 0.000, multiclass LR 0.030, decision tree **1.000 at precision 0.021** (1529 false blocks, 52.7% false-block rate). |
-| **Limitation** | The combined class is `stealthy_forged_values` — a correctly authenticated device deliberately reporting normal-looking values. By construction its `(s_sec, s_proc)` state is indistinguishable from normal, so no policy over those two inputs can separate it. This is a known and acknowledged architectural blind spot, not a tuning failure. |
-| **Allowed** | "Recall on the rare combined class is effectively zero for every policy that maintains a usable false-block rate. The one policy achieving full recall (a decision tree) does so at 2.1% precision and a 52.7% false-block rate, which is not deployable. This limits immediate deployment suitability for that threat class." |
-| **Disallowed** | Omitting the class, merging it into another, or reporting only the decision tree's recall. |
+| Status | **Not established at a useful false-block rate.** |
+| Evidence | `results/policy_comparison/metrics.json`, RESULTS 0.13.6; support 33. |
+| Limitation | Validly authenticated normal-looking forged values can be indistinguishable from ordinary readings in the two-score state. Preserve per-class confusion matrices and false-block rates. |
+| Allowed | P3's high macro-F1 accompanies 15.1% false-block on the current saved chain; policy aggregate metrics cannot hide the combined-class limitation. |
+| Disallowed | Quoting old 52.7%/2.1%-precision tree figures as current, omitting combined-class outcomes, claiming all compromises are detectable. |
 
----
 
 ## C9 — Latency
 
@@ -132,7 +134,7 @@ withdrawn, not the result.
 | **Evidence** | `results/latency/latency.json`, warm, `time.perf_counter_ns`, host in `docs/ENVIRONMENT.md`. |
 | **Metric** | Total pipeline per message: mean **3.49 ms**, p50 1.45 ms, p95 11.30 ms, p99 **13.84 ms**, max 201.35 ms. Cold start 1288 ms, reported separately. Dominant stages: Isolation Forest (mean 5.12 ms) and LSTM-AE (1.38 ms). 10-node network tick: mean 71 ms → ~141 messages/s. |
 | **Limitation** | Single host. The audit-log figure is the hash-chain computation only; the SQLite write is I/O-bound and excluded (stated, not omitted). Max is ~138× the median — a mean alone materially misrepresents this pipeline. |
-| **Allowed** | "Per-message pipeline latency was 1.25 ms median, 14.5 ms at p99, on the host specified in docs/ENVIRONMENT.md." |
+| **Allowed** | "Per-message pipeline latency was 1.45 ms median, 13.84 ms at p99, on the host specified in docs/ENVIRONMENT.md." |
 | **Disallowed** | Reporting the mean alone. "Real-time guaranteed." "Industrially scalable" from a ten-node benchmark. |
 
 ---
@@ -145,7 +147,7 @@ withdrawn, not the result.
 | **Evidence** | `config/graph_topology.json`, `config/simulated_nodes.json`, `data/collected/network/`. Asserted at import: `len(NETWORK_NODES) == 10 and len(REAL_NODES) == 2 and len(SIMULATED_NODES) == 8`. |
 | **Real / Sim / Hybrid** | 2 real (**one of which has no captured data yet**), 8 simulated. |
 | **Limitation** | `esp32-vib-002` currently contributes 0 rows; all its network records are `PENDING_REAL_HARDWARE_DATA` and excluded from every metric. So the network as *evaluated* is 1 real + 8 simulated + 1 pending. |
-| **Allowed** | "The evaluation used a 10-node hybrid CPS network consisting of two physical ESP32 devices and eight simulated nodes parameterized from real-device telemetry. At the time of this evaluation the second physical node had not yet been captured, and its rows are excluded." |
+| **Allowed** | "The evaluation used ten configured slots: one captured physical source, eight simulated streams and one pending physical slot. Pending targets are excluded from loss and metrics, while their neutral placeholder still enters model context." |
 | **Disallowed** | "Ten physical ESP32 nodes were tested." / any phrasing implying ten devices exist. |
 
 ---
@@ -157,7 +159,7 @@ withdrawn, not the result.
 | **Claim** | The two physical nodes test cross-device, heterogeneous-sensor behaviour. |
 | **Evidence** | `src/feature_engineering_sw420.py`, `firmware/main_sw420.py`, `firmware/HARDWARE_SETUP_SW420.md`. |
 | **Limitation** | Because the sensors differ in kind (accelerometer vs binary contact switch), **no same-model replication is possible**. The SW-420 cannot produce rms/kurtosis/dominant-frequency even in principle. |
-| **Allowed** | "Because the two physical nodes employ heterogeneous sensors, the experiment evaluates cross-device and heterogeneous-sensor behaviour rather than same-model MPU6050 sensor-to-sensor replication." |
+| **Allowed** | "Because the two physical nodes employ heterogeneous sensors, the planned experiment will evaluate cross-device and heterogeneous-sensor behaviour after Device 2 capture rather than same-model MPU6050 sensor-to-sensor replication." |
 | **Disallowed** | "Validated across two MPU6050 sensors." |
 
 ---
@@ -195,3 +197,14 @@ withdrawn, not the result.
 | **Limitation** | ⚠ This ablation was measured under the **pre-split** regime and its baseline (0/49) is the withdrawn leaky figure (see C4). The *direction* — real rows materially reduce false positives — is unaffected, but the magnitude must be re-measured under session-level splitting before it is quoted again. |
 | **Allowed** | "Withholding the real at-rest rows and retraining materially increased false positives; the magnitude requires re-measurement under the corrected splits." |
 | **Disallowed** | Quoting "13/49 vs 0/49" as a current result. |
+
+## C15–C20 — Current relational research claims
+
+| ID | Claim and status | Evidence | Boundary / prohibited extrapolation |
+|---|---|---|---|
+| C15 | **Supported on saved fixed-split refits:** different GCN/GATv2 topology-sensitivity patterns | `crossdevice_benchmark/seed_study.json`: GCN degree −0.8160, density +0.1895; GATv2 degree CI includes zero, density −0.2733; interaction −1.2132, CI [−1.583,−0.843] | Not strict double dissociation; ten training seeds are not ten datasets; rerun after corrected base training. |
+| C16 | **Partially supported:** set models stable under evaluated topology/cardinality probes | `crossdevice_benchmark/metrics.json`, RESULTS 0.13.3–14 | Adjacency invariance is by construction. No universal superiority, no deployed M9 claim. Concat MLP remains efficiency baseline; NP-ST rejected. |
+| C17 | **Supported narrowly:** LOW TRAIN resting-residual consistency | `validate_virtual_device_generator.py`; audit validator transcript | 103 source rest rows; 0.086 correlation / 0.097 ACF difference; discriminator 0.466. Not held-out realism or long-stream/fault validation. MEDIUM/HIGH are OOD. |
+| C18 | **Partially supported:** mixed-cardinality training M8/M9 is implemented | benchmark training functions; `m9_seed_study.json` | M9 trains through 15 slots but evaluates only 10 existing / 5 virtual slots; pending neutral context remains. n=15 tested scalability is **pending**. |
+| C19 | **Supported for stored experiment:** shift degrades virtual performance | M9 LOW/MEDIUM/HIGH F1 0.7563/0.5436/0.3060, FPR 0.1126/0.2956/0.7921, AUC 0.9870/0.9578/0.6583 | Frozen LOW threshold; calibration shift dominates MEDIUM, discrimination also degrades at HIGH. No additional physical-node validation. |
+| C20 | **Supported result, rejected pooling-accuracy hypothesis:** virtual-only F1 0.9769 > hybrid 0.9671 on existing hybrid test | M9 seed study and ablation investigation | Physical output slice has one resampled hardware source with simulated context. Universal virtual-only superiority and demonstrated hybrid coverage benefit are both unsupported. |

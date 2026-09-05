@@ -1,5 +1,8 @@
 # Reviewer Response Tracker
 
+> **2026-09-05 audit update:** Completion labels below record the earlier review round. The Astra audit reopens temporal continuity, calibration independence, missing-node context, provenance and deployment security; old completion does not close these findings.
+> Current evidence and limitations: RESULTS §0.13.17.
+
 Status vocabulary, used strictly:
 
 | Status | Meaning |
@@ -109,7 +112,7 @@ Status vocabulary, used strictly:
 |---|---|
 | **Status** | `COMPLETED` |
 | **Code** | `scripts/evaluate_policy_comparison.py`, both configurations selected on VALIDATION by macro-F1, reported on the untouched test split. |
-| **Evidence** | Common `θ = 0.7`: test macro-F1 **0.4876**. Separate `θ_sec = 0.7`, `θ_proc = 0.05`: **0.5879**. |
+| **Evidence** | Common `θ = 0.7`: test macro-F1 **0.4865**. Separate `θ_sec = 0.7`, `θ_proc = 0.05`: **0.5614**. |
 | **Interpretation** | Separate scored higher, but the selected `θ_proc = 0.05` would make the deployed system nearly blind to process anomalies. **The selection objective is not the deployment objective.** Deployed thresholds unchanged at 0.6/0.6, and the gap is reported as the finding. |
 
 ---
@@ -154,7 +157,7 @@ Status vocabulary, used strictly:
 |---|---|
 | **Status** | `COMPLETED` — **and the adaptive policy lost.** |
 | **Terminology** | Corrected throughout: it is a **contextual bandit with sample-average action-value estimation**, not reinforcement learning. No discount factor, no next-state bootstrapping, reward a fixed function of (state, action). `RL_*` config names retained to avoid a ~20-site rename; the method is described correctly in the docstring, the spec, and the manuscript. |
-| **Evidence** | Test macro-F1: static-optimised **0.5879**, decision tree 0.5834, adaptive bandit **0.5329**, multiclass LR 0.4355, deployed static 0.2744. |
+| **Evidence** | Test macro-F1: static-optimised **0.5614**, decision tree 0.6453, adaptive bandit **0.5271**, multiclass LR 0.4410, deployed static 0.2744. |
 | **Files** | `results/policy_comparison/metrics.json` |
 | **Remaining limitation** | Synthetic test session; macro-F1 is sensitive to the class mix. |
 

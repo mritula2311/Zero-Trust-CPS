@@ -1,5 +1,8 @@
 # 09 — Integration and Data Flow
 
+> **2026-09-05 audit update:** Runtime and research pipelines differ: legacy GCN is deployed; M9 is not. Registered/pending identities must not be counted as measured physical nodes.
+> Current evidence and limitations: RESULTS §0.13.17.
+
 > **AS-BUILT NOTE:** Section 1's sequence matches the live `gateway.py::process_telemetry()`
 > flow, with one addition: step-up resolution (`check_step_up_response()`)
 > is checked immediately after Module 2's authentication succeeds and

@@ -1,5 +1,8 @@
 # 13 — System Architecture and Workflow
 
+> **2026-09-05 audit update:** Distinguish as-built Rule/IF/LSTM/GCN fusion from experimental Set Transformer. Physical Device 2 is SW-420 with captures pending; M9 has training at 15 slots but no saved 15-node test.
+> Current evidence and limitations: RESULTS §0.13.17.
+
 A single, complete picture of how this project fits together: layered
 architecture, every component's role, the live message-processing
 workflow, the offline training/evaluation workflow, and the physical

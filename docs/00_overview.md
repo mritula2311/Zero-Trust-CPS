@@ -1,4 +1,7 @@
 # Zero-Trust Security Framework for IoT-Based CPS
+
+> **2026-09-05 audit update:** Live defaults remain legacy GCN fusion and a contextual bandit. Set Transformer is a research candidate; old Transformer-win and universal-GNN claims below are historical and superseded by RESULTS 0.13.2–17.
+> Current evidence and limitations: RESULTS §0.13.17.
 ## Low-Level Design — Master Overview
 
 > **For the paper, start with `PRD.md` (requirements + novelty) and
@@ -30,7 +33,7 @@
 >    `src/simulation|identity|auth|trust|...` package layout and
 >    `config.yaml` — cosmetic, no functional benefit, only merge risk
 >    against a large existing codebase.
-> 4. **RL (`adaptive_pdp.py`) and the GNN are live defaults**, not the
+> 4. **The contextual bandit (`adaptive_pdp.py`) and legacy GCN are live defaults**, not the
 >    "optional stretch goal" / "conditional on ablation" framing below —
 >    both are already trained and evaluated; RL's live path
 >    (`greedy_action()`) is a frozen, no-exploration Q-table lookup with

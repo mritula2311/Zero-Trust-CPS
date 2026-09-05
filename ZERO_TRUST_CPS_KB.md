@@ -1,5 +1,26 @@
 # Zero-Trust CPS — System Architecture & Knowledge Base
 
+## Current audit status — 2026-09-05
+
+The runtime still uses Rule + IF + LSTM-AE + legacy GCN → logistic fusion;
+Security Trust stays separate until static/contextual-bandit policy evaluation.
+Set Transformer (M6/M8/M9) is a research candidate, concat MLP a fixed-size
+deployment baseline, Deep Sets a set baseline, GCN/GATv2 research baselines,
+temporal Transformer ablation-only and NP-ST a rejected ablation.
+
+Saved metrics predate the Astra temporal-training correction. They remain the
+historical evidence for their archived model chain, not a validation of models
+trained with the corrected sequence builder. Read RESULTS.md §0.13.17
+and `RESULTS.md` §0.13.17 before quoting them. Missing-node context, resampled
+hardware trajectories and non-independent calibration halves qualify the network
+experiments. M9 trains through 15 slots but has no persisted 15-node test; the
+virtual-only advantage is retained, and broader-coverage benefit is unproved.
+
+Only `esp32-vib-001` (MPU6050) has captures. `esp32-vib-002` is a configured SW-420
+with capture pending; it does not test MPU6050 manufacturing variation. LOW passes
+TRAIN resting-residual consistency checks (not held-out realism validation).
+MEDIUM/HIGH remain OOD stress regimes. Production readiness is not established.
+
 > Single source of truth for humans and coding agents. Every number in this
 > document was measured on this repository, not estimated. Where a result is
 > weak or a target is missed, it is stated as such.
@@ -1141,3 +1162,22 @@ and a checkpoint-anchored partial scan becomes worth building.
 - **FR (IEC 62443)** — Foundational Requirement, FR1–FR7.
 - **Tenet (NIST SP 800-207)** — one of the 7 zero-trust principles; every audit
   row is tagged with those it evidences.
+
+## Astra operational handoff — 2026-09-05
+
+The current audit section at the start and RESULTS 0.13.17 supersede earlier
+model-selection and policy headlines; ADRs and historical measurements above
+remain traceable. The full findings, exact stored topology/M9 values, P1–P6
+constraint interpretation and remaining blockers are in RESULTS.md §0.13.17.
+
+Do not overwrite archived model/result files to make the new temporal tests
+green. New model builds must consume contiguous normal runs and newly merged
+source ticks, then rebuild GCN, fusion, policy and research inputs in a versioned
+output location. Do not claim SHA-256 hashes captured now prove historical
+training provenance. Do not rename gnn_score until a runtime relational interface
+has artifact-schema compatibility and end-to-end complementarity evidence.
+
+The current runtime uses a bandit with frozen learned values. P6 is not an
+overall policy winner; the saved P5 result also meets the stated test constraints.
+Preserve all-negative controls with FPR and undefined detection F1. Preserve
+physical feature names and correlated rank-aware explanations.
