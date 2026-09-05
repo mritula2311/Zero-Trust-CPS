@@ -39,7 +39,7 @@ withdrawn, not the result.
 | **Evidence** | `results/gnn_baselines/metrics.json`, task 2 (4-way coordination-pattern classification, untouched test split). |
 | **Experiment** | 10-node hybrid network, four scenarios, fit on TRAIN, selected on VALIDATION, reported on TEST. |
 | **Real / Sim / Hybrid** | **Hybrid** — 1 real node contributing real rows, 8 simulated, 1 real node PENDING. |
-| **Metric** | Test accuracy: single-node view (anomalous-node count only) **0.4142** → concatenated MLP **0.6567**. |
+| **Metric** | Test accuracy: single-node view (anomalous-node count only) **0.4175** → concatenated MLP **0.6567**. (Pre-rebuild archived figures: 0.4142 → 0.6567 — the rebuild moved B0 slightly and left B2 unchanged; see the 2026-09-05 rebuild note under C3.) |
 | **Limitation** | Simulated-node-dominated. Node 02 contributed no data. A 4-way accuracy of 0.657 is a modest result, not a strong one. |
 | **Allowed** | "Cross-device relational information improved coordinated anomaly detection in the evaluated hybrid network." |
 | **Disallowed** | "Multi-device fusion is necessary for CPS anomaly detection." |
@@ -52,9 +52,10 @@ withdrawn, not the result.
 |---|---|
 | **Claim tested** | Graph structure, as opposed to merely multi-device information, is what produces the benefit. |
 | **Evidence** | `results/gnn_baselines/metrics.json`, both tasks. |
-| **Result** | **The GNN does not beat simpler models given identical information.** Task 1 (per-node anomaly, test F1): concat MLP **0.9852**, single-device **0.9771**, GNN **0.8381**, concat logistic 0.7785, coordinated rule 0.6156. Task 2 (coordination pattern, test accuracy): concat MLP **0.6567**, concat logistic 0.6433, GNN **0.6058**, node-count 0.4142. |
-| **Self-loop weight** | Swept `{1,2,3,5}` on VALIDATION only; 5.0 selected (validation F1 0.8254). The GNN loses *at its own best swept setting*. |
+| **Result** | **The GNN does not beat simpler models given identical information.** Task 1 (per-node anomaly, test F1): concat MLP **0.9823**, single-device **0.9736**, GNN **0.8760**, concat logistic 0.7762, coordinated rule 0.6184. Task 2 (coordination pattern, test accuracy): concat MLP **0.6567**, concat logistic 0.6533, GNN **0.6117**, node-count 0.4175. |
+| **Self-loop weight** | Swept `{1,2,3,5}` on VALIDATION only; 5.0 selected (validation F1 0.8646). The GNN loses *at its own best swept setting*. |
 | **Real / Sim / Hybrid** | Hybrid. |
+| **2026-09-05 rebuild** | `results/gnn_baselines/metrics.json` was regenerated after two fixes: `datasets.normal_sequences`-based temporal windows (see ASTRA_AUDIT.md) fed a genuine six-step model retrain, and `evaluate_gnn_baselines.py::normalized_adjacency` now masks a PENDING node out of every OTHER node's message-passing per snapshot instead of its 0.9 placeholder propagating through the graph (`tests/test_gnn_pending_node_masking.py`). Net effect on the GNN: test F1 0.8381→0.8760, FPR 0.0355→0.0137, recall 0.88→0.8453. **The conclusion is unchanged** — a simpler model still matches or beats the GNN on identical information — only the specific numbers moved. Pre-rebuild figures are archived at `results/gnn_baselines.archived-20260905_144311/metrics.json`. |
 | **Limitation** | One topology, one graph size, one GCN architecture, one testbed. This is not proof that graph learning cannot help — it is proof that **in this testbed it did not**. |
 | **Allowed** | "In the evaluated hybrid network, a graph convolutional model did not outperform simpler models receiving the same multi-device information; the benefit observed is attributable to cross-device information rather than to graph structure." |
 | **Disallowed** | "The GNN is architecturally necessary." / "Graph learning is required for coordinated anomaly detection." / any claim of GNN superiority. |

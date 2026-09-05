@@ -1394,7 +1394,7 @@ def main():
     sweep = {}
     for w in SELF_LOOP_SWEEP:
         m = train_network_gnn(tr["X"], tr["y"], tr["meta"], w)
-        s = gnn_scores(m, va["X"], w)
+        s = gnn_scores(m, va["X"], w, va["meta"])
         flat = np.array([s[t][i] for t, i in va["keep"]])
         thr = choose_threshold(flat, va["flat_y"])
         sweep[w] = {"threshold": thr, **metrics(flat, va["flat_y"], thr)}
@@ -1405,8 +1405,8 @@ def main():
     t0 = time.perf_counter_ns()
     gnn = train_network_gnn(tr["X"], tr["y"], tr["meta"], best_w)
     gnn_ms = (time.perf_counter_ns() - t0) / 1e6
-    gva = gnn_scores(gnn, va["X"], best_w)
-    gte = gnn_scores(gnn, te["X"], best_w)
+    gva = gnn_scores(gnn, va["X"], best_w, va["meta"])
+    gte = gnn_scores(gnn, te["X"], best_w, te["meta"])
     record("M4_gcn",
            np.array([gva[t][i] for t, i in va["keep"]]),
            np.array([gte[t][i] for t, i in te["keep"]]),
@@ -1740,7 +1740,7 @@ def seed_study(data, seeds, best_w):
 
         for name, m in models.items():
             if name == "M4_gcn":
-                sv = gnn_scores(m, va["X"], best_w)
+                sv = gnn_scores(m, va["X"], best_w, va["meta"])
             elif name == "M5_gatv2":
                 sv = deep_sets_scores(m, va["X"], topology_mask())
             else:

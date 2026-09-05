@@ -53,6 +53,12 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from config import COAP_TLS_PORT, COAP_TELEMETRY_PATH, COAP_CERT_PATH, COAP_KEY_PATH
 
+# A telemetry envelope is a handful of floats and a hex signature -- a few KB
+# is generous headroom. Caps a single POST's declared and actual body size so
+# one client can't force an unbounded rfile.read() on this single-threaded
+# server (ASTRA_AUDIT.md P1, src/coap_server.py::do_POST).
+MAX_BODY_BYTES = 16_384
+
 
 class TelemetryHTTPSHandler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
@@ -66,7 +72,18 @@ class TelemetryHTTPSHandler(BaseHTTPRequestHandler):
             self.end_headers()
             return
 
-        length = int(self.headers.get("Content-Length", 0))
+        try:
+            length = int(self.headers.get("Content-Length", ""))
+        except ValueError:
+            self.send_response(400)
+            self.end_headers()
+            self.wfile.write(b"missing or invalid Content-Length")
+            return
+        if not 0 <= length <= MAX_BODY_BYTES:
+            self.send_response(413)
+            self.end_headers()
+            self.wfile.write(b"body too large")
+            return
         body = self.rfile.read(length)
         try:
             envelope = json.loads(body.decode())

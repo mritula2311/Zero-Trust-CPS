@@ -533,13 +533,22 @@ to reflect the real observed range with reasonable margin.
 
 ## 13. Known Limitations (Stated Explicitly, Not Hidden)
 
-- **`cert_reqs=ussl.CERT_NONE`** (`firmware/main.py::connect_mqtt()`): the
-  board does not verify the broker's TLS certificate. Traffic is still
-  encrypted, but a man-in-the-middle with control of your local network
+- **`cert_reqs=ussl.CERT_NONE`** (`firmware/main.py::connect_mqtt()`): by
+  default the board does not verify the broker's TLS certificate. Traffic is
+  still encrypted, but a man-in-the-middle with control of your local network
   could in principle present a fake certificate the board wouldn't reject.
-  Accepted as a stated prototype simplification (`CLAUDE.md` Section 8) —
-  getting genuine CA verification working reliably varies by MicroPython
-  build and is real, non-trivial follow-up work, not a quick fix.
+  `connect_mqtt()` now supports opting into verification: set
+  `MQTT_CA_CERT_FILE` in `device_secrets.py` to a DER-encoded CA certificate
+  uploaded alongside the firmware, and it switches to
+  `cert_reqs=ussl.CERT_REQUIRED` with that CA. **This path has not been
+  verified against real hardware** — `ussl.wrap_socket`'s `ca_certs` support
+  varies by MicroPython build (this is the same class of blocker documented
+  for CoAP/DTLS in `src/coap_server.py`'s docstring) — so flash-test it on a
+  spare board before relying on it, and keep `MQTT_CA_CERT_FILE` unset (the
+  prior behavior) if it doesn't connect. Left unset, `connect_mqtt()` now
+  prints an explicit unverified-TLS warning at boot instead of connecting
+  silently. Accepted as a stated prototype simplification (`CLAUDE.md`
+  Section 8) until verified.
 - **`DEVICE_SECRET`/`MQTT_PASSWORD` are plaintext constants in flash** —
   no secure element, no flash encryption. Same accepted simplification,
   same section.

@@ -76,19 +76,41 @@ _NODE_INDEX = {d: i for i, d in enumerate(NETWORK_NODES)}
 N_NODES = len(NETWORK_NODES)
 
 
-def normalized_adjacency(self_loop_weight: float) -> torch.Tensor:
+def normalized_adjacency(self_loop_weight: float, valid: np.ndarray | None = None) -> torch.Tensor:
     """A_hat = D^-1/2 (A + wI) D^-1/2 over the DECLARED topology, not a complete
-    graph. Every node is treated as active: these are offline replays of
-    sessions in which all ten nodes publish, so the liveness gate that matters
-    in the live gateway does not apply here and pretending otherwise would make
-    the graph depend on replay order."""
-    a = np.eye(N_NODES) * self_loop_weight
+    graph.
+
+    `valid`, if given, is a (batch, n_nodes) bool array: a PENDING_REAL_HARDWARE_DATA
+    node (no observation this snapshot) is dropped from every OTHER node's
+    aggregation for that snapshot, one adjacency per row, instead of its neutral
+    0.9 placeholder propagating through message passing into a valid neighbour's
+    prediction -- it still gets its own (loss/metric-excluded) output row, just
+    an unused one. Mirrors gnn_scorer.normalized_adjacency()'s live active_mask
+    gating, extended to a batch of snapshots.
+
+    valid=None (the default) treats every node as active -- offline replays of
+    sessions where all ten nodes publish, or the dilution/probe experiments'
+    synthetic always-valid batches -- and returns the single shared adjacency
+    every caller before batched per-snapshot masking existed relied on."""
+    edges = np.zeros((N_NODES, N_NODES))
     for edge in network_edges():
         i, j = (_NODE_INDEX[d] for d in edge)
-        a[i, j] = a[j, i] = 1.0
-    deg = a.sum(axis=1)
-    d_inv_sqrt = np.diag(1.0 / np.sqrt(np.maximum(deg, 1e-6)))
-    return torch.tensor(d_inv_sqrt @ a @ d_inv_sqrt, dtype=torch.float32, device=_TORCH_DEVICE)
+        edges[i, j] = edges[j, i] = 1.0
+
+    if valid is None:
+        a = edges + np.eye(N_NODES) * self_loop_weight
+        deg = a.sum(axis=1)
+        d_inv_sqrt = np.diag(1.0 / np.sqrt(np.maximum(deg, 1e-6)))
+        return torch.tensor(d_inv_sqrt @ a @ d_inv_sqrt, dtype=torch.float32, device=_TORCH_DEVICE)
+
+    v = valid.astype(np.float64)                        # (B, N)
+    pair = v[:, :, None] * v[:, None, :]                 # both endpoints present this snapshot
+    a = edges[None, :, :] * pair
+    a += np.eye(N_NODES)[None, :, :] * self_loop_weight * v[:, :, None]
+    deg = a.sum(axis=2)                                  # (B, N)
+    d_inv_sqrt = 1.0 / np.sqrt(np.maximum(deg, 1e-6))
+    a_hat = d_inv_sqrt[:, :, None] * a * d_inv_sqrt[:, None, :]
+    return torch.tensor(a_hat, dtype=torch.float32, device=_TORCH_DEVICE)
 
 
 def build_snapshots(split: str):
@@ -161,10 +183,11 @@ def train_network_gnn(X, y, meta, self_loop_weight):
     torch.manual_seed(TRAINING_SEED)
     model = _GCN(in_dim=GNN_NODE_FEATURE_DIM, hidden=GNN_HIDDEN_SIZE,
                  num_layers=GNN_NUM_LAYERS).to(_TORCH_DEVICE)
-    a_hat = normalized_adjacency(self_loop_weight)
+    valid = np.array([m["valid"] for m in meta])
+    a_hat = normalized_adjacency(self_loop_weight, valid)
     x = torch.tensor(X, dtype=torch.float32, device=_TORCH_DEVICE)
     t = torch.tensor(y, dtype=torch.float32, device=_TORCH_DEVICE)
-    mask = torch.tensor(np.array([m["valid"] for m in meta]), dtype=torch.bool, device=_TORCH_DEVICE)
+    mask = torch.tensor(valid, dtype=torch.bool, device=_TORCH_DEVICE)
 
     # Inverse-frequency weighting, matching the fusion meta-learner's
     # class_weight="balanced". Without it the numerous normal nodes dominate.
@@ -189,8 +212,9 @@ def train_network_gnn(X, y, meta, self_loop_weight):
     return model
 
 
-def gnn_scores(model, X, self_loop_weight):
-    a_hat = normalized_adjacency(self_loop_weight)
+def gnn_scores(model, X, self_loop_weight, meta=None):
+    valid = None if meta is None else np.array([m["valid"] for m in meta])
+    a_hat = normalized_adjacency(self_loop_weight, valid)
     x = torch.tensor(X, dtype=torch.float32, device=_TORCH_DEVICE)
     with torch.no_grad():
         return model(x, a_hat).cpu().numpy()
@@ -318,7 +342,7 @@ def main():
     sweep = {}
     for w in SELF_LOOP_SWEEP:
         m = train_network_gnn(tr["X"], tr["y"], tr["meta"], w)
-        s = gnn_scores(m, va["X"], w)
+        s = gnn_scores(m, va["X"], w, va["meta"])
         flat = np.array([s[t][i] for t, i in va["keep"]])
         thr = choose_threshold(flat, va["flat_y"])
         sweep[w] = {"threshold": thr, **metrics(flat, va["flat_y"], thr)}
@@ -330,9 +354,9 @@ def main():
     gnn = train_network_gnn(tr["X"], tr["y"], tr["meta"], best_w)
     torch.save(gnn.state_dict(), NETWORK_GNN_PATH)
     thr = sweep[best_w]["threshold"]
-    gva = gnn_scores(gnn, va["X"], best_w)
+    gva = gnn_scores(gnn, va["X"], best_w, va["meta"])
     s_va = np.array([gva[t][i] for t, i in va["keep"]])
-    gte = gnn_scores(gnn, te["X"], best_w)
+    gte = gnn_scores(gnn, te["X"], best_w, te["meta"])
     s_te = np.array([gte[t][i] for t, i in te["keep"]])
     results["GNN"] = {"validation": metrics(s_va, va["flat_y"], thr),
                       "test": metrics(s_te, te["flat_y"], thr),
@@ -399,10 +423,10 @@ def main():
     # GNN for this task: its per-node outputs, pooled into a snapshot vector,
     # then the SAME multinomial logistic head the baselines get. The head is
     # identical so the comparison isolates the representation, not the classifier.
-    gnn_tr = gnn_scores(gnn, tr["X"], best_w)
+    gnn_tr = gnn_scores(gnn, tr["X"], best_w, tr["meta"])
     head = LogisticRegression(max_iter=3000, class_weight="balanced").fit(gnn_tr, snapshot_labels(tr))
     for split_name, d in (("validation", va), ("test", te)):
-        s = gnn_scores(gnn, d["X"], best_w)
+        s = gnn_scores(gnn, d["X"], best_w, d["meta"])
         task2.setdefault("GNN_node_embeddings", {})[split_name] = round(
             float(head.score(s, snapshot_labels(d))), 4)
 

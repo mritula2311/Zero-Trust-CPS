@@ -830,11 +830,15 @@ class TestOperatorMarkedLabels(unittest.TestCase):
             hits = glob.glob(os.path.join(models_dir, pattern))
             return max((os.path.getmtime(h) for h in hits), default=None)
 
-        # (step name, glob) in training order.
+        # (step name, glob) in training order. "gnn.pt" only -- not "gnn*.pt":
+        # gnn_network.pt is scripts/evaluate_gnn_baselines.py's standalone
+        # GNN-vs-baselines research comparison, a different artifact from a
+        # different script that neither fusion nor the RL trainer replay
+        # through, so it is not a step in this deployed chain.
         chain = [("isolation_forest", "isolation_forest_*.joblib"),
                  ("lstm_ae", "lstm_ae_*.pt"),
                  ("transformer", "transformer_ae_*.pt"),
-                 ("gnn", "gnn*.pt"),
+                 ("gnn", "gnn.pt"),
                  ("fusion", "fusion_meta_learner.joblib"),
                  ("rl_qtable", "adaptive_pdp_qtable.json")]
         present = [(n, newest(g)) for n, g in chain]
