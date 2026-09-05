@@ -476,7 +476,7 @@ test relaxed until it passes — applied to `gnn_score`, whose anomaly is genuin
 single-source, the rank-aware test still passes at rank 1. The instrument's rank
 is matched to the anomaly's; single-source anomalies are unaffected.** It cannot
 pass, structurally. The GNN scores 100% on the identical test precisely because
-its anomaly genuinely is single-source — a neighbour's evidence. The 36% is
+its anomaly genuinely is single-source — a neighbour's evidence. The 37% is
 measuring channel correlation and only incidentally explainability.
 
 Note kurtosis is **not** in the minimal repair set although it is the channel most

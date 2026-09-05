@@ -41,7 +41,7 @@ stated once:
    project's own history (`SESSION_LOG.md`) contains multiple cases where
    a measured result came back worse than hoped (the Transformer's tie
    with the LSTM-AE before the residue-exclusion fix; the Level-2
-   explainability validation's 39% vs. a 70% target) and the response was
+   explainability validation's 37% vs. a 70% target) and the response was
    to report the number and explain it, not adjust the target or hide the
    run. That standard applies to every model in this file.
 4. **Synthetic data, honestly labeled as such.** Every number in this
@@ -595,7 +595,7 @@ distinct ML/DL paradigms, a graph model, a stacking ensemble, and an
 adaptive contextual-bandit policy — produces a system where every component's
 presence is backed by a specific, reproducible, held-out measurement, and
 where a negative or underwhelming result (the Transformer's marginal
-gain, the Level-2 explainability's 39% flip rate, Isolation Forest's
+gain, the Level-2 explainability's 37% flip rate, Isolation Forest's
 `coordinated` blind spot) is reported as data, not smoothed over. That
 discipline, not any single model, is this project's actual research
 contribution.

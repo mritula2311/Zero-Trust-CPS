@@ -2026,6 +2026,131 @@ cell — a ±0.36 interval on a metric bounded in [0,1] can hide a bimodal outco
 and a mean reported over one describes a value no seed produced. Every figure in
 this section is emitted by `--seeds 10`; none is computed by hand for the paper.
 
+### 0.13.15 M9: extending mixed-cardinality training to n=15 with a validated virtual generator
+
+§0.13.12 named the gap directly: M8's mixed-cardinality training tops out at
+n=10 because that is every node stream the existing hybrid network has, and
+going higher needs a real-derived virtual-device generator, "not built" at the
+time. `src/virtual_device_generator.py` closes that gap — controlled networks
+at n = 2, 3, 5, 10, 15 built from `esp32-vib-001`'s own captured telemetry
+(real cross-feature covariance, real lag-1 autocorrelation, real fault
+trajectories), not a second parametric simulator. Before using it for
+training, `scripts/validate_virtual_device_generator.py` measured it against
+real held-out data at three heterogeneity presets: **LOW passes every check**
+(marginal KS tests, cross-feature correlation, lag-1 autocorrelation, and a
+class-balanced real-vs-generated discriminator at 0.466 accuracy — near
+chance). MEDIUM and HIGH show a real, measured `rms`/`peak` residual
+divergence against the (small, 103-row) real resting sample, most likely from
+`drift_sd_multiple` adding low-frequency variance the real captures never had
+the duration to exhibit. **Only LOW is used for training; MEDIUM/HIGH are
+out-of-distribution stress tests, not additional training regimes.**
+
+**Provenance/cardinality confound, avoided by design.** Mixing 5 LOW-virtual
+columns in only at n=15 would let the model learn "virtual signature ⇒ large
+n" instead of genuine cardinality robustness. `train_mixed_provenance()`
+instead draws its per-epoch column subset uniformly from the FULL 15-column
+pool (10 existing hybrid + 5 virtual) at every cardinality {2,3,5,10,15}, so a
+virtual column can appear at n=2 exactly as it can at n=15.
+
+**Anomaly injection was caught and fixed before any of these numbers were
+measured.** The first version drew one shared real fault trajectory per
+(scenario, split) and reused its leading segment at every event block — a
+1-seed check found a coordinated virtual scenario's anomalous scores
+clustered at **std=0.0054 across 300 rows** (max 0.050), an easily-memorised
+repeated signature rather than a realistic anomaly distribution. Fixed by
+drawing a fresh `fault_displacement()` per event window instead (a
+split-safe library of many real trajectories, not one template) —
+`fault_displacement()` already restricts its draw to the calling split's own
+sessions, so this could not leak across splits. Post-fix, that scenario's
+anomalous-score std widened 17× to 0.0902, spanning the same near-full range
+real anomalous scores do.
+
+**10-seed result** (only the training seed varies; architecture,
+hyperparameters and the GCN-study discipline of not re-tuning per seed
+carry over), mean ± 95% CI, `--m9-seeds 10`:
+
+| regime | threshold | f1 | precision | recall | FPR | detection | ROC-AUC | PR-AUC |
+|---|---|---|---|---|---|---|---|---|
+| Real Test A (n=10) | 0.935 ±0.038 | **0.967 ±0.004** | 0.938 ±0.008 | 0.998 ±0.001 | 0.011 ±0.001 | 0.998 ±0.001 | 0.9996 | 0.997 |
+| LOW virtual (n=5, validated) | 0.970 ±0.008 | **0.756 ±0.017** | 0.610 ±0.023 | 0.996 ±0.001 | 0.113 ±0.011 | 0.996 ±0.001 | 0.987 | 0.883 |
+| MEDIUM stress (frozen thr.) | 0.970 ±0.008 | 0.544 ±0.027 | 0.375 ±0.026 | 0.996 ±0.001 | 0.296 ±0.032 | 0.996 ±0.001 | 0.958 | 0.732 |
+| HIGH stress (frozen thr.) | 0.970 ±0.008 | 0.306 ±0.007 | 0.181 ±0.005 | 1.000 ±0.000 | 0.792 ±0.025 | 1.000 ±0.000 | 0.658 | 0.205 |
+
+**Real Test A is unmoved by adding virtual columns to training** — 0.967 F1
+sits in the same range M8 measured on the real network alone, the first gate
+this design needed to pass. **MEDIUM/HIGH deliberately reuse the LOW-fitted
+threshold, frozen, rather than being re-fit** — the question is how an
+already-calibrated model degrades under distribution shift, not what
+threshold would look best on stress data; re-fitting would answer a
+different, more flattering question. The degradation is monotone and
+tightly reproducible: recall stays near-ceiling throughout (the model still
+*sees* the anomaly) while precision collapses (FPR 11%→30%→79%) and ROC-AUC
+only truly craters at HIGH (0.99→0.96→0.66) — the frozen threshold becomes
+progressively too permissive before the underlying discriminative signal
+itself gives out. This is a quantified boundary of the validated operating
+regime, not a discovered flaw: MEDIUM/HIGH were never claimed to be safe.
+
+Reproduction: `python scripts/generate_virtual_network_data.py` (LOW,
+train/validation/test) then `--preset MEDIUM`/`--preset HIGH` (test only),
+then `python scripts/benchmark_crossdevice_models.py --m9-seeds 10`. Full
+per-seed values in `results/crossdevice_benchmark/m9_seed_study.json`.
+
+### 0.13.16 The real+virtual vs. virtual-only ablation — a result that did not go the expected way
+
+The planned methodology ablation was: train the identical architecture on
+ONLY the 5 virtual columns (no real hybrid columns at all), evaluate on real
+test, and expect it to lose to §0.13.15's real+virtual hybrid — evidence that
+pooling real and virtual data earns its keep. **It did not lose.** Over the
+same 10 seeds, the virtual-only model scored **F1 = 0.977 ± 0.001** on real
+test against the hybrid's **0.967 ± 0.004** — despite training only ever at
+cardinalities {2,3,5} (its own column count) and being evaluated at n=10,
+outside its trained range, while the hybrid model was evaluated inside its
+trained range. The expected result did not survive contact with the
+measurement, and it is reported as measured rather than adjusted or dropped.
+
+**Two confounds were checked directly before accepting this, not assumed
+away** (`--m9-ablation-investigation`, same 10 seeds, both models' thresholds
+frozen at their own full-network validation fit — never re-fit per slice):
+
+| slice | hybrid F1 | ablation F1 |
+|---|---|---|
+| real physical columns only (`esp32-vib-001`, `-002`) | 0.909 ±0.004 | **0.920 ±0.002** |
+| simulated columns only (8 of 10) | 0.983 ±0.004 | **0.992 ±0.000** |
+| SCENARIO_A (isolated) | 0.956 ±0.004 | **0.963 ±0.002** |
+| SCENARIO_B (spreading) | 0.979 ±0.003 | **0.988 ±0.000** |
+| SCENARIO_C (coordinated, non-adjacent) | 0.972 ±0.005 | **0.983 ±0.001** |
+
+**H1 (provenance artifact) — rejected.** If the ablation's win were an
+artifact of the fixed network's 8-of-10 columns being `device_simulator.py`
+parametric simulation rather than real hardware, it would disappear or
+reverse on the 2 genuinely real physical columns. It does not: same
+direction, comparable margin. **H2 (easy-scenario artifact) — rejected.**
+If the win were concentrated in easy cases, it would not hold on
+SCENARIO_C — the coordinated, non-adjacent case this whole network exists to
+test. It holds there too. (`NETWORK_NORMAL` is excluded from this table: zero
+anomalous rows makes F1 undefined for both models, not a result withheld
+selectively.)
+
+**What is claimed, and what is not.** The effect is small (≈1 point of F1)
+but consistent and reproducible across every provenance and scenario slice
+checked. It is not evidence that virtual-only training is simply better: the
+virtual-only model cannot do what the hybrid model does at all — it has no
+n=15 capability and was never evaluated against LOW-virtual data at its own
+regime, both of which the hybrid model handles as shown in §0.13.15. The
+honest reading is a trade: **real+virtual training buys broad
+cardinality/regime coverage at a small, measured cost in peak accuracy on
+the original real-network task**, against a narrower model that peaks
+slightly higher strictly within its own, much smaller scope. A candidate
+mechanism (not verified further here): the LOW-heterogeneity generator's
+training data is derived from one real device's actual captured
+cross-feature and temporal structure, while 8 of the fixed hybrid network's
+10 columns come from `device_simulator.py`'s older parametric profiles — a
+plausibly less realistic signal the hybrid model still has to spend capacity
+learning from alongside everything else it is asked to generalize across.
+
+Full per-seed, per-slice values in
+`results/crossdevice_benchmark/m9_ablation_investigation.json`.
+
 ## 1. What Was Verified Live (Not Just Measured Offline)
 
 Before any of the numeric results below, these are the qualitative,

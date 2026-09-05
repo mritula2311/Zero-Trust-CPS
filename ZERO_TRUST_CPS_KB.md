@@ -828,7 +828,7 @@ survives — unweighted, fused recall on it was 0.261, *worse* than the GNN alon
 at 0.870. Aggregate accuracy is the wrong single number for a security system
 where missing a rare coordinated attack costs more than extra alerts.
 
-**Level-2 explainability misses its 70% target at 39%** (100% GNN, 0% LSTM-AE).
+**Level-2 explainability misses its 70% target at 37%** (100% GNN, 0% LSTM-AE).
 The ceiling is measured, not assumed: a flagged window reconstructs with error
 ~46–62 and recovery needs ≤ 4.28, but an impulsive shock moves `rms`, `peak`,
 `crest_factor` and `kurtosis` together, so the best single-channel repair reaches

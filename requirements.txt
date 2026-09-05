@@ -1,6 +1,8 @@
 paho-mqtt>=2.0       # Module 6, MQTT/TLS transport
 numpy>=1.24          # feature_engineering.py, gnn_scorer.py, lstm_ae_scorer.py -- direct import, not just a transitive dep
 scikit-learn>=1.3    # Phase 6a (Isolation Forest) + Phase 7 (LogisticRegression meta-learner)
+                      # pulls in scipy as its own dependency; scripts/validate_virtual_device_generator.py
+                      # imports scipy.stats.ks_2samp directly for the marginals check, not a new install
 joblib>=1.4          # saving/loading the offline-trained sklearn models (scripts/train_*.py, isolation_forest_scorer.py, fusion_engine.py)
 torch>=2.0           # Phase 6b (LSTM-Autoencoder) + Phase 6c (GNN, hand-rolled GCN, no torch-geometric needed)
                       # GPU (optional): lstm_ae_scorer.py/gnn_scorer.py auto-detect CUDA via

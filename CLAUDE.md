@@ -53,9 +53,6 @@ Figures: `generate_evaluation_graphs.py` produces 17 covering pipeline behaviour
 on synthetic data; `generate_paper_figures.py` produces the four that carry the
 claims (real hardware, two-score separation, anomaly rank, seed sensitivity).
 
-*(If `graphify-out/` exists, prefer `graphify query "<question>"` over raw
-grep for codebase questions. It does not currently exist — don't assume it.)*
-
 ---
 
 ## 3. Running it
@@ -241,7 +238,7 @@ into 5/7, and could not simply be removed afterwards.
 ## 7. Reporting standards
 
 **Report what you measured, including when it fails.** Where the system
-underperforms — Level-2 explainability at 36% against a 70% target,
+underperforms — Level-2 explainability at 37% against a 70% target,
 `stealthy_forged_values` recall — the number stays in the figures with its
 explanation. Never swap a metric for one the system happens to pass.
 
@@ -262,35 +259,47 @@ more in `SESSION_LOG.md` than silence — it stops the next reader repeating it.
 
 ## 8. Working style
 
-- State assumptions. If two readings of a request differ materially, ask.
-- Minimum code that solves the problem. No abstraction for a single use, no
-  configurability nobody asked for, no error handling for impossible states.
-- Surgical diffs. Don't improve adjacent code. Match existing style. Mention
-  dead code you notice; don't delete it.
-- Define success criteria before implementing:
-  ```
-  1. [step] → verify: [check]
-  2. [step] → verify: [check]
-  ```
-- Non-trivial logic leaves one runnable check behind — a test in
-  `tests/test_invariants.py` that fails if the logic breaks. Every test there
-  guards a property that has **already been broken once**; a test with no
-  corresponding incident is mostly maintenance cost.
+**Think before coding.** State assumptions; if two readings of a request
+differ materially, ask instead of guessing. Name what's confusing rather than
+silently picking one.
+
+**Simplicity first.** Minimum code that solves the problem — no abstraction
+for a single use, no configurability nobody asked for, no error handling for
+states that can't occur. If it could be a one-liner, make it one.
+
+**Surgical diffs.** Touch only what the request needs. Don't improve adjacent
+code, don't refactor what isn't broken, match existing style. Mention dead
+code you notice; don't delete it unless asked. Every changed line should
+trace back to the request.
+
+**Goal-driven execution.** Turn the task into a verifiable check before
+starting:
+```
+1. [step] → verify: [check]
+2. [step] → verify: [check]
+```
+Non-trivial logic leaves one runnable check behind — a test in
+`tests/test_invariants.py` that fails if the logic breaks. Every test there
+guards a property that has **already been broken once** (§4); a test with no
+corresponding incident is mostly maintenance cost.
+
+**Spend Claude Code's usage limit like it's scarce, because it is.**
+Subagent-heavy sessions and long, high-context sessions are what burn through
+the 5-hour and weekly limits fastest.
+- Default to direct `Grep`/`Glob`/`Read` for anything scoped to one or two
+  files or a single symbol. Reach for an Explore/general-purpose subagent
+  only when a search genuinely has to span many files or unknown naming
+  conventions — most questions about this repo resolve with one or two greps.
+- Don't spawn a subagent to parallelize work that isn't actually independent,
+  and don't spawn one "just in case" it finds more.
+- `/compact` when a task's context is done growing but the session continues;
+  `/clear` when switching to an unrelated task. A session sitting above
+  ~150k tokens costs more per turn even with caching.
+- This project does not use the `graphify` skill or its subagents — prefer
+  the repo map above, `docs/`, and targeted grep/read over building or
+  querying a knowledge graph.
 
 **These guidelines are working if:** diffs trace line-by-line to the request,
-fewer rewrites from overcomplication, and questions arrive before
-implementation rather than after the mistake.
-
-## graphify
-
-This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
-
-Rules:
-- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
-- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
-- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
-- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
-
----
-
-**These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+fewer rewrites from overcomplication, questions arrive before implementation
+rather than after the mistake, and sessions stay light on subagents and
+context.

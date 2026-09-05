@@ -99,12 +99,18 @@ import torch.nn as nn
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.isotonic import IsotonicRegression
 from sklearn.neural_network import MLPClassifier
-from sklearn.metrics import f1_score, roc_curve, brier_score_loss
+from sklearn.metrics import f1_score, roc_curve, brier_score_loss, roc_auc_score, average_precision_score
 
 from config import (
     NETWORK_NODES, REAL_NODES, GNN_NODE_FEATURE_DIM, GNN_EPOCHS,
     TRAINING_SEED, PROCESS_THRESHOLD, network_edges,
 )
+import feature_engineering as fe
+from trust_engine import rule_range_score
+from isolation_forest_scorer import IsolationForestScorer
+from lstm_ae_scorer import LSTMAEScorer
+import virtual_device_generator as vgen
+import generate_virtual_network_data as gvnd
 
 # Reuse, do not re-implement. Building a second copy of the snapshot builder is
 # exactly how two "identical" comparisons quietly stop being identical.
@@ -378,6 +384,260 @@ def train_mixed_cardinality(X, y, meta, factory=SetTransformer,
     return model, elapsed_ms, DEEPSETS_EPOCHS
 
 
+
+# ---------------------------------------------------------------------------
+# M9 -- validated LOW-heterogeneity virtual nodes mixed in at every cardinality
+# ---------------------------------------------------------------------------
+
+VIRTUAL_NETWORK_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "collected", "virtual_network")
+N_VIRTUAL_NODES = 5
+_VIRTUAL_NODE_INDEX = {vid: i for i, vid in enumerate(vgen.node_ids(N_VIRTUAL_NODES))}
+
+
+_VIRTUAL_SCENARIO_NAMES = sorted(gvnd.VIRTUAL_SCENARIOS)
+
+
+def build_virtual_snapshots(split: str, preset_name: str = "LOW"):
+    """(X, y, meta) for the 5-node virtual network
+    (scripts/generate_virtual_network_data.py), in EXACTLY build_snapshots()'s
+    shape and per-tick scoring convention, so its columns can be pooled with
+    the real network's without any special-casing downstream.
+
+    `preset_name`: "LOW" (the only validated, trainable regime) reads the
+    unsuffixed files build_virtual_snapshots always has; "MEDIUM"/"HIGH" read
+    the OOD-stress-test-only files (test split only -- see
+    generate_virtual_network_data.output_path()).
+
+    Virtual nodes are esp32-vib-001-DERIVED telemetry (virtual_device_generator.py's
+    own design), so they are scored through esp32-vib-001's trained rule/IF/
+    LSTM-AE models -- but each virtual node needs its OWN rolling LSTM-AE
+    window. Done by aliasing each virtual node id onto the SAME model/stats
+    objects after construction, so LSTMAEScorer's per-device-id `_history`
+    dict still gives each one an independent window without any change to
+    lstm_ae_scorer.py itself."""
+    BASE = vgen.BASE_REAL_NODE
+    X, y, meta = [], [], []
+    for scenario in _VIRTUAL_SCENARIO_NAMES:
+        path = gvnd.output_path(scenario, split, preset_name)
+        with open(path) as f:
+            rows = json.load(f)
+        by_tick = collections.defaultdict(dict)
+        for r in rows:
+            by_tick[r["tick"]][r["device_id"]] = r
+
+        if_s, lstm_s = IsolationForestScorer(), LSTMAEScorer()   # fresh state per scenario
+        for vid in _VIRTUAL_NODE_INDEX:
+            lstm_s.models[vid] = lstm_s.models[BASE]
+            lstm_s.stats[vid] = lstm_s.stats[BASE]
+
+        for tick in sorted(by_tick):
+            node_rows = by_tick[tick]
+            feats = np.zeros((N_VIRTUAL_NODES, GNN_NODE_FEATURE_DIM), dtype=np.float32)
+            labels = np.ones(N_VIRTUAL_NODES, dtype=np.int64)
+            valid = np.ones(N_VIRTUAL_NODES, dtype=bool)
+            for device_id, r in node_rows.items():
+                i = _VIRTUAL_NODE_INDEX[device_id]
+                labels[i] = r["label"]
+                fv = fe.feature_vector(r["reading"])
+                rule, _ = rule_range_score(BASE, r["reading"])
+                iso = if_s.score(BASE, fv)
+                lstm = lstm_s.score(device_id, fv)
+                feats[i] = [rule, iso, lstm]
+            X.append(feats)
+            y.append(labels)
+            meta.append({"scenario": scenario, "tick": tick, "valid": valid,
+                         "event_id": next((r.get("event_id") for r in node_rows.values()), None)})
+    return np.array(X), np.array(y), meta
+
+
+def _train_pooled_sets(sources, sizes, factory=SetTransformer, seed=None):
+    """Shared core: pool N (X, y, meta) column-sources along the node axis and
+    train one Set Transformer with per-epoch cardinality cycling across
+    `sizes`, drawing columns uniformly from the FULL pool at every size (not
+    only at the largest) -- see train_mixed_provenance's own docstring for why
+    that matters. All sources must have matching row counts."""
+    Xs, ys, valids = [], [], []
+    n0 = len(sources[0][0])
+    for X, y, meta in sources:
+        assert len(X) == n0, (
+            f"column-pooling requires matching row counts, got {[len(s[0]) for s in sources]}")
+        Xs.append(X)
+        ys.append(y)
+        valids.append(np.array([m["valid"] for m in meta]))
+
+    X_all = np.concatenate(Xs, axis=1)
+    y_all = np.concatenate(ys, axis=1)
+    valid_all = np.concatenate(valids, axis=1)
+    n_cols = X_all.shape[1]
+
+    torch.manual_seed(TRAINING_SEED if seed is None else seed)
+    rng = np.random.default_rng(TRAINING_SEED if seed is None else seed)
+    model = factory().to(_TORCH_DEVICE)
+    x_all_t = torch.tensor(X_all, dtype=torch.float32, device=_TORCH_DEVICE)
+    t_all_t = torch.tensor(y_all, dtype=torch.float32, device=_TORCH_DEVICE)
+    m_all_t = torch.tensor(valid_all, dtype=torch.bool, device=_TORCH_DEVICE)
+
+    n_pos = float(t_all_t[m_all_t].sum().item())
+    n_neg = float(m_all_t.sum().item() - n_pos)
+    w_pos = (n_pos + n_neg) / (2 * max(n_pos, 1.0))
+    w_neg = (n_pos + n_neg) / (2 * max(n_neg, 1.0))
+
+    opt = torch.optim.Adam(model.parameters(), lr=DEEPSETS_LR)
+    model.train()
+    t0 = time.perf_counter_ns()
+    for ep in range(DEEPSETS_EPOCHS):
+        k = sizes[ep % len(sizes)]
+        cols = torch.tensor(np.sort(rng.choice(n_cols, size=k, replace=False)),
+                            device=_TORCH_DEVICE)
+        x, t, mask = x_all_t[:, cols], t_all_t[:, cols], m_all_t[:, cols]
+        opt.zero_grad()
+        out = model(x)
+        w = torch.where(t > 0.5, w_pos, w_neg)
+        loss = (nn.functional.binary_cross_entropy(out, t, reduction="none") * w)[mask].mean()
+        loss.backward()
+        opt.step()
+    elapsed_ms = (time.perf_counter_ns() - t0) / 1e6
+    model.eval()
+    return model, elapsed_ms, DEEPSETS_EPOCHS
+
+
+def train_mixed_provenance(real, virtual, factory=SetTransformer,
+                           sizes=(2, 3, 5, 10, 15), seed=None):
+    """M9: same architecture/optimiser/lr/epochs/class-weighting as M8's
+    train_mixed_cardinality, but the per-epoch column pool is the FULL 15
+    columns (10 existing hybrid + 5 LOW-heterogeneity virtual), not just the
+    10 real ones -- every cardinality, not only n=15, can draw a virtual
+    column. Confounding "virtual provenance" with "large n" would let the
+    model shortcut on which population a column came from instead of learning
+    genuine cardinality robustness; sampling uniformly across the full pool at
+    every size is what avoids that.
+
+    `real` and `virtual` are (X, y, meta) triples from build_snapshots("train")
+    and build_virtual_snapshots("train") respectively. Their row counts must
+    match (both are scenario-count x ticks-per-split, deliberately mirrored --
+    see generate_virtual_network_data.py's docstring)."""
+    return _train_pooled_sets([real, virtual], sizes, factory, seed)
+
+
+def train_virtual_only(virtual, factory=SetTransformer, sizes=(2, 3, 5), seed=None):
+    """Methodology ablation, not a training-regime candidate: the SAME
+    architecture trained on ONLY the 5 virtual columns (no real hybrid
+    columns at all), to measure whether the real+virtual pooling in
+    train_mixed_provenance is earning its keep -- if real+virtual beats
+    virtual-only on the REAL test set, that is direct evidence real telemetry
+    still matters even after adding virtual scale, not an assumption."""
+    return _train_pooled_sets([virtual], sizes, factory, seed)
+
+
+_VIRTUAL_SCENARIO_KIND = {   # diagnostic labelling only, not stored in the data
+    "V_NETWORK_NORMAL": "normal",
+    "V_SCENARIO_A": "isolated",
+    "V_SCENARIO_B": "coordinated",
+    "V_SCENARIO_C": "coordinated",
+}
+
+
+def m9_sanity_check():
+    """One-seed sanity check: does the M9 pipeline produce plausible,
+    NON-LEAKED scores/labels before committing to the full 10-seed run?
+
+    Same score function (deep_sets_scores) and the same probability-of-NORMAL
+    convention feed both regimes below -- there is only one model and one
+    scoring path, so Test A/B cannot differ in semantics by construction.
+    What CAN differ, and is checked explicitly:
+      - threshold is fit on VALIDATION only and frozen before TEST is touched
+      - class balance per regime/split
+      - threshold-free ROC-AUC / PR-AUC on TEST (calibration-insensitive)
+      - per-scenario anomalous-score spread on VALIDATION, to catch a
+        memorised/too-clean synthetic anomaly template rather than infer one
+    """
+    print("Building real snapshots (train/validation/test)...")
+    real_tr = build_snapshots("train")[:3]
+    real_va = build_snapshots("validation")[:3]
+    real_te = build_snapshots("test")[:3]
+    print(f"  train={len(real_tr[0])} validation={len(real_va[0])} test={len(real_te[0])} rows")
+
+    print("Building virtual snapshots (train/validation/test)...")
+    virt_tr = build_virtual_snapshots("train")
+    virt_va = build_virtual_snapshots("validation")
+    virt_te = build_virtual_snapshots("test")
+    print(f"  train={len(virt_tr[0])} validation={len(virt_va[0])} test={len(virt_te[0])} rows")
+
+    print("Training M9 (1 seed)...")
+    model, elapsed_ms, epochs = train_mixed_provenance(real_tr, virt_tr, seed=TRAINING_SEED)
+    print(f"  trained in {elapsed_ms:.0f} ms ({epochs} epochs)")
+
+    def _scores_labels(X, y, meta, k):
+        cols = np.arange(k)
+        scores = deep_sets_scores(model, X[:, cols])
+        valid = np.array([m["valid"][:k] for m in meta])
+        return scores, y[:, cols], valid, scores[valid], y[:, cols][valid]
+
+    def _regime(name, va, te, k):
+        print(f"\n=== {name} (n={k}) ===")
+        _, _, _, s_va, lab_va = _scores_labels(*va, k)
+        scores_te, y_te_cols, valid_te, s_te, lab_te = _scores_labels(*te, k)
+
+        n_pos_va, n_neg_va = int((lab_va == 0).sum()), int((lab_va == 1).sum())
+        n_pos_te, n_neg_te = int((lab_te == 0).sum()), int((lab_te == 1).sum())
+        print(f"  class balance  validation: anomalous={n_pos_va:5d} normal={n_neg_va:5d} "
+              f"({n_pos_va / (n_pos_va + n_neg_va):.1%} anomalous)")
+        print(f"  class balance  test:       anomalous={n_pos_te:5d} normal={n_neg_te:5d} "
+              f"({n_pos_te / (n_pos_te + n_neg_te):.1%} anomalous)")
+
+        # Threshold fit on VALIDATION ONLY, then frozen -- TEST labels never
+        # participate in choosing it.
+        thr = choose_threshold(s_va, lab_va)
+        m = metrics(s_te, lab_te, thr)
+        true_anom_te = (lab_te == 0).astype(int)
+        if len(set(true_anom_te)) > 1:
+            roc = roc_auc_score(true_anom_te, -s_te)
+            pr = average_precision_score(true_anom_te, -s_te)
+        else:
+            roc = pr = float("nan")
+        print(f"  threshold (fit on VALIDATION only) = {thr:.3f}")
+        print(f"  TEST at that threshold: f1={m['f1']:.3f} precision={m['precision']:.3f} "
+              f"recall={m['recall']:.3f} fpr={m['false_positive_rate']:.3f} "
+              f"detection={m['detection_rate']:.3f}")
+        print(f"  TEST threshold-free: ROC-AUC={roc:.4f}  PR-AUC={pr:.4f}")
+
+        for lbl, lname in ((0, "anomalous"), (1, "normal")):
+            sub = s_va[lab_va == lbl]
+            if len(sub):
+                pct = np.percentile(sub, [0, 10, 25, 50, 75, 90, 100])
+                print(f"  VALIDATION {lname:10s} n={len(sub):5d}  "
+                      f"p0/10/25/50/75/90/100 = " + " ".join(f"{v:.3f}" for v in pct))
+
+        return scores_te, y_te_cols, valid_te
+
+    _regime("Test A -- real-only regression check (same protocol as M8's own test)",
+            real_va, real_te, k=N_NODES)
+
+    v_scores_te, v_y_te_cols, v_valid_te = _regime(
+        "Test B -- LOW virtual cardinality check", virt_va, virt_te, k=N_VIRTUAL_NODES)
+
+    # Per-scenario anomalous-score spread: the fixed-fault-displacement-per-split
+    # simplification (generate_virtual_network_data.py's own docstring) predicts
+    # a specific, checkable symptom -- near-zero variance among a scenario's
+    # anomalous scores, i.e. the model separating on a repeated template rather
+    # than the real CPS problem. Demonstrated here, not inferred.
+    print("\n=== per-scenario anomalous-score spread on virtual TEST (template check) ===")
+    for sc in sorted(_VIRTUAL_SCENARIO_KIND):
+        idx = [i for i, m in enumerate(virt_te[2]) if m["scenario"] == sc]
+        if not idx:
+            continue
+        s_sc, lab_sc, val_sc = v_scores_te[idx], v_y_te_cols[idx], v_valid_te[idx]
+        anom = s_sc[val_sc & (lab_sc == 0)]
+        norm = s_sc[val_sc & (lab_sc == 1)]
+        kind = _VIRTUAL_SCENARIO_KIND[sc]
+        if len(anom):
+            print(f"  {sc:18s} {kind:11s} anomalous: n={len(anom):5d} mean={anom.mean():.4f} "
+                  f"std={anom.std():.4f} min={anom.min():.4f} max={anom.max():.4f}")
+        if len(norm):
+            print(f"  {'':18s} {'':11s} normal:    n={len(norm):5d} mean={norm.mean():.4f} "
+                  f"std={norm.std():.4f}")
+
+
 def deep_sets_scores(model, X, adjacency=None):
     x = torch.tensor(X, dtype=torch.float32, device=_TORCH_DEVICE)
     with torch.no_grad():
@@ -386,6 +646,211 @@ def deep_sets_scores(model, X, adjacency=None):
 
 def n_params(model):
     return int(sum(p.numel() for p in model.parameters()))
+
+
+def _eval_at_threshold(model, X, y, meta, k, thr):
+    cols = np.arange(k)
+    scores = deep_sets_scores(model, X[:, cols])
+    valid = np.array([m["valid"][:k] for m in meta])
+    s, lab = scores[valid], y[:, cols][valid]
+    m = metrics(s, lab, thr)
+    true_anom = (lab == 0).astype(int)
+    if len(set(true_anom)) > 1:
+        roc = roc_auc_score(true_anom, -s)
+        pr = average_precision_score(true_anom, -s)
+    else:
+        roc = pr = float("nan")
+    return {**m, "roc_auc": roc, "pr_auc": pr}
+
+
+def _fit_and_eval(model, va, te, k):
+    """Threshold fit on VALIDATION only (choose_threshold), frozen before
+    scoring TEST -- returns (threshold, test metrics dict)."""
+    X_va, y_va, meta_va = va
+    cols = np.arange(k)
+    s_va = deep_sets_scores(model, X_va[:, cols])
+    valid_va = np.array([m["valid"][:k] for m in meta_va])
+    thr = choose_threshold(s_va[valid_va], y_va[:, cols][valid_va])
+    return thr, _eval_at_threshold(model, *te, k, thr)
+
+
+def m9_seed_study(n_seeds=10):
+    """The full M9 study: 10-seed training with per-seed threshold reporting
+    across four regimes, plus a real+virtual vs. virtual-only ablation.
+
+    - Real Test A / LOW virtual: threshold fit fresh each seed on that
+      regime's OWN validation split (choose_threshold), then frozen for test
+      -- the same protocol evaluate_gnn_baselines.py's docstring locks in.
+    - MEDIUM/HIGH stress: NOT re-fit. These have no validation split by
+      design (generate_virtual_network_data.py only builds their TEST split)
+      -- they reuse the SAME seed's LOW-fitted threshold, frozen, because the
+      question is "how does the already-calibrated model degrade under
+      distribution shift", not "what threshold would look best here". Fitting
+      a threshold on stress-test data would answer a different, less useful
+      question and make MEDIUM/HIGH look better than they should.
+    - Ablation: the SAME per-seed architecture trained on virtual columns
+      ONLY (no real hybrid columns), evaluated on REAL test with its own
+      real-validation-fit threshold -- tests whether real+virtual pooling
+      (train_mixed_provenance) is actually earning its keep over virtual data
+      alone.
+
+    Snapshots don't depend on the training seed and are built ONCE.
+    """
+    print("Building snapshots (once; reused across all seeds)...")
+    real_tr, real_va, real_te = build_snapshots("train")[:3], build_snapshots("validation")[:3], build_snapshots("test")[:3]
+    virt_tr = build_virtual_snapshots("train", "LOW")
+    virt_va = build_virtual_snapshots("validation", "LOW")
+    virt_te = build_virtual_snapshots("test", "LOW")
+    medium_te = build_virtual_snapshots("test", "MEDIUM")
+    high_te = build_virtual_snapshots("test", "HIGH")
+    print(f"  real train={len(real_tr[0])} virtual train={len(virt_tr[0])}")
+
+    rows = {k: [] for k in ("real", "low", "medium", "high", "ablation_real")}
+
+    for seed in range(n_seeds):
+        t0 = time.perf_counter_ns()
+        model, _elapsed_ms, _epochs = train_mixed_provenance(real_tr, virt_tr, seed=seed)
+        abl_model, _, _ = train_virtual_only(virt_tr, seed=seed)
+
+        thr_real, m_real = _fit_and_eval(model, real_va, real_te, N_NODES)
+        thr_low, m_low = _fit_and_eval(model, virt_va, virt_te, N_VIRTUAL_NODES)
+        m_medium = _eval_at_threshold(model, *medium_te, N_VIRTUAL_NODES, thr_low)
+        m_high = _eval_at_threshold(model, *high_te, N_VIRTUAL_NODES, thr_low)
+        thr_abl, m_abl = _fit_and_eval(abl_model, real_va, real_te, N_NODES)
+
+        rows["real"].append({"threshold": thr_real, **m_real})
+        rows["low"].append({"threshold": thr_low, **m_low})
+        rows["medium"].append({"threshold": thr_low, **m_medium})   # frozen, not re-fit
+        rows["high"].append({"threshold": thr_low, **m_high})       # frozen, not re-fit
+        rows["ablation_real"].append({"threshold": thr_abl, **m_abl})
+
+        dt_s = (time.perf_counter_ns() - t0) / 1e9
+        print(f"  seed {seed}: real f1={m_real['f1']:.3f}  low f1={m_low['f1']:.3f}  "
+              f"medium f1={m_medium['f1']:.3f}  high f1={m_high['f1']:.3f}  "
+              f"ablation(virtual-only on real) f1={m_abl['f1']:.3f}  ({dt_s:.1f}s)")
+
+    metric_keys = ["threshold", "f1", "precision", "recall",
+                   "false_positive_rate", "detection_rate", "roc_auc", "pr_auc"]
+    summary = {}
+    for regime, recs in rows.items():
+        summary[regime] = {mk: mean_ci([r[mk] for r in recs]) for mk in metric_keys}
+
+    print(f"\n{'=' * 100}")
+    print(f"M9 -- {n_seeds}-SEED STUDY SUMMARY (mean +/- 95% CI over training seeds)")
+    print(f"{'=' * 100}")
+    labels = {"real": "Real Test A (n=10)", "low": "LOW virtual (n=5)",
+              "medium": "MEDIUM stress (frozen thr)", "high": "HIGH stress (frozen thr)",
+              "ablation_real": "Ablation: virtual-only-trained, on real test"}
+    for regime, label in labels.items():
+        print(f"\n{label}:")
+        for mk in metric_keys:
+            s = summary[regime][mk]
+            ci = f"+/-{s['ci95']:.4f}" if s.get("ci95") is not None else "(n<2)"
+            print(f"    {mk:22s} {s['mean']:.4f} {ci}")
+
+    path = os.path.join(RESULTS_DIR, "m9_seed_study.json")
+    os.makedirs(RESULTS_DIR, exist_ok=True)
+    with open(path, "w") as f:
+        json.dump({"n_seeds": n_seeds, "summary": summary, "per_seed": rows}, f, indent=2, default=float)
+    print(f"\nwritten to {path}")
+    return summary
+
+
+_REAL_COL_IDX = np.array([_NODE_INDEX[d] for d in REAL_NODES])          # esp32-vib-001, -002
+_SIM_COL_IDX = np.array([i for i in range(N_NODES) if i not in _REAL_COL_IDX])
+
+
+def _eval_slice(model, X, y, meta, thr, col_idx=None, scenario=None):
+    """Metrics at a FROZEN threshold (the model's own full-network,
+    validation-fit threshold -- never re-fit per slice, since the question is
+    'how does the already-deployed decision behave on this slice', not 'what
+    threshold would look best here'), restricted to a column subset and/or a
+    single scenario."""
+    k = X.shape[1]
+    scores = deep_sets_scores(model, X[:, np.arange(k)])
+    valid = np.array([m["valid"] for m in meta])
+    if scenario is not None:
+        row_idx = np.array([i for i, m in enumerate(meta) if m["scenario"] == scenario])
+        if len(row_idx) == 0:
+            return None
+        scores, y, valid = scores[row_idx], y[row_idx], valid[row_idx]
+    if col_idx is not None:
+        scores, y, valid = scores[:, col_idx], y[:, col_idx], valid[:, col_idx]
+    s, lab = scores[valid], y[valid]
+    if len(set((lab == 0).astype(int))) < 2:
+        return {"n": int(len(lab)), "f1": float("nan"), "recall": float("nan"),
+                "false_positive_rate": float("nan")}
+    return {"n": int(len(lab)), **metrics(s, lab, thr)}
+
+
+def m9_ablation_investigation(n_seeds=10):
+    """Why did the virtual-only ablation (F1=0.977) beat M9's real+virtual
+    hybrid (F1=0.967) on REAL test, the opposite of the expected direction?
+    Two concrete hypotheses, checked directly rather than assumed:
+
+    H1 -- provenance artifact: the real test network's 10 columns are 8
+    parametrically-simulated (device_simulator.py, not real-derived) + 2
+    genuinely real physical devices (config.REAL_NODES). If the ablation's
+    apparent win is confined to the 8 simulated columns and reverses (or
+    disappears) on the 2 real physical columns, its "wins on real data" claim
+    does not actually hold on real HARDWARE, only on this project's older
+    parametric simulator.
+    H2 -- easy-scenario artifact: if the win is concentrated in
+    NETWORK_NORMAL / easy scenarios rather than holding on SCENARIO_C
+    (coordinated, the hard case this whole network exists to test), the
+    aggregate F1 difference is not evidence of a genuinely better detector.
+
+    Both models' thresholds are fit ONCE on the full 10-node validation split
+    (matching m9_seed_study exactly) and then frozen across every slice below
+    -- slicing must not re-fit, or it answers a different question."""
+    print("Building snapshots (once; reused across all seeds)...")
+    real_tr, real_va, real_te = build_snapshots("train")[:3], build_snapshots("validation")[:3], build_snapshots("test")[:3]
+    virt_tr = build_virtual_snapshots("train", "LOW")
+
+    slices = {"real_physical_cols": _REAL_COL_IDX, "simulated_cols": _SIM_COL_IDX}
+    scenarios = sorted(set(m["scenario"] for m in real_te[2]))
+
+    per_seed = {"hybrid": collections.defaultdict(list), "ablation": collections.defaultdict(list)}
+    for seed in range(n_seeds):
+        hybrid, _, _ = train_mixed_provenance(real_tr, virt_tr, seed=seed)
+        ablation, _, _ = train_virtual_only(virt_tr, seed=seed)
+        thr_hybrid, _ = _fit_and_eval(hybrid, real_va, real_te, N_NODES)
+        thr_ablation, _ = _fit_and_eval(ablation, real_va, real_te, N_NODES)
+
+        for name, model, thr in (("hybrid", hybrid, thr_hybrid), ("ablation", ablation, thr_ablation)):
+            for slice_name, col_idx in slices.items():
+                r = _eval_slice(model, *real_te, thr, col_idx=col_idx)
+                per_seed[name][f"col:{slice_name}"].append(r["f1"])
+            for sc in scenarios:
+                r = _eval_slice(model, *real_te, thr, scenario=sc)
+                if r is not None:
+                    per_seed[name][f"scenario:{sc}"].append(r["f1"])
+        print(f"  seed {seed} done")
+
+    print(f"\n{'=' * 90}")
+    print("M9 ABLATION INVESTIGATION -- per-slice F1, mean +/- 95% CI over seeds")
+    print(f"{'=' * 90}")
+    all_keys = sorted(per_seed["hybrid"])
+    print(f"{'slice':28s} {'hybrid (real+virtual)':26s} {'ablation (virtual-only)':26s}")
+    summary = {"hybrid": {}, "ablation": {}}
+    for key in all_keys:
+        row = {}
+        for name in ("hybrid", "ablation"):
+            vals = [v for v in per_seed[name][key] if not np.isnan(v)]
+            row[name] = mean_ci(vals) if vals else {"mean": float("nan"), "ci95": None}
+            summary[name][key] = row[name]
+        h, a = row["hybrid"], row["ablation"]
+        h_str = f"{h['mean']:.4f} +/-{h['ci95']:.4f}" if h.get("ci95") is not None else f"{h['mean']:.4f}"
+        a_str = f"{a['mean']:.4f} +/-{a['ci95']:.4f}" if a.get("ci95") is not None else f"{a['mean']:.4f}"
+        print(f"{key:28s} {h_str:26s} {a_str:26s}")
+
+    path = os.path.join(RESULTS_DIR, "m9_ablation_investigation.json")
+    os.makedirs(RESULTS_DIR, exist_ok=True)
+    with open(path, "w") as f:
+        json.dump({"n_seeds": n_seeds, "summary": summary,
+                   "per_seed": {k: dict(v) for k, v in per_seed.items()}}, f, indent=2, default=float)
+    print(f"\nwritten to {path}")
+    return summary
 
 
 # --------------------------------------------------------------------------
@@ -1490,5 +1955,11 @@ if __name__ == "__main__":
         _selfcheck()
     elif "--seeds" in sys.argv:
         seeds_main(int(sys.argv[sys.argv.index("--seeds") + 1]))
+    elif "--m9-sanity" in sys.argv:
+        m9_sanity_check()
+    elif "--m9-seeds" in sys.argv:
+        m9_seed_study(int(sys.argv[sys.argv.index("--m9-seeds") + 1]))
+    elif "--m9-ablation-investigation" in sys.argv:
+        m9_ablation_investigation()
     else:
         main()

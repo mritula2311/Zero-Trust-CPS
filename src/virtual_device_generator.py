@@ -358,8 +358,7 @@ def generate_series(node_id: str, n_ticks: int, pool: dict, stats: dict,
             a0, a1 = min(t0 + lag, n_ticks), min(t1 + lag, n_ticks)
             if a0 >= a1:
                 continue
-            x[a0:a1] += alpha * delta[a0 - t0 - lag + (t0 + lag - a0):a1 - a0 + (a0 - t0 - lag)] \
-                if False else alpha * delta[(a0 - lag - t0):(a1 - lag - t0)]
+            x[a0:a1] += alpha * delta[(a0 - lag - t0):(a1 - lag - t0)]
             anom_mask[a0:a1] = True
 
     prov = {

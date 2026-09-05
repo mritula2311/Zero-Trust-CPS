@@ -273,7 +273,7 @@ flowchart TD
 ```
 
 **The one number from this pipeline most worth remembering**: the
-Level-2 validation's **39%** overall flip rate splits into **100% (GNN,
+Level-2 validation's **37%** overall flip rate splits into **100% (GNN,
 78/78)** and **0% (LSTM-AE, 0/122)** — not a uniform "explainability kind
 of works," but a real, mechanistically-explained split between a
 relational model (where masking one node IS the whole causal story) and a

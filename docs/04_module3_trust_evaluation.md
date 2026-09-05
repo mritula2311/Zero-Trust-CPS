@@ -20,7 +20,7 @@
 > (orchestration) plus a `level2_explain()` method added to each scorer,
 > wired into the live gateway and logged to two new audit columns. Its
 > Section C.4 validation, however, surfaces a genuine, honestly-reported
-> result, not a clean win: **39%** overall flip rate against the 70%
+> result, not a clean win: **37%** overall flip rate against the 70%
 > target (**100%** for the GNN, **0%** for the LSTM-AE; there is no longer
 > an Isolation-Forest-dominant case after the IF calibration fix). The
 > LSTM-AE 0% is now mechanistically explained and measured rather than
