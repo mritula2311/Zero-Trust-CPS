@@ -112,6 +112,8 @@ OUTPUT_PATH = os.path.join(DATA_COLLECTED_DIR, "training_session.json")
 
 def generate(ticks: int = TICKS, seed: int = 42) -> list[dict]:
     random.seed(seed)
+    ds._rest_dc = ds.REST_DC_CENTRE
+    ds._rest_drift_hz = ds.REST_DRIFT_HZ_CENTRE
     records = []
     base_ts = 60_000  # start at 60s of simulated uptime, matches the "past the reboot grace window" realistic case
     for tick in range(ticks):
@@ -119,7 +121,8 @@ def generate(ticks: int = TICKS, seed: int = 42) -> list[dict]:
         high_rate_tick = tick % 18 == 11    # attack-matrix row 5: abnormal rate from an AUTHENTICATED device
         stealthy_tick = tick % 30 == 22     # attack-matrix row 11, see module docstring
 
-        for device_id, info in DEVICE_REGISTRY.items():
+        for device_id in ds.LEGACY_DEVICE_IDS:
+            info = DEVICE_REGISTRY[device_id]
             anomalous = device_id == "esp32-vib-001" and tick % 12 == 7
             stealthy = device_id == "esp32-vib-001" and stealthy_tick and not anomalous
             coordinated = coordinated_tick and not anomalous and not stealthy

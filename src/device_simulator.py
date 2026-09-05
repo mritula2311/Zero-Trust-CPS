@@ -68,6 +68,10 @@ from config import (
 )
 import feature_engineering as fe
 
+# The original runtime demo/training task. Network research profiles are built
+# separately by generate_network_data.py, with sensor-specific generators.
+LEGACY_DEVICE_IDS = ("esp32-vib-001", "sensor-002", "actuator-001")
+
 
 def sign(secret: str, payload: dict) -> str:
     canonical = json.dumps(payload, sort_keys=True).encode()
@@ -307,7 +311,8 @@ def run():
     # on boot_id/seq (trust_engine.check_boot_replay() can only track one
     # session per device_id) and produce spurious replay rejections on
     # whichever publisher's messages arrive second.
-    SIMULATED_DEVICES = {d: info for d, info in DEVICE_REGISTRY.items() if d not in REAL_HARDWARE_DEVICE_IDS}
+    SIMULATED_DEVICES = {d: DEVICE_REGISTRY[d] for d in LEGACY_DEVICE_IDS
+                         if d not in REAL_HARDWARE_DEVICE_IDS}
     if REAL_HARDWARE_DEVICE_IDS:
         print(f"[simulator] {sorted(REAL_HARDWARE_DEVICE_IDS)} excluded -- real hardware handles them")
 
