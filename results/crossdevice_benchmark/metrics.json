@@ -766,6 +766,7 @@
         "detection_rate": 1.0
       },
       "test_macro_f1": 0.9443,
+      "test_roc_auc": 0.9998,
       "test_event": {
         "total_events": 15,
         "detected_events": 15,
@@ -775,13 +776,13 @@
       },
       "recall_isolated_anomaly": 1.0,
       "recall_coordinated_anomaly": 1.0,
-      "train_time_ms_total": 11151.37,
+      "train_time_ms_total": 7207.2,
       "train_epochs": 42,
-      "train_ms_per_epoch": 265.509,
+      "train_ms_per_epoch": 171.6,
       "inference_latency": {
-        "mean_ms": 0.0578,
-        "p50_ms": 0.0567,
-        "p95_ms": 0.066,
+        "mean_ms": 0.0654,
+        "p50_ms": 0.0565,
+        "p95_ms": 0.0684,
         "n": 200
       },
       "parameters": 3777
@@ -876,6 +877,7 @@
         "detection_rate": 0.9667
       },
       "test_macro_f1": 0.9513,
+      "test_roc_auc": 0.9969,
       "test_event": {
         "total_events": 15,
         "detected_events": 15,
@@ -885,13 +887,13 @@
       },
       "recall_isolated_anomaly": 0.98,
       "recall_coordinated_anomaly": 0.9652,
-      "train_time_ms_total": 7342.52,
+      "train_time_ms_total": 6633.23,
       "train_epochs": 200,
-      "train_ms_per_epoch": 36.713,
+      "train_ms_per_epoch": 33.166,
       "inference_latency": {
-        "mean_ms": 3.919,
-        "p50_ms": 3.871,
-        "p95_ms": 4.6067,
+        "mean_ms": 3.91,
+        "p50_ms": 3.8399,
+        "p95_ms": 4.7013,
         "n": 200
       },
       "parameters": null
@@ -986,6 +988,7 @@
         "detection_rate": 0.998
       },
       "test_macro_f1": 0.9837,
+      "test_roc_auc": 0.9998,
       "test_event": {
         "total_events": 15,
         "detected_events": 15,
@@ -995,13 +998,13 @@
       },
       "recall_isolated_anomaly": 0.98,
       "recall_coordinated_anomaly": 1.0,
-      "train_time_ms_total": 1410.82,
+      "train_time_ms_total": 1453.49,
       "train_epochs": 300,
-      "train_ms_per_epoch": 4.703,
+      "train_ms_per_epoch": 4.845,
       "inference_latency": {
-        "mean_ms": 0.7482,
-        "p50_ms": 0.6204,
-        "p95_ms": 1.3295,
+        "mean_ms": 0.7883,
+        "p50_ms": 0.6347,
+        "p95_ms": 1.3012,
         "n": 200
       },
       "parameters": 2121
@@ -1096,6 +1099,7 @@
         "detection_rate": 0.706
       },
       "test_macro_f1": 0.7755,
+      "test_roc_auc": 0.9458,
       "test_event": {
         "total_events": 15,
         "detected_events": 10,
@@ -1105,13 +1109,13 @@
       },
       "recall_isolated_anomaly": 0.0,
       "recall_coordinated_anomaly": 0.7844,
-      "train_time_ms_total": 333.12,
+      "train_time_ms_total": 384.95,
       "train_epochs": 150,
-      "train_ms_per_epoch": 2.221,
+      "train_ms_per_epoch": 2.566,
       "inference_latency": {
-        "mean_ms": 0.5859,
-        "p50_ms": 0.5588,
-        "p95_ms": 0.783,
+        "mean_ms": 0.556,
+        "p50_ms": 0.5367,
+        "p95_ms": 0.7449,
         "n": 200
       },
       "parameters": 1217
@@ -1206,6 +1210,7 @@
         "detection_rate": 0.994
       },
       "test_macro_f1": 0.9857,
+      "test_roc_auc": 0.9995,
       "test_event": {
         "total_events": 15,
         "detected_events": 15,
@@ -1215,13 +1220,13 @@
       },
       "recall_isolated_anomaly": 0.9733,
       "recall_coordinated_anomaly": 0.9963,
-      "train_time_ms_total": 11050.38,
+      "train_time_ms_total": 10725.18,
       "train_epochs": 300,
-      "train_ms_per_epoch": 36.835,
+      "train_ms_per_epoch": 35.751,
       "inference_latency": {
-        "mean_ms": 1.7241,
-        "p50_ms": 1.7569,
-        "p95_ms": 2.8308,
+        "mean_ms": 1.3507,
+        "p50_ms": 1.0562,
+        "p95_ms": 2.3297,
         "n": 200
       },
       "parameters": 945
@@ -1316,6 +1321,7 @@
         "detection_rate": 0.9973
       },
       "test_macro_f1": 0.9898,
+      "test_roc_auc": 0.9999,
       "test_event": {
         "total_events": 15,
         "detected_events": 15,
@@ -1325,13 +1331,13 @@
       },
       "recall_isolated_anomaly": 0.98,
       "recall_coordinated_anomaly": 0.9993,
-      "train_time_ms_total": 4932.45,
+      "train_time_ms_total": 4692.17,
       "train_epochs": 300,
-      "train_ms_per_epoch": 16.441,
+      "train_ms_per_epoch": 15.641,
       "inference_latency": {
-        "mean_ms": 1.7892,
-        "p50_ms": 1.8224,
-        "p95_ms": 3.0004,
+        "mean_ms": 1.3448,
+        "p50_ms": 1.0697,
+        "p95_ms": 2.4967,
         "n": 200
       },
       "parameters": 2609
@@ -1426,6 +1432,7 @@
         "detection_rate": 0.998
       },
       "test_macro_f1": 0.985,
+      "test_roc_auc": 0.9997,
       "test_event": {
         "total_events": 15,
         "detected_events": 15,
@@ -1435,13 +1442,13 @@
       },
       "recall_isolated_anomaly": 0.98,
       "recall_coordinated_anomaly": 1.0,
-      "train_time_ms_total": 5239.82,
+      "train_time_ms_total": 4987.84,
       "train_epochs": 300,
-      "train_ms_per_epoch": 17.466,
+      "train_ms_per_epoch": 16.626,
       "inference_latency": {
-        "mean_ms": 2.0112,
-        "p50_ms": 1.8055,
-        "p95_ms": 3.9583,
+        "mean_ms": 1.6596,
+        "p50_ms": 1.368,
+        "p95_ms": 3.0439,
         "n": 200
       },
       "parameters": 3778
@@ -1536,6 +1543,7 @@
         "detection_rate": 1.0
       },
       "test_macro_f1": 0.9713,
+      "test_roc_auc": 0.9997,
       "test_event": {
         "total_events": 15,
         "detected_events": 15,
@@ -1545,13 +1553,124 @@
       },
       "recall_isolated_anomaly": 1.0,
       "recall_coordinated_anomaly": 1.0,
-      "train_time_ms_total": 4698.45,
+      "train_time_ms_total": 4364.56,
       "train_epochs": 300,
-      "train_ms_per_epoch": 15.661,
+      "train_ms_per_epoch": 14.549,
       "inference_latency": {
-        "mean_ms": 1.6796,
-        "p50_ms": 1.8479,
-        "p95_ms": 2.7448,
+        "mean_ms": 1.4397,
+        "p50_ms": 1.5006,
+        "p95_ms": 2.293,
+        "n": 200
+      },
+      "parameters": 2609
+    },
+    "M9_mixed_provenance": {
+      "calibration": {
+        "method": "isotonic, fitted on the validation calibration half",
+        "test_brier_raw": 0.00371,
+        "test_brier_calibrated": 0.00313
+      },
+      "fpr_capped": {
+        "0.01": {
+          "threshold_selected_on_validation": 0.74359,
+          "test": {
+            "n": 22800,
+            "tp": 1500,
+            "fp": 207,
+            "tn": 21093,
+            "fn": 0,
+            "precision": 0.8787,
+            "recall": 1.0,
+            "f1": 0.9355,
+            "false_positive_rate": 0.0097,
+            "detection_rate": 1.0
+          },
+          "precision_at_cap": 0.8787,
+          "achieved_test_fpr": 0.0097,
+          "cap_held_on_test": true,
+          "test_macro_f1": 0.9653,
+          "test_event": {
+            "total_events": 15,
+            "detected_events": 15,
+            "missed_events": 0,
+            "event_recall": 1.0,
+            "false_alarm_windows_on_normal_nodes": 207
+          },
+          "recall_isolated_anomaly": 1.0,
+          "recall_coordinated_anomaly": 1.0
+        },
+        "0.03": {
+          "threshold_selected_on_validation": 0.941176,
+          "test": {
+            "n": 22800,
+            "tp": 1500,
+            "fp": 527,
+            "tn": 20773,
+            "fn": 0,
+            "precision": 0.74,
+            "recall": 1.0,
+            "f1": 0.8506,
+            "false_positive_rate": 0.0247,
+            "detection_rate": 1.0
+          },
+          "precision_at_cap": 0.74,
+          "achieved_test_fpr": 0.0247,
+          "cap_held_on_test": true,
+          "test_macro_f1": 0.919,
+          "test_event": {
+            "total_events": 15,
+            "detected_events": 15,
+            "missed_events": 0,
+            "event_recall": 1.0,
+            "false_alarm_windows_on_normal_nodes": 527
+          },
+          "recall_isolated_anomaly": 1.0,
+          "recall_coordinated_anomaly": 1.0
+        }
+      },
+      "threshold_selected_on_validation": 0.55,
+      "validation": {
+        "n": 22800,
+        "tp": 1403,
+        "fp": 72,
+        "tn": 21228,
+        "fn": 97,
+        "precision": 0.9512,
+        "recall": 0.9353,
+        "f1": 0.9432,
+        "false_positive_rate": 0.0034,
+        "detection_rate": 0.9353
+      },
+      "test": {
+        "n": 22800,
+        "tp": 1497,
+        "fp": 88,
+        "tn": 21212,
+        "fn": 3,
+        "precision": 0.9445,
+        "recall": 0.998,
+        "f1": 0.9705,
+        "false_positive_rate": 0.0041,
+        "detection_rate": 0.998
+      },
+      "test_macro_f1": 0.9842,
+      "test_roc_auc": 0.9997,
+      "test_event": {
+        "total_events": 15,
+        "detected_events": 15,
+        "missed_events": 0,
+        "event_recall": 1.0,
+        "false_alarm_windows_on_normal_nodes": 88
+      },
+      "recall_isolated_anomaly": 0.98,
+      "recall_coordinated_anomaly": 1.0,
+      "train_time_ms_total": 4305.53,
+      "train_epochs": 300,
+      "train_ms_per_epoch": 14.352,
+      "inference_latency": {
+        "mean_ms": 0.8625,
+        "p50_ms": 0.7788,
+        "p95_ms": 1.5348,
         "n": 200
       },
       "parameters": 2609

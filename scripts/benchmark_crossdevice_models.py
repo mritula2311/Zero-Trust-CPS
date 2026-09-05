@@ -1423,6 +1423,13 @@ def main():
     def record(name, s_va, s_te, train_ms, epochs, latency, params=None):
         thr = choose_threshold(s_va, va["flat_y"])
 
+        # Threshold-free discrimination, same convention as _eval_at_threshold
+        # (M9's own scoring path): probability-of-NORMAL scores, so the ROC is
+        # built on their negation against the anomalous=1 label.
+        true_anom_test = (te["flat_y"] == 0).astype(int)
+        roc_auc = (roc_auc_score(true_anom_test, -s_te)
+                  if len(set(true_anom_test)) > 1 else float("nan"))
+
         # Calibrate on one half of validation, pick the capped threshold on the
         # other, apply both to test. Test is still read once.
         cal = fit_calibrator(s_va[va_calib], va["flat_y"][va_calib])
@@ -1453,6 +1460,7 @@ def main():
             "validation": metrics(s_va, va["flat_y"], thr),
             "test": metrics(s_te, te["flat_y"], thr),
             "test_macro_f1": macro_f1(s_te, te["flat_y"], thr),
+            "test_roc_auc": round(float(roc_auc), 4),
             "test_event": event_metrics(s_te, te["flat_y"], te["meta"], te["keep"], thr),
             "recall_isolated_anomaly": recall_on(s_te, iso_idx, thr),
             "recall_coordinated_anomaly": recall_on(s_te, coord_idx, thr),
@@ -1569,10 +1577,32 @@ def main():
                    meta=te["meta"][i % len(te["X"]): i % len(te["X"]) + 1])),
            params=n_params(mx))
 
+    # ---- M9: real+virtual pooled Set Transformer, scored on the SAME real
+    # 20-node TEST split as M1-M8 (not a separate protocol) ------------------
+    # Training pools real TRAIN columns with the 5 LOW-heterogeneity virtual
+    # columns (m9_seed_study.py's own protocol); scoring here uses va["X"]/
+    # te["X"] -- the identical real-network arrays every other model in this
+    # table is scored on -- through record(), so M9's row is directly
+    # comparable to M1-M8 rather than drawn from a different evaluation run.
+    virt_tr = build_virtual_snapshots("train", "LOW")
+    m9, m9_ms, m9_epochs = train_mixed_provenance(
+        (tr["X"], tr["y"], tr["meta"]), virt_tr, seed=TRAINING_SEED)
+    m9_va = deep_sets_scores(m9, va["X"], meta=va["meta"])
+    m9_te = deep_sets_scores(m9, te["X"], meta=te["meta"])
+    record("M9_mixed_provenance",
+           np.array([m9_va[t][i] for t, i in va["keep"]]),
+           np.array([m9_te[t][i] for t, i in te["keep"]]),
+           m9_ms, m9_epochs,
+           time_inference_per_sample(
+               lambda i: deep_sets_scores(
+                   m9, te["X"][i % len(te["X"]): i % len(te["X"]) + 1],
+                   meta=te["meta"][i % len(te["X"]): i % len(te["X"]) + 1])),
+           params=n_params(m9))
+
     # ---- report -----------------------------------------------------------
     order = ["M1_concat_mlp", "M2_grad_boosting", "M3_deep_sets", "M4_gcn",
              "M5_gatv2", "M6_set_transformer", "M7_np_st",
-             "M8_set_transformer_mixed_n"]
+             "M8_set_transformer_mixed_n", "M9_mixed_provenance"]
     hdr = (f"{'model':18s} {'macroF1':>8s} {'F1':>7s} {'detect':>7s} {'FPR':>7s} "
            f"{'evtRec':>7s} {'isoRec':>7s} {'coordRec':>9s} {'ms/epoch':>9s} {'infer ms':>9s} "
            f"{'params':>7s}")

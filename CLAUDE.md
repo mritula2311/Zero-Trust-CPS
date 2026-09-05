@@ -1,6 +1,6 @@
 # CLAUDE.md — Zero-Trust CPS
 
-> **Current status:** read RESULTS §0.13.17, then §0.13.18–§0.13.20 in order.
+> **Current status:** read RESULTS §0.13.17, then §0.13.18–§0.13.23 in order.
 > Keep archived artifacts/results intact when rebuilding the corrected
 > temporal chain. M9 is experimental, with no persisted n=15 test; LOW
 > validation is TRAIN residual consistency only. The virtual-only advantage

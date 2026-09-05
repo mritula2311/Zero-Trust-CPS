@@ -2595,6 +2595,70 @@ now significant), set models still exactly flat (0/10 seeds show any
 change). No interpretation in §0.13.4 needs to change; this is reported as
 confirmation at the current network size, not a new finding.
 
+### 0.13.23 Final same-dataset M1–M9 comparison, single run, all nine on the identical 20-node TEST split (2026-09-05)
+
+**Why M9 wasn't in a comparable table before now.** M1–M8 (§0.13.19's rerun)
+were already trained and scored through one shared function (`record()`)
+against the same TRAIN/VALIDATION/TEST split. M9 previously appeared only in
+its own separate seed-averaged study (§0.13.15/§0.13.21), evaluated through
+a different code path (`_fit_and_eval`) that never persisted ROC-AUC for
+M1–M8 to compare against. Neither gap is a data availability problem — both
+`train_mixed_provenance` (M9's own trainer) and `deep_sets_scores` (the
+scoring function M3/M5–M8 already use) accept the identical `va["X"]`/
+`te["X"]` arrays M1–M8 are scored on. `benchmark_crossdevice_models.py` now
+trains M9 once (real TRAIN + 5 LOW-heterogeneity virtual columns, matching
+its existing protocol) and scores it through the same `record()` call as
+M1–M8, and `record()` now also computes ROC-AUC (`roc_auc_score` on the
+already-available per-row scores, threshold-free) for every model, M1–M9
+alike, where before only M9's own separate study computed it. One run
+(`python scripts/benchmark_crossdevice_models.py`), one TEST split, one
+threshold-selection protocol, nine rows:
+
+| Model | Macro-F1 | Precision | FPR | Isolated recall | Coordinated recall | ROC-AUC | Params | Latency (ms) |
+|---|---|---|---|---|---|---|---|---|
+| M1 concat_mlp | 0.9443 | 0.8130 | 0.0162 | 1.0000 | 1.0000 | 0.9998 | 3,777 | 0.0654 |
+| M2 grad_boosting | 0.9513 | 0.8585 | 0.0112 | 0.9800 | 0.9652 | 0.9969 | n/a (tree ensemble) | 3.9100 |
+| M3 deep_sets | 0.9837 | 0.9427 | 0.0043 | 0.9800 | 1.0000 | 0.9998 | 2,121 | 0.7883 |
+| M4 gcn | 0.7755 | 0.5017 | 0.0494 | 0.0000 | 0.7844 | 0.9458 | 1,217 | 0.5560 |
+| M5 gatv2 | 0.9857 | 0.9533 | 0.0034 | 0.9733 | 0.9963 | 0.9995 | 945 | 1.3507 |
+| M6 set_transformer | **0.9898** | 0.9652 | 0.0025 | 0.9800 | 0.9993 | **0.9999** | 2,609 | 1.3448 |
+| M7 np_st | 0.9850 | 0.9475 | 0.0039 | 0.9800 | 1.0000 | 0.9997 | 3,778 | 1.6596 |
+| M8 set_transformer_mixed_n | 0.9713 | 0.8987 | 0.0079 | 1.0000 | 1.0000 | 0.9997 | 2,609 | 1.4397 |
+| M9 mixed_provenance | 0.9842 | 0.9445 | 0.0041 | 0.9800 | 1.0000 | 0.9997 | 2,609 | 0.8625 |
+
+Precision/FPR/latency are at each model's own max-F1 threshold (chosen on
+VALIDATION, frozen before TEST) — the same convention every other table in
+this file uses; `results/crossdevice_benchmark/metrics.json`'s
+`fpr_capped` block has the alarm-budget-constrained operating point instead,
+for a deployment comparison rather than an architecture comparison.
+
+**Reading this table.** `M6_set_transformer` has the highest macro-F1
+(0.9898) and ROC-AUC (0.9999), narrowly. `M3_deep_sets`, `M5_gatv2`,
+`M6_set_transformer`, `M7_np_st` and `M9_mixed_provenance` are within 0.01
+macro-F1 of each other — **this experiment does not separate them**; the
+script's own recommendation logic picks the cheapest of that tied set
+(`M3_deep_sets`, 0.7883 ms/sample) rather than the top scorer, for exactly
+that reason. `M4_gcn` remains the clear outlier (isolated recall 0.0000),
+consistent with §0.13.18.1/§0.13.22's dilution finding — included for
+completeness, not as a candidate. `M1_concat_mlp` has the lowest latency
+(0.0654 ms) and ties for perfect isolated/coordinated recall, but its FPR
+(0.0162) and precision (0.8130) are among the weakest at this threshold —
+see the FPR-capped table for its behavior under an alarm budget instead of
+at max-F1.
+
+**What this table does and does not establish.** One test split, one
+network (2 captured-real devices + 18 legacy-simulated, §0.13.19), one
+training seed per model. Repeated seeds (§0.13.22 covers two of these
+models; a full nine-model seed study does not yet exist) and a second test
+session would be needed before ranking these architectures as a claim
+rather than a selection. M9's row uses the real+virtual pooled training
+protocol (§0.13.15) but is evaluated here only on the real 20-node TEST
+split, for comparability with M1–M8 — its own virtual-cardinality and
+stress-regime numbers (LOW/MEDIUM/HIGH) are in §0.13.15/§0.13.21, not this
+table.
+
+Full detail: `results/crossdevice_benchmark/metrics.json`.
+
 ## 1. What Was Verified Live (Not Just Measured Offline)
 
 Before any of the numeric results below, these are the qualitative,
