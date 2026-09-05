@@ -72,13 +72,13 @@ Status vocabulary, used strictly:
 
 | | |
 |---|---|
-| **Status** | `COMPLETED` — **and the GNN lost, more decisively as the network grew (10→20 nodes, RESULTS.md §0.13.20).** |
-| **Code** | `scripts/evaluate_gnn_baselines.py`. Five comparators on byte-identical inputs, built once and shared: B0 single-device, B1 concatenated logistic regression, B2 small MLP (32,16 / ReLU / Adam / lr 1e-3 / 400 iters), B3 coordinated rule (`k` from validation), GNN. |
-| **Experimental** | Two declared tasks. Fit on TRAIN, all selection on VALIDATION (thresholds by F1, `k`, self-loop weight from `{1,2,3,5}`), TEST read once. |
-| **Evidence** | Corrected 20-node (RESULTS.md §0.13.24, pending-node masking fixed) / ⚠ superseded 10-node. Task 1 test F1 — MLP **0.9174 / 0.9852**, single-device 0.9708 / 0.9771, GNN **0.5865 / 0.8381**, logistic 0.7371 / 0.7785, rule 0.3082 / 0.6156. Task 2 test accuracy — MLP **0.5267 / 0.6567**, logistic 0.5433 / 0.6433, GNN **0.5375 / 0.6058**, node-count 0.3958 / 0.4142. ⚠ Pre-audit 20-node figures (masking bug not yet fixed, §0.13.20): Task 1 MLP 0.9662/logistic 0.7351; Task 2 MLP 0.5283/logistic 0.5208 — superseded by §0.13.24. |
-| **Files** | `results/gnn_baselines/metrics.json`, `self_loop_sweep.json` |
-| **Consequence** | GNN-superiority claims are **withdrawn**. The defensible claim is about cross-device information (0.3958 → 0.5267 at 20 nodes, was 0.4142 → 0.6567 at 10 — smaller advantage, cause not isolated), not graph structure. The pending-node masking fix (§0.13.24) changed which concat baseline is nominally best and moved B2's Task-1 F1 materially, but did not change this conclusion or the sign/rough magnitude of the cross-device delta. See `docs/CLAIM_EVIDENCE_MATRIX.md` C2/C3. |
-| **Remaining limitation** | One topology, one GCN architecture, two graph sizes now measured. `esp32-vib-002` (SW-420) has a first real capture (TRAIN-only) but no held-out VALIDATION/TEST session yet. This shows the GNN did not help *here*, and got worse as the network grew, not that graph learning cannot help. `evaluate_gnn_baselines.py`'s own B1/B2/B3 concat baselines shared the pending-node-masking issue found and fixed in `benchmark_crossdevice_models.py` (RESULTS.md §0.13.19) — now also found and fixed here (§0.13.24). |
+| **Status** | `COMPLETED` for the pending-content cross-review of local main `4f6afa2`; reporting corrections in RESULTS §0.13.25. GNN superiority is not established. |
+| **Code** | `scripts/evaluate_gnn_baselines.py`: shared upstream per-node sub-scores, with model-specific representations. B0 Task 1 sees only its target's three scores; B0 Task 2 is a global network count. |
+| **Protocol** | TRAIN fit; VALIDATION selects Task-1 thresholds, B3 k and GNN self-loop weight. Repeated TEST verification without retuning is not a new untouched holdout. |
+| **Current evidence** | Task-1 TEST F1: B0 0.9708, B1 0.7371, B2 **0.9174**, B3 0.3082, GNN 0.5865. Task-2 TEST accuracy: B0 0.3958, B1 **0.5433**, B2 0.5267, GNN 0.5375. B2 Task-1 F1 fell from **0.9662**, with FP 28→270. |
+| **Historical discrepancy resolved** | Earlier 10-node numbers (B0 T2 0.4142, B1 0.6433, B2 0.6567, GNN 0.6058; B2 T1 0.9852) belong to `ba562f7:results/gnn_baselines/metrics.json`. Later 10-node numbers (0.4175, 0.6533, 0.6567, 0.6117; B2 T1 0.9823) belong to `de3654a` at the same path, after a chain rebuild and GNN masking fix. Both are genuine historical runs, not rounding alternatives. See the full ledger in `docs/PAPER_GNN_BASELINE_VERIFICATION.md`. |
+| **Consequence** | C2 is **SUPPORTED BUT WEAKER** as indexed representations versus a global count; a literal single-node Task-2 claim needs a new control. B1 is the strongest observed TEST comparator (+0.1475 over B0); B2 and GNN are separate comparisons. |
+| **Remaining limitation** | No statistical superiority test or causal attribution to network size. SW-420 is captured only in TRAIN. GNN beats B3 on Task 1 and B0/B2 on Task 2; the earlier blanket loss statement was incorrect. |
 
 ---
 

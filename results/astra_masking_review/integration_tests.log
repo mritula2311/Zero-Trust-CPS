@@ -1,0 +1,8 @@
+test_actual_topology_and_split_provenance (test_gnn_baseline_audit_integration.TestAuditIntegration.test_actual_topology_and_split_provenance) ... ok
+test_b0_ignores_pending_content_even_before_concat_masking (test_gnn_baseline_audit_integration.TestAuditIntegration.test_b0_ignores_pending_content_even_before_concat_masking) ... ok
+test_main_fits_and_evaluates_all_paths_without_pending_content (test_gnn_baseline_audit_integration.TestAuditIntegration.test_main_fits_and_evaluates_all_paths_without_pending_content) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 6.889s
+
+OK

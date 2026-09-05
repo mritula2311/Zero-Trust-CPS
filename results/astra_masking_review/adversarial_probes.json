@@ -1,0 +1,55 @@
+{
+  "concat_zeroing_removed": {
+    "tests_run": 1,
+    "failures": 1,
+    "errors": 0,
+    "detected": true
+  },
+  "B3_validity_gate_removed": {
+    "tests_run": 1,
+    "failures": 1,
+    "errors": 0,
+    "detected": true
+  },
+  "snapshot_zeroing_removed": {
+    "tests_run": 1,
+    "failures": 1,
+    "errors": 0,
+    "detected": true
+  },
+  "count_validity_gate_removed": {
+    "tests_run": 1,
+    "failures": 1,
+    "errors": 0,
+    "detected": true
+  },
+  "GNN_adjacency_gate_removed": {
+    "tests_run": 1,
+    "failures": 1,
+    "errors": 0,
+    "detected": true
+  },
+  "main_concat_mask_bypassed": {
+    "tests_run": 1,
+    "failures": 1,
+    "errors": 0,
+    "detected": true
+  },
+  "nonfinite_boundary": {
+    "nan": {
+      "concat_finite": false,
+      "snapshot_finite": false,
+      "GNN_valid_outputs_finite": false
+    },
+    "positive_infinity": {
+      "concat_finite": false,
+      "snapshot_finite": false,
+      "GNN_valid_outputs_finite": false
+    },
+    "negative_infinity": {
+      "concat_finite": false,
+      "snapshot_finite": false,
+      "GNN_valid_outputs_finite": false
+    }
+  }
+}

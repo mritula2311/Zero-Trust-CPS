@@ -1,0 +1,22 @@
+test_actual_topology_and_split_provenance (test_gnn_baseline_audit_integration.TestAuditIntegration.test_actual_topology_and_split_provenance) ... ok
+test_b0_ignores_pending_content_even_before_concat_masking (test_gnn_baseline_audit_integration.TestAuditIntegration.test_b0_ignores_pending_content_even_before_concat_masking) ... ok
+test_main_fits_and_evaluates_all_paths_without_pending_content (test_gnn_baseline_audit_integration.TestAuditIntegration.test_main_fits_and_evaluates_all_paths_without_pending_content) ... ok
+test_nonfinite_pending_concat_and_snapshot_blocks_are_canonical (test_gnn_baseline_audit_integration.TestAuditIntegration.test_nonfinite_pending_concat_and_snapshot_blocks_are_canonical) ... ok
+test_nonfinite_pending_content_cannot_poison_gnn_inference_or_training (test_gnn_baseline_audit_integration.TestAuditIntegration.test_nonfinite_pending_content_cannot_poison_gnn_inference_or_training) ... ok
+test_own_features_unaffected_by_tampering (test_gnn_baseline_pending_node_masking.TestB0SingleDevice.test_own_features_unaffected_by_tampering) ... ok
+test_pending_node_not_counted_toward_coordinated_threshold (test_gnn_baseline_pending_node_masking.TestB3CoordinatedRule.test_pending_node_not_counted_toward_coordinated_threshold) ... ok
+test_rule_scores_unaffected_by_tampering (test_gnn_baseline_pending_node_masking.TestB3CoordinatedRule.test_rule_scores_unaffected_by_tampering) ... ok
+test_identical_across_large_positive_negative_and_plausible_tampering (test_gnn_baseline_pending_node_masking.TestConcatMaskingContract.test_identical_across_large_positive_negative_and_plausible_tampering) ... ok
+test_multiple_pending_nodes (test_gnn_baseline_pending_node_masking.TestConcatMaskingContract.test_multiple_pending_nodes) ... ok
+test_validity_block_matches_meta_and_onehot_stays_last (test_gnn_baseline_pending_node_masking.TestConcatMaskingContract.test_validity_block_matches_meta_and_onehot_stays_last)
+Sanity-check the column layout the rest of the module depends on: ... ok
+test_pending_sw420_does_not_change_mpu6050_target_score (test_gnn_baseline_pending_node_masking.TestGNNPathAt20NodeCardinality.test_pending_sw420_does_not_change_mpu6050_target_score) ... ok
+test_two_pending_nodes_simultaneously (test_gnn_baseline_pending_node_masking.TestGNNPathAt20NodeCardinality.test_two_pending_nodes_simultaneously) ... ok
+test_anomalous_node_count_identical_across_tampering (test_gnn_baseline_pending_node_masking.TestTask2SnapshotFeatures.test_anomalous_node_count_identical_across_tampering) ... ok
+test_pending_node_not_counted_as_anomalous (test_gnn_baseline_pending_node_masking.TestTask2SnapshotFeatures.test_pending_node_not_counted_as_anomalous) ... ok
+test_snapshot_matrix_identical_across_tampering (test_gnn_baseline_pending_node_masking.TestTask2SnapshotFeatures.test_snapshot_matrix_identical_across_tampering) ... ok
+
+----------------------------------------------------------------------
+Ran 16 tests in 3.824s
+
+OK

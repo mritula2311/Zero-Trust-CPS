@@ -1,0 +1,160 @@
+test_actual_topology_and_split_provenance (test_gnn_baseline_audit_integration.TestAuditIntegration.test_actual_topology_and_split_provenance) ... ok
+test_b0_ignores_pending_content_even_before_concat_masking (test_gnn_baseline_audit_integration.TestAuditIntegration.test_b0_ignores_pending_content_even_before_concat_masking) ... ok
+test_main_fits_and_evaluates_all_paths_without_pending_content (test_gnn_baseline_audit_integration.TestAuditIntegration.test_main_fits_and_evaluates_all_paths_without_pending_content) ... ok
+test_nonfinite_pending_concat_and_snapshot_blocks_are_canonical (test_gnn_baseline_audit_integration.TestAuditIntegration.test_nonfinite_pending_concat_and_snapshot_blocks_are_canonical) ...
+  test_nonfinite_pending_concat_and_snapshot_blocks_are_canonical (test_gnn_baseline_audit_integration.TestAuditIntegration.test_nonfinite_pending_concat_and_snapshot_blocks_are_canonical) (value=nan) ... FAIL
+  test_nonfinite_pending_concat_and_snapshot_blocks_are_canonical (test_gnn_baseline_audit_integration.TestAuditIntegration.test_nonfinite_pending_concat_and_snapshot_blocks_are_canonical) (value=inf) ... FAIL
+  test_nonfinite_pending_concat_and_snapshot_blocks_are_canonical (test_gnn_baseline_audit_integration.TestAuditIntegration.test_nonfinite_pending_concat_and_snapshot_blocks_are_canonical) (value=-inf) ... FAIL
+test_nonfinite_pending_content_cannot_poison_gnn_inference_or_training (test_gnn_baseline_audit_integration.TestAuditIntegration.test_nonfinite_pending_content_cannot_poison_gnn_inference_or_training) ...
+  test_nonfinite_pending_content_cannot_poison_gnn_inference_or_training (test_gnn_baseline_audit_integration.TestAuditIntegration.test_nonfinite_pending_content_cannot_poison_gnn_inference_or_training) (value=nan) ... FAIL
+  test_nonfinite_pending_content_cannot_poison_gnn_inference_or_training (test_gnn_baseline_audit_integration.TestAuditIntegration.test_nonfinite_pending_content_cannot_poison_gnn_inference_or_training) (value=inf) ... FAIL
+  test_nonfinite_pending_content_cannot_poison_gnn_inference_or_training (test_gnn_baseline_audit_integration.TestAuditIntegration.test_nonfinite_pending_content_cannot_poison_gnn_inference_or_training) (value=-inf) ... FAIL
+
+======================================================================
+FAIL: test_nonfinite_pending_concat_and_snapshot_blocks_are_canonical (test_gnn_baseline_audit_integration.TestAuditIntegration.test_nonfinite_pending_concat_and_snapshot_blocks_are_canonical) (value=nan)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\zt-cps\zt-cps-starter\tests\test_gnn_baseline_audit_integration.py", line 25, in test_nonfinite_pending_concat_and_snapshot_blocks_are_canonical
+    np.testing.assert_array_equal(actual, expected)
+  File "C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 1121, in assert_array_equal
+    assert_array_compare(operator.__eq__, actual, desired, err_msg=err_msg,
+  File "C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 847, in assert_array_compare
+    flagged = func_assert_same_pos(x, y, func=isnan, hasval='nan')
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 790, in func_assert_same_pos
+    raise AssertionError(msg)
+AssertionError:
+Arrays are not equal
+
+nan location mismatch:
+ ACTUAL: array([[0.745873, 0.488851, 0.328681, ..., 0.      , 0.      , 0.      ],
+       [0.745873, 0.488851, 0.328681, ..., 0.      , 0.      , 0.      ],
+       [0.745873, 0.488851, 0.328681, ..., 0.      , 0.      , 0.      ],...
+ DESIRED: array([[0.745873, 0.488851, 0.328681, ..., 0.      , 0.      , 0.      ],
+       [0.745873, 0.488851, 0.328681, ..., 0.      , 0.      , 0.      ],
+       [0.745873, 0.488851, 0.328681, ..., 0.      , 0.      , 0.      ],...
+
+======================================================================
+FAIL: test_nonfinite_pending_concat_and_snapshot_blocks_are_canonical (test_gnn_baseline_audit_integration.TestAuditIntegration.test_nonfinite_pending_concat_and_snapshot_blocks_are_canonical) (value=inf)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\zt-cps\zt-cps-starter\tests\test_gnn_baseline_audit_integration.py", line 25, in test_nonfinite_pending_concat_and_snapshot_blocks_are_canonical
+    np.testing.assert_array_equal(actual, expected)
+  File "C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 1121, in assert_array_equal
+    assert_array_compare(operator.__eq__, actual, desired, err_msg=err_msg,
+  File "C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 847, in assert_array_compare
+    flagged = func_assert_same_pos(x, y, func=isnan, hasval='nan')
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 790, in func_assert_same_pos
+    raise AssertionError(msg)
+AssertionError:
+Arrays are not equal
+
+nan location mismatch:
+ ACTUAL: array([[0.745873, 0.488851, 0.328681, ..., 0.      , 0.      , 0.      ],
+       [0.745873, 0.488851, 0.328681, ..., 0.      , 0.      , 0.      ],
+       [0.745873, 0.488851, 0.328681, ..., 0.      , 0.      , 0.      ],...
+ DESIRED: array([[0.745873, 0.488851, 0.328681, ..., 0.      , 0.      , 0.      ],
+       [0.745873, 0.488851, 0.328681, ..., 0.      , 0.      , 0.      ],
+       [0.745873, 0.488851, 0.328681, ..., 0.      , 0.      , 0.      ],...
+
+======================================================================
+FAIL: test_nonfinite_pending_concat_and_snapshot_blocks_are_canonical (test_gnn_baseline_audit_integration.TestAuditIntegration.test_nonfinite_pending_concat_and_snapshot_blocks_are_canonical) (value=-inf)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\zt-cps\zt-cps-starter\tests\test_gnn_baseline_audit_integration.py", line 25, in test_nonfinite_pending_concat_and_snapshot_blocks_are_canonical
+    np.testing.assert_array_equal(actual, expected)
+  File "C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 1121, in assert_array_equal
+    assert_array_compare(operator.__eq__, actual, desired, err_msg=err_msg,
+  File "C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 847, in assert_array_compare
+    flagged = func_assert_same_pos(x, y, func=isnan, hasval='nan')
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 790, in func_assert_same_pos
+    raise AssertionError(msg)
+AssertionError:
+Arrays are not equal
+
+nan location mismatch:
+ ACTUAL: array([[0.745873, 0.488851, 0.328681, ..., 0.      , 0.      , 0.      ],
+       [0.745873, 0.488851, 0.328681, ..., 0.      , 0.      , 0.      ],
+       [0.745873, 0.488851, 0.328681, ..., 0.      , 0.      , 0.      ],...
+ DESIRED: array([[0.745873, 0.488851, 0.328681, ..., 0.      , 0.      , 0.      ],
+       [0.745873, 0.488851, 0.328681, ..., 0.      , 0.      , 0.      ],
+       [0.745873, 0.488851, 0.328681, ..., 0.      , 0.      , 0.      ],...
+
+======================================================================
+FAIL: test_nonfinite_pending_content_cannot_poison_gnn_inference_or_training (test_gnn_baseline_audit_integration.TestAuditIntegration.test_nonfinite_pending_content_cannot_poison_gnn_inference_or_training) (value=nan)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\zt-cps\zt-cps-starter\tests\test_gnn_baseline_audit_integration.py", line 35, in test_nonfinite_pending_content_cannot_poison_gnn_inference_or_training
+    np.testing.assert_array_equal(
+  File "C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 1121, in assert_array_equal
+    assert_array_compare(operator.__eq__, actual, desired, err_msg=err_msg,
+  File "C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 847, in assert_array_compare
+    flagged = func_assert_same_pos(x, y, func=isnan, hasval='nan')
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 790, in func_assert_same_pos
+    raise AssertionError(msg)
+AssertionError:
+Arrays are not equal
+
+nan location mismatch:
+ ACTUAL: array([[nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,
+        nan, nan, nan, nan, nan, nan, nan],
+       [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,...
+ DESIRED: array([[0.927224, 0.5     , 0.917408, 0.918153, 0.919951, 0.905431,
+        0.5     , 0.920471, 0.906593, 0.908462, 0.916166, 0.916869,
+        0.917955, 0.904743, 0.904785, 0.905656, 0.905299, 0.906041,...
+
+======================================================================
+FAIL: test_nonfinite_pending_content_cannot_poison_gnn_inference_or_training (test_gnn_baseline_audit_integration.TestAuditIntegration.test_nonfinite_pending_content_cannot_poison_gnn_inference_or_training) (value=inf)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\zt-cps\zt-cps-starter\tests\test_gnn_baseline_audit_integration.py", line 35, in test_nonfinite_pending_content_cannot_poison_gnn_inference_or_training
+    np.testing.assert_array_equal(
+  File "C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 1121, in assert_array_equal
+    assert_array_compare(operator.__eq__, actual, desired, err_msg=err_msg,
+  File "C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 847, in assert_array_compare
+    flagged = func_assert_same_pos(x, y, func=isnan, hasval='nan')
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 790, in func_assert_same_pos
+    raise AssertionError(msg)
+AssertionError:
+Arrays are not equal
+
+nan location mismatch:
+ ACTUAL: array([[nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,
+        nan, nan, nan, nan, nan, nan, nan],
+       [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,...
+ DESIRED: array([[0.927224, 0.5     , 0.917408, 0.918153, 0.919951, 0.905431,
+        0.5     , 0.920471, 0.906593, 0.908462, 0.916166, 0.916869,
+        0.917955, 0.904743, 0.904785, 0.905656, 0.905299, 0.906041,...
+
+======================================================================
+FAIL: test_nonfinite_pending_content_cannot_poison_gnn_inference_or_training (test_gnn_baseline_audit_integration.TestAuditIntegration.test_nonfinite_pending_content_cannot_poison_gnn_inference_or_training) (value=-inf)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\zt-cps\zt-cps-starter\tests\test_gnn_baseline_audit_integration.py", line 35, in test_nonfinite_pending_content_cannot_poison_gnn_inference_or_training
+    np.testing.assert_array_equal(
+  File "C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 1121, in assert_array_equal
+    assert_array_compare(operator.__eq__, actual, desired, err_msg=err_msg,
+  File "C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 847, in assert_array_compare
+    flagged = func_assert_same_pos(x, y, func=isnan, hasval='nan')
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 790, in func_assert_same_pos
+    raise AssertionError(msg)
+AssertionError:
+Arrays are not equal
+
+nan location mismatch:
+ ACTUAL: array([[nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,
+        nan, nan, nan, nan, nan, nan, nan],
+       [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,...
+ DESIRED: array([[0.927224, 0.5     , 0.917408, 0.918153, 0.919951, 0.905431,
+        0.5     , 0.920471, 0.906593, 0.908462, 0.916166, 0.916869,
+        0.917955, 0.904743, 0.904785, 0.905656, 0.905299, 0.906041,...
+
+----------------------------------------------------------------------
+Ran 5 tests in 4.220s
+
+FAILED (failures=6)

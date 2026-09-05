@@ -177,10 +177,13 @@ structure is necessary: given the same multi-device information a concatenated-i
 model matches or beats the GNN, so no claim of GNN necessity or superiority is made
 (C3). The GNN's 1.000 recall here also comes with badly collapsed precision — on a
 consistent retrain it flags most traffic (overall accuracy 0.281, §0.13.2) — so the
-recall figure alone overstates it; the defensible claim is that cross-device
-information helps (task-2 accuracy 0.396 → 0.527 on the current 20-node
-network, RESULTS.md §0.13.24; ⚠ 0.414 → 0.657 is the superseded 10-node
-figure, C2).
+recall figure alone overstates it. The current constructed Task-2 benchmark
+shows indexed representations outperforming a global anomalous-node count:
+0.3958 for B0, 0.5433 for concat logistic, 0.5267 for concat MLP and 0.5375
+for the GNN output-vector head. B0 counts every valid node; this is not a
+literal single-device control (C2, RESULTS §0.13.25). Historical 10-node
+figures belong to two distinct runs documented in
+`docs/PAPER_GNN_BASELINE_VERIFICATION.md`.
 
 ### 3.2 Security Trust  `s_sec ∈ [0,1]`
 
@@ -610,21 +613,20 @@ several previously published figures rested on overlap between training and test
 data, and each was re-measured and, where it changed, withdrawn rather than the
 result being discarded: (a) the real-hardware resting false-positive rate moved
 from a leaky **0/49** to an honest **5/12 (41.7%)** on the untouched test session,
-detection unaffected at 30/30; (b) against five comparators on byte-identical
-inputs the **GNN did not beat simpler models, and the gap widened, not
-narrowed, when the cross-device network grew from 10 to 20 nodes**
-(Task 1 test F1: concat MLP 0.917 vs GNN 0.587 at its own best swept
-self-loop weight, was 0.985 vs 0.838 at 10 nodes — RESULTS.md §0.13.24,
-corrected for a pending-node masking bug found in this project's own
-concat baselines and fixed there; §0.13.20's pre-audit 0.966 is superseded),
-so the defensible claim is about cross-device *information* (0.3958 → 0.5267
-at 20 nodes, was 0.4142 → 0.6567 at 10 — advantage smaller but still
-positive, cause not isolated), not graph structure; (c) a
-**validation-tuned static policy beat the adaptive contextual-bandit policy**
-(saved-chain macro-F1 0.5614 vs 0.5271, with different ALERT recall; §3.5), which itself only beats the deployed static table
-(0.274). A framework that withdraws its own overstated results under a stricter
-protocol is the honest-reporting principle applied to itself
-(`docs/CLAIM_EVIDENCE_MATRIX.md` C2/C3/C4/C6, `RESULTS.md` §0.12–§0.13).
+detection unaffected at 30/30; (b) the evaluated GCN's Task-1 TEST F1 was
+0.5865 versus B0 0.9708, B1 0.7371, B2 0.9174 and B3 0.3082. It beats B3,
+but loses to the other three. The pending-content correction materially
+lowered B2 from 0.9662 to 0.9174 (FP 28→270). On Task 2, B1 0.5433 exceeds
+GNN 0.5375, B2 0.5267 and B0 0.3958. B0 is a global count; the evidence
+supports a scoped representation comparison, not a literal single-device
+comparison. No statistical superiority or causal network-size effect is
+established. Both historical 10-node runs are preserved and attributed in
+`docs/PAPER_GNN_BASELINE_VERIFICATION.md` (RESULTS §0.13.25);
+(c) a **validation-tuned static policy beat the adaptive contextual-bandit
+policy** (saved-chain macro-F1 0.5614 vs 0.5271, with different ALERT recall;
+§3.5), which itself only beats the deployed static table (0.274).
+These unfavorable results remain visible (`docs/CLAIM_EVIDENCE_MATRIX.md`
+C2/C3/C4/C6, RESULTS §0.12–§0.13).
 
 **7. Live adversarial testing that found a real vulnerability.** Five hostile
 messages delivered over the actual MQTT transport against a running gateway, all
@@ -699,7 +701,7 @@ python scripts/train_adaptive_pdp.py
 python scripts/evaluate_real_hardware.py        # operator-labelled hardware
 python scripts/evaluate_ablation.py             # per-signal, at the deployed threshold
 python scripts/evaluate_governance.py           # 7/7 tenets + 6/6 falsifier injections
-python -m unittest discover -s tests            # 46 invariant tests
+python -m unittest discover -s tests            # current count and warning classification: RESULTS §0.13.25
 ```
 
 `ZTCPS_SEED` (default 0) sets the training seed for every model, so the

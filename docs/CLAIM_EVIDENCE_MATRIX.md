@@ -33,33 +33,36 @@ withdrawn, not the result.
 
 ---
 
-## C2 — Cross-device information improves coordinated anomaly detection
+## C2 — Node-indexed representations improve Task-2 classification over a global count
 
 | | |
 |---|---|
-| **Claim** | Information from multiple devices improves detection of coordinated network events over a single-node view. |
-| **Evidence** | `results/gnn_baselines/metrics.json`, task 2 (4-way coordination-pattern classification, untouched test split). |
-| **Experiment** | 20-node hybrid network (grown from 10, RESULTS.md §0.13.18/§0.13.20), four scenarios, fit on TRAIN, selected on VALIDATION, reported on TEST. |
-| **Real / Sim / Hybrid** | **Hybrid** — 2 captured-real nodes (`esp32-vib-001` full split; `esp32-vib-002` TRAIN-only, VALIDATION/TEST still PENDING) + 18 LEGACY_SIMULATED nodes calibrated against real measured values. Not 20 physical devices. |
-| **Metric** | Test accuracy: single-node view (anomalous-node count only) **0.3958** → concatenated MLP **0.5267** (best concat baseline is now concat logistic, 0.5433 — RESULTS.md §0.13.24, corrected for a pending-node masking bug found in this audit). ⚠ Superseded figures: 10-node 0.4175 → 0.6567; pre-audit 20-node (masking bug not yet fixed) 0.3958 → 0.5283 (§0.13.20). The correction barely moved the number — the advantage is smaller at 20 nodes than at 10, but this is not an artifact of the masking bug (§0.13.24); cause of the 10→20 shrinkage still not isolated. |
-| **Limitation** | Simulated-node-dominated. `esp32-vib-002` contributes TRAIN rows only, still PENDING in VALIDATION/TEST. A 4-way accuracy of ~0.53 is a modest result, not a strong one — weaker than the superseded 10-node figure. |
-| **Allowed** | "Cross-device relational information improved coordinated anomaly detection in the evaluated 20-node hybrid network, though by a smaller margin than in the superseded 10-node experiment." |
-| **Disallowed** | "Multi-device fusion is necessary for CPS anomaly detection." / quoting the 10-node 0.4175→0.6567 figures, or the pre-audit 20-node 0.3958→0.5283 figures, as current. |
+| **Status** | **SUPPORTED BUT WEAKER**, for the scoped observation below. A literal single-device Task-2 comparison requires controlled follow-up. |
+| **Claim** | Node-indexed score representations outperform a global anomalous-node-count representation in this constructed 20-node benchmark. |
+| **Evidence** | `results/gnn_baselines/metrics.json` at `4f6afa2`, Task 2; independently audited in `docs/PAPER_GNN_BASELINE_VERIFICATION.md` and RESULTS §0.13.25. |
+| **Experiment** | Four-way scenario classification. Fits use TRAIN; thresholds, rule k and GNN self-loop weight use VALIDATION. TEST is reused for this verification, with no test-driven retuning. |
+| **Real / Sim / Hybrid** | 20 declared nodes: 10 MPU6050-type and 10 SW-420-type. Two physical identities, but SW-420 has TRAIN observations only; VALIDATION/TEST have one observed physical node, 18 simulated nodes and one pending slot. Raw simulated rows use `source_type=SIMULATED`; LEGACY_SIMULATED is their benchmark provenance category. |
+| **Metric** | TEST accuracy: B0 global count **0.3958**, B1 concat logistic **0.5433** (+0.1475), B2 concat MLP **0.5267** (+0.1309), GNN output-vector head **0.5375** (+0.1417). B1 is the strongest observed TEST comparison; GNN has the highest VALIDATION accuracy (0.5475). |
+| **Limitation** | B0 already sees all valid nodes through a count; it is not a single-node baseline. No statistical superiority test, independent physical deployment claim, or isolated network-size effect. Cardinality, sensor mix, provenance and model chain differ across historical runs. |
+| **Allowed** | "In the current constructed 20-node benchmark, concat logistic regression achieved Task-2 accuracy 0.5433 versus 0.3958 for a global anomalous-node-count baseline." |
+| **Disallowed** | "Cross-device information always improves anomaly detection." / "The Task-2 comparator sees one device." / "Statistically significant." / attributing the historical change to network size alone. |
 
 ---
 
-## C3 — The GNN specifically ⚠ **CLAIM WITHDRAWN**
+## C3 — GNN superiority is not established
 
 | | |
 |---|---|
-| **Claim tested** | Graph structure, as opposed to merely multi-device information, is what produces the benefit. |
-| **Evidence** | `results/gnn_baselines/metrics.json`, both tasks. |
-| **Result** | **The GNN does not beat simpler models given identical information — and the gap widened at 20 nodes.** Task 1 (per-node anomaly, test F1, 20-node corrected / 10-node superseded — RESULTS.md §0.13.24, corrected for a pending-node masking bug found in this audit): concat MLP **0.9174 / 0.9823**, single-device 0.9708 / 0.9736, GNN **0.5865 / 0.8760**, concat logistic 0.7371 / 0.7762, coordinated rule 0.3082 / 0.6184. Task 2 (coordination pattern, test accuracy): concat MLP **0.5267 / 0.6567**, concat logistic 0.5433 / 0.6533, GNN **0.5375 / 0.6117**, node-count 0.3958 / 0.4175. The correction changed B2's Task-1 F1 materially (0.9662→0.9174, wider correctly-masked input) but not the conclusion: GNN still loses to every simple baseline on both tasks. ⚠ Pre-audit 20-node figures (masking bug not yet fixed): Task 1 concat MLP 0.9662, concat logistic 0.7351; Task 2 concat MLP 0.5283, concat logistic 0.5208 (§0.13.20, superseded by §0.13.24). |
-| **Self-loop weight** | Swept `{1,2,3,5}` on VALIDATION only; 5.0 selected (validation F1 0.8646 at 10 nodes, **0.5797 at 20 nodes** — RESULTS.md §0.13.18.1/§0.13.20). The GNN loses *at its own best swept setting*, more decisively at 20 nodes. |
-| **Real / Sim / Hybrid** | Hybrid — see C2's row for the current 2-real + 18-LEGACY_SIMULATED breakdown. |
-| **Limitation** | One topology, one GCN architecture, one testbed, now measured at two graph sizes (10 and 20 nodes). This is not proof that graph learning cannot help — it is proof that **in this testbed it did not, and got worse as the network grew**, consistent with the neighbourhood-dilution mechanism documented in RESULTS.md §0.13.4/§0.13.18.1. `evaluate_gnn_baselines.py::normalized_adjacency` masks a PENDING node out of every other node's message-passing per snapshot instead of its placeholder propagating through the graph (`tests/test_gnn_pending_node_masking.py`); this GNN result is unaffected by the separate pending-node bug found and fixed in `benchmark_crossdevice_models.py` (RESULTS.md §0.13.19) — `normalized_adjacency`'s masking was already correct. |
-| **Allowed** | "In the evaluated hybrid network, a graph convolutional model did not outperform simpler models receiving the same multi-device information; the benefit observed is attributable to cross-device information rather than to graph structure." |
-| **Disallowed** | "The GNN is architecturally necessary." / "Graph learning is required for coordinated anomaly detection." / any claim of GNN superiority. |
+| **Claim tested** | The evaluated GCN outperforms simpler representations of the same available per-node sub-scores. |
+| **Evidence** | `results/gnn_baselines/metrics.json` at `4f6afa2`; historical artifacts and exact model/metric ledger in `docs/PAPER_GNN_BASELINE_VERIFICATION.md`. |
+| **Task 1** | TEST F1: B0 **0.9708**, B2 **0.9174**, B1 **0.7371**, GNN **0.5865**, B3 **0.3082**. GNN loses to B0/B1/B2 and beats B3. B2 degraded materially from pre-audit **0.9662 to 0.9174**; FP rose **28 to 270**. |
+| **Task 2** | TEST accuracy: B1 **0.5433** > GNN **0.5375** > B2 **0.5267** > B0 **0.3958**. There is no separate B3 Task-2 classifier. "GNN loses to every simple baseline on both tasks" is withdrawn. |
+| **Self-loop weight** | `{1,2,3,5}` swept using Task-1 VALIDATION F1; 5.0 selected, F1 **0.5797**. Task-2 uses this Task-1-trained GNN's scalar output per node, not hidden embeddings or a GNN optimized for Task 2. |
+| **Inputs** | Shared upstream sub-scores, not byte-identical classifier inputs: B0 gets three own scores; B1/B2 get masked indexed scores, validity and target identity; GNN also gets the declared adjacency. |
+| **Masking** | Finite pending content is excluded from GNN message passing, loss and scored target rows; pending output columns are constant 0.5 in the Task-2 head. B1/B2 canonicalize invalid blocks, and B3/count rules explicitly gate validity. |
+| **Limitation** | One configured topology and GCN architecture. Historical 10-to-20-node differences confound size, sensor mix, provenance and rebuilt upstream models. Masking correction combines zeroing with added validity channels; its metric change does not isolate either intervention. |
+| **Allowed** | "The evaluated GCN scored below concat logistic regression on Task 2 and below B0/B1/B2 on Task 1, while outperforming B3 on Task 1 and B0/B2 on Task 2." |
+| **Disallowed** | Universal claims that graph learning cannot help, is necessary, or is superior; claims that this comparison alone isolates the causal contribution of graph structure. |
 
 ---
 

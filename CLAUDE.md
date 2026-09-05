@@ -1,6 +1,6 @@
 # CLAUDE.md — Zero-Trust CPS
 
-> **Current status:** read RESULTS §0.13.17, then §0.13.18–§0.13.23 in order.
+> **Current status:** read RESULTS §0.13.17, then §0.13.18–§0.13.25 in order.
 > Keep archived artifacts/results intact when rebuilding the corrected
 > temporal chain. M9 is experimental, with no persisted n=15 test; LOW
 > validation is TRAIN residual consistency only. The virtual-only advantage
@@ -16,10 +16,13 @@
 > (novelty claim #3) and its own B1/B2/B3 concat baselines as possibly
 > sharing the same unmasked-placeholder issue; §0.13.24 confirmed and fixed
 > it (masking correction only, no hyperparameter/threshold/split changes).
-> The fix barely moved Task 2's headline cross-device delta (0.3958 → 0.5267,
-> was 0.3958 → 0.5283 pre-fix) but changed Task 1's concat-MLP F1 materially
-> (0.9662 → 0.9174) — GNN still loses to every simple baseline either way.
-> Novelty claim #3 remains SUPPORTED.
+> The fix moved B2's Task-2 delta by −0.0016 (0.3958 → 0.5267,
+> was 0.3958 → 0.5283 pre-fix); B1 improved by +0.0225. Task 1's concat-MLP F1 changed materially
+> (0.9662 → 0.9174). §0.13.25 corrects the blanket GNN-loss claim: GNN
+> beats B3 on Task 1 and B0/B2 on Task 2. C2 is SUPPORTED BUT WEAKER
+> as indexed representations versus a global count; B0 Task 2 is not a
+> single-node baseline. See docs/PAPER_GNN_BASELINE_VERIFICATION.md for
+> authoritative historical runs and scoped paper wording.
 
 Guidance for coding agents working in `zt-cps-starter`. Read `METHODOLOGY.md` for the
 method and its mathematics, `ZERO_TRUST_CPS_KB.md` for architecture decisions,
@@ -85,7 +88,7 @@ python device_simulator.py   # terminal 2
 # gateway.py also serves the dashboard at http://localhost:8600
 ```
 
-Tests: `python -m unittest discover -s tests` (baseline 70 tests; see RESULTS.md §0.13.17 for the current count).
+Tests: `python -m unittest discover -s tests` (reviewed main: 138; Astra review adds 5 checks, including integration and nonfinite regressions; see RESULTS.md §0.13.25).
 
 With real hardware: Mosquitto running, board flashed and on the hotspot,
 gateway up, then `python scripts/collect_hardware_session.py --labelled`.

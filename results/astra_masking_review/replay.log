@@ -1,0 +1,37 @@
+==============================================================================
+GNN vs SAME-INFORMATION MULTI-DEVICE BASELINES -- 20-node hybrid network
+==============================================================================
+train        2400 snapshots   48000 scoreable (tick,node) rows  0 PENDING rows excluded
+validation   1200 snapshots   22800 scoreable (tick,node) rows  1200 PENDING rows excluded
+test         1200 snapshots   22800 scoreable (tick,node) rows  1200 PENDING rows excluded
+
+PENDING rows are esp32-vib-002 -- no capture exists yet. Excluded, never imputed.
+
+  self-loop w=1.0: validation F1=0.4367 (thr 0.225)
+  self-loop w=2.0: validation F1=0.4446 (thr 0.200)
+  self-loop w=3.0: validation F1=0.4432 (thr 0.200)
+  self-loop w=5.0: validation F1=0.5797 (thr 0.150)
+  -> self-loop weight 5.0 selected on VALIDATION
+
+model                     prec  recall      F1     FPR  evt recall
+------------------------------------------------------------------------------
+B0_single_device        0.9462  0.9967  0.9708  0.0040      1.0000
+B1_concat_logreg        0.5997  0.9560  0.7371  0.0449      1.0000
+B2_concat_mlp           0.8475  1.0000  0.9174  0.0127      1.0000
+B3_coordinated_rule     0.1915  0.7893  0.3082  0.2347      1.0000
+GNN                     0.5017  0.7060  0.5865  0.0494      0.6667
+
+TASK 2 -- network-level coordination pattern (4-way), accuracy
+------------------------------------------------------------------------------
+B0_anomalous_node_count    validation 0.3833   test 0.3958
+B1_concat_logreg           validation 0.5375   test 0.5433
+B2_concat_mlp              validation 0.5233   test 0.5267
+GNN_node_embeddings        validation 0.5475   test 0.5375
+Best: B1_concat_logreg (0.5433)
+
+Best test F1: B0_single_device (0.9708)
+GNN 0.5865 vs best same-information baseline 0.9708 (delta -0.3843)
+A simpler model matched or beat the GNN on the same information.
+The claim to make is about CROSS-DEVICE information, not about graph learning.
+
+written to results\astra_masking_review

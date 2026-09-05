@@ -1,0 +1,638 @@
+{
+  "reviewed_commit": "4f6afa25e4721c13a4e9f0355548f8ca07c70a5a",
+  "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "packages": {
+    "numpy": "2.4.4",
+    "torch": "2.11.0+cu128",
+    "scikit-learn": "1.9.0",
+    "joblib": "1.5.3",
+    "scipy": "1.18.0",
+    "shap": "0.52.0",
+    "matplotlib": "3.11.1"
+  },
+  "pytest_available": false,
+  "torch_cuda_available": true,
+  "gpu": "NVIDIA GeForce RTX 5060 Laptop GPU",
+  "files": {
+    "config/graph_topology.json": {
+      "sha256": "f95bdab0878234a4f807b102dc7741f6d419bef32af14c1363c225bf85748f3b",
+      "bytes": 7544
+    },
+    "config/simulated_nodes.json": {
+      "sha256": "928e33ebc025091670fa91994f23928d389c110f1a0b8fce6992791e8ba198c3",
+      "bytes": 18892
+    },
+    "data/collected/network/network_NETWORK_NORMAL_test.json": {
+      "sha256": "b643894fc878c359868966c4a0998b6bd335875beb4146fa3670cac24dd2a9c3",
+      "bytes": 4427268
+    },
+    "data/collected/network/network_NETWORK_NORMAL_train.json": {
+      "sha256": "cf329927bf4edaba53e3dedba116c18b073f48f3b6b42dc3b8e3c1be2aa574f9",
+      "bytes": 8993325
+    },
+    "data/collected/network/network_NETWORK_NORMAL_validation.json": {
+      "sha256": "357267e2e55f3752bef557147e3618991c37a4f97d204ca084405de04a364dec",
+      "bytes": 4499272
+    },
+    "data/collected/network/network_SCENARIO_A_test.json": {
+      "sha256": "f2e6b7dd57c3727ace2b731fd4aea5d8e5263ed07ebd9227b3f566cedb080080",
+      "bytes": 4444399
+    },
+    "data/collected/network/network_SCENARIO_A_train.json": {
+      "sha256": "4d93105df7cf4c28692b821492cc811e0ba51c9d38638cb68b23ec463bc78ad4",
+      "bytes": 9037321
+    },
+    "data/collected/network/network_SCENARIO_A_validation.json": {
+      "sha256": "93e04d21cd85eb7c5790531f6855bd18abe6c652286ce77d95c7919a1c8db092",
+      "bytes": 4534554
+    },
+    "data/collected/network/network_SCENARIO_B_test.json": {
+      "sha256": "b9b30e26eb7aa3fa02b7a3f7fc2f9a6daa75fbfb14d349ec4e041f9b26dd29a3",
+      "bytes": 4453837
+    },
+    "data/collected/network/network_SCENARIO_B_train.json": {
+      "sha256": "de1960bd8fa851e9e56cfeb6f3d9800842f5451c9db1cbb98e47d497931c0cad",
+      "bytes": 9056292
+    },
+    "data/collected/network/network_SCENARIO_B_validation.json": {
+      "sha256": "f3bf82afea5017d143fadf78729666fa50e4f59f581b4a8bace91403e8a16b62",
+      "bytes": 4543931
+    },
+    "data/collected/network/network_SCENARIO_C_test.json": {
+      "sha256": "990fe9b1b005d47e9ea6179ee66280ad818ece5487a19942476536311456c3c4",
+      "bytes": 4449822
+    },
+    "data/collected/network/network_SCENARIO_C_train.json": {
+      "sha256": "9cbb590d41421527174e360e8a0f5b68ce8be8970b17f6ced335704b9c4a1542",
+      "bytes": 9044060
+    },
+    "data/collected/network/network_SCENARIO_C_validation.json": {
+      "sha256": "d21041ea7c4c1aae83ba61255e7cb3044d548d5dbde72a14d75d8e37d5dbcb60",
+      "bytes": 4539818
+    },
+    "models/adaptive_pdp_qtable.json": {
+      "sha256": "aaa90b3d7d8efd67f0090d07d6f49777747c76f95bdfa0568a522eb648115c4b",
+      "bytes": 4200
+    },
+    "models/fusion_background.npy": {
+      "sha256": "8aa968a671ace9d1495b5f710a68e54e817094000f0f32d62ba8c16cc4fe8684",
+      "bytes": 1728
+    },
+    "models/fusion_meta_learner.joblib": {
+      "sha256": "20ea7bcbba43861b21736c857c47d80434cd8e0daea42cd645a6aabd4abbf8e8",
+      "bytes": 895
+    },
+    "models/gnn.pt": {
+      "sha256": "1d2028708aba69ff8b004eae6e2c58e6641959df10c4ec5ab9769e4cf925fa50",
+      "bytes": 7653
+    },
+    "models/gnn_network.pt": {
+      "sha256": "5ebeabaa94a110ac427f2e7fe56d6e8d2ff8ab7ac134c684dcf29139be1bb684",
+      "bytes": 8069
+    },
+    "models/isolation_forest_esp32-sim-03.joblib": {
+      "sha256": "3622d362c7999d10c8f9aa9b3fa567646aa4decafacdd2df1ae0b8113316130b",
+      "bytes": 1329065
+    },
+    "models/isolation_forest_esp32-sim-03_meta.json": {
+      "sha256": "d8ed5772e7cfe94339f1090d83f42f245274ab7fd8d975b84d248ed3a75f258a",
+      "bytes": 48
+    },
+    "models/isolation_forest_esp32-sim-04.joblib": {
+      "sha256": "3bcfe0fa84f0244d39410d2cf91245367a3d6cf707e1a62b26591c5368514068",
+      "bytes": 1347017
+    },
+    "models/isolation_forest_esp32-sim-04_meta.json": {
+      "sha256": "7c71af1d7ac0c575d8d90b0d9447169103f34035a377ff6f8a4339ea5f05ce3a",
+      "bytes": 48
+    },
+    "models/isolation_forest_esp32-sim-05.joblib": {
+      "sha256": "9c8d4f93a73d58f589b9fde15b710b7c35ddc6177973b65c4163c961fbe97a70",
+      "bytes": 1326601
+    },
+    "models/isolation_forest_esp32-sim-05_meta.json": {
+      "sha256": "d8a3761989f78caa29a572250b220bb8d633cadc5c2cd90d37357eb918f9dadf",
+      "bytes": 48
+    },
+    "models/isolation_forest_esp32-sim-06.joblib": {
+      "sha256": "bb2000b402029d93d3a3f7a1d81125236001a61ee375d3960b328a0295eac3c5",
+      "bytes": 1322025
+    },
+    "models/isolation_forest_esp32-sim-06_meta.json": {
+      "sha256": "a421c4598feccebc41afb8c21b66fb0a42dae79fba0ca2d6a39aeeef49d4ff88",
+      "bytes": 48
+    },
+    "models/isolation_forest_esp32-sim-07.joblib": {
+      "sha256": "266a919212f264623d2a81ad901001434fb2785986601bc67d0523394a9b7151",
+      "bytes": 132249
+    },
+    "models/isolation_forest_esp32-sim-07_meta.json": {
+      "sha256": "b6953bbc50fb35cb33e56c8d166cce576862f751fc3b9721bfad5dec72ab44bf",
+      "bytes": 32
+    },
+    "models/isolation_forest_esp32-sim-08.joblib": {
+      "sha256": "849eeade239d83c7dfa6f7be80d74a0972ddec39753a4c352ec8ab452f269e01",
+      "bytes": 1357049
+    },
+    "models/isolation_forest_esp32-sim-08_meta.json": {
+      "sha256": "dcd2109f99bd7d73fbf2968530120c7f4a34741fd5ee1203a0e1e12c3a517406",
+      "bytes": 47
+    },
+    "models/isolation_forest_esp32-sim-09.joblib": {
+      "sha256": "a67c09b66440f99ed88e6b433f69c4eaa5eeb2f982274821cb49b4ffa24be3f4",
+      "bytes": 1342089
+    },
+    "models/isolation_forest_esp32-sim-09_meta.json": {
+      "sha256": "428c8b49121bed2e51c5b8782e5e6914ef43333d8dd5bd2ae79c8d69a988712d",
+      "bytes": 48
+    },
+    "models/isolation_forest_esp32-sim-10.joblib": {
+      "sha256": "c99396a14252cfbd8b9c8ababe49d13cc8afbeda352e7d49d9883af356b5dafb",
+      "bytes": 71001
+    },
+    "models/isolation_forest_esp32-sim-10_meta.json": {
+      "sha256": "b6953bbc50fb35cb33e56c8d166cce576862f751fc3b9721bfad5dec72ab44bf",
+      "bytes": 32
+    },
+    "models/isolation_forest_esp32-sim-11.joblib": {
+      "sha256": "0484c1733f5d7d1e21e267750d6c80e05b3749a4b668cbe78ecc3ef83470506f",
+      "bytes": 1314281
+    },
+    "models/isolation_forest_esp32-sim-11_meta.json": {
+      "sha256": "a2d77b281724ebbe8762adcc2006a65372a2fb67940303925dc6005112016666",
+      "bytes": 48
+    },
+    "models/isolation_forest_esp32-sim-12.joblib": {
+      "sha256": "1ef4fe0438ce41fcd928dcefe742c0fed0472c6e9f2ca763bcd297faa7574550",
+      "bytes": 67305
+    },
+    "models/isolation_forest_esp32-sim-12_meta.json": {
+      "sha256": "b6953bbc50fb35cb33e56c8d166cce576862f751fc3b9721bfad5dec72ab44bf",
+      "bytes": 32
+    },
+    "models/isolation_forest_esp32-sim-13.joblib": {
+      "sha256": "115ffeaf2af4438277bfa7404691314e3ddfc92be16a78e50322c5698dafc78a",
+      "bytes": 104441
+    },
+    "models/isolation_forest_esp32-sim-13_meta.json": {
+      "sha256": "b6953bbc50fb35cb33e56c8d166cce576862f751fc3b9721bfad5dec72ab44bf",
+      "bytes": 32
+    },
+    "models/isolation_forest_esp32-sim-14.joblib": {
+      "sha256": "273a05b20222e10074638a776e90429563115e34eacc66b8ea2b353350e0314a",
+      "bytes": 1335049
+    },
+    "models/isolation_forest_esp32-sim-14_meta.json": {
+      "sha256": "60c170e3549f77148d259020e2efd85d9a603b5f046a47da4e635330e850626e",
+      "bytes": 47
+    },
+    "models/isolation_forest_esp32-sim-15.joblib": {
+      "sha256": "99520bbc32d5b21340675fec71fd5fb8e5d512020433b44ee66d81008e433c51",
+      "bytes": 61145
+    },
+    "models/isolation_forest_esp32-sim-15_meta.json": {
+      "sha256": "b6953bbc50fb35cb33e56c8d166cce576862f751fc3b9721bfad5dec72ab44bf",
+      "bytes": 32
+    },
+    "models/isolation_forest_esp32-sim-16.joblib": {
+      "sha256": "9f695f5826b2aa03853a7bfc144b0e163eb4ba0bb543775d9c0e46f77f10ad36",
+      "bytes": 65017
+    },
+    "models/isolation_forest_esp32-sim-16_meta.json": {
+      "sha256": "b6953bbc50fb35cb33e56c8d166cce576862f751fc3b9721bfad5dec72ab44bf",
+      "bytes": 32
+    },
+    "models/isolation_forest_esp32-sim-17.joblib": {
+      "sha256": "792f079458f0b630c523e4bb92e5eb8c9c282b08cc90eb3aaf41ab075df332fa",
+      "bytes": 88777
+    },
+    "models/isolation_forest_esp32-sim-17_meta.json": {
+      "sha256": "b6953bbc50fb35cb33e56c8d166cce576862f751fc3b9721bfad5dec72ab44bf",
+      "bytes": 32
+    },
+    "models/isolation_forest_esp32-sim-18.joblib": {
+      "sha256": "f4ef6c6272929366934b24dc4a4841455aea6cbdc695fc2ae220ed20f719067e",
+      "bytes": 1323257
+    },
+    "models/isolation_forest_esp32-sim-18_meta.json": {
+      "sha256": "c4460951adac70408e8c1253bf1936187e72bf15d1195a92c5b7a19300faba4c",
+      "bytes": 48
+    },
+    "models/isolation_forest_esp32-sim-19.joblib": {
+      "sha256": "7649cd564d910b67c8a2ca77a74347b56e9099c89280129d8246ec23595779b6",
+      "bytes": 63785
+    },
+    "models/isolation_forest_esp32-sim-19_meta.json": {
+      "sha256": "b6953bbc50fb35cb33e56c8d166cce576862f751fc3b9721bfad5dec72ab44bf",
+      "bytes": 32
+    },
+    "models/isolation_forest_esp32-sim-20.joblib": {
+      "sha256": "ac166c2d2ae21528084cad82cf28c3a14e1b955d0edf636ec64c1873edabb4b2",
+      "bytes": 69593
+    },
+    "models/isolation_forest_esp32-sim-20_meta.json": {
+      "sha256": "b6953bbc50fb35cb33e56c8d166cce576862f751fc3b9721bfad5dec72ab44bf",
+      "bytes": 32
+    },
+    "models/isolation_forest_esp32-vib-001.joblib": {
+      "sha256": "ae724639d1beb558fbd59ac9b97d66e47f59e0d9c85853296ed1ad7ac0eeedcc",
+      "bytes": 1232969
+    },
+    "models/isolation_forest_esp32-vib-001_meta.json": {
+      "sha256": "607e97631c6b0fa57882b4699d495392a50367f6878d2b75f51ecf33e6a95b34",
+      "bytes": 48
+    },
+    "models/isolation_forest_esp32-vib-002.joblib": {
+      "sha256": "b0e0e7a5000096c0b7df4f8bd1b1b1afde4054b0687e2821127a4d41ef9aa2d7",
+      "bytes": 61145
+    },
+    "models/isolation_forest_esp32-vib-002_meta.json": {
+      "sha256": "b6953bbc50fb35cb33e56c8d166cce576862f751fc3b9721bfad5dec72ab44bf",
+      "bytes": 32
+    },
+    "models/lstm_ae_esp32-sim-03.pt": {
+      "sha256": "8a2426345ce90a1e1b28f3ddee50860386410cd46b721fd7dcf826080654e412",
+      "bytes": 15327
+    },
+    "models/lstm_ae_esp32-sim-03_meta.json": {
+      "sha256": "9544b02d347c8445bb13cfac37ccb379f16a2834df1035dc4c78cae5fe64a648",
+      "bytes": 464
+    },
+    "models/lstm_ae_esp32-sim-04.pt": {
+      "sha256": "41a5bc6c36d3847b7a4f891701e2b32bd615e3cb3d89a68b617046537b3e25c0",
+      "bytes": 15327
+    },
+    "models/lstm_ae_esp32-sim-04_meta.json": {
+      "sha256": "75af815889444be9812b0a08cc82ee0e411c35c1ea9aab024e8843f2eab74cfe",
+      "bytes": 463
+    },
+    "models/lstm_ae_esp32-sim-05.pt": {
+      "sha256": "5dfa0ebb6d673f82fb25a4aea86d461bcd6af4c60ad7f7971e763c27ead96f7d",
+      "bytes": 15327
+    },
+    "models/lstm_ae_esp32-sim-05_meta.json": {
+      "sha256": "ca9de4b734bb1f4e4fa6947d5c0a35f1faf11b57e2cbb4648c502268fbc36358",
+      "bytes": 460
+    },
+    "models/lstm_ae_esp32-sim-06.pt": {
+      "sha256": "7dbd735f3177e48faed5f317594e08ceb05ad5ad64659e4845f7885482494bcc",
+      "bytes": 15327
+    },
+    "models/lstm_ae_esp32-sim-06_meta.json": {
+      "sha256": "87b099c6d5c5b16966f6a67c0a05f62695d7bb97054d4e3ef54bf472a04cfd32",
+      "bytes": 460
+    },
+    "models/lstm_ae_esp32-sim-07.pt": {
+      "sha256": "246688c5ab72f9e231d59ac62ef7cbb80d964cbae7d0864e3f23b0967a7796cc",
+      "bytes": 14751
+    },
+    "models/lstm_ae_esp32-sim-07_meta.json": {
+      "sha256": "01e17e95d6729a8c79f1430357e9406d507cf7613e711086410749bccc302590",
+      "bytes": 421
+    },
+    "models/lstm_ae_esp32-sim-08.pt": {
+      "sha256": "f9c9eba60671b46bf70ff69c982ec7d30e17c7d8f4f0084dfbb3016b48c65ecf",
+      "bytes": 15327
+    },
+    "models/lstm_ae_esp32-sim-08_meta.json": {
+      "sha256": "2b387f83d4ffba24fd36e87084c8b63de1d48785efa5fdc058e20696a131c84e",
+      "bytes": 465
+    },
+    "models/lstm_ae_esp32-sim-09.pt": {
+      "sha256": "2c8cc4543d776cd2972b97a7d40df44ca1e47d615ddb7e0109fe418275c0eb8c",
+      "bytes": 15327
+    },
+    "models/lstm_ae_esp32-sim-09_meta.json": {
+      "sha256": "613ee7403c835e29aa50716ebca2db6585744e87d4b92f250f16aeaa47fd03a4",
+      "bytes": 460
+    },
+    "models/lstm_ae_esp32-sim-10.pt": {
+      "sha256": "5b7e0ba159c479742b4ad1b3c2079575c80dc7f6efc7e3d9d4cd4cf2061fba27",
+      "bytes": 14751
+    },
+    "models/lstm_ae_esp32-sim-10_meta.json": {
+      "sha256": "c1ac6a047d8d783c61b083e53dcc448fdd28436d6bc9fdaccdfd9d64e9bd2428",
+      "bytes": 389
+    },
+    "models/lstm_ae_esp32-sim-11.pt": {
+      "sha256": "e02b9d7dcc510833538fbeea6805acb389fa357272e675189e6e44f3ccfaf608",
+      "bytes": 15327
+    },
+    "models/lstm_ae_esp32-sim-11_meta.json": {
+      "sha256": "4c36af6c53261c7df9ed5eac537d82de8f498c0d5a4f542ad5959caba253e654",
+      "bytes": 459
+    },
+    "models/lstm_ae_esp32-sim-12.pt": {
+      "sha256": "31b1f95fda3d4066909ed135da3e18b7c4faf7cb19ef57b0c2792dcf8bb4e17e",
+      "bytes": 14751
+    },
+    "models/lstm_ae_esp32-sim-12_meta.json": {
+      "sha256": "da0d68c27e60811257b0f219f4868cd0e6e1aa0e6a1b35b3b8003d2aee8ddd31",
+      "bytes": 391
+    },
+    "models/lstm_ae_esp32-sim-13.pt": {
+      "sha256": "08388206c190bd6f54f710b0c768ee745c876d3f78539ac69ac60b6a10c303f2",
+      "bytes": 14751
+    },
+    "models/lstm_ae_esp32-sim-13_meta.json": {
+      "sha256": "5972734d4a740a2ced7758ae3931049719556d8531eb64e989f9aa77dea2bbaf",
+      "bytes": 388
+    },
+    "models/lstm_ae_esp32-sim-14.pt": {
+      "sha256": "4413e2b1ac4d5c12e3526d806e029b754acb702bb6912d75b84d8669e45f935f",
+      "bytes": 15327
+    },
+    "models/lstm_ae_esp32-sim-14_meta.json": {
+      "sha256": "5a4f039cd3735e253c917ae0b0bd0d0f22d429c1924042e8ce646d45433184c7",
+      "bytes": 457
+    },
+    "models/lstm_ae_esp32-sim-15.pt": {
+      "sha256": "1a1315b0fbd5f28eec21a52878768d8096709e58662e043ede87faadba03d6b8",
+      "bytes": 14751
+    },
+    "models/lstm_ae_esp32-sim-15_meta.json": {
+      "sha256": "483523238d019f6665f911348644cc2b36430ac87479dce268ad8fa7ff6244cd",
+      "bytes": 278
+    },
+    "models/lstm_ae_esp32-sim-16.pt": {
+      "sha256": "ef3232d391488a4f95b3dbafd6550b363a32b62bb60ad3bdcc54a6e6fe104893",
+      "bytes": 14751
+    },
+    "models/lstm_ae_esp32-sim-16_meta.json": {
+      "sha256": "462e4f3508f655f8c8c3d7fdda4bbe92b9d78fe2cdf25bfce9d2c8f4d18ce87e",
+      "bytes": 394
+    },
+    "models/lstm_ae_esp32-sim-17.pt": {
+      "sha256": "70b5a50eba9e26f79ef17991879b80c50875dd4fab4c377f277c6a18f3e48994",
+      "bytes": 14751
+    },
+    "models/lstm_ae_esp32-sim-17_meta.json": {
+      "sha256": "e95e5ff9710b0f6b5bd7e151b23910392ddf7758e2cc7f8b755866512c12f8f4",
+      "bytes": 387
+    },
+    "models/lstm_ae_esp32-sim-18.pt": {
+      "sha256": "9b05843550a0a1b284b5e3d3ca27d945b6faff4db2cd54639671bc9d5e2ebdf8",
+      "bytes": 15327
+    },
+    "models/lstm_ae_esp32-sim-18_meta.json": {
+      "sha256": "87716fd2d1e198a124536a17dbd5dd7a95379ef3e9c817777e9a639223c54c4a",
+      "bytes": 464
+    },
+    "models/lstm_ae_esp32-sim-19.pt": {
+      "sha256": "1539473ccbdb8d83b2c01fe09ab24213e0e2e50613fc18f2b5b7f2639a38aadb",
+      "bytes": 14751
+    },
+    "models/lstm_ae_esp32-sim-19_meta.json": {
+      "sha256": "71a2e1e3132e3afbb60ff2f0a2d55c31af5c87853127464e43d2b1a9181714dc",
+      "bytes": 392
+    },
+    "models/lstm_ae_esp32-sim-20.pt": {
+      "sha256": "2d439455580a547845f346b7928bef606aaa00f5a9664b7df2a94a545eab835e",
+      "bytes": 14751
+    },
+    "models/lstm_ae_esp32-sim-20_meta.json": {
+      "sha256": "545cc0af3f615e11b01251de361fd1ea6f87f6e2e78878c8387c01d22db1ec32",
+      "bytes": 390
+    },
+    "models/lstm_ae_esp32-vib-001.pt": {
+      "sha256": "660df012d09494f4be0e40f8b9eff2042d3e26386cb0c3e2779d7a7a9a4f9cd0",
+      "bytes": 15337
+    },
+    "models/lstm_ae_esp32-vib-001_meta.json": {
+      "sha256": "18629eb6f178e0252ccc8cf9e9dcda6804bd5a17bc44bfc8957865ab632775b8",
+      "bytes": 464
+    },
+    "models/lstm_ae_esp32-vib-002.pt": {
+      "sha256": "175d9a0361eb8591fb68de0a163b58ec1141689132e6fa030f62383135068497",
+      "bytes": 14761
+    },
+    "models/lstm_ae_esp32-vib-002_meta.json": {
+      "sha256": "a912f7540902bca5b78e28c93f5a192bdb1b526422954ee8d1e6cc6993ec68f6",
+      "bytes": 295
+    },
+    "models/transformer_ae_esp32-vib-001.pt": {
+      "sha256": "63b4e4ba03625998cecd4139e3835c032fb2c8e5f1eff3ebebeb036c56e29162",
+      "bytes": 82539
+    },
+    "models/transformer_ae_esp32-vib-001_meta.json": {
+      "sha256": "c1011f139bdbcd294db76bf3a6679f5d865e69fa53c17f2e0d33d6b6334d4c70",
+      "bytes": 463
+    },
+    "models/transformer_ae_esp32-vib-002.pt": {
+      "sha256": "d13ac7faea4b6bd4c3b064a92f5fd0c707e4aec1586deb085a2244547e45111e",
+      "bytes": 82283
+    },
+    "models/transformer_ae_esp32-vib-002_meta.json": {
+      "sha256": "903e9a2a6d3000fa28660fed399d7491fc6ece5546bdd864851fdb79e84a8175",
+      "bytes": 296
+    },
+    "scripts/evaluate_gnn_baselines.py": {
+      "sha256": "8c67354b03e0aaae7e935ada663a2b0a87a4e55287a54d752cb9ee441c200eba",
+      "bytes": 29440
+    },
+    "src/config.py": {
+      "sha256": "50d3f52e12050dc5cfd2f5fd5ab06fb5e99896aa5990d9961e3615e39b6c6c67",
+      "bytes": 52822
+    },
+    "src/datasets.py": {
+      "sha256": "51a17dd6ce5e9b755b63900678d1420c8194b42178b66b2603c20118a3876093",
+      "bytes": 4389
+    },
+    "src/gnn_scorer.py": {
+      "sha256": "3a9f200a10a7a4124d7eaa2723fadccf31429b361866d5ba7d41243ac53346bc",
+      "bytes": 8611
+    }
+  },
+  "network_files": {
+    "network_NETWORK_NORMAL_test.json": {
+      "rows": 6000,
+      "ticks": 300,
+      "pending": 300,
+      "source_type_counts": {
+        "REAL": 300,
+        "PENDING_REAL_HARDWARE_DATA": 300,
+        "SIMULATED": 5400
+      },
+      "sensor_type_counts": {
+        "MPU6050": 300,
+        "SW-420": 300,
+        "MPU6050-like": 2700,
+        "SW-420-like": 2700
+      }
+    },
+    "network_NETWORK_NORMAL_train.json": {
+      "rows": 12000,
+      "ticks": 600,
+      "pending": 0,
+      "source_type_counts": {
+        "REAL": 1200,
+        "SIMULATED": 10800
+      },
+      "sensor_type_counts": {
+        "MPU6050": 600,
+        "SW-420": 600,
+        "MPU6050-like": 5400,
+        "SW-420-like": 5400
+      }
+    },
+    "network_NETWORK_NORMAL_validation.json": {
+      "rows": 6000,
+      "ticks": 300,
+      "pending": 300,
+      "source_type_counts": {
+        "REAL": 300,
+        "PENDING_REAL_HARDWARE_DATA": 300,
+        "SIMULATED": 5400
+      },
+      "sensor_type_counts": {
+        "MPU6050": 300,
+        "SW-420": 300,
+        "MPU6050-like": 2700,
+        "SW-420-like": 2700
+      }
+    },
+    "network_SCENARIO_A_test.json": {
+      "rows": 6000,
+      "ticks": 300,
+      "pending": 300,
+      "source_type_counts": {
+        "REAL": 300,
+        "PENDING_REAL_HARDWARE_DATA": 300,
+        "SIMULATED": 5400
+      },
+      "sensor_type_counts": {
+        "MPU6050": 300,
+        "SW-420": 300,
+        "MPU6050-like": 2700,
+        "SW-420-like": 2700
+      }
+    },
+    "network_SCENARIO_A_train.json": {
+      "rows": 12000,
+      "ticks": 600,
+      "pending": 0,
+      "source_type_counts": {
+        "REAL": 1200,
+        "SIMULATED": 10800
+      },
+      "sensor_type_counts": {
+        "MPU6050": 600,
+        "SW-420": 600,
+        "MPU6050-like": 5400,
+        "SW-420-like": 5400
+      }
+    },
+    "network_SCENARIO_A_validation.json": {
+      "rows": 6000,
+      "ticks": 300,
+      "pending": 300,
+      "source_type_counts": {
+        "REAL": 300,
+        "PENDING_REAL_HARDWARE_DATA": 300,
+        "SIMULATED": 5400
+      },
+      "sensor_type_counts": {
+        "MPU6050": 300,
+        "SW-420": 300,
+        "MPU6050-like": 2700,
+        "SW-420-like": 2700
+      }
+    },
+    "network_SCENARIO_B_test.json": {
+      "rows": 6000,
+      "ticks": 300,
+      "pending": 300,
+      "source_type_counts": {
+        "REAL": 300,
+        "PENDING_REAL_HARDWARE_DATA": 300,
+        "SIMULATED": 5400
+      },
+      "sensor_type_counts": {
+        "MPU6050": 300,
+        "SW-420": 300,
+        "MPU6050-like": 2700,
+        "SW-420-like": 2700
+      }
+    },
+    "network_SCENARIO_B_train.json": {
+      "rows": 12000,
+      "ticks": 600,
+      "pending": 0,
+      "source_type_counts": {
+        "REAL": 1200,
+        "SIMULATED": 10800
+      },
+      "sensor_type_counts": {
+        "MPU6050": 600,
+        "SW-420": 600,
+        "MPU6050-like": 5400,
+        "SW-420-like": 5400
+      }
+    },
+    "network_SCENARIO_B_validation.json": {
+      "rows": 6000,
+      "ticks": 300,
+      "pending": 300,
+      "source_type_counts": {
+        "REAL": 300,
+        "PENDING_REAL_HARDWARE_DATA": 300,
+        "SIMULATED": 5400
+      },
+      "sensor_type_counts": {
+        "MPU6050": 300,
+        "SW-420": 300,
+        "MPU6050-like": 2700,
+        "SW-420-like": 2700
+      }
+    },
+    "network_SCENARIO_C_test.json": {
+      "rows": 6000,
+      "ticks": 300,
+      "pending": 300,
+      "source_type_counts": {
+        "REAL": 300,
+        "PENDING_REAL_HARDWARE_DATA": 300,
+        "SIMULATED": 5400
+      },
+      "sensor_type_counts": {
+        "MPU6050": 300,
+        "SW-420": 300,
+        "MPU6050-like": 2700,
+        "SW-420-like": 2700
+      }
+    },
+    "network_SCENARIO_C_train.json": {
+      "rows": 12000,
+      "ticks": 600,
+      "pending": 0,
+      "source_type_counts": {
+        "REAL": 1200,
+        "SIMULATED": 10800
+      },
+      "sensor_type_counts": {
+        "MPU6050": 600,
+        "SW-420": 600,
+        "MPU6050-like": 5400,
+        "SW-420-like": 5400
+      }
+    },
+    "network_SCENARIO_C_validation.json": {
+      "rows": 6000,
+      "ticks": 300,
+      "pending": 300,
+      "source_type_counts": {
+        "REAL": 300,
+        "PENDING_REAL_HARDWARE_DATA": 300,
+        "SIMULATED": 5400
+      },
+      "sensor_type_counts": {
+        "MPU6050": 300,
+        "SW-420": 300,
+        "MPU6050-like": 2700,
+        "SW-420-like": 2700
+      }
+    }
+  },
+  "source_hash_scope": "Working Astra source after hardening/reporting edits; reviewed Git source hash is in verification.json. Dataset/model artifacts are unchanged from reviewed main."
+}

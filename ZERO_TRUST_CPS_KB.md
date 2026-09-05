@@ -1046,35 +1046,33 @@ training data for input combinations the live system never produces, which is
 risk for no decision-level benefit. `TestTwoScoreSeparation` now pins the property
 that matters instead. See `RESULTS.md` 0.10.12.
 
-**The GNN does not beat simpler models on identical multi-device information --
-measured against fair baselines, and the superiority claim is withdrawn. The
-gap widened, not narrowed, when the network grew from 10 to 20 nodes
-(RESULTS.md §0.13.18/§0.13.20).**
-`scripts/evaluate_gnn_baselines.py` runs five comparators on byte-identical inputs
-(single-device, concatenated logistic regression, a small MLP, a coordinated rule,
-and the GNN), fit on TRAIN, all selection on VALIDATION (self-loop weight swept
-`{1,2,3,5}`), TEST read once. Corrected 20-node figures (RESULTS.md §0.13.24 —
-a pending-node masking bug found in this project's own B1/B2/B3 concat
-baselines, mirroring the one already found and fixed in
-`benchmark_crossdevice_models.py`, §0.13.19) / ⚠ superseded 10-node
-figures — Task 1 (per-node anomaly, test F1): concat MLP **0.9174 / 0.9852**,
-single-device 0.9708 / 0.9771, **GNN 0.5865 / 0.8381**, concat logistic
-0.7371 / 0.7785, rule 0.3082 / 0.6156. Task 2 (coordination pattern, test
-accuracy): concat MLP **0.5267 / 0.6567**, logistic 0.5433 / 0.6433,
-**GNN 0.5375 / 0.6058**, node-count 0.3958 / 0.4142. The GNN loses *at its own
-best swept setting* (self-loop weight 5.0, VALIDATION F1 0.8646 → **0.5797** at
-20 nodes), more decisively than before. **The defensible claim is about
-cross-device information** (node-count 0.3958 → concat 0.5267 at 20 nodes,
-was 0.4142 → 0.6567 at 10 — the advantage persists but shrank, cause not
-isolated; the masking fix moved this delta only marginally, from the
-pre-audit 20-node 0.3958 → 0.5283, §0.13.20, now superseded), **not graph
-structure.** Bounded: one topology, two graph sizes now measured, one GCN
-architecture, one testbed, `esp32-vib-002` TRAIN-only — this shows the GNN
-did not help *here*, and got worse as the network grew, not that graph
-learning cannot help. The GNN stays in the deployed fusion (it carries real
-weight there); what is withdrawn is any claim that graph structure is
-architecturally necessary. See
-`docs/CLAIM_EVIDENCE_MATRIX.md` C2/C3, `RESULTS.md` §0.13.3/§0.13.24.
+**The evaluated GCN does not establish graph superiority.** The exact local
+`4f6afa2` benchmark and its reporting were independently reviewed in
+`docs/PAPER_GNN_BASELINE_VERIFICATION.md` (RESULTS §0.13.25). Task-1 TEST F1:
+B0 0.9708, B1 0.7371, B2 **0.9174**, B3 0.3082, GNN **0.5865**. GNN beats
+B3 but loses to B0/B1/B2. B2's correction from **0.9662 to 0.9174** is material
+(FP 28→270). Task-2 TEST accuracy: global count 0.3958, concat logistic
+**0.5433**, concat MLP 0.5267, GNN scalar-output-vector head 0.5375. Thus GNN
+beats B0/B2 on Task 2 and loses to B1; it does not lose to every baseline.
+
+C2 is **SUPPORTED BUT WEAKER**: indexed multi-node representations outperform
+a global count here. B0 Task 2 already counts all valid nodes, so the literal
+single-node claim requires a new control. No statistical significance or
+network-size causation is established. Network size, sensor composition,
+provenance and the upstream model chain changed between historical runs.
+
+**Historical runs are distinct.** This KB previously cited the early 10-node
+artifact at `ba562f7:results/gnn_baselines/metrics.json` (Task-1 B2/GNN
+0.9852/0.8381; Task-2 B0/B1/B2/GNN 0.4142/0.6433/0.6567/0.6058).
+The later `de3654a` artifact follows a model-chain rebuild and GNN validity
+repair (Task-1 B2/GNN 0.9823/0.8760; Task-2
+0.4175/0.6533/0.6567/0.6117). Earlier unlabeled comparisons were stale,
+not alternative rounding. Both runs remain preserved in Git and the paper
+ledger. The current 20-node corrected artifact is `4f6afa2`; its pre-audit
+20-node predecessor is `c5cd38d`, unchanged at `162d4a6`.
+
+The GNN remains in deployed fusion; this benchmark evaluates a separate GCN
+trained on the constructed network. See C2/C3 for permitted claim wording.
 
 **A validation-tuned static policy beats the adaptive policy -- reported as a
 negative result.** `scripts/evaluate_policy_comparison.py` scores five policies on

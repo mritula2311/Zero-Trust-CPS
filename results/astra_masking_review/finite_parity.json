@@ -1,0 +1,26 @@
+[
+  {
+    "invalid_value": 0.9,
+    "representations_equal": true,
+    "GNN_weights_equal": true,
+    "GNN_outputs_equal": true
+  },
+  {
+    "invalid_value": -1000000.0,
+    "representations_equal": true,
+    "GNN_weights_equal": true,
+    "GNN_outputs_equal": true
+  },
+  {
+    "invalid_value": 1000000.0,
+    "representations_equal": true,
+    "GNN_weights_equal": true,
+    "GNN_outputs_equal": true
+  },
+  {
+    "invalid_value": 0.42,
+    "representations_equal": true,
+    "GNN_weights_equal": true,
+    "GNN_outputs_equal": true
+  }
+]

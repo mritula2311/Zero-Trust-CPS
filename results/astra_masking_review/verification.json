@@ -1,0 +1,31 @@
+{
+  "metrics.json_semantic_equal": true,
+  "self_loop_sweep.json_semantic_equal": true,
+  "all_historical_confusion_totals_and_f1_consistent": true,
+  "pre_audit_c5cd38d_and_162d4a6_metrics_identical": true,
+  "replay_GNN_weights_match_reviewed_model": true,
+  "tracked_models_and_data_unchanged": true,
+  "final_suite": {
+    "tests_run": 143,
+    "passed": true,
+    "failed": 0,
+    "skipped": 0,
+    "ResourceWarning_occurrences": 5,
+    "PendingDeprecationWarning_occurrences": 3
+  },
+  "reviewed_main_baseline": {
+    "tests_run": 138,
+    "passed": 138,
+    "failed": 0,
+    "skipped": 0,
+    "ResourceWarning_occurrences": 5,
+    "PendingDeprecationWarning_occurrences": 3,
+    "elapsed_seconds": 28.812,
+    "evidence": "Observed original terminal run before any edits; final expanded suite is saved in full_suite.log."
+  },
+  "reviewed_commit": "4f6afa25e4721c13a4e9f0355548f8ca07c70a5a",
+  "replay_implementation": "Original reviewed module loaded before Astra edits; only output paths overridden.",
+  "reviewed_source_sha256": "9811e418e18cb42a0a8c6814b07450d9e26eed3fc8da0743217315c6d6e2006b",
+  "astra_source_sha256": "8c67354b03e0aaae7e935ada663a2b0a87a4e55287a54d752cb9ee441c200eba",
+  "astra_code_test_commit": "6d74a0e"
+}

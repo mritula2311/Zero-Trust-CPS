@@ -1367,6 +1367,12 @@ second-strongest contributor rather than a negative one.
 
 ### 0.12.3 GNN vs same-information baselines — claim withdrawn
 
+> **Historical run H10-early:** authoritative artifact is
+> `ba562f7:results/gnn_baselines/metrics.json`, not the current file.
+> The original interpretation below is superseded by §0.13.25: Task-2
+> B0 counts all valid nodes, and classifier inputs are not byte-identical.
+> The distinct rebuilt 10-node run at `de3654a` is preserved in the paper ledger.
+
 `results/gnn_baselines/metrics.json`. Five comparators, byte-identical inputs
 (per-node `[rule, iso, lstm]` for all ten nodes), fit on TRAIN, all selection on
 VALIDATION, TEST read once.
@@ -2201,7 +2207,8 @@ are unchanged; the following interpretations supersede their stronger wording.
   in `benchmark_crossdevice_models.py` (§0.13.19) — a placeholder no longer
   reaches pooling/attention for those models. `evaluate_gnn_baselines.py`'s
   GCN adjacency-masking was already correct at the time this bullet was
-  written; its own concat baselines may still have this issue (§0.13.20).**
+  written; its concat baselines were subsequently repaired in §0.13.24, with
+  independent cross-review and nonfinite hardening in §0.13.25.**
   Thus original 10/15-slot runs
   contain at most 9/14 observed streams. Physical network values are drawn with
   replacement; they are not contiguous hardware trajectories. The capped-FPR
@@ -2667,6 +2674,12 @@ Full detail: `results/crossdevice_benchmark/metrics.json`.
 
 ### 0.13.24 `evaluate_gnn_baselines.py` B1/B2/B3/Task-2 pending-node masking fixed — §0.13.20's flagged audit target closed (2026-09-05/06)
 
+> **Cross-review correction:** The numeric record below is retained. §0.13.25
+> supersedes its unrestricted masking claim, blanket GNN-loss wording and
+> literal single-node interpretation of Task-2 B0. Historical 10-node values
+> in this section belong to `de3654a`; the distinct earlier run is preserved
+> and attributed in `docs/PAPER_GNN_BASELINE_VERIFICATION.md`.
+
 **What §0.13.20 flagged, resolved.** §0.13.20 found that
 `evaluate_gnn_baselines.py` shares `flatten_for_concat()` with
 `benchmark_crossdevice_models.py` but was explicitly left out of scope for
@@ -2722,13 +2735,14 @@ masking correction is isolated exactly as §0.13.19's fix was.
 | B3 coordinated rule | 0.3082 | 0.3082 (unchanged) |
 | GNN | 0.5865 | 0.5865 (unchanged — path was already correct) |
 
-B2's drop is real and attributable to the fix (a wider, correctly-masked
-input changes what the MLP fits) — it does not reverse C3: the GNN
-(0.5865) is still beaten by every simple baseline. B3 and B0 are bit-for-bit
-unchanged because the historical PENDING placeholder (0.9) already sits
-above `PROCESS_THRESHOLD` (0.6) on the real data, so the leak was
-demonstrable (via the tampered-value tests above) but dormant on this
-particular dataset for those two paths.
+B2's drop is material: FP rose 28→270 while FN fell 72→0. The
+correction jointly changed zeroing and validity-channel width; it does not
+isolate either effect. **Cross-review correction (§0.13.25):** GNN loses
+to B0/B1/B2 on Task 1 but beats B3 (0.5865 versus 0.3082). B0 Task 1
+was immune by its own-feature extraction. B3 and B0 Task 2 happen to keep
+the same numerical counts because the old pending placeholder 0.9 was
+above `PROCESS_THRESHOLD` 0.6; their earlier lack of validity gating was
+still a real defect.
 
 **Task 2 (coordination-pattern, test accuracy) — the source of novelty
 claim #3 — old (10-node, superseded) / pre-audit 20-node (buggy) /
@@ -2744,23 +2758,20 @@ corrected 20-node (masked):**
 Cross-device delta (best concat baseline − B0), same three points:
 10-node **+0.2392** (B2−B0) → pre-audit 20-node **+0.1325** (B2−B0) →
 corrected 20-node **+0.1309** (B2−B0) / **+0.1475** (B1−B0, now the better
-of the two concat baselines on TEST). **The fix changed which concat model
-is nominally best (B1 edges out B2 post-correction) but did not materially
-move the headline delta**, and did not change its sign. The masking bug was
-real and independently demonstrated (regression tests above), but on the
-actual measured dataset it was close to inert for Task 2 specifically,
-for the same reason noted for B0/B3 above.
+of the two concat baselines on TEST). **Cross-review clarification:** B2's
+Task-2 accuracy moved −0.0016, whereas B1 improved +0.0225 (its gain over
+B0 changed +0.1250→+0.1475). The positive sign persists for each comparator,
+but these model-specific movements are not interchangeable. The explanation
+for unchanged threshold counts does not by itself explain learned-model
+behavior under a changed representation. See §0.13.25.
 
-**Novelty claim #3 status: unchanged — SUPPORTED.** Cross-device information
-still improves the measured Task-2 score in the current 20-node benchmark,
-by a margin (~0.13–0.15) smaller than the superseded 10-node experiment
-(~0.24), consistent with what §0.13.20 already reported — this audit adds
-that the smaller-at-20-nodes result is not an artifact of the masking bug,
-since correcting the bug barely moved the number. The 10→20 change still
-confounds network cardinality, sensor-type composition and provenance
-together; isolating network size alone would need a controlled ablation
-(10-node benchmark, corrected masking, same old split/protocol) that has
-not been run and is not required to interpret this claim.
+**Cross-review status (§0.13.25): SUPPORTED BUT WEAKER** as a comparison
+of indexed representations against a global count. The original SUPPORTED
+label relied on calling Task-2 B0 a single-node view; it actually counts all
+valid nodes. A literal single-device comparison requires a new control.
+No statistical significance is established. Cardinality, sensor type,
+provenance and upstream model changes confound the historical comparison;
+a corrected 10-node control is necessary only if causal attribution is sought.
 
 **Docs updated:** `docs/CLAIM_EVIDENCE_MATRIX.md` (C2/C3),
 `docs/REVIEW_RESPONSE_TRACKER.md`, `METHODOLOGY.md` §6, `PRD.md` FR-P2,
@@ -2771,6 +2782,57 @@ chronological record, unchanged.
 
 Full detail: `results/gnn_baselines/metrics.json`, `results/gnn_baselines/self_loop_sweep.json`.
 Test coverage: `tests/test_gnn_baseline_pending_node_masking.py`.
+
+### 0.13.25 Independent Astra cross-review of `4f6afa2` and paper evidence reconciliation (2026-09-06)
+
+Reviewed exact accessible local main
+`4f6afa25e4721c13a4e9f0355548f8ca07c70a5a`; nothing pushed. Corrections
+are on `astra/verify-pending-masking-20260906`. Full evidence and paper-ready
+wording: `docs/PAPER_GNN_BASELINE_VERIFICATION.md`.
+
+- **Numeric audit:** §0.13.24's current metrics match the Git artifact.
+  Task-2 TEST accuracy B0/B1/B2/GNN = **0.3958/0.5433/0.5267/0.5375**.
+  B2 Task-1 F1 **0.9662→0.9174**, FP **28→270**, FN **72→0**. The
+  original-code scientific replay is saved separately under
+  `results/astra_masking_review/`: both full JSON artifacts and all saved
+  GNN weight tensors match the reviewed artifacts exactly (`verification.json`).
+- **Finite masking:** B0 Task 1 was already immune; B1/B2/B3 and Task-2
+  snapshot/count paths were affected and their finite-content repair is
+  correct. GNN adjacency masking was already correct for tested finite
+  values. Six deliberate masking mutations were detected by assertion
+  failures, including bypassing the helper in production `main`.
+- **Additional defect found and fixed on Astra:** NaN/Inf pending content
+  survives multiplication by zero and contaminated concat/GNN paths.
+  Two new tests first failed six subcases on reviewed main. Explicit
+  invalid-entry assignment/selection before model arithmetic now passes;
+  finite original-versus-Astra representations, GNN weights and outputs
+  match exactly in four probes. Valid observations are not replaced.
+- **C2 / requested cross-device novelty #3:** **SUPPORTED BUT WEAKER** for
+  indexed representations versus a global anomaly count. B0 Task 2 already
+  uses all valid nodes. A literal single-device Task-2 comparison requires
+  controlled follow-up. B1 has the strongest observed TEST gain (+0.1475),
+  versus B2 +0.1309 and GNN +0.1417. No statistical superiority test was run.
+- **C3 correction:** GNN beats B3 on Task 1 and B0/B2 on Task 2; it does
+  not lose to every simple baseline. The Task-2 GNN head consumes scalar
+  per-node outputs, despite its historical `GNN_node_embeddings` key.
+- **Historical discrepancy resolved:** KB/tracker's 10-node set is the
+  genuine earlier `ba562f7` run; matrix/§0.13.20/24 use `de3654a` after
+  a chain rebuild plus GNN masking repair. Both full metric artifacts are
+  retained in `historical_metrics.json`. These are neither rounding variants
+  nor different model labels. Unlabeled historical comparisons were stale.
+- **Protocol and provenance:** selection rules were unchanged, but B1's
+  selected threshold changed 0.85→0.125. Twenty declared identities comprise
+  10 MPU6050-type + 10 SW-420-type; held-out splits observe only one physical
+  node plus 18 simulated nodes. SW-420's real capture is TRAIN-only. Every
+  tick has all 20 identities; pending rows are explicit. Network cardinality,
+  composition, provenance and model-chain changes are not isolated causes.
+- **Tests:** exact reviewed main **138 passed**, Astra **143 passed**,
+  zero failures/skips. Five baseline ResourceWarnings (pre-existing unclosed
+  test handles) and three separate third-party deprecation warnings were
+  observed. These are worth cleaning up but are not result failures.
+  `unittest` is canonical; missing pytest is expected, and no dependency
+  was installed. Five new tests include real entry-point fits/selection,
+  actual topology/split provenance, pre-mask B0, and nonfinite regressions.
 
 ## 1. What Was Verified Live (Not Just Measured Offline)
 
