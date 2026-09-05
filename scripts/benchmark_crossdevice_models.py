@@ -59,8 +59,9 @@ number here was looked at:
                         and the GCN self-loop weight
     TEST split       -> read ONCE, report
 
-All four models receive the SAME per-node [rule, isolation_forest, lstm_ae]
-sub-scores for all ten nodes at one tick. Nothing else differs.
+Models receive the same per-node [rule, isolation_forest, lstm_ae] sub-scores.
+Architecture, optimisation and class weighting differ; in particular the concat
+MLP loss is unweighted. See docs/ASTRA_AUDIT.md for the comparison's limits.
 
 OPERATING POINT. Two are reported per model, because "which model" and "where
 to set the alarm" are different questions and answering them with one number
@@ -77,9 +78,10 @@ class weighting, shared verbatim with train_network_gnn so the comparison stays
 like-for-like. Swapping in focal loss would change two models and not the two
 sklearn ones, which is the sort of asymmetry this file exists to avoid.
 
-PENDING_REAL_HARDWARE_DATA rows (esp32-vib-002, no capture exists) carry no
-features. Excluded from every fit and every metric, counted in the output,
-never imputed.
+PENDING_REAL_HARDWARE_DATA rows (esp32-vib-002, no capture exists) are excluded
+from target loss and metrics, but a neutral 0.9 placeholder remains in model
+context. A masked input benchmark is still required; no physical observation
+exists for that column.
 
 Writes results/crossdevice_benchmark/.
 """
@@ -94,6 +96,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 sys.path.insert(0, os.path.dirname(__file__))
 
 import numpy as np
+from scipy.stats import t as student_t
 import torch
 import torch.nn as nn
 from sklearn.ensemble import HistGradientBoostingClassifier
@@ -777,10 +780,13 @@ def _eval_slice(model, X, y, meta, thr, col_idx=None, scenario=None):
     if col_idx is not None:
         scores, y, valid = scores[:, col_idx], y[:, col_idx], valid[:, col_idx]
     s, lab = scores[valid], y[valid]
-    if len(set((lab == 0).astype(int))) < 2:
-        return {"n": int(len(lab)), "f1": float("nan"), "recall": float("nan"),
-                "false_positive_rate": float("nan")}
-    return {"n": int(len(lab)), **metrics(s, lab, thr)}
+    result = metrics(s, lab, thr)
+    if not np.any(lab == 0):
+        result.update(f1=None, recall=None, detection_rate=None,
+                      undefined_reason="no anomalous observations")
+    if not np.any(lab == 1):
+        result["false_positive_rate"] = None
+    return result
 
 
 def m9_ablation_investigation(n_seeds=10):
@@ -821,14 +827,16 @@ def m9_ablation_investigation(n_seeds=10):
             for slice_name, col_idx in slices.items():
                 r = _eval_slice(model, *real_te, thr, col_idx=col_idx)
                 per_seed[name][f"col:{slice_name}"].append(r["f1"])
+                per_seed[name][f"col:{slice_name}:false_positive_rate"].append(r["false_positive_rate"])
             for sc in scenarios:
                 r = _eval_slice(model, *real_te, thr, scenario=sc)
                 if r is not None:
                     per_seed[name][f"scenario:{sc}"].append(r["f1"])
+                    per_seed[name][f"scenario:{sc}:false_positive_rate"].append(r["false_positive_rate"])
         print(f"  seed {seed} done")
 
     print(f"\n{'=' * 90}")
-    print("M9 ABLATION INVESTIGATION -- per-slice F1, mean +/- 95% CI over seeds")
+    print("M9 ABLATION INVESTIGATION -- per-slice F1 and FPR, mean +/- 95% CI over seeds")
     print(f"{'=' * 90}")
     all_keys = sorted(per_seed["hybrid"])
     print(f"{'slice':28s} {'hybrid (real+virtual)':26s} {'ablation (virtual-only)':26s}")
@@ -836,19 +844,20 @@ def m9_ablation_investigation(n_seeds=10):
     for key in all_keys:
         row = {}
         for name in ("hybrid", "ablation"):
-            vals = [v for v in per_seed[name][key] if not np.isnan(v)]
-            row[name] = mean_ci(vals) if vals else {"mean": float("nan"), "ci95": None}
+            vals = [v for v in per_seed[name][key] if v is not None]
+            row[name] = mean_ci(vals) if vals else {"mean": None, "ci95": None,
+                                                   "undefined_reason": "no observations for this metric"}
             summary[name][key] = row[name]
         h, a = row["hybrid"], row["ablation"]
-        h_str = f"{h['mean']:.4f} +/-{h['ci95']:.4f}" if h.get("ci95") is not None else f"{h['mean']:.4f}"
-        a_str = f"{a['mean']:.4f} +/-{a['ci95']:.4f}" if a.get("ci95") is not None else f"{a['mean']:.4f}"
+        h_str = "n/a" if h["mean"] is None else f"{h['mean']:.4f}" + (f" +/-{h['ci95']:.4f}" if h.get("ci95") is not None else " (CI n/a)")
+        a_str = "n/a" if a["mean"] is None else f"{a['mean']:.4f}" + (f" +/-{a['ci95']:.4f}" if a.get("ci95") is not None else " (CI n/a)")
         print(f"{key:28s} {h_str:26s} {a_str:26s}")
 
     path = os.path.join(RESULTS_DIR, "m9_ablation_investigation.json")
     os.makedirs(RESULTS_DIR, exist_ok=True)
     with open(path, "w") as f:
         json.dump({"n_seeds": n_seeds, "summary": summary,
-                   "per_seed": {k: dict(v) for k, v in per_seed.items()}}, f, indent=2, default=float)
+                   "per_seed": {k: dict(v) for k, v in per_seed.items()}}, f, indent=2, default=float, allow_nan=False)
     print(f"\nwritten to {path}")
     return summary
 
@@ -1674,13 +1683,6 @@ def main():
 # --------------------------------------------------------------------------
 # multi-seed validation of the two dilution mechanisms
 # --------------------------------------------------------------------------
-# t multipliers for a two-sided 95% interval at n-1 degrees of freedom. Hardcoded
-# for the handful of seed counts this is run with rather than pulling in scipy
-# for three numbers; falls back to the normal approximation, which is stated in
-# the output so an interval is never silently mislabelled.
-_T95 = {3: 4.303, 4: 3.182, 5: 2.776, 6: 2.571, 8: 2.365, 10: 2.262}
-
-
 def mean_ci(values):
     """Mean and half-width of a two-sided 95% interval over SEEDS.
 
@@ -1692,12 +1694,13 @@ def mean_ci(values):
     v = np.asarray(values, dtype=float)
     n = len(v)
     if n < 2:
-        return {"mean": round(float(v.mean()), 4), "ci95": None, "n_seeds": n}
-    t = _T95.get(n, 1.96)
+        return {"mean": round(float(v.mean()), 4) if n else None,
+                "ci95": None, "n_seeds": n}
+    t = float(student_t.ppf(0.975, n - 1))
     half = t * float(v.std(ddof=1)) / np.sqrt(n)
     return {"mean": round(float(v.mean()), 4), "ci95": round(float(half), 4),
             "sd": round(float(v.std(ddof=1)), 4), "n_seeds": n,
-            "multiplier": "t" if n in _T95 else "normal-approx",
+            "multiplier": "t",
             # Raw per-seed values kept, not just the summary. A +-0.36 interval
             # on a bounded [0,1] metric is a warning that the distribution may be
             # bimodal, and a mean +- CI reported over a bimodal outcome describes
@@ -1775,17 +1778,22 @@ def _paired_t(d, **extra):
     significance -- the set models return an identical value at every level of
     both probes, having no neighbourhood to aggregate over."""
     n = len(d)
+    if n < 2:
+        return {"mean": round(float(d.mean()), 4) if n else None,
+                "sd": None, "n_seeds": n, "significant": False,
+                "seeds_negative": int((d < 0).sum()),
+                "note": "fewer than two seeds; interval undefined", **extra}
     mean, sd = float(d.mean()), float(d.std(ddof=1))
     row = {"mean": round(mean, 4), "sd": round(sd, 4), "n_seeds": n,
            "seeds_negative": int((d < 0).sum()), **extra}
     if sd == 0.0:
         row.update({"significant": False, "note": "flat by construction"})
         return row
-    t = _T95.get(n, 1.96)
+    t = float(student_t.ppf(0.975, n - 1))
     half = t * sd / np.sqrt(n)
     row.update({"ci95": [round(mean - half, 4), round(mean + half, 4)],
                 "t": round(mean / (sd / np.sqrt(n)), 3), "t_crit": t,
-                "multiplier": "t" if n in _T95 else "normal-approx",
+                "multiplier": "t",
                 "significant": bool(abs(mean) > half),
                 "per_seed": [round(float(x), 4) for x in d]})
     return row
