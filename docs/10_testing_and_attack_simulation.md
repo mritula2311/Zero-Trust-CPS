@@ -1,5 +1,8 @@
 # 10 — Testing and Attack Simulation
 
+> **2026-09-05 audit update:** Repository-native unittest is the runner; audit records baseline/final counts. Saved P1–P6 results supersede older policy tables. No live attacks or physical captures were run during Astra audit.
+> Current evidence and limitations: [ASTRA_AUDIT.md](ASTRA_AUDIT.md), RESULTS §0.13.17.
+
 > **AS-BUILT NOTE:** the attack matrix (Section 2) is implemented with two
 > additions beyond this file's original rows: `high_rate` (a pure
 > Security Trust event, `simulated_flood` in generated data / a real
@@ -12,9 +15,9 @@
 > `scripts/generate_training_data.py`). Real measured results (held-out
 > test set, leakage-free re-measurement, `docs/CLAIM_EVIDENCE_MATRIX.md`
 > C6 / `RESULTS.md` §0.13.6): the adaptive policy — **a contextual bandit,
-> not reinforcement learning** — scores macro-F1 **0.5329**, beating the
+> not reinforcement learning** — scores macro-F1 **0.5271**, beating the
 > *deployed* static table (**0.2744**) but **losing to a validation-tuned
-> static table (0.5879)**. The bandit's `security_concern` recall meaningfully
+> static table (0.5614)**. The bandit's `security_concern` recall meaningfully
 > beats the deployed table's, at a real precision cost from the aggressive
 > inverse-frequency reward weighting needed to catch any `combined` cases at
 > all — and the rare `combined` (`stealthy_forged_values`) class remains

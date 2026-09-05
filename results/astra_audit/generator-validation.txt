@@ -1,0 +1,42 @@
+Real resting rows: 103 (7 runs, lengths [11, 10, 14, 9, 17, 18, 24]), split='train'
+
+--- LOW preset (618 generated rows over 42 blocks) ---
+  [1] marginals (detrended residuals):
+        rms            KS=0.076 p=0.6670  OK
+        peak           KS=0.084 p=0.5400  OK
+        kurtosis       KS=0.040 p=0.9980  OK
+        dominant_freq  KS=0.081 p=0.5902  OK
+  [2] cross-feature correlation: max abs diff = 0.086, mean = 0.039
+  [3] lag-1 autocorrelation: real=[ 0.284  0.083  0.092 -0.005] generated=[0.264 0.053 0.093 0.091] max diff=0.097
+  [4] real-vs-generated residual discriminator (balanced, n=103 each): accuracy=0.466  OK (near-chance)
+  [clip] rms clip engaged on 0.0% of generated rows
+
+--- MEDIUM preset (618 generated rows over 42 blocks) ---
+  [1] marginals (detrended residuals):
+        rms            KS=0.175 p=0.0082  DIVERGES
+        peak           KS=0.108 p=0.2382  OK
+        kurtosis       KS=0.070 p=0.7677  OK
+        dominant_freq  KS=0.078 p=0.6413  OK
+  [2] cross-feature correlation: max abs diff = 0.085, mean = 0.043
+  [3] lag-1 autocorrelation: real=[ 0.284  0.083  0.092 -0.005] generated=[0.269 0.14  0.084 0.107] max diff=0.113
+  [4] real-vs-generated residual discriminator (balanced, n=103 each): accuracy=0.461  OK (near-chance)
+  [clip] rms clip engaged on 0.0% of generated rows
+
+--- HIGH preset (618 generated rows over 42 blocks) ---
+  [1] marginals (detrended residuals):
+        rms            KS=0.243 p=0.0000  DIVERGES
+        peak           KS=0.188 p=0.0035  DIVERGES
+        kurtosis       KS=0.113 p=0.1966  OK
+        dominant_freq  KS=0.139 p=0.0610  OK
+  [2] cross-feature correlation: max abs diff = 0.109, mean = 0.064
+  [3] lag-1 autocorrelation: real=[ 0.284  0.083  0.092 -0.005] generated=[0.226 0.131 0.046 0.021] max diff=0.058
+  [4] real-vs-generated residual discriminator (balanced, n=103 each): accuracy=0.515  OK (near-chance)
+  [clip] rms clip engaged on 0.0% of generated rows
+
+--- [5] heterogeneity ordering (cross-node rms spread) ---
+        LOW    spread=0.00794
+        MEDIUM spread=0.01509
+        HIGH   spread=0.03842
+        LOW < MEDIUM < HIGH: OK
+
+SOME CHECKS FAILED

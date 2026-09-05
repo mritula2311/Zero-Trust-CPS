@@ -1,5 +1,8 @@
 # Environment Specification
 
+> **2026-09-05 audit update:** This is a recorded environment snapshot. Sampling and transport descriptions are corrected below; firmware TLS peer verification and Device 2 captures still require hardware work.
+> Current evidence and limitations: [ASTRA_AUDIT.md](ASTRA_AUDIT.md), RESULTS §0.13.17.
+
 Recorded so every timing and training number in `RESULTS.md` can be interpreted
 and reproduced. Values marked `UNKNOWN` or `PENDING` are not guessed.
 
@@ -52,18 +55,15 @@ extensions are version-locked and a common source of broken installs.
 | Accelerometer range | default ±2 g (`AFS_SEL` not written) |
 | Anti-alias filter | `MPU6050_DLPF_CFG = 1` → 184 Hz |
 | Declared sample rate | 500 Hz nominal |
-| Achieved sample rate | ~12.3× nominal — see below |
+| Achieved sample rate | current paced 64 ms window at nominal 500 Hz; no precision clock characterization |
 | Window size | 32 samples |
 | Telemetry interval | 2 s |
 | Wiring | `VCC→3.3V`, `GND→GND`, `SDA→GPIO21`, `SCL→GPIO22`, `AD0→GND` |
 
-**The nominal rate is not the achieved rate.** `sample_window()` reads 32
-samples back-to-back; measured at 26 ms on real hardware ≈ 1231 Hz against a
-declared 100 Hz at the time (`RESULTS.md` 13.4c). Both the simulator and the
-firmware use the same nominal constant and the same window size, so
-`dominant_freq` is a **consistent bin index end to end** and detection is
-unaffected — but it is a bin index in nominal units, **not a physical
-frequency**, and must not be read as Hz without the correction.
+The earlier 26 ms unpaced loop against a declared 100 Hz is historical
+(RESULTS 13.4c). Current firmware explicitly paces the 500 Hz sampling chain;
+the reference and firmware share 32 samples and 15.625 Hz bin spacing. Exact
+board clock and calibrated spectral accuracy remain unmeasured.
 
 ## 4. Device 02 — ESP32 + SW-420
 
@@ -100,7 +100,7 @@ performed by a person at capture time.
 | Broker version | UNKNOWN — not recorded |
 | MQTT | TLS on port 8883, auto-enabled once `certs/ca.crt` exists |
 | Broker auth | username/password (`certs/mosquitto_passwd`) + topic ACLs (`certs/mosquitto_acl`) |
-| CoAP | CoAP-over-TLS (RFC 8323, `coaps+tcp`), port 5684 — a documented substitution for CoAP/DTLS, which needs a native autotools build unavailable on this host |
+| CoAP | HTTPS POST over TLS on port 5684 (`coap_server.py` is a historical filename); not CoAP wire protocol |
 | Application-layer auth | HMAC-SHA256 over a canonical JSON payload, per message |
 
 ## 6. Seeds

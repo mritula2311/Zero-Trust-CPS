@@ -1,0 +1,94 @@
+{
+  "date": "2026-09-05",
+  "branch": "astra-audit",
+  "starting_commit": "f78c7f005f76d89e33383a8ad399f73eb313aaac",
+  "verification_head_before_documentation_commit": "432f4c1c04767c9c78f7753f796a6ef9b8416696",
+  "astra_code_commits": [
+    "432f4c1 fix: retain control FPR and report valid seed intervals",
+    "2c953ab fix: respect sensor channels in anomaly explanations",
+    "0dcef4b fix: retain legacy simulator scope and deterministic generation",
+    "bcdfe4e fix: preserve acquisition runs in temporal training windows",
+    "3922db7 fix: validate telemetry before state changes and guard serving"
+  ],
+  "final_documentation_commit_subject": "docs: synchronize audit findings and preserve review evidence",
+  "shared_git_activity": "Other session activity committed M9 at 7388338 and fast-forwarded main; audit restored astra-audit. No audit remote commands.",
+  "baseline": {
+    "tests": 70,
+    "passed": true,
+    "seconds": 24.013
+  },
+  "final": {
+    "tests": 108,
+    "passed": true,
+    "seconds": 18.218,
+    "warnings": [
+      "test_first_replay_check_does_not_create_auth_state (test_gateway_input_validation.TestGatewayInputValidation.test_first_replay_check_does_not_create_auth_state) ... C:\\Users\\MRITULA SHANKAR\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\shap\\plots\\colors\\_colors.py:47: PendingDeprecationWarning: The set_bad function will be deprecated in a future version. Use cmap.with_extremes(bad=...) or Colormap(bad=...) instead.",
+      "C:\\Users\\MRITULA SHANKAR\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\shap\\plots\\colors\\_colors.py:48: PendingDeprecationWarning: The set_over function will be deprecated in a future version. Use cmap.with_extremes(over=...) or Colormap(over=...) instead.",
+      "C:\\Users\\MRITULA SHANKAR\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\shap\\plots\\colors\\_colors.py:49: PendingDeprecationWarning: The set_under function will be deprecated in a future version. Use cmap.with_extremes(under=...) or Colormap(under=...) instead.",
+      "The checkpoint store itself is HMAC'd; editing it must not help. ... D:\\zt-cps\\zt-cps-starter\\tests\\test_invariants.py:485: ResourceWarning: unclosed file <_io.TextIOWrapper name='C:\\\\Users\\\\MRITUL~1\\\\AppData\\\\Local\\\\Temp\\\\ztcps-audit-yccfsgad\\\\checkpoints.jsonl' mode='r' encoding='utf-8'>",
+      "ResourceWarning: Enable tracemalloc to get the object allocation traceback",
+      "D:\\zt-cps\\zt-cps-starter\\tests\\test_invariants.py:491: ResourceWarning: unclosed file <_io.TextIOWrapper name='C:\\\\Users\\\\MRITUL~1\\\\AppData\\\\Local\\\\Temp\\\\ztcps-audit-yccfsgad\\\\checkpoints.jsonl' mode='w' encoding='utf-8'>",
+      "ResourceWarning: Enable tracemalloc to get the object allocation traceback",
+      "Guards the specific regression: a truncated Taylor series had 7.5e-2 ... D:\\zt-cps\\zt-cps-starter\\tests\\test_invariants.py:243: ResourceWarning: unclosed file <_io.TextIOWrapper name='D:\\\\zt-cps\\\\zt-cps-starter\\\\tests\\\\..\\\\firmware\\\\main.py' mode='r' encoding='utf-8'>",
+      "ResourceWarning: Enable tracemalloc to get the object allocation traceback",
+      "Pacing the sampling loop moved Nyquist from 615 Hz down to 50 Hz, ... D:\\zt-cps\\zt-cps-starter\\tests\\test_invariants.py:651: ResourceWarning: unclosed file <_io.TextIOWrapper name='D:\\\\zt-cps\\\\zt-cps-starter\\\\tests\\\\..\\\\firmware\\\\main.py' mode='r' encoding='utf-8'>",
+      "ResourceWarning: Enable tracemalloc to get the object allocation traceback",
+      "config.py once documented a `dt_ms=10 sampling loop` that did not ... D:\\zt-cps\\zt-cps-starter\\tests\\test_invariants.py:709: ResourceWarning: unclosed file <_io.TextIOWrapper name='D:\\\\zt-cps\\\\zt-cps-starter\\\\tests\\\\..\\\\src\\\\config.py' mode='r' encoding='utf-8'>",
+      "ResourceWarning: Enable tracemalloc to get the object allocation traceback"
+    ]
+  },
+  "benchmark_selfcheck": {
+    "exit_code": 0,
+    "scope": "threshold caps/ties and disjoint tick halves, not source independence"
+  },
+  "generator_validator": {
+    "exit_code": 1,
+    "low": "passes in-source TRAIN residual checks",
+    "medium": "rms marginal diverges",
+    "high": "rms/peak marginals diverge"
+  },
+  "split_manifest_exit_code": 0,
+  "python_syntax_files": 66,
+  "diff_check_exit_code": 0,
+  "preserved_user_artifacts": {
+    "data/collected/virtual_network/virtual_V_NETWORK_NORMAL_test.json": true,
+    "data/collected/virtual_network/virtual_V_NETWORK_NORMAL_test_HIGH.json": true,
+    "data/collected/virtual_network/virtual_V_NETWORK_NORMAL_test_MEDIUM.json": true,
+    "data/collected/virtual_network/virtual_V_NETWORK_NORMAL_train.json": true,
+    "data/collected/virtual_network/virtual_V_NETWORK_NORMAL_validation.json": true,
+    "data/collected/virtual_network/virtual_V_SCENARIO_A_test.json": true,
+    "data/collected/virtual_network/virtual_V_SCENARIO_A_test_HIGH.json": true,
+    "data/collected/virtual_network/virtual_V_SCENARIO_A_test_MEDIUM.json": true,
+    "data/collected/virtual_network/virtual_V_SCENARIO_A_train.json": true,
+    "data/collected/virtual_network/virtual_V_SCENARIO_A_validation.json": true,
+    "data/collected/virtual_network/virtual_V_SCENARIO_B_test.json": true,
+    "data/collected/virtual_network/virtual_V_SCENARIO_B_test_HIGH.json": true,
+    "data/collected/virtual_network/virtual_V_SCENARIO_B_test_MEDIUM.json": true,
+    "data/collected/virtual_network/virtual_V_SCENARIO_B_train.json": true,
+    "data/collected/virtual_network/virtual_V_SCENARIO_B_validation.json": true,
+    "data/collected/virtual_network/virtual_V_SCENARIO_C_test.json": true,
+    "data/collected/virtual_network/virtual_V_SCENARIO_C_test_HIGH.json": true,
+    "data/collected/virtual_network/virtual_V_SCENARIO_C_test_MEDIUM.json": true,
+    "data/collected/virtual_network/virtual_V_SCENARIO_C_train.json": true,
+    "data/collected/virtual_network/virtual_V_SCENARIO_C_validation.json": true,
+    "results/crossdevice_benchmark/m9_ablation_investigation.json": true,
+    "results/crossdevice_benchmark/m9_seed_study.json": true
+  },
+  "tracked_artifact_diff": "",
+  "hashed_artifacts": 107,
+  "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+  "packages": {
+    "numpy": "2.4.4",
+    "scipy": "1.18.0",
+    "torch": "2.11.0+cu128",
+    "scikit-learn": "1.9.0",
+    "shap": "0.52.0",
+    "paho-mqtt": "2.1.0"
+  },
+  "limitations": [
+    "No model retraining or saved benchmark regeneration.",
+    "No new hardware or live transport attack validation.",
+    "No external model invoked; manual review prompt prepared.",
+    "Snapshot hashes do not prove historical training inputs."
+  ]
+}

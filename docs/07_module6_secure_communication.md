@@ -1,5 +1,8 @@
 # 07 — Module 6: Secure Communication
 
+> **2026-09-05 audit update:** The second transport is HTTPS POST over TLS, not CoAP/TLS. Gateway startup now refuses plaintext/unconfigured broker auth. Firmware peer-certificate verification remains a deployment blocker; see audit.
+> Current evidence and limitations: [ASTRA_AUDIT.md](ASTRA_AUDIT.md), RESULTS §0.13.17.
+
 > **AS-BUILT NOTE:** MQTT/TLS is implemented and live (auto-detected via
 > `config.MQTT_USE_TLS` once `certs/` is populated); the CoAP/DTLS
 > requirement is substituted with HTTPS (`src/coap_server.py` — see that
@@ -53,16 +56,10 @@ operational complexity not currently justified at this scale.
 
 ### 2.1 Concurrency Note
 
-`paho-mqtt`'s `on_message` callback runs on the client's network thread;
-by default, successive messages are not guaranteed to run concurrently
-with each other in a way that's safe if genuinely shared mutable state is
-added beyond what exists today. The current implementation is safe because
-each device's trust/anomaly state is only ever touched from within
-`on_message`, one message at a time. If multi-threaded processing is ever
-added (e.g. to parallelise GNN inference across devices), any state shared
-*across* devices' processing — such as a shared graph structure for the
-GNN, `docs/04_module3_trust_evaluation.md` Section B.5 — would need
-explicit locking around it.
+MQTT and HTTPS call the same gateway pipeline from different threads.
+The gateway `_pipeline_lock` serializes telemetry processing and the silence
+watchdog's state work. Preserve that boundary when adding inference or
+administrative paths; MQTT callback ordering alone is insufficient.
 
 ### 2.2 Why Both Module 2 AND Module 6 Authenticate — Threat Model
 

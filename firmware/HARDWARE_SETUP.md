@@ -1,5 +1,10 @@
 # Hardware Setup — ESP32 + MPU6050
 
+> **Audit qualification (2026-09-05):** MPU6050 captures exist; SW-420
+> captures remain pending. SW-420 is another modality, not another MPU6050.
+> Firmware peer-certificate verification is not established; see
+> [Astra audit](../docs/ASTRA_AUDIT.md) before relying on deployment claims.
+
 A complete, zero-to-running guide for flashing `firmware/main.py` onto a
 real ESP32 and getting it publishing real, HMAC-signed, boot-aware
 telemetry into this project's gateway. No command-line `esptool`/`mpremote`

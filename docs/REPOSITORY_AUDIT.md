@@ -1,5 +1,8 @@
 # Repository Audit — ZT-Duo / zt-cps-starter
 
+> **2026-09-05 audit update:** Historical audit retained. Read ASTRA_AUDIT.md for newly found issues and fixes, including temporal continuity and current M9 claim qualifications.
+> Current evidence and limitations: [ASTRA_AUDIT.md](ASTRA_AUDIT.md), RESULTS §0.13.17.
+
 **Date:** 2026-09-03
 **Commit at audit:** `6a56ba5`
 **Scope:** full recursive inspection of `src/`, `scripts/`, `firmware/`, `tests/`,

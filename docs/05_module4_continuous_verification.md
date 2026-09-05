@@ -1,5 +1,8 @@
 # 05 — Module 4: Continuous Verification
 
+> **2026-09-05 audit update:** MQTT, HTTPS and watchdog share a pipeline lock. Process evidence is retained on silence and flagged stale. Research benchmark snapshots do not establish live deployment behavior.
+> Current evidence and limitations: [ASTRA_AUDIT.md](ASTRA_AUDIT.md), RESULTS §0.13.17.
+
 > **AS-BUILT NOTE:** the corrected silence-handling logic in Section 2.2
 > is implemented as specified —
 > `trust_engine.ProcessAnomalyState`/`update_process_anomaly()`/

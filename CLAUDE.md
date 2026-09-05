@@ -1,5 +1,11 @@
 # CLAUDE.md — Zero-Trust CPS
 
+> **Current audit:** read [docs/ASTRA_AUDIT.md](docs/ASTRA_AUDIT.md) and
+> RESULTS §0.13.17 first. Keep archived artifacts/results intact when rebuilding
+> the corrected temporal chain. M9 is experimental, with no persisted n=15 test;
+> LOW validation is TRAIN residual consistency only. The virtual-only advantage
+> stays visible. Device 2 is SW-420 and capture is pending.
+
 Guidance for coding agents working in `zt-cps-starter`. Read `METHODOLOGY.md` for the
 method and its mathematics, `ZERO_TRUST_CPS_KB.md` for architecture decisions,
 `RESULTS.md` for measured numbers; this file is the short list
@@ -32,7 +38,7 @@ They meet **only** in the 2×2 policy lookup (`policy_engine.decide`).
 ```
 src/          gateway.py, trust_engine.py, policy_engine.py, fusion_engine.py,
               feature_engineering.py, config.py, audit_log.py,
-              governance_validation.py, device_simulator.py, webapp_server.py,
+              governance_validation.py, device_simulator.py,
               {isolation_forest,lstm_ae,transformer,gnn}_scorer.py,
               secrets_local.py (gitignored)
 firmware/     main.py (MicroPython, on-device), HARDWARE_SETUP.md
@@ -40,7 +46,7 @@ scripts/      train_*.py, evaluate_*.py, generate_*.py,
               collect_hardware_session.py, merge_real_hardware_data.py
 models/       trained artifacts + *_meta.json calibration
 data/collected/  training_session.json, test_session.json, *_labelled.json
-tests/        test_invariants.py  (stdlib unittest, no pytest)
+tests/        invariant, generator and audit regression suites (stdlib unittest)
 docs/         00_overview.md … 13_system_architecture_and_workflow.md
 ```
 
@@ -61,10 +67,10 @@ claims (real hardware, two-score separation, anomaly rank, seed sensitivity).
 cd src/
 python gateway.py            # terminal 1
 python device_simulator.py   # terminal 2
-python webapp_server.py      # terminal 3 -> http://localhost:8600
+# gateway.py also serves the dashboard at http://localhost:8600
 ```
 
-Tests: `python -m unittest discover -s tests` (46 tests, ~30s).
+Tests: `python -m unittest discover -s tests` (baseline 70 tests; final audit count in docs/ASTRA_AUDIT.md).
 
 With real hardware: Mosquitto running, board flashed and on the hotspot,
 gateway up, then `python scripts/collect_hardware_session.py --labelled`.
@@ -85,7 +91,7 @@ has leaked. Enforced by `TestTwoScoreSeparation`.
 who can generate traffic can move the model.
 
 ### Training order is not optional — and it has SIX steps, not five
-**IF → LSTM-AE → Transformer → GNN → fusion → RL.** Each replays through the
+**IF → LSTM-AE → Transformer (ablation) → GNN → fusion → contextual bandit.** Each replays through the
 previous models. Retrain all six, in order, after any change to features, the
 simulator, or the merged dataset.
 
@@ -186,7 +192,7 @@ captures are ground truth; samples outside a marked interval are **discarded,
 not guessed at**, with `MARK_MARGIN_S` trimmed from each end.
 
 `MIN_EVENT_SECONDS` is *derived*, not chosen:
-`2·MARK_MARGIN_S + LSTM_SEQ_LEN·TELEMETRY_INTERVAL_S`. Below that an event
+`2·MARK_MARGIN_S + 2·LSTM_SEQ_LEN·TELEMETRY_INTERVAL_S`. Below that an event
 cannot yield a single scoreable window — a hardcoded 16s once meant a
 minimum-length event was silently worth nothing downstream.
 
@@ -209,8 +215,7 @@ positions rather than real marks.
 
 ### Calibrate the simulator against measured reality
 The simulator is ~97% of training data, so its constants set what "normal"
-means. `REST_DC_CENTRE` is the measured median of real operator-marked at-rest
-samples, not a guess — centring it ~1.8σ low put every real resting sample at
+means. `REST_DC_CENTRE` is the midpoint of the observed resting range (ADR-18), not a guess — centring it ~1.8σ low put every real resting sample at
 the edge of the learned normal region, which is what the Isolation Forest was
 reporting when it scored clean resting windows 0.000. Prefer an offset
 correction backed by a measurement over widening a distribution.
@@ -219,11 +224,11 @@ correction backed by a measurement over widening a distribution.
 
 ## 6. Security
 
-`src/secrets_local.py` is gitignored. `firmware/main.py` **is** tracked and its
-working copy holds real WiFi/HMAC/MQTT credentials — the committed version
-keeps placeholders, so it shows as permanently modified locally. **That is the
-intended steady state, not an uncommitted change.** Check `git diff --cached`
-for credentials before every push; a plain `git add -A` would publish all three.
+`src/secrets_local.py` and `firmware/device_secrets.py` are gitignored.
+Both firmware entry points import the separate secret module; tracked firmware
+does not need embedded credentials. Never stage a credential file or print key
+material. The gateway refuses insecure startup and template device keys; actual
+firmware certificate verification remains a deployment blocker in the audit.
 
 `.gitignore` must cover rotated artifacts (`*.archived-*` — `*.db` does not
 match `audit_log.db.archived-…`).

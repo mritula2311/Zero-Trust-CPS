@@ -1,0 +1,178 @@
+test_first_replay_check_does_not_create_auth_state (test_gateway_input_validation.TestGatewayInputValidation.test_first_replay_check_does_not_create_auth_state) ... C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\shap\plots\colors\_colors.py:47: PendingDeprecationWarning: The set_bad function will be deprecated in a future version. Use cmap.with_extremes(bad=...) or Colormap(bad=...) instead.
+  red_blue.set_bad(gray_rgb.tolist(), 1.0)
+C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\shap\plots\colors\_colors.py:48: PendingDeprecationWarning: The set_over function will be deprecated in a future version. Use cmap.with_extremes(over=...) or Colormap(over=...) instead.
+  red_blue.set_over(gray_rgb.tolist(), 1.0)
+C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\shap\plots\colors\_colors.py:49: PendingDeprecationWarning: The set_under function will be deprecated in a future version. Use cmap.with_extremes(under=...) or Colormap(under=...) instead.
+  red_blue.set_under(gray_rgb.tolist(), 1.0)  # "under" is incorrectly used instead of "bad" in the scatter plot
+ok
+test_forged_claim_cooldown_cannot_block_authentic_telemetry (test_gateway_input_validation.TestGatewayInputValidation.test_forged_claim_cooldown_cannot_block_authentic_telemetry) ... ok
+test_gateway_startup_refuses_plaintext_or_unconfigured_auth (test_gateway_input_validation.TestGatewayInputValidation.test_gateway_startup_refuses_plaintext_or_unconfigured_auth) ... ok
+test_invalid_ascii_signature_cannot_reach_scoring_even_during_cooldown (test_gateway_input_validation.TestGatewayInputValidation.test_invalid_ascii_signature_cannot_reach_scoring_even_during_cooldown) ... ok
+test_invalid_boot_and_sequence_cannot_poison_replay_state (test_gateway_input_validation.TestGatewayInputValidation.test_invalid_boot_and_sequence_cannot_poison_replay_state) ... ok
+test_invalid_readings_are_dropped_before_state_or_models_change (test_gateway_input_validation.TestGatewayInputValidation.test_invalid_readings_are_dropped_before_state_or_models_change) ... ok
+test_invalid_timestamps_cannot_create_or_modify_state (test_gateway_input_validation.TestGatewayInputValidation.test_invalid_timestamps_cannot_create_or_modify_state) ... ok
+test_invalid_utf8_does_not_escape_mqtt_callback (test_gateway_input_validation.TestGatewayInputValidation.test_invalid_utf8_does_not_escape_mqtt_callback) ... ok
+test_malformed_json_does_not_reach_processing (test_gateway_input_validation.TestGatewayInputValidation.test_malformed_json_does_not_reach_processing) ... ok
+test_malformed_signatures_are_dropped_without_hmac_type_errors (test_gateway_input_validation.TestGatewayInputValidation.test_malformed_signatures_are_dropped_without_hmac_type_errors) ... ok
+test_missing_readings_are_dropped_before_state_or_models_change (test_gateway_input_validation.TestGatewayInputValidation.test_missing_readings_are_dropped_before_state_or_models_change) ... ok
+test_non_object_envelopes_and_payloads_are_dropped (test_gateway_input_validation.TestGatewayInputValidation.test_non_object_envelopes_and_payloads_are_dropped) ... ok
+test_nonstring_device_ids_are_dropped (test_gateway_input_validation.TestGatewayInputValidation.test_nonstring_device_ids_are_dropped) ... ok
+test_placeholder_device_key_cannot_authenticate (test_gateway_input_validation.TestGatewayInputValidation.test_placeholder_device_key_cannot_authenticate) ... ok
+test_valid_numeric_readings_reach_scoring (test_gateway_input_validation.TestGatewayInputValidation.test_valid_numeric_readings_reach_scoring) ... ok
+test_greedy_action_never_mutates_learned_values (test_invariants.TestAdaptivePolicy.test_greedy_action_never_mutates_learned_values)
+The live path must not learn. greedy_action() may seed an unvisited ... ok
+test_q_update_is_a_sample_average (test_invariants.TestAdaptivePolicy.test_q_update_is_a_sample_average) ... ok
+test_unvisited_state_falls_back_to_the_static_policy (test_invariants.TestAdaptivePolicy.test_unvisited_state_falls_back_to_the_static_policy)
+Absent is safe: an unvisited state must be SEEDED from the static ... ok
+test_consistent_rewrite_is_caught_by_the_checkpoints (test_invariants.TestAuditIntegrity.test_consistent_rewrite_is_caught_by_the_checkpoints)
+Edit a row AND recompute every subsequent hash. The chain is then ... ok
+test_naive_edit_is_caught_by_the_full_scan (test_invariants.TestAuditIntegrity.test_naive_edit_is_caught_by_the_full_scan)
+Edit a row, leave hashes alone. Only the full scan sees this. ... ok
+test_tampered_checkpoint_file_is_detected (test_invariants.TestAuditIntegrity.test_tampered_checkpoint_file_is_detected)
+The checkpoint store itself is HMAC'd; editing it must not help. ... D:\zt-cps\zt-cps-starter\tests\test_invariants.py:485: ResourceWarning: unclosed file <_io.TextIOWrapper name='C:\\Users\\MRITUL~1\\AppData\\Local\\Temp\\ztcps-audit-yccfsgad\\checkpoints.jsonl' mode='r' encoding='utf-8'>
+  lines = [l for l in open(self.cp, encoding="utf-8").read().splitlines() if l.strip()]
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+D:\zt-cps\zt-cps-starter\tests\test_invariants.py:491: ResourceWarning: unclosed file <_io.TextIOWrapper name='C:\\Users\\MRITUL~1\\AppData\\Local\\Temp\\ztcps-audit-yccfsgad\\checkpoints.jsonl' mode='w' encoding='utf-8'>
+  open(self.cp, "w", encoding="utf-8").write("\n".join(lines) + "\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+ok
+test_untampered_log_passes_all_checks (test_invariants.TestAuditIntegrity.test_untampered_log_passes_all_checks) ... ok
+test_any_non_block_resets_the_run (test_invariants.TestAutoQuarantine.test_any_non_block_resets_the_run)
+The safety property. Scattered BLOCKs must never accumulate. ... ok
+test_below_threshold_does_not_quarantine (test_invariants.TestAutoQuarantine.test_below_threshold_does_not_quarantine) ... ok
+test_disabled_by_default_in_config (test_invariants.TestAutoQuarantine.test_disabled_by_default_in_config)
+The shipped default must stay OFF -- a scoring defect once produced ... ok
+test_nothing_happens_when_disabled (test_invariants.TestAutoQuarantine.test_nothing_happens_when_disabled) ... ok
+test_quarantine_is_reversible (test_invariants.TestAutoQuarantine.test_quarantine_is_reversible) ... ok
+test_threshold_quarantines_and_revokes (test_invariants.TestAutoQuarantine.test_threshold_quarantines_and_revokes) ... ok
+test_commit_is_monotonic (test_invariants.TestBootReplayStateIsolation.test_commit_is_monotonic)
+commit_boot_seq never moves the baseline backwards. ... ok
+test_predicate_does_not_mutate (test_invariants.TestBootReplayStateIsolation.test_predicate_does_not_mutate)
+check_boot_replay is pure: calling it never advances the baseline. ... ok
+test_rejected_stale_message_does_not_lock_out_the_real_device (test_invariants.TestBootReplayStateIsolation.test_rejected_stale_message_does_not_lock_out_the_real_device)
+The exact live scenario. An attacker message with boot_id 999 that ... ok
+test_hand_built_canonical_string_matches_cpython_json (test_invariants.TestCanonicalisationContract.test_hand_built_canonical_string_matches_cpython_json) ... ok
+test_optional_field_does_not_break_ordering (test_invariants.TestCanonicalisationContract.test_optional_field_does_not_break_ordering)
+step_up_nonce_echo appears only sometimes; sorted-key ordering must ... ok
+test_all_five_features_match_the_reference (test_invariants.TestFirmwareReferenceEquivalence.test_all_five_features_match_the_reference) ... ok
+test_firmware_uses_real_trig_not_an_approximation (test_invariants.TestFirmwareReferenceEquivalence.test_firmware_uses_real_trig_not_an_approximation)
+Guards the specific regression: a truncated Taylor series had 7.5e-2 ... D:\zt-cps\zt-cps-starter\tests\test_invariants.py:243: ResourceWarning: unclosed file <_io.TextIOWrapper name='D:\\zt-cps\\zt-cps-starter\\tests\\..\\firmware\\main.py' mode='r' encoding='utf-8'>
+  src = open(path, encoding="utf-8").read()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+ok
+test_a_node_owns_the_majority_of_its_own_representation (test_invariants.TestGNNAdjacency.test_a_node_owns_the_majority_of_its_own_representation) ... ok
+test_adjacency_is_symmetric (test_invariants.TestGNNAdjacency.test_adjacency_is_symmetric) ... ok
+test_isolated_node_is_self_only (test_invariants.TestGNNAdjacency.test_isolated_node_is_self_only) ... ok
+test_t1_rejects_an_unregistered_device (test_invariants.TestGovernanceValidationIsFalsifiable.test_t1_rejects_an_unregistered_device) ... ok
+test_t2_rejects_an_unencrypted_transport (test_invariants.TestGovernanceValidationIsFalsifiable.test_t2_rejects_an_unencrypted_transport) ... ok
+test_t3_rejects_a_verdict_with_no_scores_of_its_own (test_invariants.TestGovernanceValidationIsFalsifiable.test_t3_rejects_a_verdict_with_no_scores_of_its_own) ... ok
+test_t4_rejects_a_policy_that_ignores_its_inputs (test_invariants.TestGovernanceValidationIsFalsifiable.test_t4_rejects_a_policy_that_ignores_its_inputs) ... ok
+test_t6_rejects_access_granted_without_authentication (test_invariants.TestGovernanceValidationIsFalsifiable.test_t6_rejects_access_granted_without_authentication) ... ok
+test_t7_rejects_a_pipeline_contributing_nothing (test_invariants.TestGovernanceValidationIsFalsifiable.test_t7_rejects_a_pipeline_contributing_nothing) ... ok
+test_untestable_is_reported_not_passed (test_invariants.TestGovernanceValidationIsFalsifiable.test_untestable_is_reported_not_passed)
+A steady-state window cannot distinguish re-evaluation from caching, ... ok
+test_a_typical_normal_reading_can_clear_the_live_threshold (test_invariants.TestIsolationForestCalibration.test_a_typical_normal_reading_can_clear_the_live_threshold)
+The regression itself. A median-normal input must score ABOVE ... ok
+test_calibration_is_monotonic (test_invariants.TestIsolationForestCalibration.test_calibration_is_monotonic)
+The mapping may rescale, never reorder. ... ok
+test_decision_boundary_maps_to_neutral (test_invariants.TestIsolationForestCalibration.test_decision_boundary_maps_to_neutral)
+raw == 0 is sklearn's own inlier/outlier boundary and must map to ... ok
+test_audit_db_and_its_checkpoint_store_are_not_co_located (test_invariants.TestOperatorMarkedLabels.test_audit_db_and_its_checkpoint_store_are_not_co_located)
+The checkpoint store attests the audit database. Putting them in one ... ok
+test_between_events_is_unlabelled_not_guessed (test_invariants.TestOperatorMarkedLabels.test_between_events_is_unlabelled_not_guessed) ... ok
+test_chain_artifacts_are_not_older_than_the_artifacts_they_replay (test_invariants.TestOperatorMarkedLabels.test_chain_artifacts_are_not_older_than_the_artifacts_they_replay)
+The test above catches an artifact older than the training DATA. It ... ok
+test_every_labelled_event_targets_more_than_the_minimum (test_invariants.TestOperatorMarkedLabels.test_every_labelled_event_targets_more_than_the_minimum)
+One window per event is the floor, not the goal -- the false-positive ... ok
+test_keypress_margins_are_excluded (test_invariants.TestOperatorMarkedLabels.test_keypress_margins_are_excluded)
+The samples nearest each mark are the least trustworthy -- the ... ok
+test_mid_interval_is_labelled (test_invariants.TestOperatorMarkedLabels.test_mid_interval_is_labelled) ... ok
+test_no_model_artifact_is_older_than_its_training_data (test_invariants.TestOperatorMarkedLabels.test_no_model_artifact_is_older_than_its_training_data)
+The transformer sat at a build from the previous day through roughly ... ok
+test_shortest_accepted_event_yields_a_scoreable_window (test_invariants.TestOperatorMarkedLabels.test_shortest_accepted_event_yields_a_scoreable_window)
+The regression this guards: MIN_EVENT_SECONDS was a hardcoded 16.0 ... ok
+test_synthetic_resting_region_spans_every_observed_session (test_invariants.TestOperatorMarkedLabels.test_synthetic_resting_region_spans_every_observed_session)
+ADR-18. The same board rested at 1.041, 1.056 and 1.011 g on three ... ok
+test_a_binary_switch_publishes_no_accelerometer_features (test_invariants.TestSW420FirmwareReferenceEquivalence.test_a_binary_switch_publishes_no_accelerometer_features)
+Guards the integrity requirement directly: rms/kurtosis/dominant_freq ... ok
+test_all_four_features_match_the_reference (test_invariants.TestSW420FirmwareReferenceEquivalence.test_all_four_features_match_the_reference) ... ok
+test_the_two_sensors_share_no_feature_names (test_invariants.TestSW420FirmwareReferenceEquivalence.test_the_two_sensors_share_no_feature_names)
+feature_engineering.feature_vector() dispatches on the reading's own ... ok
+test_declared_rates_agree_across_the_boundary (test_invariants.TestSW420SamplingContract.test_declared_rates_agree_across_the_boundary) ... ok
+test_gpio_pin_agrees_with_config (test_invariants.TestSW420SamplingContract.test_gpio_pin_agrees_with_config) ... ok
+test_input_is_pulled_down_not_floating (test_invariants.TestSW420SamplingContract.test_input_is_pulled_down_not_floating)
+A floating ESP32 input fabricates edges indistinguishable from real ... ok
+test_sample_window_paces_itself (test_invariants.TestSW420SamplingContract.test_sample_window_paces_itself)
+A bare read loop with no delay is the defect that produced a 12.3x ... ok
+test_anti_alias_filter_is_configured_below_nyquist (test_invariants.TestSamplingContract.test_anti_alias_filter_is_configured_below_nyquist)
+Pacing the sampling loop moved Nyquist from 615 Hz down to 50 Hz, ... D:\zt-cps\zt-cps-starter\tests\test_invariants.py:651: ResourceWarning: unclosed file <_io.TextIOWrapper name='D:\\zt-cps\\zt-cps-starter\\tests\\..\\firmware\\main.py' mode='r' encoding='utf-8'>
+  return open(path, encoding="utf-8").read()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+ok
+test_declared_rates_agree_across_the_boundary (test_invariants.TestSamplingContract.test_declared_rates_agree_across_the_boundary)
+The firmware and the reference implementation must agree, or the ... ok
+test_firmware_drains_the_inbound_queue (test_invariants.TestSamplingContract.test_firmware_drains_the_inbound_queue)
+`check_msg()` handles at most ONE pending message. The gateway publishes ... ok
+test_no_stale_dt_ms_claim (test_invariants.TestSamplingContract.test_no_stale_dt_ms_claim)
+config.py once documented a `dt_ms=10 sampling loop` that did not ... D:\zt-cps\zt-cps-starter\tests\test_invariants.py:709: ResourceWarning: unclosed file <_io.TextIOWrapper name='D:\\zt-cps\\zt-cps-starter\\tests\\..\\src\\config.py' mode='r' encoding='utf-8'>
+  "src", "config.py"), encoding="utf-8").read()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+ok
+test_sample_window_paces_itself (test_invariants.TestSamplingContract.test_sample_window_paces_itself)
+The regression: a bare list comprehension read as fast as I2C allowed ... ok
+test_every_labelled_file_on_disk_is_allocated_or_excluded (test_invariants.TestSessionSplit.test_every_labelled_file_on_disk_is_allocated_or_excluded)
+A newly captured session that nobody allocated must be visible, not ... ok
+test_every_real_training_row_declares_its_provenance (test_invariants.TestSessionSplit.test_every_real_training_row_declares_its_provenance)
+source_type/session_id are load-bearing: without them no result can ... ok
+test_fusion_and_policy_do_not_train_on_the_same_session (test_invariants.TestSessionSplit.test_fusion_and_policy_do_not_train_on_the_same_session)
+The policy consumes fusion's output. Training both on one session ... ok
+test_no_session_is_both_allocated_and_excluded (test_invariants.TestSessionSplit.test_no_session_is_both_allocated_and_excluded) ... ok
+test_no_trainer_reads_the_test_session (test_invariants.TestSessionSplit.test_no_trainer_reads_the_test_session)
+A blunt but load-bearing check: no scripts/train_*.py may name the ... ok
+test_splits_are_pairwise_disjoint (test_invariants.TestSessionSplit.test_splits_are_pairwise_disjoint) ... ok
+test_training_data_contains_no_validation_or_test_session (test_invariants.TestSessionSplit.test_training_data_contains_no_validation_or_test_session)
+The end-to-end version of the above: read the merged training file ... ok
+test_gnn_ripple_never_makes_a_decision_stricter (test_invariants.TestTwoScoreSeparation.test_gnn_ripple_never_makes_a_decision_stricter)
+The GNN's raw output is NOT monotonic in neighbour health -- 25 ... ok
+test_policy_is_the_only_combination_point (test_invariants.TestTwoScoreSeparation.test_policy_is_the_only_combination_point)
+`decide()` must be a pure function of the two scores plus staleness. ... ok
+test_security_scoring_never_sees_a_sensor_reading (test_invariants.TestTwoScoreSeparation.test_security_scoring_never_sees_a_sensor_reading)
+trust_engine's Security Trust path must not accept sensor data. ... ok
+test_static_policy_is_monotonic_in_both_axes (test_invariants.TestTwoScoreSeparation.test_static_policy_is_monotonic_in_both_axes)
+Raising either score must never make the outcome stricter. A ... ok
+test_registry_expansion_does_not_inject_research_or_pending_nodes (test_legacy_generation.TestLegacyGeneration.test_registry_expansion_does_not_inject_research_or_pending_nodes) ... ok
+test_repeated_seed_resets_persistent_simulator_walk (test_legacy_generation.TestLegacyGeneration.test_repeated_seed_resets_persistent_simulator_walk) ... ok
+test_insufficient_seeds_produce_strict_json_and_no_significance (test_research_reporting.TestSeedIntervals.test_insufficient_seeds_produce_strict_json_and_no_significance) ... ok
+test_two_seed_interval_uses_student_t_not_normal_approximation (test_research_reporting.TestSeedIntervals.test_two_seed_interval_uses_student_t_not_normal_approximation) ... ok
+test_anomaly_only_slice_keeps_detection_with_undefined_fpr (test_research_reporting.TestSliceMetrics.test_anomaly_only_slice_keeps_detection_with_undefined_fpr) ... ok
+test_mixed_slice_preserves_existing_metrics (test_research_reporting.TestSliceMetrics.test_mixed_slice_preserves_existing_metrics) ... ok
+test_normal_control_keeps_fpr_with_undefined_detection (test_research_reporting.TestSliceMetrics.test_normal_control_keeps_fpr_with_undefined_detection) ... ok
+test_if_names_switch_feature (test_sensor_explanations.TestSwitchExplanations.test_if_names_switch_feature) ... ok
+test_lstm_perturbs_only_switch_channels (test_sensor_explanations.TestSwitchExplanations.test_lstm_perturbs_only_switch_channels) ... ok
+test_absent_metadata_and_explicit_none_share_legacy_run (test_training_sequences.TestNormalTrainingSequences.test_absent_metadata_and_explicit_none_share_legacy_run) ... ok
+test_anomalous_or_invalid_target_record_interrupts_normal_readings (test_training_sequences.TestNormalTrainingSequences.test_anomalous_or_invalid_target_record_interrupts_normal_readings) ... ok
+test_both_trainers_pass_only_within_run_windows_to_model (test_training_sequences.TestNormalTrainingSequences.test_both_trainers_pass_only_within_run_windows_to_model) ... ok
+test_duplicate_tick_starts_a_new_run (test_training_sequences.TestNormalTrainingSequences.test_duplicate_tick_starts_a_new_run) ... ok
+test_each_metadata_change_is_a_boundary_even_with_consecutive_ticks (test_training_sequences.TestNormalTrainingSequences.test_each_metadata_change_is_a_boundary_even_with_consecutive_ticks) ... ok
+test_empty_or_no_eligible_device_returns_no_runs (test_training_sequences.TestNormalTrainingSequences.test_empty_or_no_eligible_device_returns_no_runs) ... ok
+test_legacy_contiguous_run_and_singleton_remain_available (test_training_sequences.TestNormalTrainingSequences.test_legacy_contiguous_run_and_singleton_remain_available) ... ok
+test_other_device_interleaving_does_not_break_a_valid_run (test_training_sequences.TestNormalTrainingSequences.test_other_device_interleaving_does_not_break_a_valid_run) ... ok
+test_returning_to_previous_metadata_does_not_rejoin_an_old_run (test_training_sequences.TestNormalTrainingSequences.test_returning_to_previous_metadata_does_not_rejoin_an_old_run) ... ok
+test_reversed_ticks_are_not_sorted_into_false_continuity (test_training_sequences.TestNormalTrainingSequences.test_reversed_ticks_are_not_sorted_into_false_continuity) ... ok
+test_scenario_blocks_with_restarting_ticks_never_braid (test_training_sequences.TestNormalTrainingSequences.test_scenario_blocks_with_restarting_ticks_never_braid) ... ok
+test_segmentation_does_not_change_input_records_or_order (test_training_sequences.TestNormalTrainingSequences.test_segmentation_does_not_change_input_records_or_order) ... ok
+test_source_tick_retains_gaps_hidden_by_merge_renumbering (test_training_sequences.TestNormalTrainingSequences.test_source_tick_retains_gaps_hidden_by_merge_renumbering) ... ok
+test_tick_gap_splits_legacy_records_without_metadata (test_training_sequences.TestNormalTrainingSequences.test_tick_gap_splits_legacy_records_without_metadata) ... ok
+test_crest_factor_equals_peak_over_rms (test_virtual_generator.TestDerivedFeatureIdentities.test_crest_factor_equals_peak_over_rms) ... ok
+test_dominant_freq_is_snapped_to_the_dft_grid (test_virtual_generator.TestDerivedFeatureIdentities.test_dominant_freq_is_snapped_to_the_dft_grid) ... ok
+test_different_nodes_are_not_correlated_copies (test_virtual_generator.TestDeterminism.test_different_nodes_are_not_correlated_copies)
+The reason _seed() hashes rather than increments: two nodes seeded ... ok
+test_same_seed_reproduces_the_same_series (test_virtual_generator.TestDeterminism.test_same_seed_reproduces_the_same_series) ... ok
+test_train_and_test_pools_share_no_session (test_virtual_generator.TestNoLeakageAcrossSplits.test_train_and_test_pools_share_no_session) ... ok
+
+----------------------------------------------------------------------
+Ran 108 tests in 18.218s
+
+OK
+sensor-002     | [91mQUARANTINED[0m -- 5 consecutive BLOCKs; device REVOKED, further messages rejected before HMAC until reinstated
+sensor-002     | [91mQUARANTINED[0m -- 5 consecutive BLOCKs; device REVOKED, further messages rejected before HMAC until reinstated

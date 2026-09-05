@@ -1,5 +1,8 @@
 # Experimental Protocol — ZT-Duo 10-Node Hybrid CPS Testbed
 
+> **2026-09-05 audit update:** Two physical identities are configured; only Device 001 contributes observations. The existing hybrid network uses resampled real rows and a pending context placeholder. This is not 10 independently observed streams or source-independent calibration.
+> Current evidence and limitations: [ASTRA_AUDIT.md](ASTRA_AUDIT.md), RESULTS §0.13.17.
+
 Authoritative description of what is measured, on what, and how. Every number
 in the manuscript traces to a run described here.
 
@@ -8,31 +11,31 @@ in the manuscript traces to a run described here.
 ## 1. Testbed composition
 
 ```
-2 REAL PHYSICAL ESP32 DEVICES
+1 CAPTURED PHYSICAL SOURCE + 1 PENDING PHYSICAL SLOT
 +
-8 SIMULATED ESP32 NODES
+8 SIMULATED ESP32 STREAMS
 =
-10-NODE HYBRID CPS NETWORK
+10 CONFIGURED HYBRID SLOTS (9 OBSERVED STREAMS IN SAVED INPUTS)
 ```
 
 | Node | device_id | source_type | Hardware | Features |
 |---|---|---|---|---|
 | 01 | `esp32-vib-001` | REAL | ESP32 + MPU6050 (I²C) | 5: rms, peak, crest_factor, kurtosis, dominant_freq |
-| 02 | `esp32-vib-002` | REAL | ESP32 + SW-420 vibration switch (GPIO4) | 4: trigger_rate, duty_cycle, burst_max_ms, inter_event_cv |
-| 03–10 | `esp32-sim-03` … `esp32-sim-10` | SIMULATED | none | parameterised from real telemetry (`config/simulated_nodes.yaml`) |
+| 02 | `esp32-vib-002` | PENDING_REAL_HARDWARE_DATA (configured physical) | ESP32 + SW-420 vibration switch (GPIO4) | 4: trigger_rate, duty_cycle, burst_max_ms, inter_event_cv |
+| 03–10 | `esp32-sim-03` … `esp32-sim-10` | SIMULATED | none | parameterised from real telemetry (`config/simulated_nodes.json`) |
 
 **The required wording, and the only accurate one:**
 
-> The evaluation used a 10-node hybrid CPS network consisting of two physical
-> ESP32 devices and eight simulated nodes parameterized from real-device
-> telemetry.
+> The evaluation used ten configured slots: one captured MPU6050 source, eight
+> simulated streams, and one pending SW-420 slot. Pending targets are excluded
+> from metrics, but their neutral placeholder remains in model context.
 
-The two physical nodes provide empirical physical reference data; the eight
+The captured MPU6050 supplies empirical physical values; SW-420 capture is pending; the eight
 simulated nodes provide controlled network-scale relational context. Full-network
 results are **hybrid testbed evidence, not physical replication across ten
 independent ESP32 devices**, and are never described as ten physical devices.
 
-Because the two physical nodes carry **different sensors**, the experiment
+Because the two configured physical nodes use **different sensors**, the planned experiment after Device 2 capture
 evaluates cross-device and heterogeneous-sensor behaviour, **not** same-model
 MPU6050 sensor-to-sensor replication. An SW-420 cannot reproduce an MPU6050's
 measurements even in principle — see `firmware/HARDWARE_SETUP_SW420.md` §1.
@@ -53,10 +56,10 @@ enforced across the firmware/host boundary by
 | Threshold | n/a | onboard potentiometer, fixed per session |
 | Telemetry interval | 2 s | 1 s |
 
-`dominant_freq` is a **bin index in nominal units**, not a physical frequency —
-the achieved MPU6050 sampling rate is ~12.3× the nominal constant
-(`RESULTS.md` 13.4c). Consistent end to end, so detection is unaffected; do not
-read it as Hz.
+Current MPU6050 firmware paces 32 samples at nominal 500 Hz (64 ms), with
+184 Hz DLPF and 15.625 Hz DFT bins. The 12.3× mismatch belongs to the old
+unpaced 100 Hz declaration in RESULTS 13.4c; it is historical. The short window
+and uncalibrated excitation still limit physical spectral interpretation.
 
 ---
 

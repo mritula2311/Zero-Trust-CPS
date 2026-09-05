@@ -1,5 +1,9 @@
 # Results and Evaluation
 
+> **Current interpretation:** §0.13.17 qualifies M9, generator validation and
+> post-audit reproducibility. Earlier sections retain their original values and
+> chronology; read the latest qualification before quoting historical claims.
+
 > **SECTION 0.12 (2026-09-03) SUPERSEDES EARLIER FIGURES.** A session-level
 > train/validation/test split and a leakage-free fusion meta-learner were
 > introduced. Three previously published claims do not survive the correction —
@@ -2150,6 +2154,48 @@ learning from alongside everything else it is asked to generalize across.
 
 Full per-seed, per-slice values in
 `results/crossdevice_benchmark/m9_ablation_investigation.json`.
+
+### 0.13.17 Astra audit: source and interpretation corrections (2026-09-05)
+
+Sections 0.13.15–16 remain above as the original research record. Their values
+are unchanged; the following interpretations supersede their stronger wording.
+
+- `validate_virtual_device_generator.py` uses **TRAIN**, not held-out hardware.
+  LOW passes short resting-residual consistency checks (0.086 correlation
+  difference, 0.097 lag-1 difference, 0.466 discriminator accuracy). Long
+  fault-injected streams and independent physical realism remain unvalidated.
+- “Real Test A” is the existing **hybrid, resampled** network. Device 002 has no
+  captured observations. The physical-output slice contains Device 001 only,
+  and inference still uses all simulated context. It cannot categorically reject
+  a simulator-provenance explanation of the virtual-only advantage.
+- Both M9 and virtual-only use a variable-cardinality Set Transformer. The
+  assertion that virtual-only has no n=15 capability is withdrawn. Hybrid trains
+  up to 15 **slots** (including a pending placeholder); its saved tests use n=10
+  existing slots and n=5 virtual nodes. No persisted n=15 test establishes wider
+  coverage. Broader training exposure is established; a coverage benefit is not.
+- Preserve virtual-only **0.9769** versus hybrid **0.9671** F1. This small peak
+  advantage does not establish universal superiority, and hybrid pooling is not
+  demonstrated to buy generalization in exchange for that cost.
+- Pending hardware is excluded from targets/metrics but its 0.9 placeholder
+  remains in pooling, attention and adjacency. Thus original 10/15-slot runs
+  contain at most 9/14 observed streams. Physical network values are drawn with
+  replacement; they are not contiguous hardware trajectories. The capped-FPR
+  calibration split shares underlying source rows and boundary LSTM history.
+- P6 is a constrained **static** result. P5 also meets the stated test bounds
+  and has higher macro-F1 (0.5271 versus 0.2777); no overall constrained-policy
+  winner was established under matched selection.
+- Astra fixed cross-session/scenario/gap windows in both temporal trainers and
+  preserved original source ticks in new merges. Stored model/result files were
+  not overwritten. A versioned data and model rebuild, followed by downstream
+  evaluation, is required before any post-fix performance claim.
+- Astra also fixed malformed gateway input, forged-claim cooldown denial,
+  first-replay-check state creation, SW-420 feature explanations, legacy generator
+  registry drift and repeated-seed state. Normal-only M9 slice reports now retain
+  FPR and use null for undefined F1; historical NaN-bearing JSON is retained.
+
+Full priorities, tests, limitations and reproduction implications:
+[`docs/ASTRA_AUDIT.md`](docs/ASTRA_AUDIT.md). The paired topology interaction and
+negative ablations are preserved; no seed, split or reported value was tuned.
 
 ## 1. What Was Verified Live (Not Just Measured Offline)
 

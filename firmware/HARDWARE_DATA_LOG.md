@@ -1,5 +1,10 @@
 # Hardware Data Log — `esp32-vib-001` (real ESP32 + MPU6050)
 
+> **Audit qualification (2026-09-05):** MPU6050 captures exist; SW-420
+> captures remain pending. SW-420 is another modality, not another MPU6050.
+> Firmware peer-certificate verification is not established; see
+> [Astra audit](../docs/ASTRA_AUDIT.md) before relying on deployment claims.
+
 Captured with `scripts/collect_hardware_session.py` against one physical
 MPU6050 over I2C — there is no separate vibration sensor; the accelerometer
 *is* the vibration sensor (see `HARDWARE_SETUP.md`). Raw records live in

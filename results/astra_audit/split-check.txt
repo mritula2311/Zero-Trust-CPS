@@ -1,0 +1,7 @@
+train       ['20260902_102448', '20260902_171313']
+validation  ['20260902_173108']
+test        ['20260902_221217']
+excluded    ['20260901_112219', '20260901_113103', '20260901_115152', '20260901_125402']
+simulated    {'train': ['SIM_SESSION_TRAIN_001'], 'validation': ['SIM_SESSION_VAL_001', 'SIM_SESSION_VAL_002'], 'test': ['SIM_SESSION_TEST_001']}
+
+disjointness: OK

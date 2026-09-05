@@ -1,11 +1,31 @@
-# Proposed Methodology — Zero-Trust Gateway for a Cyber-Physical System
+# Methodology — Zero-Trust Gateway for a Cyber-Physical System
+
+## Current audit status — 2026-09-05
+
+The runtime still uses Rule + IF + LSTM-AE + legacy GCN → logistic fusion;
+Security Trust stays separate until static/contextual-bandit policy evaluation.
+Set Transformer (M6/M8/M9) is a research candidate, concat MLP a fixed-size
+deployment baseline, Deep Sets a set baseline, GCN/GATv2 research baselines,
+temporal Transformer ablation-only and NP-ST a rejected ablation.
+
+Saved metrics predate the Astra temporal-training correction. They remain the
+historical evidence for their archived model chain, not a validation of models
+trained with the corrected sequence builder. Read [the Astra audit](docs/ASTRA_AUDIT.md)
+and `RESULTS.md` §0.13.17 before quoting them. Missing-node context, resampled
+hardware trajectories and non-independent calibration halves qualify the network
+experiments. M9 trains through 15 slots but has no persisted 15-node test; the
+virtual-only advantage is retained, and broader-coverage benefit is unproved.
+
+Only `esp32-vib-001` (MPU6050) has captures. `esp32-vib-002` is a configured SW-420
+with capture pending; it does not test MPU6050 manufacturing variation. LOW passes
+TRAIN resting-residual consistency checks (not held-out realism validation).
+MEDIUM/HIGH remain OOD stress regimes. Production readiness is not established.
 
 This document states the method: what is computed, the mathematics behind each
 step, **why each expression is required rather than an arbitrary choice**, and
 what is novel. Measured results live in `RESULTS.md`; architectural decisions and
-their rejected alternatives live in `ZERO_TRUST_CPS_KB.md`. Nothing here is
-aspirational — every constant quoted is the deployed one, and every claim of
-effect points at the measurement that established it.
+their rejected alternatives live in `ZERO_TRUST_CPS_KB.md`. Runtime formulas below describe the deployed implementation; research candidates
+and saved-chain measurements are qualified by the current audit above.
 
 ---
 
@@ -70,15 +90,15 @@ The board samples accelerometer magnitude `a = √(aₓ² + a_y² + a_z²)` into
 **x = (x₁ … x_N)**, with **N = 32** at **f_s = 500 Hz** (64 ms). Five features are
 computed *on-device*, and only those five are transmitted.
 
-**Why extract on-device at all?** Transmitting raw windows would be 32× the
-payload and would put the feature definition on the gateway, where it could drift
+**Why extract on-device at all?** Transmitting raw windows would send 32 samples rather than five features
+(the byte ratio depends on serialization) and would put the feature definition on the gateway, where it could drift
 from what the sensor actually measured. Extracting at the source makes the
 message self-describing and keeps the signed payload small enough that
 HMAC-SHA256 costs 9 ms.
 
 | # | expression | why this one |
 |---|---|---|
-| 1 | **RMS** = √( (1/N) Σ xᵢ² ) | Total vibration energy. The primary severity indicator, and the only feature with a direct physical unit (g). Insensitive to brief spikes, which is why it cannot stand alone. |
+| 1 | **RMS** = √( (1/N) Σ xᵢ² ) | Total vibration energy. The primary severity indicator, and a feature with a direct physical unit (g), as is peak. Insensitive to brief spikes, which is why it cannot stand alone. |
 | 2 | **Peak** = max(x) − min(x) | Peak-to-peak amplitude. Captures shocks and impacts that RMS averages away. Peak-to-peak rather than max-absolute because a DC offset (gravity, ~1 g) would otherwise dominate. |
 | 3 | **Crest factor** = Peak / RMS | Impulsiveness, dimensionless. **The diagnostic that RMS and peak cannot give separately**: a high crest factor at *normal* RMS is the classic early-stage bearing-damage signature — the energy has not risen yet, but it has become spiky. |
 | 4 | **Excess kurtosis** = (1/N) Σ ((xᵢ − μ)/σ)⁴ − 3 | Fourth standardised moment. The −3 makes a Gaussian read 0, so the number is directly interpretable as "heavier-tailed than noise". Sensitive to sharp, infrequent events that all three amplitude features smooth over. |
@@ -107,11 +127,11 @@ much data it sees.
 | model | input shape | trains on | what that shape can represent | what it cannot |
 |---|---|---|---|---|
 | **Rule** | 1 vector (5 values) | nothing — fixed expected ranges from `config.DEVICE_REGISTRY` | physical implausibility (a disconnected sensor, an out-of-range reading) | anything statistical; it has no notion of "unusual but in range" |
-| **Isolation Forest** | 1 vector (5 values) | 4,088 **normal** esp32 vectors, unsupervised | a point far from the normal cloud in 5-D | anything about *order* — it sees one message at a time |
-| **LSTM-AE** | 8 × 5 window | 4,081 windows built from **normal** rows only | how the five features **evolve together over ~16 s** | cross-device patterns; each device is scored alone |
+| **Isolation Forest** | 1 vector (5 values) | **normal** TRAIN vectors (count depends on corpus), unsupervised | a point far from the normal cloud in 5-D | anything about *order* — it sees one message at a time |
+| **LSTM-AE** | 8 × 5 window | contiguous **normal** TRAIN runs, with session/scenario/phase/gap boundaries | how the five features **evolve together over ~16 s** | cross-device patterns; each device is scored alone |
 | **Transformer-AE** | 8 × 5 window | same windows, trained as a **denoiser** | same as LSTM-AE, via self-attention instead of recurrence | same limits; measured statistically identical (r = 0.998) |
-| **GNN** | 3 nodes × 3 features (`rule`, `iso`, `lstm`) + adjacency | 29,576 graph snapshots, **supervised** per node | **simultaneous** anomalies across devices | single-device subtlety — it sees summaries, not raw features |
-| **Fusion** | 4 scores | 11,036 examples, `class_weight='balanced'` | which signal to trust in which regime | nothing new — it only weights what it is given |
+| **GNN** | registered slots × 3 scores (`rule`, `iso`, `lstm`) + active adjacency | supervised TRAIN snapshots; count depends on registry and corpus | **simultaneous** anomalies across devices | single-device subtlety — it sees summaries, not raw features |
+| **Fusion** | 4 scores | held-out simulated validation, `class_weight='balanced'` | which signal to trust in which regime | nothing new — it only weights what it is given |
 
 **Why train the autoencoders on normal data only?** Because the fault you care
 about has not happened yet. A supervised classifier needs labelled examples of
@@ -296,12 +316,12 @@ explain. It admits an **exact** SHAP decomposition (§4.1) rather than an
 approximation. And with four inputs and ~11k training examples, capacity is not
 the binding constraint — under leakage-free held-out stacking (fusion fit on a
 validation session disjoint from the base models', concern H) the coefficients are
-`[rule −0.003, iso +2.97, lstm +5.97, gnn +8.33]`, which are themselves a finding:
+`[rule −0.018, iso +2.979, lstm +4.500, gnn +6.062]`, which are themselves a finding:
 the GNN carries the most weight and is also the least seed-stable signal
 (±0.011 against the fused model's ±0.002). The leak was visible in the sign —
 fitted in-sample the LSTM-AE coefficient came out **−0.46**, the wrong sign for a
 signal whose whole purpose is to fall on anomalies; the clean fit restores it to
-**+5.97** (`docs/CLAIM_EVIDENCE_MATRIX.md` C13, `RESULTS.md` §0.12.2).
+**+4.500** (`docs/CLAIM_EVIDENCE_MATRIX.md` C13, `RESULTS.md` §0.12.2).
 
 **Trained with `class_weight='balanced'`, deliberately at a cost.** Unweighted,
 the numerous easy examples dominate and the GNN's contribution on the rare
@@ -366,15 +386,15 @@ from learning, not from reporting.
 `gateway.py` only runs inference. An online-learning policy decision point is an
 attack surface: anyone who can generate traffic can move the model.
 
-**What the comparison actually shows — a reported negative result.** On the
-untouched test split, five policies on identical inputs give macro-F1:
-static-optimised **0.5879**, decision tree 0.5834, **adaptive bandit 0.5329**,
-multiclass LR 0.4355, deployed static 0.2744. The bandit clearly beats the
-*deployed* static table (0.533 vs 0.274) but is **beaten by the same table with
-thresholds selected on validation** (0.588). The honest claim is therefore that
-the adaptive policy improves on the deployed configuration, **not** that it
-outperforms a well-tuned static baseline (`docs/CLAIM_EVIDENCE_MATRIX.md` C6,
-`RESULTS.md` §0.13.6).
+**Current stored policy comparison (`RESULTS.md` §0.13.6–7).** P3 tree
+macro-F1 is 0.6453 but false-block is 0.1510; P2 unconstrained static is 0.5614
+but ALERT recall is 0.5850. P5 contextual bandit is 0.5271 with ALERT recall
+0.9600 and false-block 0.0000. P6 constrained static is 0.2777 with recall
+0.9900 and false-block 0.0000; P1 static is 0.2744. Thus P6 is the best feasible
+static grid point, not the best constrained policy overall. Policy families
+need identical validation constraints before deployment selection. The bandit
+remains the configured live default; none of these saved numbers validates the
+post-audit temporal retraining. Earlier 0.5879/0.5329 values are superseded.
 
 ### 3.6 Tamper-evident audit
 
@@ -587,7 +607,7 @@ inputs the **GNN did not beat simpler models** (Task 1 test F1: concat MLP 0.985
 vs GNN 0.838 at its own best swept self-loop weight), so the defensible claim is
 about cross-device *information* (0.4142 → 0.6567), not graph structure; (c) a
 **validation-tuned static policy beat the adaptive contextual-bandit policy**
-(macro-F1 0.588 vs 0.533), which itself only beats the deployed static table
+(saved-chain macro-F1 0.5614 vs 0.5271, with different ALERT recall; §3.5), which itself only beats the deployed static table
 (0.274). A framework that withdraws its own overstated results under a stricter
 protocol is the honest-reporting principle applied to itself
 (`docs/CLAIM_EVIDENCE_MATRIX.md` C2/C3/C4/C6, `RESULTS.md` §0.12–§0.13).
@@ -650,8 +670,9 @@ Stated because a method's boundaries are part of it.
 ## 8. Reproducing
 
 ```bash
-# full training chain — SIX steps, in order; each replays through the previous
+# Research rebuild order; preserve archived artifacts before regenerating
 python scripts/merge_real_hardware_data.py      # fold real at-rest rows into synthetic
+python scripts/generate_validation_data.py
 python scripts/generate_test_data.py
 python scripts/train_isolation_forest.py
 python scripts/train_lstm_ae.py
@@ -669,3 +690,26 @@ python -m unittest discover -s tests            # 46 invariant tests
 
 `ZTCPS_SEED` (default 0) sets the training seed for every model, so the
 seed-sensitivity analysis in `RESULTS.md` 0.10.11 is reproducible.
+
+## 9. Relational research protocol and limits
+
+M1 concat MLP, M2 gradient boosting, M3 Deep Sets, M4 GCN, M5 GATv2, M6 Set
+Transformer and M7 NP-ST compare multi-device sub-scores. M8 adds mixed
+cardinality; M9 pools existing hybrid and LOW real-derived virtual columns at
+training sizes {2,3,5,10,15}. M1's weighting differs from the other comparators,
+and absent-node placeholders enter model context; matched corrections need new
+results. Thresholds are selected on validation, with LOW thresholds frozen for
+MEDIUM/HIGH. The capped-FPR calibration halves require source-level separation.
+
+The ten-seed topology interaction is −1.2132 (95% CI −1.583 to −0.843): GCN has
+strong negative target-degree sensitivity and positive peer-density sensitivity;
+GATv2 has negative peer-density sensitivity and uncertain target-degree effect.
+Set-model invariance to adjacency is by construction. This is evidence of
+different topology-sensitivity patterns, not a strict double dissociation.
+
+LOW's residual checks use 103 TRAIN rest rows. They do not validate cross-device
+manufacturing variation, independent held-out realism, or the full 300/600-tick
+fault-injected workload. MEDIUM/HIGH deliberately stress beyond that narrow
+consistency scope. Preserve the virtual-only F1 advantage (0.9769 vs 0.9671 on
+existing hybrid test); neither n=15 superiority nor a coverage benefit has yet
+been demonstrated. See the audit for source, seam and uncertainty limitations.

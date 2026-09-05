@@ -1,5 +1,8 @@
 # Security Trust Score — Authoritative Specification
 
+> **2026-09-05 audit update:** The score equations remain unchanged. Schema rejection now precedes state mutation, and cooldown cannot block authentic traffic under a forged claimed identity. Adaptive policy is another final combination point.
+> Current evidence and limitations: [ASTRA_AUDIT.md](ASTRA_AUDIT.md), RESULTS §0.13.17.
+
 Reviewer concern **I**. The mechanism was fully implemented and correct, but
 specified across scattered docstrings in `src/trust_engine.py` with no single
 document stating it. This is that document; it was written by reading the
@@ -25,7 +28,7 @@ Anomaly score, or an authentication-failure count for a claimed identity.
 Enforced by `tests/test_invariants.py::TestTwoScoreSeparation::test_security_scoring_never_sees_a_sensor_reading`,
 which inspects the function signature for forbidden parameter names.
 
-The two scores meet **only** in `policy_engine.decide()`.
+The two scores meet only at final static (`policy_engine.decide`) or contextual-bandit (`adaptive_pdp.greedy_action`) policy evaluation.
 
 ---
 

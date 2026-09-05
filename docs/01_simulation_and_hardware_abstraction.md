@@ -1,5 +1,8 @@
 # 01 — Simulation and Hardware Abstraction Layer
 
+> **2026-09-05 audit update:** One captured MPU6050, one configured SW-420 with capture pending. The legacy live simulator is scoped to its original identities; network research uses generate_network_data.py and explicit provenance.
+> Current evidence and limitations: [ASTRA_AUDIT.md](ASTRA_AUDIT.md), RESULTS §0.13.17.
+
 > **AS-BUILT NOTE:** the message schema below (Section 2) is implemented
 > exactly, including `boot_id`/`seq` and the optional `step_up_nonce_echo`
 > field. The device fleet is hybrid, not uniform: `esp32-vib-001` publishes
