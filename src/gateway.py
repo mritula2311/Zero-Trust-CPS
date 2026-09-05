@@ -49,6 +49,7 @@ Run this BEFORE device_simulator.py (or the real ESP32/firmware/main.py).
 import hashlib
 import hmac
 import json
+import math
 import os
 import threading
 import time
@@ -145,6 +146,8 @@ def verify_signature(device_id: str, payload: dict, signature: str) -> bool:
     canonical = json.dumps(payload, sort_keys=True).encode()
 
     def matches(secret: str) -> bool:
+        if not isinstance(secret, str) or not secret or secret.startswith("CHANGE-ME"):
+            return False
         expected = hmac.new(secret.encode(), canonical, hashlib.sha256).hexdigest()
         return hmac.compare_digest(expected, signature)
 
@@ -214,6 +217,18 @@ def _process_telemetry(envelope: dict, transport: str, transport_secured: bool) 
     except (KeyError, TypeError):
         print(f"[gateway/{transport}] malformed message, dropping")
         return
+    # Validate before HMAC/type-sensitive comparisons or any per-device state.
+    # bool is an int subclass, but is never a timestamp or replay counter.
+    if (not isinstance(payload, dict) or not isinstance(device_id, str)
+            or not isinstance(signature, str) or len(signature) != 64
+            or any(c not in "0123456789abcdef" for c in signature)
+            or type(ts) not in (int, float) or not 0 <= ts < 2**63
+            or type(boot_id) is not int or boot_id < 0
+            or type(seq) is not int or seq < 1
+            or (payload.get("step_up_nonce_echo") is not None
+                and not isinstance(payload["step_up_nonce_echo"], str))):
+        print(f"[gateway/{transport}] malformed message, dropping")
+        return
     step_up_echo = payload.get("step_up_nonce_echo")
 
     # Module 1: identity known at all? Checked before HMAC (and before
@@ -235,15 +250,23 @@ def _process_telemetry(envelope: dict, transport: str, transport_secured: bool) 
         _reject(device_id, "device_revoked", transport)
         return
 
-    # Optional gateway-level protective response (Module 2 Section 5.1):
-    # once a claimed id has crossed the failure threshold, drop further
-    # attempts against it before even attempting verification.
-    if identity_targeting_risk.is_throttled(device_id):
-        return
-
     # Module 2 Check 3: HMAC, against the current key.
     if not verify_signature(device_id, payload, signature):
+        # A claimed identity is attacker-controlled. Its cooldown may suppress
+        # repeated rejection logging, never a genuinely authenticated device.
+        if identity_targeting_risk.is_throttled(device_id):
+            return
         _reject(device_id, "hmac_mismatch", transport)
+        return
+
+    fields = feature_names_for(device_id) if is_feature_vector(device_id) else ["value"]
+    try:
+        valid_reading = all(type(payload.get(k)) in (int, float)
+                            and math.isfinite(payload[k]) for k in fields)
+    except OverflowError:
+        valid_reading = False
+    if not valid_reading:
+        _reject(device_id, "malformed_reading", transport)
         return
 
     # Module 2 Check 4: boot-aware anti-replay.
@@ -447,7 +470,7 @@ def on_connect(client, userdata, flags, reason_code, properties=None):
 def on_message(client, userdata, msg):
     try:
         envelope = json.loads(msg.payload.decode())
-    except json.JSONDecodeError:
+    except (UnicodeDecodeError, json.JSONDecodeError):
         print("[gateway/mqtt] malformed message, dropping")
         return
     process_telemetry(envelope, transport="mqtt", transport_secured=MQTT_USE_TLS)
@@ -978,6 +1001,11 @@ def start_silence_watchdog() -> threading.Thread:
 def run():
     """Runs MQTT and the HTTPS second-transport (coap_server.py) concurrently."""
     global _mqtt_publish_client, _gateway_boot_id
+    # Offline research can import placeholder configuration; serving cannot.
+    if (not MQTT_USE_TLS or not MQTT_USE_AUTH
+            or not MQTT_GATEWAY_PASSWORD or MQTT_GATEWAY_PASSWORD.startswith("CHANGE-ME")):
+        raise RuntimeError("Gateway requires configured MQTT TLS and broker credentials; "
+                           "see docs/07_module6_secure_communication.md")
     audit_log.init_db()
     _gateway_boot_id = _load_and_increment_gateway_boot_id()
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id="zt-gateway")

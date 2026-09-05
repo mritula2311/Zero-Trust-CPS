@@ -213,10 +213,10 @@ class IdentityTargetingRisk:
 
     def is_throttled(self, claimed_device_id: str) -> bool:
         """Optional gateway-level protective response (Section 5.1): once a
-        claimed id has crossed the threshold, further attempts against it
-        are dropped before even reaching verification, for a cooldown
-        window -- a defence against the traffic itself, never a judgement
-        applied to a real device's own trust."""
+        claimed id has crossed the threshold, repeated failed-HMAC attempts
+        can be dropped without further rejection logging. Call only after
+        signature verification fails: a claimed identity must never suppress
+        authentic telemetry or change that device's own trust."""
         until = self._cooldown_until.get(claimed_device_id)
         return until is not None and time.time() < until
 
@@ -312,7 +312,9 @@ class RuleBasedTrustEngine:
         # message mutating device state, violating the "a rejected message never
         # touches the claimed device's state" invariant, and locking out the real
         # board (its now-lower boot_id read as a superseded-session replay).
-        st = self._get_auth_state(device_id)
+        st = self.auth_state.get(device_id)
+        if st is None:
+            return False, "first_message"
         if st.last_seen_boot_id is None:
             return False, "first_message"
         if boot_id > st.last_seen_boot_id:
