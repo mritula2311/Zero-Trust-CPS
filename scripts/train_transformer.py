@@ -42,6 +42,7 @@ from config import (
     FEATURE_NAMES, TRAINING_SEED,
 )
 import feature_engineering as fe
+import datasets
 from transformer_scorer import TransformerAutoencoder, _TORCH_DEVICE
 
 SESSION_PATH = os.path.join(DATA_COLLECTED_DIR, "training_session.json")
@@ -53,11 +54,8 @@ def train_one(records, device_id) -> bool:
     saved to that device's per-device paths. Returns True if trained, False
     if too few examples (skipped, not fatal)."""
     torch.manual_seed(TRAINING_SEED)
-    normal = [
-        r for r in records
-        if r["device_id"] == device_id and r["label"] == 1 and r["auth_ok"]
-    ]
-    normal.sort(key=lambda r: r["tick"])
+    runs = datasets.normal_sequences(records, device_id)
+    normal = [r for run in runs for r in run]
     if len(normal) < SEQ_LEN + 10:
         print(f"[skip] {device_id}: only {len(normal)} normal examples -- no model trained")
         return False
@@ -66,9 +64,16 @@ def train_one(records, device_id) -> bool:
     mean = raw.mean(axis=0)
     std = raw.std(axis=0)
     std[std < 1e-6] = 1.0
-    normalized = (raw - mean) / std
-
-    windows = np.stack([normalized[i:i + SEQ_LEN] for i in range(len(normalized) - SEQ_LEN + 1)])
+    windows = []
+    for run in runs:
+        normalized = (np.array([fe.feature_vector(r["reading"]) for r in run],
+                               dtype=np.float32) - mean) / std
+        windows.extend(normalized[i:i + SEQ_LEN]
+                       for i in range(len(run) - SEQ_LEN + 1))
+    if not windows:
+        print(f"[skip] {device_id}: no contiguous normal training windows")
+        return False
+    windows = np.stack(windows)
     clean = torch.tensor(windows, dtype=torch.float32, device=_TORCH_DEVICE)
 
     model = TransformerAutoencoder().to(_TORCH_DEVICE)

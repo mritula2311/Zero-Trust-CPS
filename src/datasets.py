@@ -59,6 +59,33 @@ def network_records(scenario: str, split: str) -> list[dict]:
         return json.load(f)
 
 
+def normal_sequences(records: list[dict], device_id: str) -> list[list[dict]]:
+    """Authentic normal runs in acquisition order, never across a discontinuity.
+
+    Sorting concatenated scenarios by tick braids independent sessions; filtering
+    anomalies first joins the normal readings on either side of an event. Split
+    before filtering instead. source_tick preserves gaps hidden by merged ticks.
+    """
+    runs, run = [], []
+    previous_key = previous_tick = None
+    for row in records:
+        if row.get("device_id") != device_id:
+            continue
+        tick = row.get("source_tick", row.get("tick"))
+        key = tuple(row.get(k) for k in ("session_id", "scenario", "phase"))
+        eligible = (row.get("label") == 1 and row.get("auth_ok") is True
+                    and row.get("reading") is not None and type(tick) is int)
+        if run and (not eligible or key != previous_key or tick != previous_tick + 1):
+            runs.append(run)
+            run = []
+        if eligible:
+            run.append(row)
+            previous_key, previous_tick = key, tick
+    if run:
+        runs.append(run)
+    return runs
+
+
 def scenarios() -> list[str]:
     names = set()
     for path in glob.glob(os.path.join(NETWORK_DIR, "network_*_train.json")):
