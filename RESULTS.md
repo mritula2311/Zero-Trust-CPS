@@ -383,8 +383,10 @@ so it can never drift from the acquisition chain again.
 > **Superseded by 0.10.10.** The figures in this section were computed with the
 > permissive warm-up rule (drop `LSTM_SEQ_LEN-1`), which was later shown to leave
 > each block's own settling disturbance inside its first scored windows. Under the
-> corrected rule, and with the fourth (fault) session included, the headline is
-> **1/29 (3.4%) false positives, 103/103 detection**. The numbers below are kept
+> corrected rule, and with the fourth (fault) session included, the headline was
+> **1/29 (3.4%) false positives, 103/103 detection** — itself since withdrawn:
+> under session-level splitting the leakage-free figure is **5/12 (41.7%) false
+> positives, 30/30 detection** (§0.12.1). The numbers below are kept
 > as recorded rather than rewritten.
 
 
@@ -759,7 +761,11 @@ data automatically rather than by judgement.
 **The previously reported 0/49 was under the permissive rule on three quieter
 sessions.** The fault session was genuinely noisier -- a phone on the desk and an
 operator moving around it -- and adding it takes the permissive figure to 12.0%.
-The honest headline is now **1/29 (3.4%) false positives, 103/103 detection**.
+The honest deployed headline is now **5/12 (41.7%) false positives, 30/30
+detection** on the untouched test session under session-level splitting (§0.12.1).
+The 1/29 in the table above was measured before session-level splitting was
+enforced -- the test session's own at-rest rows were still in the training set --
+and is superseded.
 
 #### Detection on the sustained fault
 
@@ -812,9 +818,12 @@ models, and the full chain was retrained across seeds 0–4:
 
 Three things worth reading off this:
 
-**The RL-beats-static claim survives.** 0.537 ± 0.002 against 0.278 ± 0.001 —
-separated by ~130 standard deviations. That comparison is a property of the
-method, not of seed 0.
+**The bandit beats the *deployed* static table across seeds.** 0.537 ± 0.002
+against 0.278 ± 0.001 — separated by ~130 standard deviations, a property of the
+method, not of seed 0. But that is only the *deployed* table: a static table with
+thresholds selected on validation scores 0.588 and beats the bandit (§0.13.6), so
+this is not a superiority claim. The policy is a contextual bandit, not
+reinforcement learning (C6).
 
 **`lstm_ae` and `transformer` reaching ±0.000 was checked, not assumed.**
 Identical accuracy to three decimals across five seeds looks like broken seed
@@ -1031,9 +1040,12 @@ Three consequences worth stating plainly:
 
 1. **The blended fused accuracy of 0.717 is dominated by this artefact**, not by
    model quality. It is a property of the attack-injection schedule.
-2. **The real-hardware result is the trustworthy one**: 1/29 false positives on
-   operator-labelled data, which agrees with the 0/40 clean-normal figure and
-   disagrees with 73% only because the synthetic set has almost no clean rows.
+2. **The real-hardware result is the trustworthy one**: its then-measured 1/29
+   false positives on operator-labelled data agreed with the 0/40 clean-normal
+   figure and disagreed with 73% only because the synthetic set has almost no
+   clean rows. (That 1/29 is pre-split and withdrawn — the leakage-free rate is
+   5/12, §0.12.1; the methodological point, real hardware over synthetic-blended,
+   stands.)
 3. **Any future dataset extension must keep injection density low relative to the
    sequence window**, or the pool of genuinely clean normals collapses and
    per-signal evaluation measures the schedule instead of the model.
@@ -2268,15 +2280,18 @@ the same one the original 587-message-era numbers described.
 | security_concern | 0 | 159 | 0 | 0 | 0.975 | 1.000 | 0.988 |
 | combined | 20 | 0 | 0 | 13 | 0.071 | 0.394 | 0.121 |
 
-**Why RL wins on `security_concern` specifically**: the static table only
+**Why the bandit reacts to `security_concern` where the deployed static table
+doesn't**: the static table only
 issues `STEP_UP` once `security_trust_score` crosses below 0.6 — and a
 single momentary flood burst, under the EWMA (α=0.35), doesn't reliably
 cross that line (one flood observation pulls the score to ~0.66, still
-above threshold). The RL policy learns per-bucket Q-values directly from
+above threshold). The bandit learns per-bucket action-values directly from
 reward feedback and can react to a *weaker* signal than the hard-coded
-threshold, which is exactly what its 1.000 recall vs. the static table's
-0.000 shows — a genuine, explainable advantage of the adaptive policy,
-not a fluke.
+threshold, which is what its 1.000 recall vs. the static table's
+0.000 shows on this class — a genuine, explainable behaviour of the
+contextual-bandit policy. It is not a superiority claim: on macro-F1 the
+bandit still loses to a validation-tuned static table (§0.13.6), and it is
+not reinforcement learning (C6).
 
 **Why `combined` recall (0.394) comes at a real precision cost (0.071)**:
 `combined` is the rarest class (33 of 2,933), so `situation_weights()`'s

@@ -3168,3 +3168,38 @@ floor, and the stealthy/single-channel design limits remain genuinely future.
 50 tests (47 + 3 boot-replay isolation), governance 7/7 with 7/7 falsifiers, real
 hardware unchanged, deployed seed-0 models restored after the lr sweep.
 
+## 40. The leakage correction supersedes §36–39, and a doc-sync pass to match
+
+Recorded after the fact: the session-level train/validation/test split (`src/splits.py`,
+RESULTS.md §0.12 dated 2026-09-03, §0.13 dated 2026-09-04) landed but was never logged
+here, so §36–39 above still quote pre-split figures. **Three headline claims from those
+entries are withdrawn**, and this entry supersedes them:
+
+- **Real-hardware false positives are 5/12 (41.7%), not 1/29 (3.4%) or 0/49.** The old
+  figures were measured with the test session's own at-rest rows in the training set;
+  under session-level splitting the honest rate on the untouched TEST session's 12
+  resting windows is 41.7%, 95% CI [19.3%, 68.0%]. Detection is 30/30 (100%), not
+  reported as 103/103. The `13/49 vs 0/49` ablation magnitude (§31, C14) is pre-split;
+  its direction holds, the magnitude needs re-measuring.
+- **GNN superiority and necessity are withdrawn.** Given the same multi-device
+  information a concatenated-input MLP matches or beats the GNN (Task-1 test F1 0.985 vs
+  0.838; §0.13.3, C3). The defensible claim is that cross-device *information* helps
+  (task-2 accuracy 0.414 → 0.657, C2), not that graph structure is required. The GNN
+  stays in the deployed fusion; only the superiority claim is gone.
+- **Adaptive-policy superiority is withdrawn.** A validation-tuned static table beats the
+  adaptive policy on macro-F1 (0.588 vs 0.533; §0.13.6, C6). It beats only the *deployed*
+  static table (0.274). Terminology corrected: it is a contextual bandit with
+  sample-average action-value estimation, not reinforcement learning.
+
+Doc-sync pass this session: rewrote the stale live-headline / framing sentences in
+RESULTS.md (§0.10.10 headline, the seed-sensitivity "RL-beats-static survives" verdict,
+the `security_concern` "advantage" framing), stripped residual GNN-necessity wording in
+METHODOLOGY.md (§3.1b, §3.4d) and reconciled its `coordinated` GNN recall to 1.000, and
+corrected PRD.md's G2/G3 goal rows to 30/30 and 5/12. `docs/CLAIM_EVIDENCE_MATRIX.md`
+(C3/C4/C6), `ZERO_TRUST_CPS_KB.md`, `README.md`, and project `CLAUDE.md` were already
+consistent and were left unchanged. Raw dated pre-split measurement tables were left
+intact — only prose that presented them as the current headline was rewritten. One
+open item flagged, not touched: METHODOLOGY.md's repair-set table mixes a `/136`
+denominator with the `178/182` rank-aware headline; reconciling it needs the underlying
+run data, so it was not guessed at.
+

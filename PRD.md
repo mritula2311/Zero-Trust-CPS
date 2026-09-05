@@ -75,8 +75,8 @@ vulnerability invisible to every offline evaluation.
 | # | Goal | Measured status |
 |---|---|---|
 | G1 | Separate cyber and physical trust so opposite failures get opposite responses | **Met** — proven live: a shaken authenticated board drives Process to 0.00001 while Security holds 0.895–0.909 (`RESULTS.md` §1, 0.10.17) |
-| G2 | Detect physical process anomalies on real hardware | **Met** — 103/103 detection across four operator-labelled sessions (`RESULTS.md` 0.10.10) |
-| G3 | Keep false positives on a healthy device low | **Met with a stated interval** — 1/29 = 3.4%, Wilson 95% CI [0.6%, 17.2%] (`RESULTS.md` 0.10.10, 0.10.18) |
+| G2 | Detect physical process anomalies on real hardware | **Met** — 30/30 detection on the untouched TEST session, 95% CI [88.6%, 100%] (`RESULTS.md` §0.12.1, C4) |
+| G3 | Keep false positives on a healthy device low | **Not met, reported honestly** — 5/12 = 41.7% on the untouched TEST session's 12 resting windows, Wilson 95% CI [19.3%, 68.0%]; the earlier 3.4% (1/29) was measured before session-level splitting and is withdrawn (`RESULTS.md` §0.12.1, C4) |
 | G4 | Reject cyber attacks before any model runs | **Met** — 5/5 live adversarial attacks rejected at Module 1/2 (`RESULTS.md` 0.10.17) |
 | G5 | Make every decision auditable and tamper-evident | **Met** — hash-chained log, O(tail) incremental + cached full verification (`RESULTS.md` §8) |
 | G6 | Make governance claims falsifiable, not asserted | **Met** — 7/7 NIST tenets validated, 7/7 falsifiers injected and rejected (`RESULTS.md` 0.10.16) |

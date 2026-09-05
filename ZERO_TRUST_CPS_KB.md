@@ -425,8 +425,9 @@ gives a node's own evidence only 1/3 of its representation. One identical ESP32
 reading scored fused **0.020 / 0.057 / 0.577** for 1 / 2 / 3 active devices —
 the verdict depended on whether *unrelated* devices happened to be publishing.
 *Chosen:* `A + 3I`, so self-weight is 0.6 vs 0.2 per neighbour.
-*Rejected:* Dropping the GNN when isolated — it is the only signal that detects
-coordinated attacks, and abstention injects a strong implicit "normal" vote.
+*Rejected:* Dropping the GNN when isolated — within the deployed ensemble it is
+the only signal that detects coordinated attacks (its cross-device view, not graph
+structure specifically — C3), and abstention injects a strong implicit "normal" vote.
 
 **ADR-6 — Isolated-topology training augmentation.**
 *Context:* The only isolated-graph examples in training were merged real-hardware
@@ -681,9 +682,12 @@ Per-event-type recall — **why four signals exist**:
 | **gnn** | 1.000 | **1.000** | 0.000 |
 | fused | 1.000 | 0.974 | 0.515 |
 
-The GNN is the only signal that detects `coordinated` attacks. Isolation Forest
+Within the deployed ensemble the GNN is the only signal that detects `coordinated`
+attacks — because it is the only one with a cross-device view. Isolation Forest
 and LSTM-AE are *structurally* blind to them — they only ever see one device's
-own vector.
+own vector. The benefit is the cross-device *information*, not graph structure
+specifically: given the same multi-device input a concat MLP matches or beats the
+GNN, so no GNN-necessity or -superiority claim follows (C3).
 
 ### Verification scenarios
 

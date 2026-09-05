@@ -141,12 +141,18 @@ simultaneous multi-device anomaly:
 | Isolation Forest | one vector | 0.316 |
 | LSTM-AE | one device's window | 0.308 |
 | Transformer-AE | one device's window | 0.308 |
-| **GNN** | **the graph** | **0.974** |
+| **GNN** | **the graph** | **1.000** |
 
 The three single-device models are not undertrained. They **cannot see** the
 pattern — no amount of data about one device reveals that three moved together.
-That is the argument for including a graph layer at all, and it is the only event
-class where it pays.
+So detecting it needs **cross-device information**, and this is the only event
+class where cross-device information pays. It does *not* follow that graph
+structure is necessary: given the same multi-device information a concatenated-input
+model matches or beats the GNN, so no claim of GNN necessity or superiority is made
+(C3). The GNN's 1.000 recall here also comes with badly collapsed precision — on a
+consistent retrain it flags most traffic (overall accuracy 0.281, §0.13.2) — so the
+recall figure alone overstates it; the defensible claim is that cross-device
+information helps (task-2 accuracy 0.414 → 0.657, C2).
 
 ### 3.2 Security Trust  `s_sec ∈ [0,1]`
 
@@ -261,10 +267,14 @@ reading scored 0.020, 0.057 or 0.577 depending only on how many *unrelated*
 devices happened to be publishing. A device's verdict must be dominated by its
 own evidence, with neighbours as context. `w = 3` restores that.
 
-**Why the GNN exists at all.** It is the only signal that can see cross-device
-co-occurrence. Measured: on the `coordinated` attack class, per-event recall is
-**0.974 for the GNN against 0.308–0.316** for every single-device signal. Those
-signals cannot represent the pattern by construction, not by undertraining.
+**Why a cross-device signal exists at all.** Only a signal with access to more
+than one device can see cross-device co-occurrence. Measured: on the `coordinated`
+attack class, per-event recall is **1.000 for the GNN against 0.308–0.316** for
+every single-device signal (§0.13.2). Those single-device signals cannot represent
+the pattern by construction, not by undertraining. The GNN is one such cross-device
+model, but graph structure is not what produces the benefit — given the same
+multi-device information a concatenated-input MLP matches or beats it, so no claim
+of GNN necessity or superiority is made (C3).
 
 **A recorded trap.** Raising isolated-device scores once made the model saturate
 to 1.000 on a genuinely shaken board, *masking a real anomaly* — because the only
