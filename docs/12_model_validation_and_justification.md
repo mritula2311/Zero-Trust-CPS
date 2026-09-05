@@ -567,9 +567,9 @@ layers of the same system.
 A tabular Q-table's generalization is bounded by how many training
 messages land in each of the 100 state buckets — sparsely-visited buckets
 fall back to the static table's own seeded action
-(`adaptive_pdp.py::_get_q()`), meaning the RL policy's real advantage is
-concentrated in well-visited regions of the state space, not uniform
-everywhere. Not measured directly in this round (a real, scoped
+(`adaptive_pdp.py::_get_q()`), meaning the RL policy's advantage over the
+deployed static table is concentrated in well-visited regions of the state
+space, not uniform everywhere. Not measured directly in this round (a real, scoped
 follow-up: report per-bucket visit counts alongside the confusion matrix).
 
 ---
@@ -582,15 +582,15 @@ follow-up: report per-bucket visit counts alongside the confusion matrix).
 | Isolation Forest | ML (unsupervised) | Best raw single-signal accuracy; works from normal-only data | Cross-device patterns; SHAP-ranked features don't linearly control its score (Section 4.1, RESULTS.md) |
 | LSTM-Autoencoder | DL (sequential, recurrent) | Slow-drift/window-based detection with a genuine information bottleneck | An advantage over the Transformer on this task at this scale (Section 5.2) |
 | Transformer | DL (sequential, attention) | A measurable, reproducible +0.010 F1 over the LSTM-AE from removing the recurrent bottleneck | That the gain justifies production adoption (Section 5.3) |
-| GNN | DL (relational) | The ONLY signal that reliably catches `coordinated` (1.000 recall) | Generalization beyond a 3-node demo-scale graph |
+| GNN | DL (relational) | Within the deployed ensemble, the only signal that catches `coordinated` (1.000 recall) — the only one with a cross-device view | Generalization beyond a 3-node demo-scale graph; that graph structure is necessary or superior — given the same multi-device information a concat MLP matches or beats it (C3) |
 | Fusion meta-learner | ML (stacking) | A principled, verified precision/recall trade favoring rare-attack recall | Recovery from an architecturally-capped scenario (`stealthy_forged_values`) no input signal can see |
 | Adaptive PDP (bandit) | Contextual bandit (sample-average action values — **not RL/Q-learning**, §8) | A learned, more sensitive decision boundary than the *deployed* static table, safely frozen at inference | Beating a *validation-tuned* static table (it does not — C6); uniform reliability across sparsely-visited state buckets |
 
 **The overall research claim this file supports**: not that any one
 model here is individually novel, but that a disciplined, falsifiable
 keep/drop methodology — applied consistently across a rule, three
-distinct ML/DL paradigms, a graph model, a stacking ensemble, and a
-reinforcement-learning policy — produces a system where every component's
+distinct ML/DL paradigms, a graph model, a stacking ensemble, and an
+adaptive contextual-bandit policy — produces a system where every component's
 presence is backed by a specific, reproducible, held-out measurement, and
 where a negative or underwhelming result (the Transformer's marginal
 gain, the Level-2 explainability's 39% flip rate, Isolation Forest's
