@@ -137,8 +137,10 @@ no state transitions. But `USE_RL_POLICY`, `RL_TRAINING_EPISODES`,
 `train_adaptive_pdp.py` and the manuscript all call it reinforcement learning.
 The terminology is wrong, not the method. Reviewer concern **N**.
 
-Additionally it is compared only against the static 2×2 table. No decision-tree
-or multiclass-classifier baseline on the same `(s_sec, s_proc)` inputs exists.
+Additionally, at the time of this finding it was compared only against the static
+2×2 table. (Resolved since: decision-tree and multiclass-LR baselines on the same
+`(s_sec, s_proc)` inputs now exist — `docs/CLAIM_EVIDENCE_MATRIX.md` C6, `RESULTS.md`
+§0.13.6.)
 
 ### 2.7 — Mean-only latency (MEDIUM)
 
@@ -237,8 +239,10 @@ Confirmed by grep: no `.fit(` or `.update(` in `src/gateway.py` or any
 
 `merge_real_hardware_data.py --synthetic-only` exists specifically to retrain
 the chain without real rows and measure their contribution (13/49 → 0/49 false
-positives, `RESULTS.md` 0.10.9). This is the correct experimental instinct and
-is retained.
+positives, `RESULTS.md` 0.10.9 — ⚠ pre-split: the 0/49 baseline is the withdrawn
+leaky figure, so the *direction* holds but the magnitude must be re-measured under
+session-level splitting, `docs/CLAIM_EVIDENCE_MATRIX.md` C14). This is the correct
+experimental instinct and is retained.
 
 ---
 

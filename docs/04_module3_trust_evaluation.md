@@ -229,10 +229,13 @@ rule_based_score(features, expected_range: dict from device registry) -> float i
 > fallback, and it is a hand-rolled GCN in plain PyTorch rather than PyTorch
 > Geometric — see `src/gnn_scorer.py` for why (compiled extensions are
 > version-locked and a common broken install, for identical math on a 3-node
-> graph). The keep/drop decision came out **keep**, decisively: the GNN is the
-> only sub-signal that detects the `coordinated` event type at all (recall
-> **1.000**, against 0.316 for Isolation Forest and 0.222 for the LSTM-AE,
-> which are structurally blind to cross-device co-occurrence).
+> graph). The keep/drop decision came out **keep**: within the deployed ensemble
+> the GNN is the only sub-signal that detects the `coordinated` event type at all
+> (recall **1.000**, against 0.316 for Isolation Forest and 0.222 for the LSTM-AE,
+> which are structurally blind to cross-device co-occurrence). The benefit is the
+> cross-device *information*, not graph structure specifically — given the same
+> multi-device input a concat MLP matches or beats the GNN, so no GNN-necessity or
+> -superiority claim follows (C3).
 >
 > Two as-built corrections to the adjacency, both found by measurement:
 >

@@ -376,14 +376,16 @@ exact property `coordinated` detection needs.
 | F1 | 0.960 | | |
 
 **The 1.000 `coordinated` recall is the load-bearing validation result
-for this model's entire justification** — no other single signal comes
-close (Isolation Forest 0.316, LSTM-AE/Transformer 0.308, rule 0.000).
+for keeping a cross-device signal in the deployed ensemble** — no other single
+signal comes close (Isolation Forest 0.316, LSTM-AE/Transformer 0.308, rule 0.000).
 This is not a coincidence of tuning: the GNN's own keep/drop decision
 (Section B.5) was made BEFORE this result was known, on the explicit
 criterion that it must measurably improve `coordinated` handling over the
-rule+IF+LSTM-AE combination alone — it did, decisively, and that's the
+rule+IF+LSTM-AE combination alone — it did, and that's the
 documented reason it's a live default rather than an ablation-only signal
-like the Transformer.
+like the Transformer. This justifies including the deployed cross-device signal,
+not graph structure specifically: given the same multi-device information a concat
+MLP matches or beats the GNN, so no GNN-necessity or -superiority claim follows (C3).
 
 **0.000 on `stealthy_forged_values` is expected, not a failure**: this
 scenario is deliberately engineered so every device's reading looks
