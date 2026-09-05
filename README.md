@@ -5,10 +5,10 @@ separate from **Process Anomaly Trust** until an access policy consumes both.
 An authenticated physical disturbance should raise an operations alert while
 retaining telemetry; forged or replayed traffic is rejected.
 
-Read [RESULTS.md](RESULTS.md) §0.13.17, [requirements](PRD.md),
+Read [RESULTS.md](RESULTS.md) through §0.13.25, [requirements](PRD.md),
 [methodology](METHODOLOGY.md), [claim matrix](docs/CLAIM_EVIDENCE_MATRIX.md) and
 [results history](RESULTS.md) together. Historical measurements remain available;
-RESULTS §0.13.17 qualifies the latest M9 claims and the effect of source fixes.
+RESULTS §0.13.17–25 qualify M9, masking repairs and the corrected baseline claims.
 This is a research testbed with unresolved deployment and evidence requirements.
 
 ## What runs
@@ -31,10 +31,11 @@ not CoAP or DTLS.
    hash chain and separately keyed checkpoints. This is an implementation mapping,
    not certification to NIST or IEC standards.
 
-The registry has 12 identities: two configured physical devices, eight network
-research simulations and two legacy scalar simulations. Only `esp32-vib-001`
-(ESP32 + MPU6050) has physical captures. `esp32-vib-002` (SW-420) is configured
-but capture is pending. The live legacy simulator publishes only its original
+The registry has 22 identities: two configured physical devices, eighteen network
+research simulations and two legacy scalar simulations. `esp32-vib-001`
+(ESP32 + MPU6050) has TRAIN/VALIDATION/TEST physical captures. `esp32-vib-002`
+(SW-420) has a TRAIN-only capture (`20260905_162002`); its held-out captures
+remain pending. The live legacy simulator publishes only its original
 three-device cohort, excluding configured physical IDs; network simulations use
 the dedicated data-generation scripts. Configuration does not prove live presence.
 
@@ -42,7 +43,7 @@ the dedicated data-generation scripts. Configuration does not prove live presenc
 
 | Component | Current role |
 |---|---|
-| Rule, Isolation Forest, LSTM-AE | Local process baseline; repaired temporal trainers require a new versioned artifact chain. |
+| Rule, Isolation Forest, LSTM-AE | Local process baseline; training and evaluation must use matched, versioned artifacts. |
 | Legacy GCN | Still deployed; corrected ablations and topology probes do not support a general GNN superiority claim. |
 | Set Transformer (M6/M8/M9) | Relational research candidate; no demonstrated benefit in the live fusion yet. |
 | Concat MLP | Efficient fixed-size deployment baseline to compare under matched calibration. |
