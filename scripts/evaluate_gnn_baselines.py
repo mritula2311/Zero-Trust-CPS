@@ -3,26 +3,23 @@ Does the GRAPH earn its place? (reviewer concern G)
 
 The existing ablation compares the GNN against SINGLE-DEVICE signals -- rule,
 Isolation Forest, LSTM-AE. That comparison cannot answer the question it is
-used to answer. A model that sees ten devices beating models that see one tells
-you multi-device information helps; it tells you nothing about whether
-RELATIONAL structure helps, because no baseline in the repository ever received
-the same multi-device information.
+used to answer. Comparisons against a single-device view alone do not isolate
+whether RELATIONAL structure helps. This evaluator supplies multi-device
+comparators as well as the own-score baseline.
 
-This script fixes that. Every comparator below sees EXACTLY the same inputs:
-the per-node [rule, isolation_forest, lstm_ae] sub-scores for all ten nodes at
-one tick. The only thing that differs is what each does with them.
+This script shares the upstream per-node [rule, isolation_forest, lstm_ae]
+sub-scores at each tick. Classifier representations differ as stated below;
+B0 Task 1 deliberately sees only its target, and GNN also sees adjacency.
 
     B0  single_device      own 3 sub-scores only              (the old view)
-    B1  concat_logreg      all 30 sub-scores + node one-hot   (sklearn LogisticRegression)
-    B2  concat_mlp         same 40 inputs                     (small MLP, documented below)
+    B1  concat_logreg      3N masked scores + N validity + N target one-hot
+    B2  concat_mlp         same 5N inputs (100 at N=20)       (small MLP)
     B3  coordinated_rule   "flag if >= k nodes look anomalous", k chosen on VALIDATION
-    GNN 10-node GCN over config/graph_topology.json
+    GNN N-node GCN over config/graph_topology.json (currently N=20)
 
-WHY THEY ARE ALL IN ONE SCRIPT. Fairness here is a property of the inputs, not
-of the models. Building the feature matrix once and handing the identical array
-to five comparators is the only way to be sure none of them was quietly given a
-different graph, a different normalisation, or a different split. Splitting this
-across five scripts would make that unverifiable.
+WHY THEY ARE ALL IN ONE SCRIPT. Building upstream scores once keeps source
+observations and splits consistent. Each comparator then receives its stated
+representation, so differences in information and model family stay explicit.
 
 PROTOCOL, fixed before any number was looked at:
     TRAIN split      -> fit B1, B2, and the GNN
@@ -123,7 +120,7 @@ def normalized_adjacency(self_loop_weight: float, valid: np.ndarray | None = Non
 
 
 def build_snapshots(split: str):
-    """(X, y, meta) where X is (n_ticks, 10, 3) of per-node sub-scores.
+    """(X, y, meta) where X is (n_ticks, N_NODES, 3) of per-node sub-scores.
 
     The LSTM-AE is stateful, so each (scenario, node) stream is replayed IN
     TICK ORDER with its own scorer instance -- interleaving scenarios through
@@ -169,7 +166,7 @@ def build_snapshots(split: str):
 
 
 def flatten_for_concat(X, y, meta):
-    """One row per (tick, node): [all 30 sub-scores] ++ [10-dim one-hot for the
+    """One row per (tick, node): [all 3N sub-scores] ++ [N-dim one-hot for the
     node being predicted]. The one-hot is what lets a single concatenated model
     answer "is node i anomalous" while seeing the whole network -- without it,
     the model has the same information but no way to say which node it is being
@@ -210,7 +207,8 @@ def zero_invalid_concat_blocks(flat_X, keep, meta):
     zero_mask_by_tick = np.repeat(valid_by_tick, GNN_NODE_FEATURE_DIM, axis=1).astype(np.float32)
     row_ticks = np.array([t for t, _i in keep])
     n_flat = zero_mask_by_tick.shape[1]
-    flat_X[:, :n_flat] *= zero_mask_by_tick[row_ticks]
+    # Assignment also removes NaN/Inf; multiplication by zero does not.
+    flat_X[:, :n_flat][zero_mask_by_tick[row_ticks] == 0] = 0.0
     return flat_X
 
 
@@ -273,13 +271,13 @@ def snapshot_matrix(d):
     the model can still use "which nodes are pending" as a feature, without
     ever seeing what a pending node's raw content happened to be."""
     valid = np.array([m["valid"] for m in d["meta"]], dtype=np.float32)   # (n_snap, N_NODES)
-    zeroed = d["X"] * valid[:, :, None]
+    zeroed = np.where(valid[:, :, None].astype(bool), d["X"], 0.0)
     return np.concatenate([zeroed.reshape(len(d["X"]), -1), valid], axis=1)
 
 
 def anomalous_node_count(d):
-    """Task 2's B0: the target-agnostic "how many nodes look bad" count --
-    the most a single-node view can contribute to a network question. A
+    """Task 2's B0: a global count of anomalous VALID nodes, not a single-node
+    view. It discards node identity but still aggregates the whole network. A
     PENDING node's zeroed/placeholder block must never be countable as
     "anomalous" here, so its own validity bit gates it out of the count
     explicitly, the same way rule_scores (B3, Task 1) does above."""
@@ -294,7 +292,10 @@ def train_network_gnn(X, y, meta, self_loop_weight):
                  num_layers=GNN_NUM_LAYERS).to(_TORCH_DEVICE)
     valid = np.array([m["valid"] for m in meta])
     a_hat = normalized_adjacency(self_loop_weight, valid)
-    x = torch.tensor(X, dtype=torch.float32, device=_TORCH_DEVICE)
+    # Remove invalid content before linear layers: 0 * NaN in a later
+    # adjacency multiplication would otherwise poison valid nodes too.
+    x = torch.tensor(np.where(valid[:, :, None], X, 0.0),
+                     dtype=torch.float32, device=_TORCH_DEVICE)
     t = torch.tensor(y, dtype=torch.float32, device=_TORCH_DEVICE)
     mask = torch.tensor(valid, dtype=torch.bool, device=_TORCH_DEVICE)
 
@@ -309,8 +310,8 @@ def train_network_gnn(X, y, meta, self_loop_weight):
     model.train()
     for _ in range(GNN_EPOCHS):
         opt.zero_grad()
-        # A_hat @ H is per-snapshot, and the adjacency is the SAME for every
-        # snapshot, so the whole batch is one matmul against a shared A_hat
+        # A_hat @ H is batched with a validity-gated adjacency per snapshot,
+        # so the whole batch is one batched matmul
         # rather than a Python loop over ticks (which took ~40x longer).
         out = model(x, a_hat)
         w = torch.where(t > 0.5, w_pos, w_neg)
@@ -324,6 +325,8 @@ def train_network_gnn(X, y, meta, self_loop_weight):
 def gnn_scores(model, X, self_loop_weight, meta=None):
     valid = None if meta is None else np.array([m["valid"] for m in meta])
     a_hat = normalized_adjacency(self_loop_weight, valid)
+    if valid is not None:
+        X = np.where(valid[:, :, None], X, 0.0)
     x = torch.tensor(X, dtype=torch.float32, device=_TORCH_DEVICE)
     with torch.no_grad():
         return model(x, a_hat).cpu().numpy()
@@ -396,7 +399,7 @@ def main():
         data[split] = dict(X=X, y=y, meta=meta, flat_X=flat_X, flat_y=flat_y, keep=keep)
         print(f"{split:11s} {len(X):5d} snapshots  {len(flat_X):6d} scoreable (tick,node) rows  "
               f"{pending} PENDING rows excluded")
-    print(f"\nPENDING rows are {REAL_NODES[1]} -- no capture exists yet. Excluded, never imputed.\n")
+    print("\nPENDING rows lack observations in their split and are excluded from node targets.\n")
 
     tr, va, te = data["train"], data["validation"], data["test"]
     results, val_choices = {}, {}
@@ -477,8 +480,8 @@ def main():
     #
     # This task asks the question the graph is actually for: given one snapshot
     # of the whole network, WHICH COORDINATION PATTERN is present
-    # (NETWORK_NORMAL / A / B / C)? A single-node view cannot answer it even in
-    # principle, so this is where relational structure has something to prove.
+    # (NETWORK_NORMAL / A / B / C)? B0 below is a global count, so this tests
+    # indexed representations against that summary, not a single-device view.
     scen_names = sorted(set(m["scenario"] for m in tr["meta"]))
     scen_index = {s: i for i, s in enumerate(scen_names)}
 
@@ -497,8 +500,7 @@ def main():
             acc = float(model.score(snapshot_matrix(d), snapshot_labels(d)))
             task2.setdefault(name, {})[split_name] = round(acc, 4)
 
-    # B0 for this task: only the target-agnostic "how many nodes look bad"
-    # count -- the most a single-node view can contribute to a network question.
+    # B0 for this task: a global anomalous-node count, with node identity lost.
     for split_name, d in (("validation", va), ("test", te)):
         counts = anomalous_node_count(d)
         if split_name == "validation":
@@ -507,9 +509,9 @@ def main():
         task2.setdefault("B0_anomalous_node_count", {})[split_name] = round(
             float(b0m.score(counts, snapshot_labels(d))), 4)
 
-    # GNN for this task: its per-node outputs, pooled into a snapshot vector,
-    # then the SAME multinomial logistic head the baselines get. The head is
-    # identical so the comparison isolates the representation, not the classifier.
+    # GNN for this task: scalar per-node P(normal) outputs concatenated into a
+    # snapshot vector, not hidden embeddings. The logistic head matches B1's
+    # family; B2 uses an MLP. The GNN was trained/selected for Task 1.
     gnn_tr = gnn_scores(gnn, tr["X"], best_w, tr["meta"])
     head = LogisticRegression(max_iter=3000, class_weight="balanced").fit(gnn_tr, snapshot_labels(tr))
     for split_name, d in (("validation", va), ("test", te)):
@@ -531,11 +533,11 @@ def main():
         (results[k]["test"]["f1"] for k in results if k != "GNN"))
     print()
     print(f"Best test F1: {best} ({results[best]['test']['f1']:.4f})")
-    print(f"GNN {gnn_f1:.4f} vs best same-information baseline {best_simple:.4f} "
+    print(f"GNN {gnn_f1:.4f} vs best non-GNN comparator {best_simple:.4f} "
           f"(delta {gnn_f1 - best_simple:+.4f})")
     if gnn_f1 <= best_simple:
-        print("A simpler model matched or beat the GNN on the same information.")
-        print("The claim to make is about CROSS-DEVICE information, not about graph learning.")
+        print("A simpler comparator matched or beat the GNN on Task 1.")
+        print("Interpret Task 2 separately: its B0 is a global anomalous-node count.")
 
     out = {"tasks": {
                "task1": "per-node anomaly detection (window level)",

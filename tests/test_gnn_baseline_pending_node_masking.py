@@ -182,7 +182,7 @@ class TestGNNPathAt20NodeCardinality(unittest.TestCase):
     test_gnn_pending_node_masking.py at the network's actual current size,
     using real device provenance from config/graph_topology.json: only
     esp32-vib-001 (MPU6050) and esp32-vib-002 (SW-420) are REAL hardware --
-    esp32-vib-002 is the PENDING node with no capture yet -- every other
+    esp32-vib-002 is PENDING in VALIDATION/TEST (captured in TRAIN) -- every other
     index is a declared SIMULATED node, not physical hardware."""
 
     def test_pending_sw420_does_not_change_mpu6050_target_score(self):
@@ -191,7 +191,7 @@ class TestGNNPathAt20NodeCardinality(unittest.TestCase):
         model = _GCN(in_dim=egb.GNN_NODE_FEATURE_DIM, hidden=egb.GNN_HIDDEN_SIZE,
                      num_layers=egb.GNN_NUM_LAYERS).eval().to(egb._TORCH_DEVICE)
 
-        pending_idx = egb._NODE_INDEX["esp32-vib-002"]     # REAL, SW-420, no capture yet
+        pending_idx = egb._NODE_INDEX["esp32-vib-002"]     # REAL, SW-420, held-out capture pending
         target_idx = egb._NODE_INDEX["esp32-vib-001"]      # REAL, MPU6050
 
         valid = np.ones((1, egb.N_NODES), dtype=bool)
