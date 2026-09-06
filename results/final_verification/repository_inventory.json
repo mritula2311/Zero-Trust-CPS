@@ -1,13 +1,13 @@
 {
   "state": {
-    "branch": "astra/verify-pending-masking-20260906",
-    "head": "6bd57f3f5373240f82bda83e820068fa00074843",
-    "main": "4f6afa25e4721c13a4e9f0355548f8ca07c70a5a",
+    "branch": "main",
+    "head": "fba7841d4a1088c48be7a5d21264a2d09246a1fb",
+    "main": "fba7841d4a1088c48be7a5d21264a2d09246a1fb",
     "origin_main": "4f6afa25e4721c13a4e9f0355548f8ca07c70a5a",
-    "main_ahead_behind": "0\t0",
-    "worktrees": "D:/zt-cps/zt-cps-starter 6bd57f3 [astra/verify-pending-masking-20260906]",
-    "status": "M  docs/paper/02_SYSTEM_ARCHITECTURE.md\nA  results/final_verification/credential_scan.json\nAM results/final_verification/documentation_validation.json\nA  results/final_verification/evidence_preservation.json\nAM results/final_verification/explainability_evaluation.log\nA  results/final_verification/explainability_evaluation_corrected.log\nA  results/final_verification/finite_parity_current.json\nA  results/final_verification/generator_validation.log\nA  results/final_verification/hardware_evaluation.log\nA  results/final_verification/hardware_temporal_review.md\nA  results/final_verification/initial_repository_state.json\nA  results/final_verification/isolated_gat_red.log\nA  results/final_verification/local_fusion_evaluation.log\nA  results/final_verification/markdown_inventory.csv\nA  results/final_verification/masking_boundary_review.md\nA  results/final_verification/model_metadata.json\nA  results/final_verification/nonfinite_green.log\nAM results/final_verification/nonfinite_red.log\nA  results/final_verification/paper_numeric_sources.json\nAM results/final_verification/pooled_training_red.log\nA  results/final_verification/pytest_after_fixes.log\nA  results/final_verification/pytest_collection.log\nAM results/final_verification/pytest_final.log\nA  results/final_verification/pytest_initial.log\nA  results/final_verification/repository_inventory.json\nA  results/final_verification/research_review.md\nAM results/final_verification/result_artifact_inventory.csv\nA  results/final_verification/source_claim_occurrences.csv\nA  results/final_verification/stale_claim_occurrences.csv\nA  results/final_verification/subsystem_matrix.csv\nA  results/final_verification/targeted_tests.log\nA  results/final_verification/unittest.log\nA  results/final_verification/unittest_final.log\nA  scripts/audit_repository_evidence.py\nA  scripts/verify_paper_package.py\n?? results/final_verification/log_normalization.json\n?? results/final_verification/test_summary.json",
-    "workspace": "D:\\zt-cps\\zt-cps-starter",
+    "main_ahead_behind": "0\t16",
+    "worktrees": "<REPO_ROOT>      fba7841 [main]\n<WORKSPACE_ROOT>/zt-cps-design-astra 9dac09a [astra/design-dashboard-20260906]",
+    "status": "M .gitignore\n M SESSION_LOG.md\n M design/browser-verification.json\n M design/verify-dashboard.mjs\n M design/zero-trust-cps-command-center.html\n M docs/FINAL_PROJECT_VERIFICATION.md\n M docs/paper/24_REPRODUCIBILITY_GUIDE.md\n M results/astra_masking_review/full_suite.log\n M results/astra_masking_review/nonfinite_red.log\n M results/final_verification/credential_scan.json\n M results/final_verification/documentation_validation.json\n M results/final_verification/explainability_evaluation.log\n M results/final_verification/initial_repository_state.json\n M results/final_verification/markdown_inventory.csv\n M results/final_verification/pytest_after_fixes.log\n M results/final_verification/pytest_collection.log\n M results/final_verification/pytest_final.log\n M results/final_verification/pytest_initial.log\n M results/final_verification/repository_inventory.json\n M results/final_verification/result_artifact_inventory.csv\n M results/final_verification/stale_claim_occurrences.csv\n M results/final_verification/targeted_tests.log\n M results/final_verification/unittest.log\n M results/final_verification/unittest_final.log\n M scripts/audit_repository_evidence.py\n?? .gitattributes\n?? PUBLICATION_MANIFEST.md\n?? design/hash_lib.mjs\n?? results/final_verification/AUDIT_RECEIPT_PUBLICATION_MANIFEST.md\n?? tests/test_credential_scanner_regression.py\n?? tests/test_dashboard_hash_normalization.py",
+    "workspace": "<REPO_ROOT>",
     "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
     "platform": "Windows-11-10.0.26200-SP0",
     "packages": {
@@ -621,8 +621,8 @@
       "sha256": "7a5699a197e81fba6176dcd06c5827eaf2fb14d4951a7ccc1c968c82fe235475"
     },
     "results/astra_masking_review/full_suite.log": {
-      "bytes": 28172,
-      "sha256": "e61479dfab9cba2819ad1516b2119283da4719e5eb89f2b4a32240e65957fc39"
+      "bytes": 27990,
+      "sha256": "4d10237991504f07154ff38a4b50a9a22c975a99c2024d6129eb8f60ab5aac19"
     },
     "results/astra_masking_review/gnn_network.pt": {
       "bytes": 8069,
@@ -645,8 +645,8 @@
       "sha256": "b2c727e41b9b14a851ce99390667e452010aaf91d09d5f7f639032e2e8436b61"
     },
     "results/astra_masking_review/nonfinite_red.log": {
-      "bytes": 13387,
-      "sha256": "5e35a96aa1e3d829477379ba600e52ffa7bf38ad46203d53b39ea3e0f559d609"
+      "bytes": 12985,
+      "sha256": "4ba2851613b0fc8378d486168d0ebf838e0bd23599917353c58bbae52fbf0ec4"
     },
     "results/astra_masking_review/replay.log": {
       "bytes": 2066,
@@ -729,12 +729,12 @@
       "sha256": "0712ad3a487040a9fd884cf3e8503961e188cab2f16454e0aef10ad8a7bee47e"
     },
     "scripts/audit_repository_evidence.py": {
-      "bytes": 6174,
-      "sha256": "4bb17a9b98089ac5ee8ff52f3d0a54fae148b6c929b14b98dcc2007ae089f7bf"
+      "bytes": 12143,
+      "sha256": "2d2c4cd6b58b54db966c74780db290d36c7b223406f0415f067d5837d199ddd4"
     },
     "scripts/benchmark_crossdevice_models.py": {
-      "bytes": 109694,
-      "sha256": "5a745b55afba6767a392d9b6ea8072715a04e8f706521f39b2ef408e84df5f55"
+      "bytes": 109705,
+      "sha256": "ed222bae47339bf9063d44899bc0170d78d1431dce40be280c8b1227ad9db511"
     },
     "scripts/build_paper_results.py": {
       "bytes": 18041,
@@ -757,12 +757,12 @@
       "sha256": "427904f48e7f747aa55f712ebb234b20475f8586a69469a12ed560380df724bc"
     },
     "scripts/evaluate_explainability_level2.py": {
-      "bytes": 16269,
-      "sha256": "623655292dd0b96543ac434b99ed0cbaf244e12e6b4d6fa95e7c314ec96a196d"
+      "bytes": 16609,
+      "sha256": "7abfe294543202473bf0dff35e744151c81b92219a6daec083fbec81ffb93068"
     },
     "scripts/evaluate_gnn_baselines.py": {
-      "bytes": 29440,
-      "sha256": "8c67354b03e0aaae7e935ada663a2b0a87a4e55287a54d752cb9ee441c200eba"
+      "bytes": 29480,
+      "sha256": "57df4f9f20fbda172cd57b4c58db9fae1913dee7e4c6f81569be3940ec86e052"
     },
     "scripts/evaluate_governance.py": {
       "bytes": 9350,
@@ -805,8 +805,8 @@
       "sha256": "e8d45189987e0de9386598e84cc43070318d4f96aa1414f805d7163060bc9704"
     },
     "scripts/generate_network_data.py": {
-      "bytes": 15027,
-      "sha256": "638c21a256faf95aaa4b17d3921f4e7166698e805bdb79d7493febc5acd86796"
+      "bytes": 15028,
+      "sha256": "5551fbc68fafe21f209d7c0372ea7926535d05b8f713c24a7473a1301866ff83"
     },
     "scripts/generate_paper_figures.py": {
       "bytes": 14291,
@@ -865,8 +865,8 @@
       "sha256": "c4554cc28459db3aab656c02971677a6fed26028e0e43d0d10f847a8ecabc012"
     },
     "scripts/verify_paper_package.py": {
-      "bytes": 10913,
-      "sha256": "80359cab8a95b84add6fef304d8f4807b3265cac22edd29ddcc79315ea649be7"
+      "bytes": 11070,
+      "sha256": "ae8a83549cf70f14e1c1088a52ca2ec001ea06ef71314ead5d81c0a752ad29b4"
     },
     "src/adaptive_pdp.py": {
       "bytes": 9596,
@@ -913,8 +913,8 @@
       "sha256": "5cebf825a032981f4366264afc52200ffa71bb939287971badd9cd4baa9ff937"
     },
     "src/gnn_scorer.py": {
-      "bytes": 8873,
-      "sha256": "abe60838a8be8cbcf5027ece2b896d01e2f2d146662394d6eb6c5eddffc36c1c"
+      "bytes": 9056,
+      "sha256": "d0bac739ac146547dbe5d1e3b8053c9c818095cfc0a7d1a9273845a5ce7d6928"
     },
     "src/governance_validation.py": {
       "bytes": 13738,
