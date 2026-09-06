@@ -1,36 +1,22 @@
-"""
-Builds the 10-node hybrid CPS network sessions used by every network-scale
-experiment (GNN baselines, coordinated detection, hybrid latency).
+"""Build split-respecting constructed network sessions.
 
-    2 REAL physical nodes  +  8 SIMULATED nodes  =  10-node hybrid network
+The current configuration contains two physical-source identities (MPU6050
+and SW-420) and eighteen legacy simulated identities: twenty constructed nodes,
+not twenty physical devices. Physical-source rows are sampled with replacement
+from captured sessions allocated to the requested split, and retain source
+metadata. The serialized source labels are REAL and SIMULATED; the paper maps
+them to REAL_HARDWARE and LEGACY_SIMULATED provenance categories.
 
-THE RULE THAT SHAPES THIS WHOLE FILE: the two real nodes' telemetry is never
-generated. Their rows are drawn from actual captured sessions, split-respecting
-(`data/splits/session_split.json`), and marked `source_type: "REAL"`. Simulating
-a node the project calls physical would make the entire hybrid claim false.
+SW-420 has a TRAIN capture but no physical VALIDATION/TEST capture. A missing
+split pool produces PENDING_REAL_HARDWARE_DATA rows without readings. Pending
+rows must be excluded from fitting/metrics and masked in relational context.
 
-Where a real node has no capture for the split being built, its rows are emitted
-with `source_type: "PENDING_REAL_HARDWARE_DATA"` and carry no features. They are
-excluded from metrics and counted separately, rather than being filled in with
-plausible numbers. See the console summary each run prints.
-
-SCENARIOS (brief section 10). Each is a coordination pattern over the ten nodes:
-
-    NETWORK_NORMAL   control -- every node normal
-    SCENARIO_A       nodes 01-02 (both REAL, group A) anomalous; 03-10 normal
-    SCENARIO_B       nodes 01-02 anomalous AND 03-06 correlated anomalous;
-                     07-10 normal  -- an event spreading within and beyond group A
-    SCENARIO_C       nodes 03,05,07,09 coordinated anomalous, real nodes NORMAL
-                     -- a coordinated pattern that no single-node view of a real
-                     device can see, and which spans three process groups
-
-SCENARIO_C is the case the whole graph question turns on, and it is deliberately
-adversarial to the GNN's topology: its four anomalous nodes are spread across
-groups A/B/C, so they are NOT mutually adjacent. If relational information helps
-here it is not because the anomaly was handed to the model pre-grouped.
-
-Seeds are frozen per (scenario, split, node) so a regeneration is byte-identical
-and the final test network is never quietly redrawn while tuning.
+NETWORK_NORMAL is the control. Scenario memberships are specified in SCENARIOS
+below; identities outside each anomaly set remain normal. Capture resampling
+constructs benchmark trajectories and does not establish continuous physical
+acquisition or independent-device replication. Seeds are fixed by scenario,
+split and identity. Preserved inputs and protocol are indexed in docs/paper/04,
+12 and 24; retain prior output before regenerating files.
 """
 
 import json

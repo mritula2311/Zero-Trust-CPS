@@ -1,89 +1,33 @@
-"""
-Model selection for the cross-device Process Anomaly channel.
+"""Standalone model selection for the cross-device Process Trust channel.
 
-evaluate_gnn_baselines.py answered "does the GRAPH earn its place" and found it
-does not: a concatenated MLP beat the GCN on identical information. That
-settles a claim but not a choice -- concat-MLP won a field of two learned
-models, which is not evidence it is the right architecture.
+The configured constructed benchmark currently has 20 identities: two physical
+capture sources and eighteen legacy simulated sources. It is not a deployment
+of twenty physical devices. All models consume per-node rule/IF/LSTM scores.
 
-This script widens the field to four families that treat the ten-node input
-differently, and adds the axis a deployment decision actually turns on
-(inference latency), which the baselines script never measured:
+M1/M2 are fixed-width concat MLP/gradient-boosting baselines. M3 is Deep Sets,
+M4 a declared-topology GCN, M5 GATv2, M6 Set Transformer, and M7 the protected
+local-path NP-ST ablation. M8 varies training subset size; M9 additionally
+samples a mixed hybrid/virtual source pool. Sizes follow the configured input,
+not the historical ten-node descriptions retained in earlier results.
 
-    M1 concat_mlp     order-dependent dense net over all 30 sub-scores
-    M2 grad_boosting  histogram gradient boosting on the same flat matrix
-    M3 deep_sets      per-device encoder -> permutation-invariant pool -> head
-    M4 gcn            2-layer GCN over config/graph_topology.json
-    M5 gatv2          GATv2 attention over the same declared topology
-    M6 set_transformer  multi-head self-attention over the device SET, no graph
-    M7 np_st          set transformer + a PROTECTED local path (the proposal)
+Fit on TRAIN; select thresholds/self-loop weights on VALIDATION; report TEST.
+The max-anomaly-F1 operating point and the separately calibrated FPR-budget
+protocol are distinct comparisons. Architecture, optimisation and class
+weighting differ; this is not a fully capacity-matched causal comparison.
 
-WHAT M5-M7 ARE TESTING. M4's failure is specific: 0.0067 recall on isolated
-anomalies against 0.977 on coordinated ones. The hypothesis is that neighbourhood
-aggregation averages a lone anomalous node toward its healthy neighbours. Three
-architectures separate the candidate causes:
+PENDING_REAL_HARDWARE_DATA currently marks missing SW-420 held-out captures;
+SW-420 TRAIN capture exists. Pending targets are excluded from loss/metrics.
+Their raw context is canonicalized before model arithmetic and excluded by the
+appropriate pooling, attention or graph mask; fixed-width learners receive
+explicit validity channels. All-invalid low-level inputs need a separate API
+contract and are not part of the current corpus.
 
-    M5 keeps the graph, replaces fixed averaging with LEARNED attention.
-       If attention alone fixes it, the cause was the fixed weights.
-    M6 drops the graph, keeps learned attention over the set.
-       If M6 beats M5, the declared topology was the problem, not aggregation.
-    M7 adds an explicit local residual the context cannot overwrite.
-       If M7 beats M6, preservation is doing work that attention alone does not.
-
-READ M3 BEFORE CLAIMING M7 IS NOVEL. Deep Sets already concatenates each node's
-OWN un-aggregated embedding with the pooled context before the head, which is a
-protected local path by another name, and it already scores 1.000 isolated
-recall. M7's delta over M3 is attention-instead-of-pooling plus an explicit
-gate, not the idea of preserving local evidence.
-
-
-WHY NO xgboost/lightgbm. Neither is installed, and sklearn's
-HistGradientBoostingClassifier is the same algorithm family (histogram-binned
-GBM, the LightGBM design) already in this project's dependency set. Adding a
-dependency to get a second implementation of an algorithm we already have is
-the kind of convenience docs/11 records this project deciding against. Stated
-here so the absence reads as a decision, not an oversight.
-
-WHY DEEP SETS IS THE INTERESTING ENTRY. Concat is order-dependent: swap two
-nodes' feature blocks and the model sees a different input, so it must spend
-capacity learning that node 4's block means node 4. Deep Sets is
-permutation-invariant by construction -- it gets cross-device context, which
-the baselines script showed is what helps, without the graph structure that the
-same script showed does not. If the finding is "context yes, structure no",
-Deep Sets is the architecture that hypothesis predicts should win.
-
-PROTOCOL -- identical to evaluate_gnn_baselines.py, and fixed before any
-number here was looked at:
-    TRAIN split      -> fit
-    VALIDATION split -> choose every decision threshold (objective: max F1),
-                        and the GCN self-loop weight
-    TEST split       -> read ONCE, report
-
-Models receive the same per-node [rule, isolation_forest, lstm_ae] sub-scores.
-Architecture, optimisation and class weighting differ; in particular the concat
-MLP loss is unweighted (RESULTS.md §0.13.17 for the comparison's limits).
-
-OPERATING POINT. Two are reported per model, because "which model" and "where
-to set the alarm" are different questions and answering them with one number
-hides the trade. The max-F1 point is kept for continuity with
-evaluate_gnn_baselines.py. The second is the deployment-relevant one: the most
-sensitive threshold whose FALSE POSITIVE RATE stays inside a declared budget
-(1% and 3%), read off the ROC rather than a coarse grid, on scores that have
-first been isotonically calibrated. A gateway that pages an operator has an
-alarm budget; 0.5 is not it, and neither is whatever maximises F1.
-
-WHY NO FOCAL LOSS. The brief allows "focal loss OR class-weighted
-cross-entropy". Both torch models here already train under inverse-frequency
-class weighting, shared verbatim with train_network_gnn so the comparison stays
-like-for-like. Swapping in focal loss would change two models and not the two
-sklearn ones, which is the sort of asymmetry this file exists to avoid.
-
-PENDING_REAL_HARDWARE_DATA rows (esp32-vib-002, no capture exists) are excluded
-from target loss and metrics, but a neutral 0.9 placeholder remains in model
-context. A masked input benchmark is still required; no physical observation
-exists for that column.
-
-Writes results/crossdevice_benchmark/.
+M6 is the selected standalone candidate in preserved seed-0 results, not the
+runtime fusion model. GCN necessity/superiority and the formal equivariance
+interpretation of the fixed-topology permutation probe are not supported.
+Historical probe keys are preserved; see docs/paper/07, 08, 12 and 13 for the
+current protocol, limitations and numerical lineage. Full runs write
+results/crossdevice_benchmark and should not overwrite a preserved reference.
 """
 
 import collections
@@ -573,10 +517,9 @@ def _train_pooled_sets(sources, sizes, factory=SetTransformer, seed=None):
 def train_mixed_provenance(real, virtual, factory=SetTransformer,
                            sizes=(2, 3, 5, 10, 15), seed=None):
     """M9: same architecture/optimiser/lr/epochs/class-weighting as M8's
-    train_mixed_cardinality, but the per-epoch column pool is the FULL 15
-    columns (10 existing hybrid + 5 LOW-heterogeneity virtual), not just the
-    10 real ones -- every cardinality, not only n=15, can draw a virtual
-    column. Confounding "virtual provenance" with "large n" would let the
+    train_mixed_cardinality, but columns are sampled from the complete
+    supplied pool (currently 20 hybrid plus 5 LOW-heterogeneity virtual
+    identities). Every requested cardinality can draw a virtual column. Confounding "virtual provenance" with "large n" would let the
     model shortcut on which population a column came from instead of learning
     genuine cardinality robustness; sampling uniformly across the full pool at
     every size is what avoids that.
@@ -904,7 +847,7 @@ def m9_ablation_investigation(n_seeds=10):
     (coordinated, the hard case this whole network exists to test), the
     aggregate F1 difference is not evidence of a genuinely better detector.
 
-    Both models' thresholds are fit ONCE on the full 10-node validation split
+    Both models' thresholds are fit ONCE on the full configured-network validation split
     (matching m9_seed_study exactly) and then frozen across every slice below
     -- slicing must not re-fit, or it answers a different question."""
     print("Building snapshots (once; reused across all seeds)...")
@@ -1078,9 +1021,9 @@ def probe_scores(name, model, batch, n, self_loop_weight, force_complete=False, 
     At n == N_NODES the graph models get the DECLARED topology they were trained
     on; at any other size that topology does not exist and a complete graph is
     used, matching src/gnn_scorer.py's live rule (edge between any two active
-    devices). Feeding a complete graph at n=10 would have made the permutation
-    probe trivially pass -- with all 45 edges present, relabelling changes
-    nothing, and the declared graph has 15."""
+    devices). A complete graph is unchanged by node relabelling; fixed declared
+    topology generally is not. The feature-only permutation probe therefore
+    does not test joint graph equivariance."""
     declared = (n == N_NODES) and not force_complete
     with torch.no_grad():
         if name == "M4_gcn":
@@ -1092,8 +1035,8 @@ def probe_scores(name, model, batch, n, self_loop_weight, force_complete=False, 
         else:
             # meta=None (dilution/degree/density probes' synthesized batches from
             # anom_pool/norm_pool) means every node really is valid -- those pools
-            # are pre-filtered by _pools(). permutation_probe passes real meta
-            # since its batch is an unfiltered slice of te["X"].
+            # are pre-filtered by _pools(). The historical permutation_probe also
+            # omits meta despite using unfiltered TEST: interpret it accordingly.
             x = torch.tensor(_with_validity(batch, meta), dtype=torch.float32, device=_TORCH_DEVICE)
             if name == "M5_gatv2":
                 out = model(x, topology_mask() if declared else topology_mask(n))
@@ -1107,8 +1050,8 @@ def dilution_probe(models, anom, norm, thresholds, self_loop_weight,
     """ONE anomalous device among n-1 healthy ones, as n grows.
 
     force_complete: the graph models get a COMPLETE graph at every n, INCLUDING
-    n=10. Without it the row crosses a regime boundary -- the declared 15-edge
-    topology exists only at ten nodes, so n=10 would be the one cell drawn from a
+    n=N_NODES. Without it the row crosses a regime boundary -- the declared
+    topology exists only at the configured size, which would be drawn from a
     different graph than its neighbours, and any kink there reads as an effect of
     device count when it is an effect of the adjacency changing. The declared
     topology is reported separately instead of being smuggled into the curve.
@@ -1154,7 +1097,7 @@ def dilution_probe(models, anom, norm, thresholds, self_loop_weight,
 
 def declared_topology_point(models, anom, norm, thresholds, self_loop_weight,
                             trials=400, rng_seed=TRAINING_SEED):
-    """The n=10 dilution cell computed on the DECLARED topology the graph models
+    """The n=N_NODES dilution cell computed on the DECLARED topology the graph models
     were actually trained on -- the only in-distribution point in the whole
     probe. Reported beside the complete-graph curve rather than inside it, so
     the curve stays one experiment and this stays the reality check on it."""
@@ -1332,18 +1275,15 @@ def coordination_probe(models, anom, norm, thresholds, self_loop_weight,
 def permutation_probe(models, X, self_loop_weight, rng_seed=TRAINING_SEED):
     # meta=None (probe_scores' default) treats every node as valid, including any
     # PENDING row this X slice may contain -- a known simplification for this
-    # probe specifically (invariance under relabelling, not an accuracy claim),
+    # probe specifically (fixed-topology reassignment, not graph equivariance),
     # not extended to real per-row validity here.
-    """Relabel the devices and check whether the verdict follows the device or
-    the slot.
+    """Measure feature reassignment while keeping adjacency fixed.
 
-    The adjacency is deliberately NOT permuted with the nodes. That is the real
-    deployment question -- if device identities are reassigned to slots, does the
-    model's answer move? A set model must be exactly invariant; a graph model
-    must not be, because its structure is bound to slot indices; the concat
-    models cannot be, because a one-hot names the slot. Reported as the max
-    absolute score difference, so 'invariant' is a measurement rather than a
-    claim about the architecture diagram."""
+    Outputs are restored to the original node order before comparison. A graph
+    score may change because the node's neighbours changed; this is not evidence
+    against joint graph permutation equivariance. This historical probe omits
+    per-row validity metadata and is not an accuracy/generalization metric.
+    """
     rng = np.random.default_rng(rng_seed)
     perm = rng.permutation(X.shape[1])
     inv = np.argsort(perm)
@@ -1408,7 +1348,7 @@ def main():
         # NODE_FEATURE_DIM_WITH_VALIDITY, kept local to this file rather than
         # changed in flatten_for_concat() (shared with evaluate_gnn_baselines.py's
         # own B1/B2 concat baselines, out of scope here): one row per kept
-        # (tick, node), so M1/M2 see which of the 10 blocks in their fixed-width
+        # (tick, node), so M1/M2 see which of the configured blocks in their fixed-width
         # input is the PENDING placeholder instead of a real neutral reading.
         validity_block = np.array([meta[t]["valid"].astype(np.float32) for t, i in keep])
         flat_X = np.concatenate([flat_X, validity_block], axis=1)
@@ -1416,7 +1356,8 @@ def main():
         print(f"{split:11s} {len(X):5d} snapshots  {len(flat_X):6d} scoreable (tick,node) rows  "
               f"{pending} PENDING rows excluded")
     tr, va, te = data["train"], data["validation"], data["test"]
-    print(f"\nPENDING rows are {REAL_NODES[1]} -- no capture exists. Excluded, never imputed.")
+    print(f"\nPENDING rows mark missing split-specific captures for {REAL_NODES[1]}; "
+          "TRAIN capture exists. Pending targets are excluded and raw context is masked.")
 
     va_calib, va_select = validation_halves(va["meta"], va["keep"])
     print(f"validation split for the capped operating point: {int(va_calib.sum())} rows "
@@ -1722,24 +1663,26 @@ def main():
                 "arriving through its neighbours rather than directly.")
 
     print()
-    print("   n=10 on the DECLARED 15-edge topology (the only in-distribution cell)")
+    print(f"   n={N_NODES} on the configured DECLARED topology")
     print("-" * 60)
     for name in [k for k in order if k in declared_pt]:
         d = declared_pt[name]
         print(f"{name:20s} P(anomaly) {d['mean_p_anomaly']:.4f}   "
               f"recall {d['recall_at_threshold']:.4f}")
     print("-" * 60)
-    print("differs from the n=10 column above only in the adjacency; the set")
-    print("models are identical there because they never see a graph.")
+    print("The declared control uses a separate probe draw from the dilution curve;")
+    print("their difference is not a paired adjacency-only effect.")
 
     print()
     print("C. PERMUTATION -- devices relabelled, adjacency NOT permuted with them")
     print("-" * 60)
     for name in [k for k in order if k in perm]:
-        verdict = "invariant" if perm[name] < 1e-5 else "order-dependent"
+        verdict = "unchanged" if perm[name] < 1e-5 else "changed under fixed-topology reassignment"
         print(f"{name:20s} max |delta| = {perm[name]:.6f}   {verdict}")
     print("-" * 60)
     print("M1/M2 are order-dependent by construction -- a one-hot names the slot.")
+    print("This feature-only reassignment does not test joint graph equivariance;")
+    print("the historical probe also treats pending columns as valid.")
 
     # ---- recommendation ---------------------------------------------------
     best_f1 = max(order, key=lambda k: results[k]["test_macro_f1"])
