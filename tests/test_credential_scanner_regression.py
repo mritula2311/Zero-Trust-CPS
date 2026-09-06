@@ -3,6 +3,7 @@ a credential-sensitive value shorter than the broad-scan noise floor must still 
 flagged when it exactly reuses a known public identifier. All values here are
 synthetic fixtures, never a real credential."""
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -13,6 +14,7 @@ from audit_repository_evidence import (
     PLAUSIBLE_SECRET_MIN_LEN,
     collect_credential_assignments,
     derive_public_identifiers,
+    find_hardcoded_credentials_in_tracked_source,
     find_reused_identifiers,
     is_placeholder,
     select_scan_values,
@@ -21,6 +23,7 @@ from audit_repository_evidence import (
 
 def write(tmp, name, content):
     path = Path(tmp) / name
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
     return path
 
@@ -97,6 +100,45 @@ class TestCredentialScannerRegression(unittest.TestCase):
             self.assertIn("DEVICE_SECRETS[node-a]", labels)
             reused = find_reused_identifiers(assignments, identifiers={"shortid"})
             self.assertIn("secrets_local.py:DEVICE_SECRETS[node-a]", reused)
+
+    def test_hardcoded_literal_in_tracked_source_is_flagged(self):
+        # Regression for the actual gap found live: a real credential pasted
+        # directly into a tracked firmware/source file (instead of imported
+        # from the gitignored local-secret files) was never scanned, because
+        # collect_credential_assignments only ever looked at those two files.
+        with tempfile.TemporaryDirectory() as tmp:
+            subprocess.run(["git", "init", "-q"], cwd=tmp, check=True)
+            write(tmp, "firmware/leaky_device.py",
+                  'WIFI_PASSWORD = "synthetic-real-looking-value-123"\n')
+            subprocess.run(["git", "add", "-A"], cwd=tmp, check=True)
+            flagged = find_hardcoded_credentials_in_tracked_source(Path(tmp))
+            self.assertIn("firmware/leaky_device.py:WIFI_PASSWORD", flagged)
+
+    def test_credentials_imported_rather_than_assigned_are_not_flagged(self):
+        # The fix for the leak: importing from device_secrets.py instead of
+        # assigning a literal must not be flagged (ast.Assign never matches an
+        # ast.ImportFrom node).
+        with tempfile.TemporaryDirectory() as tmp:
+            subprocess.run(["git", "init", "-q"], cwd=tmp, check=True)
+            write(tmp, "firmware/fixed_device.py",
+                  "from device_secrets import WIFI_PASSWORD\n")
+            subprocess.run(["git", "add", "-A"], cwd=tmp, check=True)
+            flagged = find_hardcoded_credentials_in_tracked_source(Path(tmp))
+            self.assertEqual(flagged, [])
+
+    def test_synthetic_attack_and_test_fixture_values_are_not_flagged(self):
+        # scripts/attack_live_gateway.py's WRONG_SECRET and a test's
+        # 'test-only-signing-contract-key' are synthetic fixtures, not real
+        # secrets, and must not be flagged as hardcoded credentials.
+        with tempfile.TemporaryDirectory() as tmp:
+            subprocess.run(["git", "init", "-q"], cwd=tmp, check=True)
+            write(tmp, "scripts/attack.py",
+                  'WRONG_SECRET = "attacker-guessed-secret-00000"\n')
+            write(tmp, "tests/test_x.py",
+                  'device_secret = "test-only-signing-contract-key"\n')
+            subprocess.run(["git", "add", "-A"], cwd=tmp, check=True)
+            flagged = find_hardcoded_credentials_in_tracked_source(Path(tmp))
+            self.assertEqual(flagged, [])
 
     def test_derive_public_identifiers_reads_repository_slug_from_prd(self):
         with tempfile.TemporaryDirectory() as tmp:
