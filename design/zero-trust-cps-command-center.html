@@ -192,6 +192,7 @@
   .research-status{margin-top:16px;padding:16px 20px;border:1px solid var(--edge2);border-radius:12px;background:var(--panel)}
   .research-status h2{margin:0 0 8px;font-size:14px}.research-status p{margin:6px 0;color:var(--muted)}
   #qtable{overflow-x:auto} .flow .st{white-space:normal}
+  header .pill{white-space:normal;max-width:100%;overflow-wrap:anywhere}
   a:focus-visible{outline:2px solid var(--cyan);outline-offset:4px}
   @media(max-width:600px){.wrap{padding:10px}.brand{min-width:0}header{padding:14px}.card{padding:14px}.preds{grid-template-columns:repeat(3,minmax(0,1fr))}.dev{padding:14px}.dev .name{overflow-wrap:anywhere}.card h2{flex-wrap:wrap}.card h2 .tag{margin-left:0}}
   @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
@@ -205,6 +206,7 @@
       <div class="sub">Security Trust and Process Trust remain separate until policy evaluation — Modules 1 to 7</div>
     </div>
     <span class="live" role="status"><span class="dot stale" id="livedot"></span><span id="liveword">CONNECTING</span></span>
+    <span class="pill">LIVE API MODE · read-only · source provenance per message UNKNOWN</span>
     <span class="pill" id="p-policy">policy: …</span>
     <span class="pill" id="p-thr">thresholds: …</span>
     <span class="pill" id="p-chain">chain: …</span>
@@ -221,6 +223,15 @@
   </section>
 
   <div class="grid">
+    <section class="card span12">
+      <details>
+        <summary>Demo readiness and unavailable telemetry</summary>
+        <p>LIVE API MODE displays actual audit observations. Physical MPU6050 shake and disconnect have not been verified in this readiness pass. PHYSICAL ID identifies the registered source identity; per-message physical/simulated provenance is UNKNOWN.</p>
+        <p>SIMULATED / OFFLINE REPLAY: <code>python design/verify-runtime.py</code> verifies normal windows, replay, invalid HMAC, isolated/coordinated synthetic anomalies and the silence watchdog using the gateway code. It is terminal-only and sends no network traffic. Browser fixtures are DEMO MOCK MODE, not runtime evidence.</p>
+        <p>REQUIRES BACKEND INTEGRATION: raw feature values/charts, last-seen and connected count, independent current HMAC/replay/freshness/revocation status, model-loaded/pending/all-invalid status, and live simulation controls. These states are UNKNOWN when not exposed. Backend SILENT is displayed as OFFLINE; it is not a policy action.</p>
+        <p>Dual-abnormal demo: NOT CURRENTLY SUPPORTED. Runtime relational model: GCN. M6 is a research candidate only, not deployed; M6 fusion is untested. Use each returned policy value directly: the configured offline bandit can differ from the static policy illustration.</p>
+      </details>
+    </section>
     <section class="card span12">
       <h2>How a message becomes a decision <span class="tag">read this first</span></h2>
       <div class="why">
@@ -267,8 +278,8 @@
         pushed the fused score, and in which direction.
       </div>
       <div class="legend">
-        <span><i style="color:var(--cyan)">ALLOW</i>both scores healthy</span>
-        <span><i style="color:var(--violet)">ALERT</i>process anomaly, identity fine</span>
+        <span><i style="color:var(--cyan)">ALLOW</i>gateway permits</span>
+        <span><i style="color:var(--violet)">ALERT</i>gateway alerts</span>
         <span><i style="color:var(--amber)">STEP_UP</i>nonce challenge issued</span>
         <span><i style="color:var(--red)">BLOCK</i>denied</span>
         <span><i style="color:var(--dim)">SILENT</i>no message in the staleness window</span>
@@ -282,10 +293,9 @@
       <p class="lede">The architecture's central claim is that these two scores never blend.
         A single number cannot show that; two lines can. <b>Security Trust</b> answers "are the
         papers real?" and <b>Process Anomaly</b> answers "is the machine behaving?" — so a
-        physically disturbed but correctly-authenticated device should drop the violet line
-        while the cyan one holds flat. Dashed rule is the 0.6 decision threshold; shaded bands
-        mark spans where the two disagree, which is precisely where a blended score would have
-        been wrong. Oldest on the left, newest on the right.</p>
+        process disturbance may lower the violet line while authenticated security evidence stays normal.
+        The dashed line is a static 0.6 reference; shaded bands mark score disagreement at that reference,
+        not the configured bandit's policy. Oldest on the left, newest on the right.</p>
       <div id="timeline"></div>
     </section>
 
@@ -296,7 +306,8 @@
         two independent scores; <code>rule</code>/<code>IF</code>/<code>LSTM</code>/<code>GCN</code>
         are the four Process Anomaly sub-signals and <code>fused</code> is the meta-learner's
         combination of them. A <b>REJECTED</b> row never reached any model — it failed
-        authentication, and its scores are blank for that reason, not missing.
+        an ingress check. Its Security Trust is a read-only snapshot; Process Trust is absent.
+        SILENT is a watchdog event, not one of the four policy actions. Missing values mean UNKNOWN.
       </div>
       <div class="tblwrap">
         <table>
@@ -411,7 +422,8 @@
            ["gnn_score","GCN","shap_gnn","gnn_score"]];
   function $(id){return document.getElementById(id)}
   function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
-  function num(v,d){return v==null?"—":(+v).toFixed(d==null?2:d)}
+  function finite(v){return typeof v==="number"&&Number.isFinite(v)}
+  function num(v,d){return !finite(v)?"—":v.toFixed(d==null?2:d)}
   function j(p){
     var controller=new AbortController(),timeout=setTimeout(function(){controller.abort()},8000);
     return fetch(p,{signal:controller.signal,cache:"no-store"}).then(function(r){if(!r.ok)throw new Error(p+" "+r.status);return r.json()}).finally(function(){clearTimeout(timeout)});
@@ -419,6 +431,7 @@
   function sc(v){if(v==null)return "var(--dim)";return v>=0.6?"var(--cyan)":v>=0.35?"var(--amber)":"var(--red)"}
   function ago(ts){try{var s=(Date.now()-new Date(ts).getTime())/1000;if(s<60)return Math.round(s)+"s";if(s<3600)return Math.round(s/60)+"m";return Math.round(s/3600)+"h"}catch(e){return""}}
   function latestByDevice(rows){var o={};rows.forEach(function(r){if(!o[r.device_id]&&r.decision!=="REJECTED")o[r.device_id]=r});return o}
+  function rejectionLabel(r){return r.reason==="hmac_mismatch"?"HMAC FAIL":/replay/.test(r.reason||"")?"REPLAY DETECTED":"INGRESS REJECTED"}
 
   function meter(label,v){
     var pct=v==null?0:Math.max(0,Math.min(1,v))*100;
@@ -453,14 +466,14 @@
     $("devtag").textContent=devices.length+" registered";
     if(!devices.length){box.innerHTML='<div class="empty">No registered identities returned by the gateway.</div>';return}
     devices.forEach(function(d){
-      var r=latest[d.device_id], dec=r?r.decision:"SILENT";
+      var r=latest[d.device_id], dec=r?r.decision:"UNKNOWN";
       var modality={"esp32-vib-001":"MPU6050", "esp32-vib-002":"SW-420"}[d.device_id];
-      var real=Boolean(modality),kind=real?"PHYSICAL ID · "+modality:"SIM · "+d.kind;
+      var real=Boolean(modality),kind=real?"PHYSICAL ID · "+modality:((/^esp32-sim-/.test(d.device_id)||["sensor-002","actuator-001"].includes(d.device_id))?"SIMULATED ID · ":"PROVENANCE UNKNOWN · ")+d.kind;
       var el=document.createElement("div");el.className="dev "+dec;
       if(!r){
         el.innerHTML='<div class="top"><span class="name">'+esc(d.device_id)+'</span>'+
           '<span class="kind '+(real?"real":"")+'">'+esc(kind)+'</span>'+
-          '<span class="badge SILENT">SILENT</span></div><div class="empty">no telemetry received yet</div>';
+          '<span class="badge SILENT">UNKNOWN</span></div><div class="empty">No accepted observation in this audit window. Connection, authentication and freshness UNKNOWN.</div>';
         box.appendChild(el);return;
       }
       var dominant=null,best=-1;
@@ -473,8 +486,11 @@
       el.innerHTML=
         '<div class="top"><span class="name">'+esc(d.device_id)+'</span>'+
         '<span class="kind '+(real?"real":"")+'">'+esc(kind)+'</span>'+
-        '<span class="badge '+dec+'">'+dec+'</span></div>'+
+        '<span class="badge '+esc(dec)+'">'+esc(dec)+'</span></div>'+
+        '<div class="foot">'+(r.reason_category==="device_silent"?'OFFLINE · backend silence watchdog':(r.process_status==="STALE"?'STALE · backend process status':'Connection UNKNOWN · audit observation only'))+'</div>'+
         meter("Security Trust",r.security_trust_score)+meter("Process (1 = normal)",r.process_trust_score)+
+        '<div class="l2"><b>Why / backend:</b> '+esc(r.reason||"UNKNOWN — explanation unavailable")+'</div>'+
+        '<div class="foot">Authentication: '+(r.decision==="SILENT"?'UNKNOWN — watchdog event':(r.auth_ok===true||r.auth_ok===1?'PASS at observation':r.auth_ok===false||r.auth_ok===0?'FAIL':'UNKNOWN'))+' · current revocation: UNKNOWN</div>'+
         '<div class="section-t">Model predictions</div>'+
         '<div class="preds">'+
           predChip("Rule",r.rule_score)+predChip("Iso.Forest",r.anomaly_score)+
@@ -485,7 +501,7 @@
         '<div class="shap">'+shapRows(r,dominant)+
           '<div class="shaphint">dominant: '+esc(domLabel)+' · green raises trust, red lowers · confidence '+num(r.confidence)+'</div></div>'+
         l2+
-        '<div class="foot">'+(r.process_status?("proc "+esc(r.process_status)+" · "):"")+(r.transport?("via "+esc(r.transport)+" · "):"")+ago(r.timestamp)+" ago</div>";
+        '<div class="foot">'+(r.process_status?("proc "+esc(r.process_status)+" · "):"proc UNKNOWN · ")+(r.transport?("via "+esc(r.transport)+" · "):"")+'Audit event: '+esc(r.timestamp)+' · '+ago(r.timestamp)+' ago. This is not a last-seen timestamp.</div>';
       box.appendChild(el);
     });
   }
@@ -494,14 +510,17 @@
     var box=$("timeline"); if(!box) return;
     var byDev={};
     for(var i=rows.length-1;i>=0;i--){                 // API is newest-first; walk to oldest-first
-      var r=rows[i]; if(r.security_trust_score==null&&r.process_trust_score==null) continue;
+      var r=rows[i]; if(r.decision==="REJECTED"||(r.security_trust_score==null&&r.process_trust_score==null)) continue;
       (byDev[r.device_id]=byDev[r.device_id]||[]).push(r);
     }
-    var names=Object.keys(byDev); if(!names.length){box.innerHTML='<div class="empty">no scored decisions yet</div>';return}
+    var names=Object.keys(byDev); if(!names.length){box.innerHTML='<div class="empty">no scored decisions yet</div>';$("tltag").textContent="UNKNOWN — no scored observations";return}
     var W=760,H=104,PADL=34,PADR=8,PADT=8,PADB=16,split=0;
     var html="";
     names.forEach(function(dev){
       var v=byDev[dev].slice(-120), n=v.length;
+      var last=v[n-1],ls=last.security_trust_score,lp=last.process_trust_score;
+      var disagree=(ls!=null&&lp!=null&&((ls>=0.6)!==(lp>=0.6)));
+      split+=disagree?1:0;
       if(n<2){html+='<div class="tlrow"><div class="tlname">'+esc(dev)+'</div><div class="empty">not enough history</div></div>';return}
       var x=function(i){return PADL+(W-PADL-PADR)*(n===1?0:i/(n-1))};
       var y=function(s){return PADT+(H-PADT-PADB)*(1-Math.max(0,Math.min(1,s)))};
@@ -525,9 +544,6 @@
           runStart=-1;
         }
       }
-      var last=v[n-1],ls=last.security_trust_score,lp=last.process_trust_score;
-      var disagree=(ls!=null&&lp!=null&&((ls>=0.6)!==(lp>=0.6)));
-      split+=disagree?1:0;
       html+='<div class="tlrow">'+
         '<div class="tlname">'+esc(dev)+
           '<span class="tlnow"><i style="color:var(--cyan)">sec '+(ls==null?"—":ls.toFixed(3))+'</i>'+
@@ -545,7 +561,7 @@
         '</svg></div>';
     });
     box.innerHTML=html;
-    $("tltag").textContent=split?split+" device(s) with the axes disagreeing right now":"axes agree on every device";
+    $("tltag").textContent=split?split+" device(s) with disagreement in their latest scored observation":"No disagreement observed; missing scores remain UNKNOWN";
   }
 
 
@@ -555,7 +571,7 @@
     rows.slice(0,60).forEach(function(r){
       var tr=document.createElement("tr");
       tr.innerHTML=
-        '<td class="mono" style="color:var(--dim)">'+esc((r.timestamp||"").substr(11,8))+'</td>'+
+        '<td class="mono" style="color:var(--dim)">'+esc(r.timestamp||"UNKNOWN")+'</td>'+
         '<td class="mono">'+esc(r.device_id)+'</td>'+
         '<td><span class="chip '+esc(r.decision)+'">'+esc(r.decision)+'</span></td>'+
         '<td class="mono">'+num(r.security_trust_score)+'</td>'+
@@ -566,7 +582,7 @@
         '<td class="mono">'+num(r.gnn_score)+'</td>'+
         '<td class="mono" style="color:'+sc(r.fused_score)+'">'+num(r.fused_score)+'</td>'+
         '<td class="mono" style="color:var(--muted)">'+esc(r.transport||"—")+'</td>'+
-        '<td style="color:var(--muted);max-width:340px;overflow:hidden;text-overflow:ellipsis">'+esc(r.reason||"")+'</td>';
+        '<td style="color:var(--muted);min-width:220px;white-space:normal">'+esc(r.reason_category||"decision")+': '+esc(r.reason||"UNKNOWN")+'</td>';
       tb.appendChild(tr);
     });
   }
@@ -575,7 +591,7 @@
     var rej=rows.filter(function(r){return r.decision==="REJECTED"});
     $("idr").textContent=rej.length+" in view";$("idr").style.color=rej.length?"var(--red)":"var(--muted)";
     var il=$("idlist");il.innerHTML="";
-    rej.slice(0,4).forEach(function(r){il.innerHTML+='<div class="evt"><b>'+esc(r.device_id)+'</b> — '+esc(r.reason||"")+' <span style="color:var(--dim)">('+esc(r.reason_category||"")+", "+ago(r.timestamp)+')</span></div>'});
+    rej.slice(0,4).forEach(function(r){il.innerHTML+='<div class="evt"><b>'+rejectionLabel(r)+' · '+esc(r.device_id)+'</b> — '+esc(r.reason||"")+' <span style="color:var(--dim)">('+esc(r.reason_category||"")+", "+esc(r.timestamp)+')</span><div>REJECTED · accepted trust unchanged · Process Trust not updated</div></div>'});
     if(!rej.length)il.innerHTML='<div class="empty">none — no rejected attempts in view</div>';
     var su=rows.filter(function(r){return (r.reason_category||"").indexOf("step_up")===0});
     $("sucount").textContent=su.length+" in view";
@@ -657,19 +673,24 @@
     if(q.note){var n=document.getElementById("qnote"); if(n)n.textContent=q.note;}
   }
   function setChain(chain){
+    if(typeof chain.chain_ok!=="boolean"||typeof chain.checkpoint_ok!=="boolean"){
+      $("p-chain").textContent="chain: UNKNOWN";
+      $("chaintag").textContent="UNKNOWN";
+      $("chaindetail").textContent="UNKNOWN — gateway verification results unavailable";return;
+    }
     var ok=chain.chain_ok&&chain.checkpoint_ok,el=$("p-chain");
     el.innerHTML='chain: <span class="sdot" style="background:'+(ok?"var(--green)":"var(--red)")+'"></span><b class="'+(ok?"ok":"bad")+'">'+(ok?"verified":"BROKEN")+'</b>';
     el.title=ok?"chain, checkpoints and tail all verify":((chain.broken_row?("broken at row "+chain.broken_row+"; "):"")+(chain.checkpoint_note||""));
     if(chain.rows_verified!=null)$("chaintag").textContent=chain.rows_verified.toLocaleString()+" rows";
     function line(label,good,detail){
-      return '<div class="kv"><span>'+label+'</span><b class="'+(good?"ok":"bad")+'">'+(good?"PASS":"FAIL")+'</b></div>'+
+      return '<div class="kv"><span>'+label+'</span><b class="'+(good===true?"ok":"bad")+'">'+(typeof good!=="boolean"?"UNKNOWN":good?"PASS":"FAIL")+'</b></div>'+
         (detail?'<div class="note" style="margin-top:2px">'+esc(detail)+'</div>':"");
     }
     var age=chain.full_scan_age_seconds;
     var ageTxt=age==null?"":(age<90?Math.round(age)+"s ago":Math.round(age/60)+" min ago");
     $("chaindetail").innerHTML=
       line("Full chain scan — recomputes every row's hash from its fields",
-           chain.full_scan_ok!==false,
+           chain.full_scan_ok,
            (chain.broken_row&&chain.full_scan_ok===false?("first broken row: "+chain.broken_row+". "):"")+
            "The ONLY check that catches a naive edit (row changed, hashes left alone). O(all rows), so it runs every "+
            "few minutes rather than every poll — last run "+ageTxt+" over "+(chain.full_scan_rows||0).toLocaleString()+
@@ -677,7 +698,7 @@
       line("Checkpoint cross-check — independent, separately-keyed",chain.checkpoint_ok,
            chain.checkpoint_note||"The ONLY check that catches a CONSISTENT rewrite (old row edited and every following hash "+
            "recomputed). The chain scan cannot see that, because the result is internally valid.")+
-      line("Incremental tail — rows since the newest checkpoint",chain.tail_ok!==false,
+      line("Incremental tail — rows since the newest checkpoint",chain.tail_ok,
            "Runs on every poll ("+(chain.tail_rows||0)+" rows), so the newest history is covered continuously between full scans.");
   }
 
@@ -699,11 +720,16 @@
     return Promise.all([j("/api/status"),j("/api/devices"),j("/api/decisions"),slowFetches()])
     .then(function(p){return [p[0],p[1],p[2],p[3][0],p[3][1],p[3][2],p[3][3]]})
     .then(function(res){
+      if(!res[0]||!res[1]||!Array.isArray(res[1].devices)||!res[2]||!Array.isArray(res[2].rows))throw new Error("Invalid gateway response schema");
+      res[2].rows.forEach(function(r){
+        if(!r||typeof r.device_id!=="string"||typeof r.decision!=="string")throw new Error("Invalid audit row");
+        ["security_trust_score","process_trust_score","rule_score","anomaly_score","lstm_score","gnn_score","fused_score","confidence","shap_rule","shap_isolation_forest","shap_lstm_ae","shap_gnn"].forEach(function(k){if(!finite(r[k]))r[k]=null});
+      });
       fails=0;$("livedot").className="dot";$("liveword").textContent="API CONNECTED";
       $("banner").className="banner err";$("banner").textContent="";
       var status=res[0],devices=(res[1].devices||[]),rows=(res[2].rows||[]),chain=res[3],gov=res[4],iec=res[5],qt=res[6];
-      $("p-policy").innerHTML='policy: <b>'+(status.use_rl_policy?"offline bandit":"static 2x2")+'</b>';
-      $("p-thr").innerHTML='thresholds: <b>sec '+status.security_threshold+" · proc "+status.process_threshold+'</b>';
+      $("p-policy").innerHTML='policy: <b>'+(typeof status.use_rl_policy!=="boolean"?"UNKNOWN":status.use_rl_policy?"offline bandit":"static 2x2")+'</b>';
+      $("p-thr").textContent='thresholds: sec '+num(status.security_threshold)+" · proc "+num(status.process_threshold);
       var latest=latestByDevice(rows);
       renderDevices(devices,latest);renderTimeline(rows);renderDecisions(rows);renderSecurityEvents(rows);
       renderNist(gov);renderValidation(gov);renderIec(iec);renderQtable(qt);setChain(chain);
@@ -715,7 +741,7 @@
     })
     .catch(function(e){
       fails++;$("livedot").className="dot stale";$("liveword").textContent="RECONNECTING";
-      var b=$("banner");b.className="banner err show";b.textContent="Gateway API unavailable. Any displayed observations are retained from the last successful refresh; they are not current. Open this page through the gateway to receive observations. Retrying in 2 s.";
+      var b=$("banner");b.className="banner err show";b.textContent=(e.message==="Invalid gateway response schema"||e.message==="Invalid audit row"?"Invalid gateway response schema. ":"Gateway API unavailable. ")+"Any displayed observations are retained from the last successful refresh; they are not current. Open this page through the gateway to receive observations. Retrying in 2 s.";
     });
   }
   function poll(){refresh().finally(function(){setTimeout(function(){tick++;poll()},2000)})}

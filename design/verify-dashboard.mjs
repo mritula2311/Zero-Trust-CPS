@@ -4,16 +4,20 @@ import {spawn} from 'node:child_process';
 import {createServer} from 'node:http';
 import {readFile, writeFile, mkdir, mkdtemp} from 'node:fs/promises';
 import {existsSync} from 'node:fs';
-import {dirname, join, resolve, extname} from 'node:path';
+import {dirname, join, resolve, extname, delimiter} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {tmpdir} from 'node:os';
+import {createHash} from 'node:crypto';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const output = process.env.DASHBOARD_QA_DIR || await mkdtemp(join(tmpdir(), 'zt-dashboard-qa-'));
 await mkdir(output, {recursive:true});
 const profile = await mkdtemp(join(tmpdir(), 'zt-dashboard-browser-'));
-const chromePath = process.env.CHROME_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
-assert(existsSync(chromePath), 'Set CHROME_PATH to an installed Chrome/Chromium executable');
+const candidates = [process.env.CHROME_PATH,
+  ...[process.env.PROGRAMFILES,process.env['PROGRAMFILES(X86)'],process.env.LOCALAPPDATA].filter(Boolean).map(p=>join(p,'Google','Chrome','Application','chrome.exe')),
+  ...(process.env.PATH||'').split(delimiter).flatMap(p=>['chrome','chromium','chromium-browser','chrome.exe'].map(name=>join(p,name)))];
+const chromePath = candidates.find(p=>p&&existsSync(p));
+assert(chromePath, 'Set CHROME_PATH to an installed Chrome/Chromium executable');
 let apiAvailable = true, requests = 0;
 const fixtures = {
   '/api/status': {use_rl_policy:true, security_threshold:0.6, process_threshold:0.6},
@@ -80,7 +84,7 @@ try {
     await send('Input.dispatchMouseEvent',{type:'mouseReleased',button:'left',clickCount:1,...rect});
   };
   const key=async (key,code)=>{await send('Input.dispatchKeyEvent',{type:'keyDown',key,code,windowsVirtualKeyCode:{Home:36,End:35,Enter:13,ArrowRight:39}[key]});await send('Input.dispatchKeyEvent',{type:'keyUp',key,code});};
-  const screenshot=async name=>{const r=await send('Page.captureScreenshot',{format:'png'});await writeFile(join(output,name+'.png'),Buffer.from(r.data,'base64'));};
+  const screenshot=async name=>{await evaluate('new Promise(done=>requestAnimationFrame(()=>requestAnimationFrame(done)))');const r=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});await writeFile(join(output,name+'.png'),Buffer.from(r.data,'base64'));};
   await send('Page.enable');await send('Runtime.enable');
   for(const path of ['/design/Main.dc.html','/design/extracted/Main.dc.html']) {
     await navigate(path);
@@ -135,6 +139,8 @@ try {
   assert.equal(requests,0,'Presentation unexpectedly contacted gateway API');
   await navigate('/design/zero-trust-cps-command-center.html');
   await waitFor('document.getElementById("liveword").textContent === "API CONNECTED"');
+  await evaluate('document.querySelector("header .pill").textContent="DEMO MOCK MODE · synthetic browser fixtures · no hardware"');
+  await evaluate('(()=>{const label=document.createElement("div");label.textContent="DEMO MOCK MODE · synthetic fixtures · no hardware";label.style.cssText="position:fixed;bottom:8px;left:8px;right:8px;z-index:9999;background:#fff;color:#111;padding:8px;font:14px sans-serif;border:2px solid #111;text-align:center";document.body.appendChild(label)})()');
   assert(await evaluate('document.getElementById("devs").textContent.includes("PHYSICAL ID · SW-420")'));
   assert(await evaluate('document.getElementById("p-policy").textContent.includes("offline bandit")'));
   for(const width of [320,768,1024,1440]){
@@ -157,12 +163,35 @@ try {
   ]};
   await waitFor('document.querySelectorAll("#devs .preds").length === 2');
   assert.equal(await evaluate('document.querySelectorAll("#devs .dev")[0].querySelector(".badge").textContent'),'ALERT');
+  assert(await evaluate('document.getElementById("tltag").textContent.includes("1 device(s)")'),'Single scored observation must still report score disagreement');
   assert.equal(await evaluate('Array.from(document.querySelectorAll("#devs .dev")[1].querySelectorAll(".sv"),e=>e.textContent).join("")'),'————');
   await evaluate('document.getElementById("devs").scrollIntoView({block:"start"})');await screenshot('gateway-observations');
+  for(const width of [320,1440]){
+    await send('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:false});
+    assert(await evaluate('document.documentElement.scrollWidth <= innerWidth+1'),'Populated dashboard overflow');
+  }
+  fixtures['/api/decisions'].rows.unshift({device_id:'esp32-vib-001',decision:'SILENT',timestamp:new Date().toISOString(),process_status:'STALE',reason_category:'device_silent',reason:'Synthetic watchdog fixture',auth_ok:1});
+  await waitFor('document.getElementById("devs").textContent.includes("OFFLINE · backend silence watchdog")');
+  assert(await evaluate('document.getElementById("devs").textContent.includes("UNKNOWN — watchdog event")'));
+  await screenshot('gateway-mock-offline');
+  fixtures['/api/decisions'].rows.unshift({device_id:'esp32-vib-001',decision:'REJECTED',timestamp:new Date().toISOString(),reason:'replay_or_stale_sequence',reason_category:'identity_targeting'});
+  await waitFor('document.getElementById("idlist").textContent.includes("REPLAY DETECTED")');
+  fixtures['/api/decisions'].rows.unshift({device_id:'esp32-vib-001',decision:'REJECTED',timestamp:new Date().toISOString(),reason:'hmac_mismatch',reason_category:'identity_targeting'});
+  await waitFor('document.getElementById("idlist").textContent.includes("HMAC FAIL")');
+  fixtures['/api/decisions'].rows.unshift({device_id:'esp32-vib-002',decision:'ALLOW',timestamp:new Date().toISOString(),security_trust_score:'invalid',process_trust_score:'',reason:'Synthetic malformed score fixture'});
+  await waitFor('Array.from(document.querySelectorAll("#devs .dev")[1].querySelectorAll(".meter b"),e=>e.textContent).join("") === "——"');
+  fixtures['/api/chain']={};
+  await navigate('/design/zero-trust-cps-command-center.html');
+  await waitFor('document.getElementById("p-chain").textContent === "chain: UNKNOWN"');
+  fixtures['/api/devices']={devices:null};
+  await waitFor('document.getElementById("liveword").textContent === "RECONNECTING"');
+  assert(await evaluate('document.getElementById("banner").textContent.includes("Invalid gateway response schema")'));
   fixtures['/api/devices']={devices:[]};
   await waitFor('document.getElementById("devs").textContent.includes("No registered identities")');
   assert.equal(errors.length,0,JSON.stringify(errors));
-  const result={ok:true,checks,interactions:['sensor selection and schema','policy explanation switch','four static actions','0.6 threshold equality','keyboard activation','physical SW identity','API disconnect/recovery','empty registry','accepted/rejected observations','unavailable SHAP shown as missing'],numericComparisons:18,localPresentationReferences:'All file targets exist',presentationApiRequests:0,runtimeExceptions:errors.length,fixtureScope:'Synthetic API responses for browser tests only; no production gateway or hardware contacted.'};
+  const result={ok:true,checks,interactions:['sensor selection and schema','policy explanation switch','four static actions','0.6 threshold equality','keyboard activation','physical SW identity','API disconnect/recovery','empty registry','accepted/rejected observations','unavailable SHAP shown as missing','populated layout at 320 and 1440','backend SILENT displayed OFFLINE without policy substitution','watchdog authentication UNKNOWN','replay and HMAC event labels','malformed numeric scores missing','missing chain checks UNKNOWN','invalid API schema recoverable'],numericComparisons:18,localPresentationReferences:'All file targets exist',presentationApiRequests:0,runtimeExceptions:errors.length,fixtureScope:'Synthetic API responses for browser tests only; no production gateway or hardware contacted.'};
+  result.sourceHashes={};
+  for(const name of ['Main.dc.html','extracted/Main.dc.html','presentation.css','presentation.js','zero-trust-cps-command-center.html','verify-dashboard.mjs'])result.sourceHashes[name]=createHash('sha256').update(await readFile(join(root,'design',name))).digest('hex');
   await writeFile(join(output,'verification.json'),JSON.stringify(result,null,2));
   console.log(JSON.stringify({ok:true,output,viewportChecks:checks.length,interactions:result.interactions.length}));
   await send('Browser.close').catch(()=>{});

@@ -84,22 +84,26 @@
     "API disconnect/recovery",
     "empty registry",
     "accepted/rejected observations",
-    "unavailable SHAP shown as missing"
+    "unavailable SHAP shown as missing",
+    "populated layout at 320 and 1440",
+    "backend SILENT displayed OFFLINE without policy substitution",
+    "watchdog authentication UNKNOWN",
+    "replay and HMAC event labels",
+    "malformed numeric scores missing",
+    "missing chain checks UNKNOWN",
+    "invalid API schema recoverable"
   ],
   "numericComparisons": 18,
   "localPresentationReferences": "All file targets exist",
   "presentationApiRequests": 0,
   "runtimeExceptions": 0,
   "fixtureScope": "Synthetic API responses for browser tests only; no production gateway or hardware contacted.",
-  "research_base": "4ffbe81d93cfafc70b179e6cd8405c210a5baf9a",
-  "verified_files": {
-    "design/Main.dc.html": "0c216babc66f63b43647e385a9f24525f0f04350105eb5dec9ba779aef93bec8",
-    "design/extracted/Main.dc.html": "6ce1e6d0f4260ccca324b3e25e3936bda7895aca37e90ba3c7cd7c9b930e3950",
-    "design/zero-trust-cps-command-center.html": "9fb2b6f1367bee5444388e8cc3822439c151490372efe9ecb9c515e08fd9041d",
-    "design/presentation.css": "13a8cf4d0e449b84a30a865981395b1c04775ff5cabbbc210d120b4dbf64d20d",
-    "design/presentation.js": "c202c657798e5c7a8f6c0133828701c3aa5d808ff7a9eab20f245282eb66c355",
-    "design/canvas.json": "64665790fe317ffd2631efbaae2a0857af4097a4a671a65988af46ea6ed3771e",
-    "design/extracted/canvas.json": "64665790fe317ffd2631efbaae2a0857af4097a4a671a65988af46ea6ed3771e",
-    "design/verify-dashboard.mjs": "6255c645b6fe0d6a967ec9a9cf8460c48a6c42a7d2266c728ce4bc0c7ef53c2f"
+  "sourceHashes": {
+    "Main.dc.html": "0c216babc66f63b43647e385a9f24525f0f04350105eb5dec9ba779aef93bec8",
+    "extracted/Main.dc.html": "6ce1e6d0f4260ccca324b3e25e3936bda7895aca37e90ba3c7cd7c9b930e3950",
+    "presentation.css": "13a8cf4d0e449b84a30a865981395b1c04775ff5cabbbc210d120b4dbf64d20d",
+    "presentation.js": "c202c657798e5c7a8f6c0133828701c3aa5d808ff7a9eab20f245282eb66c355",
+    "zero-trust-cps-command-center.html": "16a570f85594169704b05f064754085a2773ec12c8dd0e031378c134cfb2791a",
+    "verify-dashboard.mjs": "df39803a71d5b49ba0b5f2237eefc2d1ec59ad6e65fe6076308e1e766d4d2da6"
   }
 }
