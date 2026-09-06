@@ -44,6 +44,7 @@ from generate_training_data import physical_label
 TEST_PATH = os.path.join(DATA_COLLECTED_DIR, "test_session.json")
 TRAIN_PATH = os.path.join(DATA_COLLECTED_DIR, "training_session.json")
 THRESHOLD = 0.5
+REPAIR_SET_DEVICE = "esp32-vib-001"
 
 
 def _training_medians():
@@ -60,6 +61,30 @@ def _training_medians():
     return {name: float(np.median(vecs[:, i])) for i, name in enumerate(fe.FEATURE_NAMES)}
 
 
+def _mpu_disturbance_windows(rows):
+    """Build within-source/phase five-feature windows for the MPU-only repair test.
+
+    `rows` contains ``(source_filename, record)`` pairs.  The repository also
+    contains labelled SW-420 captures with four-feature readings; those belong
+    to the mixed-sensor evaluation above, but cannot be passed through the
+    esp32-vib-001 LSTM or its five-element normalization statistics.
+    """
+    windows, previous_key, buffer = [], None, []
+    for source, row in rows:
+        if row.get("device_id") != REPAIR_SET_DEVICE:
+            continue
+        phase = row.get("phase")
+        key = (source, phase)
+        if key != previous_key:
+            buffer, previous_key = [], key
+        buffer.append(fe.feature_vector(row["reading"]))
+        if len(buffer) > LSTM_SEQ_LEN:
+            buffer.pop(0)
+        if len(buffer) == LSTM_SEQ_LEN and phase != "at_rest":
+            windows.append(np.array(buffer))
+    return windows
+
+
 def minimal_repair_set_measurement():
     """MINIMAL REPAIR SET -- reported ALONGSIDE the single-channel flip test above,
     never in place of it.
@@ -70,7 +95,7 @@ def minimal_repair_set_measurement():
     the anomaly does not. This measures the actual rank: how many channels must
     be repaired TOGETHER before the score returns to legitimate.
 
-    Measured on real operator-labelled hardware windows, not synthetic
+    Measured on real labelled MPU6050 hardware windows, not synthetic
     injections, so the correlation between channels is the physical one.
     """
     import glob, itertools, numpy as np, torch
@@ -78,7 +103,7 @@ def minimal_repair_set_measurement():
     import feature_engineering as fe
     from lstm_ae_scorer import LSTMAEScorer, _TORCH_DEVICE
 
-    device = "esp32-vib-001"
+    device = REPAIR_SET_DEVICE
     scorer = LSTMAEScorer()
     if device not in scorer.models:
         print()
@@ -90,16 +115,7 @@ def minimal_repair_set_measurement():
     for path in sorted(glob.glob(os.path.join(DATA_COLLECTED_DIR, "*_labelled.json"))):
         with open(path) as f:
             rows += [(os.path.basename(path), r) for r in json.load(f)]
-    windows, prev, buf = [], None, []
-    for src, r in rows:
-        key = (src, r["phase"])
-        if key != prev:
-            buf, prev = [], key
-        buf.append(fe.feature_vector(r["reading"]))
-        if len(buf) > LSTM_SEQ_LEN:
-            buf.pop(0)
-        if len(buf) == LSTM_SEQ_LEN and r["phase"] != "at_rest":
-            windows.append(np.array(buf))
+    windows = _mpu_disturbance_windows(rows)
     if not windows:
         print()
         print("(minimal repair set: no labelled disturbance windows found, skipped)")
@@ -117,7 +133,8 @@ def minimal_repair_set_measurement():
     print("=" * 78)
     print("MINIMAL REPAIR SET -- how many channels carry the anomaly?")
     print("=" * 78)
-    print(f"{len(windows)} flagged windows from real operator-labelled hardware. For each k, the")
+    print("Exploratory all-split capture analysis (includes TRAIN); not held-out validation.")
+    print(f"{len(windows)} flagged windows from real labelled MPU6050 hardware. For each k, the")
     print("BEST k-of-5 channel subset is repaired to its training mean and the window rescored.")
     print()
     print(f"  {'channels repaired':>18s} | {'flipped to >= ' + str(THRESHOLD):>18s} | {'median error after':>19s}")
@@ -295,18 +312,15 @@ def main():
                 "it was measured rather than assumed:",
                 "  * The Level-2 procedure repairs exactly ONE feature channel, and the anomaly",
                 "    does not live in one channel. Measured below on real hardware: repairing the",
-                "    best single channel drops median reconstruction error 26825 -> 7157, a 3.7x",
-                "    reduction where ~9700x is needed to reach the 2.76 a flip requires.",
-                "  * Repairing THREE channels together does clear it -- 132/136 windows recover,",
-                "    and the minimal set is {peak, rms, crest_factor} in 132/132 of those. Those",
+                "    best single channel sharply reduces reconstruction error but does not reach",
+                "    the score threshold; the measured errors and required cutoff are reported below.",
+                "  * Repairing THREE channels together clears the threshold for the large majority",
+                "    of windows; the exact count and most common repair sets are reported below. Those",
                 "    three are all amplitude functions of the same spike (crest_factor IS",
-                "    peak/rms), so no one of them can carry the repair alone. Note kurtosis is",
-                "    NOT in the minimal set, though it is the channel most often ATTRIBUTED --",
+                "    peak/rms), so no one of them can carry the repair alone. The most common",
+                "    sufficient sets and their observed counts are reported below --",
                 "    attribution names the most diagnostic channel, repair needs the sufficient",
                 "    set, and they are different questions.",
-                "  * Substituting a REAL normal trajectory for the channel instead of its flat",
-                "    training mean was tried and changed nothing material (33.63 vs 33.70 median),",
-                "    so the limit is the single-channel restriction itself, not the fill value.",
                 "  * The ATTRIBUTION remains sound and useful: kurtosis is the channel most",
                 "    often named, the physically correct answer for an impulsive spike.",
                 "  The flip test is a fair pass/fail for a point model (see gnn_score at 100%), but",
