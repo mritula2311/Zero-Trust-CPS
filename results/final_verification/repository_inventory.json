@@ -1,12 +1,12 @@
 {
   "state": {
     "branch": "main",
-    "head": "fba7841d4a1088c48be7a5d21264a2d09246a1fb",
-    "main": "fba7841d4a1088c48be7a5d21264a2d09246a1fb",
-    "origin_main": "4f6afa25e4721c13a4e9f0355548f8ca07c70a5a",
-    "main_ahead_behind": "0\t16",
-    "worktrees": "<REPO_ROOT>      fba7841 [main]\n<WORKSPACE_ROOT>/zt-cps-design-astra 9dac09a [astra/design-dashboard-20260906]",
-    "status": "M .gitignore\n M SESSION_LOG.md\n M design/browser-verification.json\n M design/verify-dashboard.mjs\n M design/zero-trust-cps-command-center.html\n M docs/FINAL_PROJECT_VERIFICATION.md\n M docs/paper/24_REPRODUCIBILITY_GUIDE.md\n M results/astra_masking_review/full_suite.log\n M results/astra_masking_review/nonfinite_red.log\n M results/final_verification/credential_scan.json\n M results/final_verification/documentation_validation.json\n M results/final_verification/explainability_evaluation.log\n M results/final_verification/initial_repository_state.json\n M results/final_verification/markdown_inventory.csv\n M results/final_verification/pytest_after_fixes.log\n M results/final_verification/pytest_collection.log\n M results/final_verification/pytest_final.log\n M results/final_verification/pytest_initial.log\n M results/final_verification/repository_inventory.json\n M results/final_verification/result_artifact_inventory.csv\n M results/final_verification/stale_claim_occurrences.csv\n M results/final_verification/targeted_tests.log\n M results/final_verification/unittest.log\n M results/final_verification/unittest_final.log\n M scripts/audit_repository_evidence.py\n?? .gitattributes\n?? PUBLICATION_MANIFEST.md\n?? design/hash_lib.mjs\n?? results/final_verification/AUDIT_RECEIPT_PUBLICATION_MANIFEST.md\n?? tests/test_credential_scanner_regression.py\n?? tests/test_dashboard_hash_normalization.py",
+    "head": "11dff4bc1be13f99dfcf8d66a32ed4f10535f4c0",
+    "main": "11dff4bc1be13f99dfcf8d66a32ed4f10535f4c0",
+    "origin_main": "11dff4bc1be13f99dfcf8d66a32ed4f10535f4c0",
+    "main_ahead_behind": "0\t0",
+    "worktrees": "<REPO_ROOT>      11dff4b [main]\n<WORKSPACE_ROOT>/zt-cps-design-astra 9dac09a [astra/design-dashboard-20260906]",
+    "status": "M firmware/main_sw420.py\n M results/final_verification/credential_scan.json\n M results/final_verification/repository_inventory.json\n M scripts/audit_repository_evidence.py\n M src/gateway.py",
     "workspace": "<REPO_ROOT>",
     "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
     "platform": "Windows-11-10.0.26200-SP0",
@@ -249,8 +249,8 @@
       "sha256": "222370d43bea9b7aa748d968ff0d4cb0c2cfa8b979203d9f1a60cf9a3277dd85"
     },
     "firmware/main_sw420.py": {
-      "bytes": 15624,
-      "sha256": "fc0132bbed483c2f901a0d7961659b62c1ab1a7606b7b58b125a0442b5d18b26"
+      "bytes": 15625,
+      "sha256": "aeb90de799cba1eaae849cc8cd3de88ad31026e57a8f21c10cfae4742da7d27c"
     },
     "models/adaptive_pdp_qtable.json": {
       "bytes": 4200,
@@ -729,8 +729,8 @@
       "sha256": "0712ad3a487040a9fd884cf3e8503961e188cab2f16454e0aef10ad8a7bee47e"
     },
     "scripts/audit_repository_evidence.py": {
-      "bytes": 12143,
-      "sha256": "2d2c4cd6b58b54db966c74780db290d36c7b223406f0415f067d5837d199ddd4"
+      "bytes": 14481,
+      "sha256": "35e0331e2dd8611837ede1c46317c66dc5a9725d2ea0cb95e7e635a59399fcc0"
     },
     "scripts/benchmark_crossdevice_models.py": {
       "bytes": 109705,
@@ -909,8 +909,8 @@
       "sha256": "25ad0b121e8207f309933a822a10adde0a1dd853e5103ca9d7f4e60411ff7c11"
     },
     "src/gateway.py": {
-      "bytes": 53167,
-      "sha256": "5cebf825a032981f4366264afc52200ffa71bb939287971badd9cd4baa9ff937"
+      "bytes": 53928,
+      "sha256": "e06e793d94a4fc9e70442ed7ced1764f85376e295ac01fd0e476993a0bb18121"
     },
     "src/gnn_scorer.py": {
       "bytes": 9056,

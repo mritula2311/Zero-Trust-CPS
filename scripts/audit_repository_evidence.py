@@ -21,6 +21,14 @@ OUT = ROOT / 'results/final_verification'
 PLAUSIBLE_SECRET_MIN_LEN = 6
 PLACEHOLDER_PREFIXES = ('CHANGE-ME', 'CHANGE_ME', 'YOUR_', 'REPLACE_WITH', 'EXAMPLE_')
 PLACEHOLDER_EXACT = {'TEST_ONLY', 'TESTONLY'}
+# Substrings (checked against the value with all non-alphanumeric characters
+# stripped, so hyphen/underscore/case variants all match) that mark a value as
+# a synthetic test or attack-simulation fixture rather than a real secret --
+# e.g. attack_live_gateway.py's WRONG_SECRET = "attacker-guessed-secret-00000",
+# or a test's "test-only-signing-contract-key". These don't follow a fixed
+# prefix the way CHANGE-ME does, so they need substring, not startswith.
+SYNTHETIC_VALUE_MARKERS = ('ATTACKER', 'TESTONLY', 'WRONGSECRET', 'WRONGKEY',
+                           'WRONGPASSWORD', 'DUMMY', 'FAKESECRET', 'PLACEHOLDER')
 # Substrings of an assignment target's name that mark it credential-sensitive.
 # Deliberately broad (SECRET/PASSWORD/TOKEN/KEY) since this only runs against
 # two known local files (src/secrets_local.py, firmware/device_secrets.py), not
@@ -44,7 +52,10 @@ def is_placeholder(value):
     upper = value.upper()
     if upper in PLACEHOLDER_EXACT:
         return True
-    return any(upper.startswith(p) for p in PLACEHOLDER_PREFIXES)
+    if any(upper.startswith(p) for p in PLACEHOLDER_PREFIXES):
+        return True
+    normalized = re.sub(r'[^A-Z0-9]', '', upper)
+    return any(marker in normalized for marker in SYNTHETIC_VALUE_MARKERS)
 
 
 def collect_credential_assignments(paths):
@@ -76,6 +87,23 @@ def collect_credential_assignments(paths):
             elif isinstance(configured, str):
                 out.append((p, names[0], configured))
     return out
+
+
+def find_hardcoded_credentials_in_tracked_source(root):
+    """Every tracked .py file must obtain credential-sensitive values only by
+    importing them from the gitignored local-secret files (src/secrets_local.py,
+    firmware/device_secrets.py) -- never by assigning a literal to a
+    credential-sensitive name directly. A literal assignment in ANY OTHER
+    tracked file means a real secret was pasted straight into source (this is
+    exactly how firmware/main_sw420.py leaked a live Wi-Fi password, HMAC
+    secret and MQTT password in a public commit -- collect_credential_assignments
+    only ever looked at the two local files, so it never saw this). Returns
+    'path:FIELD' labels only, never the value."""
+    tracked_py = [root / name for name in
+                  subprocess.check_output(['git', 'ls-files', '*.py'], cwd=root, text=True).splitlines()]
+    assignments = collect_credential_assignments(tracked_py)
+    return [f'{p.relative_to(root).as_posix()}:{label}' for p, label, v in assignments
+            if not is_placeholder(v)]
 
 
 def derive_public_identifiers(root, extra=()):
@@ -160,6 +188,7 @@ def main():
     assignments = collect_credential_assignments(secret_paths)
     identifiers = derive_public_identifiers(ROOT)
     reused_identifier_matches = find_reused_identifiers(assignments, identifiers)
+    hardcoded_in_tracked_source = find_hardcoded_credentials_in_tracked_source(ROOT)
     values = {v.encode() for v in select_scan_values(assignments, reused_identifier_matches)}
     hits, private_keys, token_shapes, inspected = [], [], [], 0
     token_pattern = re.compile(rb'(?:ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{60,}|AKIA[A-Z0-9]{16}|sk-proj-[A-Za-z0-9_-]{40,})')
@@ -199,23 +228,25 @@ def main():
         inspected += 1
         inspect(blob, {'scope': 'reachable history', 'object': oid, 'path': name})
     proc.stdin.close(); proc.wait()
-    report = {'scope': 'All reachable Git blobs and nonignored working files compared to locally configured credential literals, private-key blocks and selected provider-token patterns, plus an exact-equality check of credential-sensitive fields against known public repository identifiers (independent of literal length). Not an exhaustive secret detector; rotated/unavailable historical credentials remain unknown.',
+    report = {'scope': 'All reachable Git blobs and nonignored working files compared to locally configured credential literals, private-key blocks and selected provider-token patterns; an exact-equality check of credential-sensitive fields against known public repository identifiers (independent of literal length); and every tracked .py file checked for a credential-sensitive name assigned a literal value directly, rather than imported from the two designated local-secret files. Not an exhaustive secret detector; rotated/unavailable historical credentials remain unknown.',
               'blobs_inspected': inspected, 'local_credential_values_compared': len(values),
               'working_files_inspected': working_inspected,
               'matches': hits, 'private_key_candidates': private_keys,
               'provider_token_candidates': token_shapes,
               'reused_public_identifier_fields': reused_identifier_matches,
+              'hardcoded_credential_in_tracked_source_fields': hardcoded_in_tracked_source,
               'public_identifiers_checked_against': sorted(identifiers),
               'tracked_sensitive_paths': [n for n in tracked if n in ('src/secrets_local.py', 'firmware/device_secrets.py') or n.endswith(('.key', '.pem', '.pfx'))],
-              'verdict': ('CREDENTIAL ROTATION REQUIRED' if hits or private_keys or reused_identifier_matches else
+              'verdict': ('CREDENTIAL ROTATION REQUIRED' if hits or private_keys or reused_identifier_matches or hardcoded_in_tracked_source else
                           'TOKEN CANDIDATE REVIEW REQUIRED' if token_shapes else
-                          'No configured-secret, private-key, reused-identifier or selected provider-token match detected; unknown-secret absence not proven.')}
+                          'No configured-secret, private-key, reused-identifier, hardcoded-in-source or selected provider-token match detected; unknown-secret absence not proven.')}
     (OUT / 'credential_scan.json').write_text(json.dumps(report, indent=2), encoding='utf-8')
     print(json.dumps({'tracked_evidence_files': len(inventory), 'history_blobs_inspected': inspected,
                       'working_files_inspected': working_inspected,
                       'credential_match_count': len(hits), 'private_key_candidates': len(private_keys),
                       'provider_token_candidates': len(token_shapes),
                       'reused_public_identifier_fields': reused_identifier_matches,
+                      'hardcoded_credential_in_tracked_source_fields': hardcoded_in_tracked_source,
                       'verdict': report['verdict']}))
 
 
