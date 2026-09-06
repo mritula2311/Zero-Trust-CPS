@@ -1,12 +1,12 @@
 {
   "state": {
     "branch": "main",
-    "head": "11dff4bc1be13f99dfcf8d66a32ed4f10535f4c0",
-    "main": "11dff4bc1be13f99dfcf8d66a32ed4f10535f4c0",
-    "origin_main": "11dff4bc1be13f99dfcf8d66a32ed4f10535f4c0",
+    "head": "040e91412a827ba09358d632464d90fdff88b747",
+    "main": "040e91412a827ba09358d632464d90fdff88b747",
+    "origin_main": "040e91412a827ba09358d632464d90fdff88b747",
     "main_ahead_behind": "0\t0",
-    "worktrees": "<REPO_ROOT>      11dff4b [main]\n<WORKSPACE_ROOT>/zt-cps-design-astra 9dac09a [astra/design-dashboard-20260906]",
-    "status": "M firmware/main_sw420.py\n M results/final_verification/credential_scan.json\n M results/final_verification/repository_inventory.json\n M scripts/audit_repository_evidence.py\n M src/gateway.py",
+    "worktrees": "<REPO_ROOT>      040e914 [main]\n<WORKSPACE_ROOT>/zt-cps-design-astra 9dac09a [astra/design-dashboard-20260906]",
+    "status": "M README.md\n M RESULTS.md\n M design/DEMO_CHECKLIST.md\n M design/Main.dc.html\n M design/READINESS.md\n M design/README.md\n M design/browser-verification.json\n M design/extracted/Main.dc.html\n M design/verify-runtime.py\n M design/zero-trust-cps-command-center.html\n M docs/CLAIM_EVIDENCE_MATRIX.md\n M docs/paper/00_PAPER_MASTER_GUIDE.md\n M docs/paper/07_RELATIONAL_MODELS_M1_M9.md\n M docs/paper/10_FUSION_AND_PROCESS_TRUST.md\n M docs/paper/17_CLAIM_EVIDENCE_MATRIX.md\n M firmware/main.py\n M firmware/main_sw420.py\n M models/adaptive_pdp_qtable.json\n M models/fusion_background.npy\n M models/fusion_meta_learner.joblib\n M results/final_verification/credential_scan.json\n M results/final_verification/repository_inventory.json\n M src/config.py\n M src/device_simulator.py\n M src/gateway.py\n?? models/fusion_background_gcn_backup.npy\n?? models/fusion_background_m6_variant.npy\n?? models/fusion_meta_learner_gcn_backup.joblib\n?? models/fusion_meta_learner_m6_variant.joblib\n?? models/gnn_backup.pt\n?? models/set_transformer_runtime.pt\n?? scripts/evaluate_ablation_m6.py\n?? scripts/train_fusion_meta_learner_m6.py\n?? scripts/train_set_transformer.py\n?? src/set_transformer_scorer.py",
     "workspace": "<REPO_ROOT>",
     "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
     "platform": "Windows-11-10.0.26200-SP0",
@@ -245,24 +245,24 @@
       "sha256": "8f143a56407e7d2813c4cecfa0f6f746f0aaa85ff4e99e8804e89c3927376e2a"
     },
     "firmware/main.py": {
-      "bytes": 31000,
-      "sha256": "222370d43bea9b7aa748d968ff0d4cb0c2cfa8b979203d9f1a60cf9a3277dd85"
+      "bytes": 31607,
+      "sha256": "b50ea144eb5b59751111a881d2b19676e603c2483deaf8f8e0e97b044a886c6d"
     },
     "firmware/main_sw420.py": {
-      "bytes": 15625,
-      "sha256": "aeb90de799cba1eaae849cc8cd3de88ad31026e57a8f21c10cfae4742da7d27c"
+      "bytes": 16549,
+      "sha256": "c5e0abf336546323ef6667e822d08000c9cc40e5d49202cd65548fb990a79378"
     },
     "models/adaptive_pdp_qtable.json": {
-      "bytes": 4200,
-      "sha256": "aaa90b3d7d8efd67f0090d07d6f49777747c76f95bdfa0568a522eb648115c4b"
+      "bytes": 4296,
+      "sha256": "58db72ffc85a90dc62b078f6ed195d41b5ed44d1396d609811b20295bd8f9c52"
     },
     "models/fusion_background.npy": {
       "bytes": 1728,
-      "sha256": "8aa968a671ace9d1495b5f710a68e54e817094000f0f32d62ba8c16cc4fe8684"
+      "sha256": "c49113191841753e7d7c9f7b9537a0c9a643defc303581e07f18d251a4b37a71"
     },
     "models/fusion_meta_learner.joblib": {
       "bytes": 895,
-      "sha256": "20ea7bcbba43861b21736c857c47d80434cd8e0daea42cd645a6aabd4abbf8e8"
+      "sha256": "d5e2bfeecc57142bf432ed233ec8f50c0e45a787f448a3590c8d849af955e934"
     },
     "models/gnn.pt": {
       "bytes": 7653,
@@ -881,16 +881,16 @@
       "sha256": "01f787712053b971643c7f16dbb9d0e71625f89923907e52c43151ba78010bb1"
     },
     "src/config.py": {
-      "bytes": 52822,
-      "sha256": "50d3f52e12050dc5cfd2f5fd5ab06fb5e99896aa5990d9961e3615e39b6c6c67"
+      "bytes": 55342,
+      "sha256": "60f1ff6b0c16c7944e4cc816719691adcdf74d43ace28fdff2f007d8e17f74f0"
     },
     "src/datasets.py": {
       "bytes": 4389,
       "sha256": "51a17dd6ce5e9b755b63900678d1420c8194b42178b66b2603c20118a3876093"
     },
     "src/device_simulator.py": {
-      "bytes": 22159,
-      "sha256": "c75c98953dd7a4517d88bda49bd7f73af7ad37bcdd0339eafa3ceba9fa6b4632"
+      "bytes": 21956,
+      "sha256": "aa3a403f193c4001988d325d027b8d749bf96e3c240127219d07996c60d52cbb"
     },
     "src/explainability.py": {
       "bytes": 3897,
@@ -909,8 +909,8 @@
       "sha256": "25ad0b121e8207f309933a822a10adde0a1dd853e5103ca9d7f4e60411ff7c11"
     },
     "src/gateway.py": {
-      "bytes": 53928,
-      "sha256": "e06e793d94a4fc9e70442ed7ced1764f85376e295ac01fd0e476993a0bb18121"
+      "bytes": 55012,
+      "sha256": "deedd10ed3a772bd2d031c3c5716496d048312eb7a7f0e1def2a9fa0a9cb73ea"
     },
     "src/gnn_scorer.py": {
       "bytes": 9056,

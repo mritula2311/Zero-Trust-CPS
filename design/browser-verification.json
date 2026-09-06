@@ -24,7 +24,7 @@
     {
       "page": "/design/Main.dc.html",
       "width": 1600,
-      "contentHeight": 2334,
+      "contentHeight": 2373,
       "horizontalOverflow": false
     },
     {
@@ -50,7 +50,7 @@
     {
       "page": "/design/extracted/Main.dc.html",
       "width": 1600,
-      "contentHeight": 2334,
+      "contentHeight": 2373,
       "horizontalOverflow": false
     },
     {
@@ -100,11 +100,11 @@
   "runtimeExceptions": 0,
   "fixtureScope": "Synthetic API responses for browser tests only; no production gateway or hardware contacted.",
   "sourceHashes": {
-    "Main.dc.html": "cdaed9fdf0027232742dae9c2673c6864694f3313c51d1cf4e9db984f6c40ec5",
-    "extracted/Main.dc.html": "fbddb3075936d6fabb9699ebc61db4ae290c037e3633770fea21b546abaf49ab",
+    "Main.dc.html": "aac87c720fd24776c5f8a6dd9e711a270a3aeb55ba6d0190a6b3623089aea17d",
+    "extracted/Main.dc.html": "46d866e4b2b4ee37f28d841f0e689b3559a037034e23d85d7c4c2584bb42f836",
     "presentation.css": "12b537d59a14b0f546ba5659b03b3264e1f393d15125982788b539c333086d91",
     "presentation.js": "c202c657798e5c7a8f6c0133828701c3aa5d808ff7a9eab20f245282eb66c355",
-    "zero-trust-cps-command-center.html": "5597d83c8dd5a47fba176712b48f6fd40cd2e3476b4f2d3f6dd71b308a2bc361",
+    "zero-trust-cps-command-center.html": "39ae2245418c0a0285a446161a6c96ff1b80ee152cbc320163eff83cb07b9d83",
     "verify-dashboard.mjs": "2689e489e0f843040827051a301742bc80b5fdf34a7d8bfa2c12cf461ca946f4"
   },
   "hashNormalization": "sha256 of UTF-8 text with CRLF normalized to LF before hashing (see design/hash_lib.mjs); a Windows checkout with core.autocrlf converting the Git-stored LF blob to CRLF must not change this hash, but any substantive content edit still does."
