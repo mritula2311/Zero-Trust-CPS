@@ -1,5 +1,8 @@
 # 13 — System Architecture and Workflow
 
+> **[Paper-reference authority, 2026-09-06]** The [verified paper package](paper/00_PAPER_MASTER_GUIDE.md) governs current research claims. This document is retained as supporting implementation/history; earlier measurements and interpretations are historical unless reconfirmed there. Runtime uses GCN fusion; M6 is a standalone candidate. SW-420 has TRAIN capture only.
+
+
 > **2026-09-05 audit update:** Distinguish as-built Rule/IF/LSTM/GCN fusion from experimental Set Transformer. Physical Device 2 (SW-420) has its first real capture, TRAIN split only — VALIDATION/TEST still pending; M9 has training at 15 slots but no saved 15-node test.
 > Current evidence and limitations: RESULTS §0.13.17, then §0.13.18–§0.13.22.
 

@@ -1,5 +1,8 @@
 # Experimental Protocol — ZT-Duo 20-Node Hybrid CPS Testbed
 
+> **[Paper-reference authority, 2026-09-06]** The [verified paper package](paper/00_PAPER_MASTER_GUIDE.md) governs current research claims. This document is retained as supporting implementation/history; earlier measurements and interpretations are historical unless reconfirmed there. Runtime uses GCN fusion; M6 is a standalone candidate. SW-420 has TRAIN capture only.
+
+
 > **2026-09-05 audit update:** Two physical identities are configured; Device 001 (MPU6050) contributes TRAIN/VALIDATION/TEST observations, Device 002 (SW-420) contributes TRAIN observations only (first capture, session `20260905_162002` — see §0.13.18). The network was grown from 10 to 20 configured slots the same day to equalise sensor-type representation (§1 below). VALIDATION/TEST still use a pending context placeholder for Device 002; this is not 20 independently observed streams or source-independent calibration.
 > Current evidence and limitations: RESULTS §0.13.17, then §0.13.18–§0.13.22
 > (§0.13.19 fixed a pending-node masking bug and corrected §0.13.18.2's

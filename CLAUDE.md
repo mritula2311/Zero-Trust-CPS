@@ -1,5 +1,8 @@
 # CLAUDE.md — Zero-Trust CPS
 
+> **[Paper-reference authority, 2026-09-06]** The [verified paper package](docs/paper/00_PAPER_MASTER_GUIDE.md) governs current research claims. This document is retained as supporting implementation/history; earlier measurements and interpretations are historical unless reconfirmed there. Runtime uses GCN fusion; M6 is a standalone candidate. SW-420 has TRAIN capture only.
+
+
 > **Current status:** read RESULTS §0.13.17, then §0.13.18–§0.13.25 in order.
 > Keep archived artifacts/results intact when rebuilding the corrected
 > temporal chain. M9 is experimental, with no persisted n=15 test; LOW

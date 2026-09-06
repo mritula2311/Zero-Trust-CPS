@@ -1,5 +1,8 @@
 # 06 — Module 5: Access Control
 
+> **[Paper-reference authority, 2026-09-06]** The [verified paper package](paper/00_PAPER_MASTER_GUIDE.md) governs current research claims. This document is retained as supporting implementation/history; earlier measurements and interpretations are historical unless reconfirmed there. Runtime uses GCN fusion; M6 is a standalone candidate. SW-420 has TRAIN capture only.
+
+
 > **2026-09-05 audit update:** The live default is a contextual bandit (USE_RL_POLICY), not full RL. P6 is only the best constrained static grid point; P5 also meets the saved test bounds and scores higher macro-F1. Quarantine remains off.
 > Current evidence and limitations: RESULTS §0.13.17.
 

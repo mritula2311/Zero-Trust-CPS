@@ -1,5 +1,8 @@
 # 08 — Module 7: Monitoring and Audit
 
+> **[Paper-reference authority, 2026-09-06]** The [verified paper package](paper/00_PAPER_MASTER_GUIDE.md) governs current research claims. This document is retained as supporting implementation/history; earlier measurements and interpretations are historical unless reconfirmed there. Runtime uses GCN fusion; M6 is a standalone candidate. SW-420 has TRAIN capture only.
+
+
 > **2026-09-05 audit update:** SHAP additivity is in log-odds, not probability. SW-420 explanations now use its own four features. Hash-chain/checkpoint checks establish tamper evidence within their stated trust boundary, not certification.
 > Current evidence and limitations: RESULTS §0.13.17.
 

@@ -1,5 +1,8 @@
 # 07 — Module 6: Secure Communication
 
+> **[Paper-reference authority, 2026-09-06]** The [verified paper package](paper/00_PAPER_MASTER_GUIDE.md) governs current research claims. This document is retained as supporting implementation/history; earlier measurements and interpretations are historical unless reconfirmed there. Runtime uses GCN fusion; M6 is a standalone candidate. SW-420 has TRAIN capture only.
+
+
 > **2026-09-05 audit update:** The second transport is HTTPS POST over TLS, not CoAP/TLS. Gateway startup now refuses plaintext/unconfigured broker auth. Firmware peer-certificate verification remains a deployment blocker; see audit.
 > Current evidence and limitations: RESULTS §0.13.17.
 

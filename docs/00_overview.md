@@ -1,5 +1,8 @@
 # Zero-Trust Security Framework for IoT-Based CPS
 
+> **[Paper-reference authority, 2026-09-06]** The [verified paper package](paper/00_PAPER_MASTER_GUIDE.md) governs current research claims. This document is retained as supporting implementation/history; earlier measurements and interpretations are historical unless reconfirmed there. Runtime uses GCN fusion; M6 is a standalone candidate. SW-420 has TRAIN capture only.
+
+
 > **2026-09-05 audit update:** Live defaults remain legacy GCN fusion and a contextual bandit. Set Transformer is a research candidate; old Transformer-win and universal-GNN claims below are historical and superseded by RESULTS 0.13.2–17.
 > Current evidence and limitations: RESULTS §0.13.17.
 ## Low-Level Design — Master Overview

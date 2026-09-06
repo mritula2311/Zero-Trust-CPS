@@ -1,5 +1,10 @@
 # Results and Evaluation
 
+> **Final verification, 2026-09-06:** The [50-section audit](docs/FINAL_PROJECT_VERIFICATION.md) and [canonical numerical reference](docs/paper/13_RESULTS_MASTER_TABLES.md) record the current interpretation. Fresh replay confirms MPU disturbance detection 30/30 with 5/12 resting false alarms. M6 remains a standalone candidate. Corrected Task-2 count-to-MLP accuracy is 0.3958 to 0.5267; B0 is a network count. Nonfinite invalid-node arithmetic and a mixed-sensor explanation-evaluation crash were corrected without overwriting historical metrics, captures or checkpoints. Earlier sections retain their chronology.
+
+> **[Paper-reference authority, 2026-09-06]** The [verified paper package](docs/paper/00_PAPER_MASTER_GUIDE.md) governs current research claims. This document is retained as supporting implementation/history; earlier measurements and interpretations are historical unless reconfirmed there. Runtime uses GCN fusion; M6 is a standalone candidate. SW-420 has TRAIN capture only.
+
+
 > **Current interpretation:** §0.13.17 qualifies M9, generator validation and
 > post-audit reproducibility; §0.13.18 covers the first SW-420 hardware
 > capture, the 10→20-node network equalisation, and the M1/M2 isolated-recall

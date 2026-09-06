@@ -1,5 +1,8 @@
 # ZT-Duo / Zero-Trust CPS
 
+> **[Paper-reference authority, 2026-09-06]** The [verified paper package](docs/paper/00_PAPER_MASTER_GUIDE.md) governs current research claims. This document is retained as supporting implementation/history; earlier measurements and interpretations are historical unless reconfirmed there. Runtime uses GCN fusion; M6 is a standalone candidate. SW-420 has TRAIN capture only.
+
+
 A research gateway that authenticates CPS telemetry and keeps **Security Trust**
 separate from **Process Anomaly Trust** until an access policy consumes both.
 An authenticated physical disturbance should raise an operations alert while

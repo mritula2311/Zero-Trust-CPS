@@ -1,5 +1,8 @@
 # 04 — Module 3: Trust Evaluation
 
+> **[Paper-reference authority, 2026-09-06]** The [verified paper package](paper/00_PAPER_MASTER_GUIDE.md) governs current research claims. This document is retained as supporting implementation/history; earlier measurements and interpretations are historical unless reconfirmed there. Runtime uses GCN fusion; M6 is a standalone candidate. SW-420 has TRAIN capture only.
+
+
 > **2026-09-05 audit update:** Runtime remains Rule/IF/LSTM/legacy GCN fusion. M6/M8/M9 are experimental; temporal Transformer and NP-ST are not live inputs. Temporal training now preserves run boundaries; saved performance predates this fix.
 > Current evidence and limitations: RESULTS §0.13.17.
 

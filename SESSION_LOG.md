@@ -1,5 +1,8 @@
 # Session Log — Zero-Trust CPS Project
 
+> **[Paper-reference authority, 2026-09-06]** The [verified paper package](docs/paper/00_PAPER_MASTER_GUIDE.md) governs current research claims. This document is retained as supporting implementation/history; earlier measurements and interpretations are historical unless reconfirmed there. Runtime uses GCN fusion; M6 is a standalone candidate. SW-420 has TRAIN capture only.
+
+
 Single running catch-up document for everything done on this project across
 sessions, in order. Read this top-to-bottom to get fully current without
 having to piece the story together from `docs/05_phase_status.md`,

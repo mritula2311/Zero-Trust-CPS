@@ -1,5 +1,8 @@
 # GNN baseline cross-review and paper evidence ledger
 
+> **[Paper-reference authority, 2026-09-06]** The [verified paper package](paper/00_PAPER_MASTER_GUIDE.md) governs current research claims. This document is retained as supporting implementation/history; earlier measurements and interpretations are historical unless reconfirmed there. Runtime uses GCN fusion; M6 is a standalone candidate. SW-420 has TRAIN capture only.
+
+
 Date: 2026-09-06. Reviewed local main:
 `4f6afa25e4721c13a4e9f0355548f8ca07c70a5a`.
 Review branch: `astra/verify-pending-masking-20260906`. Code/test repair:

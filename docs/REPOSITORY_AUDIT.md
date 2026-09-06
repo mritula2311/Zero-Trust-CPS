@@ -1,5 +1,8 @@
 # Repository Audit — ZT-Duo / zt-cps-starter
 
+> **[Paper-reference authority, 2026-09-06]** The [verified paper package](paper/00_PAPER_MASTER_GUIDE.md) governs current research claims. This document is retained as supporting implementation/history; earlier measurements and interpretations are historical unless reconfirmed there. Runtime uses GCN fusion; M6 is a standalone candidate. SW-420 has TRAIN capture only.
+
+
 > **2026-09-05 update:** Historical audit retained. Current evidence and
 > limitations, including temporal continuity and M9 claim qualifications:
 > RESULTS §0.13.17, then §0.13.18–§0.13.22 (network grown again, 10→20 nodes,

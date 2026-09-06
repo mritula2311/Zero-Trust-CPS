@@ -1,5 +1,8 @@
 # 05 — Module 4: Continuous Verification
 
+> **[Paper-reference authority, 2026-09-06]** The [verified paper package](paper/00_PAPER_MASTER_GUIDE.md) governs current research claims. This document is retained as supporting implementation/history; earlier measurements and interpretations are historical unless reconfirmed there. Runtime uses GCN fusion; M6 is a standalone candidate. SW-420 has TRAIN capture only.
+
+
 > **2026-09-05 audit update:** MQTT, HTTPS and watchdog share a pipeline lock. Process evidence is retained on silence and flagged stale. Research benchmark snapshots do not establish live deployment behavior.
 > Current evidence and limitations: RESULTS §0.13.17.
 

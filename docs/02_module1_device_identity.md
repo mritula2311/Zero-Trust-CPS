@@ -1,5 +1,8 @@
 # 02 — Module 1: Device Identity
 
+> **[Paper-reference authority, 2026-09-06]** The [verified paper package](paper/00_PAPER_MASTER_GUIDE.md) governs current research claims. This document is retained as supporting implementation/history; earlier measurements and interpretations are historical unless reconfirmed there. Runtime uses GCN fusion; M6 is a standalone candidate. SW-420 has TRAIN capture only.
+
+
 > **2026-09-05 audit update:** The registry has 12 identities, not 12 observed devices. Two physical IDs are configured; only MPU6050 has captured data. Placeholder HMAC keys are not accepted by the gateway.
 > Current evidence and limitations: RESULTS §0.13.17.
 
