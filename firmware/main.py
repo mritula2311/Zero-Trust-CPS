@@ -92,6 +92,14 @@ MQTT_USE_AUTH = True
 # Ignored entirely when NTP succeeds, since NTP sets a true UTC clock.
 RTC_LOCAL_UTC_OFFSET_SECONDS = 5 * 3600 + 30 * 60   # IST (UTC+5:30)
 
+# Update this to the current local (IST) date/time immediately before each
+# upload/run -- this hotspot has no route to an NTP server, so this is the
+# only way the RTC ever gets set to something close to correct. Tuple order
+# is (year, month, day, weekday, hours, minutes, seconds, subseconds) --
+# that's machine.RTC().datetime()'s actual field order on this port; weekday
+# is not used by time.time(), so any value there is fine.
+BUILD_TIME_REFERENCE = (2026, 9, 7, 0, 0, 30, 0, 0)
+
 MPU6050_I2C_ADDR = 0x68
 
 TELEMETRY_TOPIC = b"cps/telemetry"
@@ -159,6 +167,7 @@ def sync_time():
     # (ETIMEDOUT) even though a retry a couple seconds later succeeds, so
     # one-shot was leaving the board on an un-synced clock for its whole
     # session more often than it should.
+    import machine
     import ntptime
     for attempt in range(1, 4):
         try:
@@ -169,9 +178,10 @@ def sync_time():
             print("[time] NTP sync attempt %d/3 failed:" % attempt, e)
             if attempt < 3:
                 time.sleep_ms(2000)
-    print("[time] NTP sync failed after 3 attempts -- treating the RTC as LOCAL time and")
-    print("[time] subtracting RTC_LOCAL_UTC_OFFSET_SECONDS =", RTC_LOCAL_UTC_OFFSET_SECONDS,
-          "to get UTC (see that constant's comment)")
+    machine.RTC().datetime(BUILD_TIME_REFERENCE)
+    print("[time] NTP sync failed after 3 attempts -- RTC set from BUILD_TIME_REFERENCE")
+    print("[time] (update that constant before each upload), subtracting RTC_LOCAL_UTC_OFFSET_SECONDS =",
+          RTC_LOCAL_UTC_OFFSET_SECONDS, "to get UTC (see that constant's comment)")
     return False
 
 

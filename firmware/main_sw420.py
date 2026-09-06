@@ -74,6 +74,8 @@ _pin = None
 
 def connect_wifi():
     wlan = network.WLAN(network.STA_IF)
+    wlan.active(False)
+    time.sleep_ms(200)
     wlan.active(True)
     if not wlan.isconnected():
         print("[wifi] connecting to", WIFI_SSID)
@@ -87,10 +89,24 @@ def connect_wifi():
     print("[wifi] connected:", wlan.ifconfig())
 
 
+
+# Update this to the current local (IST) date/time immediately before each
+# upload/run -- this hotspot has no route to an NTP server, so this is the
+# only way the RTC ever gets set to something close to correct. Tuple order
+# is (year, month, day, weekday, hours, minutes, seconds, subseconds) --
+# that's machine.RTC().datetime()'s actual field order on this port; weekday
+# is not used by time.time(), so any value there is fine.
+BUILD_TIME_REFERENCE = (2026, 9, 7, 0, 0, 30, 0, 0)
+
+
 def sync_time():
     """True if NTP set a real UTC clock. Same retry philosophy as main.py: an
     isolated hotspot often has no route to an NTP server, and the caller
-    compensates with RTC_LOCAL_UTC_OFFSET_SECONDS rather than failing."""
+    compensates with RTC_LOCAL_UTC_OFFSET_SECONDS rather than failing. When
+    NTP fails, the RTC is set from BUILD_TIME_REFERENCE instead of trusting
+    whatever value the RTC happens to already hold -- found live that an
+    unset/drifted RTC was off by anywhere from hours to a full day, which
+    fails the gateway's freshness window on every single message."""
     try:
         import ntptime
         for _ in range(3):
@@ -102,7 +118,8 @@ def sync_time():
                 time.sleep_ms(500)
     except ImportError:
         pass
-    print("[time] NTP unreachable -- assuming RTC holds LOCAL time")
+    machine.RTC().datetime(BUILD_TIME_REFERENCE)
+    print("[time] NTP unreachable -- RTC set from BUILD_TIME_REFERENCE (update this constant before each upload)")
     return False
 
 
