@@ -7,7 +7,7 @@ import {existsSync} from 'node:fs';
 import {dirname, join, resolve, extname, delimiter} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {tmpdir} from 'node:os';
-import {createHash} from 'node:crypto';
+import {canonicalHash} from './hash_lib.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const output = process.env.DASHBOARD_QA_DIR || await mkdtemp(join(tmpdir(), 'zt-dashboard-qa-'));
@@ -143,6 +143,25 @@ try {
   await evaluate('(()=>{const label=document.createElement("div");label.textContent="DEMO MOCK MODE · synthetic fixtures · no hardware";label.style.cssText="position:fixed;bottom:8px;left:8px;right:8px;z-index:9999;background:#fff;color:#111;padding:8px;font:14px sans-serif;border:2px solid #111;text-align:center";document.body.appendChild(label)})()');
   assert(await evaluate('document.getElementById("devs").textContent.includes("PHYSICAL ID · SW-420")'));
   assert(await evaluate('document.getElementById("p-policy").textContent.includes("offline bandit")'));
+  // Missing governance/IEC observations (empty coverage/frs, the initial fixtures) must
+  // render an explicit missing state, never a numeric 0% -- zero is a real measurement,
+  // absence of measurement is not.
+  assert.equal(await evaluate('document.getElementById("p-gov").textContent'),'governance: NIST UNKNOWN · IEC UNKNOWN');
+  fixtures['/api/governance']={coverage:{1:0,2:0.75},tenets:{1:'Never trust, always verify',2:'Assume breach'},sample_size:8};
+  fixtures['/api/iec62443']={frs:[{id:'FR1',name:'Identification & Authentication',status:'implemented',coverage:0.5}]};
+  await waitFor('document.getElementById("p-gov").textContent === "governance: NIST 38% · IEC 50%"');
+  assert.equal(await evaluate('document.querySelectorAll("#nist .cov")[0].querySelector(".lab b").textContent'),'0%',
+    'A tenet with a genuinely observed zero coverage must still read 0%, not a missing marker');
+  fixtures['/api/governance']={coverage:{2:0.75},tenets:{1:'Never trust, always verify',2:'Assume breach'},sample_size:6};
+  await waitFor('document.getElementById("p-gov").textContent === "governance: NIST 75% · IEC 50%"');
+  assert.equal(await evaluate('document.querySelectorAll("#nist .cov")[0].querySelector(".lab b").textContent'),'—',
+    'A tenet with no observation at all must show the missing marker, not 0%');
+  fixtures['/api/iec62443']={frs:[{id:'FR1',name:'Identification & Authentication',status:'implemented',coverage:0}]};
+  await waitFor('document.getElementById("p-gov").textContent === "governance: NIST 75% · IEC 0%"');
+  fixtures['/api/governance']={coverage:{},tenets:{1:'Never trust, always verify'},sample_size:0};
+  fixtures['/api/iec62443']={frs:[]};
+  await waitFor('document.getElementById("p-gov").textContent === "governance: NIST UNKNOWN · IEC UNKNOWN"');
+  assert.equal(await evaluate('document.getElementById("nisttag").textContent'),'avg UNKNOWN · n=0');
   for(const width of [320,768,1024,1440]){
     await send('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:false});
     const content=await evaluate('document.documentElement.scrollWidth');
@@ -189,9 +208,10 @@ try {
   fixtures['/api/devices']={devices:[]};
   await waitFor('document.getElementById("devs").textContent.includes("No registered identities")');
   assert.equal(errors.length,0,JSON.stringify(errors));
-  const result={ok:true,checks,interactions:['sensor selection and schema','policy explanation switch','four static actions','0.6 threshold equality','keyboard activation','physical SW identity','API disconnect/recovery','empty registry','accepted/rejected observations','unavailable SHAP shown as missing','populated layout at 320 and 1440','backend SILENT displayed OFFLINE without policy substitution','watchdog authentication UNKNOWN','replay and HMAC event labels','malformed numeric scores missing','missing chain checks UNKNOWN','invalid API schema recoverable'],numericComparisons:18,localPresentationReferences:'All file targets exist',presentationApiRequests:0,runtimeExceptions:errors.length,fixtureScope:'Synthetic API responses for browser tests only; no production gateway or hardware contacted.'};
+  const result={ok:true,checks,interactions:['sensor selection and schema','policy explanation switch','four static actions','0.6 threshold equality','keyboard activation','physical SW identity','API disconnect/recovery','empty registry','accepted/rejected observations','unavailable SHAP shown as missing','populated layout at 320 and 1440','backend SILENT displayed OFFLINE without policy substitution','watchdog authentication UNKNOWN','replay and HMAC event labels','malformed numeric scores missing','missing chain checks UNKNOWN','invalid API schema recoverable','missing governance/IEC observation shown as UNKNOWN not 0%, genuine zero coverage still shown as 0%'],numericComparisons:18,localPresentationReferences:'All file targets exist',presentationApiRequests:0,runtimeExceptions:errors.length,fixtureScope:'Synthetic API responses for browser tests only; no production gateway or hardware contacted.'};
   result.sourceHashes={};
-  for(const name of ['Main.dc.html','extracted/Main.dc.html','presentation.css','presentation.js','zero-trust-cps-command-center.html','verify-dashboard.mjs'])result.sourceHashes[name]=createHash('sha256').update(await readFile(join(root,'design',name))).digest('hex');
+  result.hashNormalization='sha256 of UTF-8 text with CRLF normalized to LF before hashing (see design/hash_lib.mjs); a Windows checkout with core.autocrlf converting the Git-stored LF blob to CRLF must not change this hash, but any substantive content edit still does.';
+  for(const name of ['Main.dc.html','extracted/Main.dc.html','presentation.css','presentation.js','zero-trust-cps-command-center.html','verify-dashboard.mjs'])result.sourceHashes[name]=canonicalHash(await readFile(join(root,'design',name)));
   await writeFile(join(output,'verification.json'),JSON.stringify(result,null,2));
   console.log(JSON.stringify({ok:true,output,viewportChecks:checks.length,interactions:result.interactions.length}));
   await send('Browser.close').catch(()=>{});

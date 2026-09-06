@@ -1,0 +1,40 @@
+# Normalize line endings for text sources so a checkout with core.autocrlf=true
+# (Windows) cannot turn a CRLF/LF conversion into what looks like a content
+# change in a verification hash. Git stores and diffs these as LF; only the
+# working-tree checkout follows the platform's line ending. See
+# design/hash_lib.mjs and design/verify-dashboard.mjs for the verification-side
+# canonicalization that makes this robust even before this file is committed
+# and a fresh checkout has actually renormalized.
+* text=auto eol=lf
+
+*.py text eol=lf
+*.js text eol=lf
+*.mjs text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.csv text eol=lf
+*.log text eol=lf
+*.cfg text eol=lf
+*.ini text eol=lf
+*.sh text eol=lf
+.gitattributes text eol=lf
+.gitignore text eol=lf
+LICENSE text eol=lf
+
+# Binary artifacts: never text-normalize these -- line-ending conversion would
+# corrupt model weights, images, and archives.
+*.pt binary
+*.png binary
+*.joblib binary
+*.npy binary
+*.docx binary
+*.db binary
+*.key binary
+*.pem binary
+*.p12 binary
+*.pfx binary
+*.jks binary
+*.keystore binary
