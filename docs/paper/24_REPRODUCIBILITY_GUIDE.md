@@ -16,7 +16,7 @@ python scripts/build_paper_results.py
 python scripts/verify_paper_package.py
 ```
 
-pytest was absent from the original environment. For this audit it was installed into `D:/zt-cps/verification-tools`; test commands used `$env:PYTHONPATH='D:/zt-cps/verification-tools'` before `python -m pytest`. This is an audit-local runner dependency, not a runtime requirement. Stdlib unittest remains supported. No model training is required for the replay commands above. Generator validation returns 1 because the stress presets fail internal marginal checks; use the per-preset outcomes rather than treating this as a software exception.
+pytest was absent from the original environment. For this audit it was installed into `<WORKSPACE_ROOT>/verification-tools`; test commands used `$env:PYTHONPATH='<WORKSPACE_ROOT>/verification-tools'` before `python -m pytest`. This is an audit-local runner dependency, not a runtime requirement. Stdlib unittest remains supported. No model training is required for the replay commands above. Generator validation returns 1 because the stress presets fail internal marginal checks; use the per-preset outcomes rather than treating this as a software exception.
 
 | Result / table | Command / producing script | Required inputs / checkpoint / seed | Output and expected result | Reproduction status / limitation |
 |---|---|---|---|---|

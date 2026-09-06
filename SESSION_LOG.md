@@ -15,7 +15,7 @@ every session, not just this one** — treat it as the first thing to read.
 
 ## 1. Starting point
 
-Repo `d:\zt-cps\zt-cps-starter\` arrived as a "starter kit": a working
+Repo `<REPO_ROOT>\` arrived as a "starter kit": a working
 software-only Zero-Trust pipeline covering Phases 1–5 (Report Section 9) —
 `src/{config,gateway,device_simulator,trust_engine,policy_engine,audit_log}.py`,
 docs walking through Modules 1–7, `requirements.txt` with just `paho-mqtt`
@@ -3028,7 +3028,7 @@ disagreements. Two architectures converging on the same decision boundary is the
 finding; identical metrics are the symptom.
 
 **A second documentation defect, worse than it sounds.** There are two
-`CLAUDE.md` files: `D:\zt-cps\CLAUDE.md` and the one checked into the repository.
+`CLAUDE.md` files: `<WORKSPACE_ROOT>\CLAUDE.md` and the one checked into the repository.
 Every invariant added this session went into the first -- which is **not under
 version control**. The checked-in copy still carried the five-step training order,
 `evaluate_ablation.py thresholds at 0.5`, and Level-2 at 39%. Anyone cloning the

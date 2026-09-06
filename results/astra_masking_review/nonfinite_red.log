@@ -14,14 +14,14 @@ test_nonfinite_pending_content_cannot_poison_gnn_inference_or_training (test_gnn
 FAIL: test_nonfinite_pending_concat_and_snapshot_blocks_are_canonical (test_gnn_baseline_audit_integration.TestAuditIntegration.test_nonfinite_pending_concat_and_snapshot_blocks_are_canonical) (value=nan)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "D:\zt-cps\zt-cps-starter\tests\test_gnn_baseline_audit_integration.py", line 25, in test_nonfinite_pending_concat_and_snapshot_blocks_are_canonical
+  File "<REPO_ROOT>\tests\test_gnn_baseline_audit_integration.py", line 25, in test_nonfinite_pending_concat_and_snapshot_blocks_are_canonical
     np.testing.assert_array_equal(actual, expected)
-  File "C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 1121, in assert_array_equal
+  File "<HOME>\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 1121, in assert_array_equal
     assert_array_compare(operator.__eq__, actual, desired, err_msg=err_msg,
-  File "C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 847, in assert_array_compare
+  File "<HOME>\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 847, in assert_array_compare
     flagged = func_assert_same_pos(x, y, func=isnan, hasval='nan')
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 790, in func_assert_same_pos
+  File "<HOME>\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 790, in func_assert_same_pos
     raise AssertionError(msg)
 AssertionError:
 Arrays are not equal
@@ -38,14 +38,14 @@ nan location mismatch:
 FAIL: test_nonfinite_pending_concat_and_snapshot_blocks_are_canonical (test_gnn_baseline_audit_integration.TestAuditIntegration.test_nonfinite_pending_concat_and_snapshot_blocks_are_canonical) (value=inf)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "D:\zt-cps\zt-cps-starter\tests\test_gnn_baseline_audit_integration.py", line 25, in test_nonfinite_pending_concat_and_snapshot_blocks_are_canonical
+  File "<REPO_ROOT>\tests\test_gnn_baseline_audit_integration.py", line 25, in test_nonfinite_pending_concat_and_snapshot_blocks_are_canonical
     np.testing.assert_array_equal(actual, expected)
-  File "C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 1121, in assert_array_equal
+  File "<HOME>\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 1121, in assert_array_equal
     assert_array_compare(operator.__eq__, actual, desired, err_msg=err_msg,
-  File "C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 847, in assert_array_compare
+  File "<HOME>\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 847, in assert_array_compare
     flagged = func_assert_same_pos(x, y, func=isnan, hasval='nan')
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 790, in func_assert_same_pos
+  File "<HOME>\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 790, in func_assert_same_pos
     raise AssertionError(msg)
 AssertionError:
 Arrays are not equal
@@ -62,14 +62,14 @@ nan location mismatch:
 FAIL: test_nonfinite_pending_concat_and_snapshot_blocks_are_canonical (test_gnn_baseline_audit_integration.TestAuditIntegration.test_nonfinite_pending_concat_and_snapshot_blocks_are_canonical) (value=-inf)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "D:\zt-cps\zt-cps-starter\tests\test_gnn_baseline_audit_integration.py", line 25, in test_nonfinite_pending_concat_and_snapshot_blocks_are_canonical
+  File "<REPO_ROOT>\tests\test_gnn_baseline_audit_integration.py", line 25, in test_nonfinite_pending_concat_and_snapshot_blocks_are_canonical
     np.testing.assert_array_equal(actual, expected)
-  File "C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 1121, in assert_array_equal
+  File "<HOME>\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 1121, in assert_array_equal
     assert_array_compare(operator.__eq__, actual, desired, err_msg=err_msg,
-  File "C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 847, in assert_array_compare
+  File "<HOME>\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 847, in assert_array_compare
     flagged = func_assert_same_pos(x, y, func=isnan, hasval='nan')
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 790, in func_assert_same_pos
+  File "<HOME>\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 790, in func_assert_same_pos
     raise AssertionError(msg)
 AssertionError:
 Arrays are not equal
@@ -86,14 +86,14 @@ nan location mismatch:
 FAIL: test_nonfinite_pending_content_cannot_poison_gnn_inference_or_training (test_gnn_baseline_audit_integration.TestAuditIntegration.test_nonfinite_pending_content_cannot_poison_gnn_inference_or_training) (value=nan)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "D:\zt-cps\zt-cps-starter\tests\test_gnn_baseline_audit_integration.py", line 35, in test_nonfinite_pending_content_cannot_poison_gnn_inference_or_training
+  File "<REPO_ROOT>\tests\test_gnn_baseline_audit_integration.py", line 35, in test_nonfinite_pending_content_cannot_poison_gnn_inference_or_training
     np.testing.assert_array_equal(
-  File "C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 1121, in assert_array_equal
+  File "<HOME>\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 1121, in assert_array_equal
     assert_array_compare(operator.__eq__, actual, desired, err_msg=err_msg,
-  File "C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 847, in assert_array_compare
+  File "<HOME>\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 847, in assert_array_compare
     flagged = func_assert_same_pos(x, y, func=isnan, hasval='nan')
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 790, in func_assert_same_pos
+  File "<HOME>\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 790, in func_assert_same_pos
     raise AssertionError(msg)
 AssertionError:
 Arrays are not equal
@@ -110,14 +110,14 @@ nan location mismatch:
 FAIL: test_nonfinite_pending_content_cannot_poison_gnn_inference_or_training (test_gnn_baseline_audit_integration.TestAuditIntegration.test_nonfinite_pending_content_cannot_poison_gnn_inference_or_training) (value=inf)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "D:\zt-cps\zt-cps-starter\tests\test_gnn_baseline_audit_integration.py", line 35, in test_nonfinite_pending_content_cannot_poison_gnn_inference_or_training
+  File "<REPO_ROOT>\tests\test_gnn_baseline_audit_integration.py", line 35, in test_nonfinite_pending_content_cannot_poison_gnn_inference_or_training
     np.testing.assert_array_equal(
-  File "C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 1121, in assert_array_equal
+  File "<HOME>\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 1121, in assert_array_equal
     assert_array_compare(operator.__eq__, actual, desired, err_msg=err_msg,
-  File "C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 847, in assert_array_compare
+  File "<HOME>\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 847, in assert_array_compare
     flagged = func_assert_same_pos(x, y, func=isnan, hasval='nan')
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 790, in func_assert_same_pos
+  File "<HOME>\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 790, in func_assert_same_pos
     raise AssertionError(msg)
 AssertionError:
 Arrays are not equal
@@ -134,14 +134,14 @@ nan location mismatch:
 FAIL: test_nonfinite_pending_content_cannot_poison_gnn_inference_or_training (test_gnn_baseline_audit_integration.TestAuditIntegration.test_nonfinite_pending_content_cannot_poison_gnn_inference_or_training) (value=-inf)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "D:\zt-cps\zt-cps-starter\tests\test_gnn_baseline_audit_integration.py", line 35, in test_nonfinite_pending_content_cannot_poison_gnn_inference_or_training
+  File "<REPO_ROOT>\tests\test_gnn_baseline_audit_integration.py", line 35, in test_nonfinite_pending_content_cannot_poison_gnn_inference_or_training
     np.testing.assert_array_equal(
-  File "C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 1121, in assert_array_equal
+  File "<HOME>\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 1121, in assert_array_equal
     assert_array_compare(operator.__eq__, actual, desired, err_msg=err_msg,
-  File "C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 847, in assert_array_compare
+  File "<HOME>\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 847, in assert_array_compare
     flagged = func_assert_same_pos(x, y, func=isnan, hasval='nan')
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 790, in func_assert_same_pos
+  File "<HOME>\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\testing\_private\utils.py", line 790, in func_assert_same_pos
     raise AssertionError(msg)
 AssertionError:
 Arrays are not equal

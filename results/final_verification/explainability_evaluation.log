@@ -15,7 +15,7 @@ coordinated            lstm_ae_score               0.001    0.001 no
 
 Per-signal breakdown:
 Traceback (most recent call last):
-  File "D:\zt-cps\zt-cps-starter\scripts\evaluate_explainability_level2.py", line 326, in <module>
+  File "<REPO_ROOT>\scripts\evaluate_explainability_level2.py", line 326, in <module>
   gnn_score                78/78 (100%) flipped back to legitimate after perturbation
   isolation_forest_score   1/2 (50%) flipped back to legitimate after perturbation
   lstm_ae_score            0/139 (0%) flipped back to legitimate after perturbation
@@ -55,9 +55,9 @@ BEST k-of-5 channel subset is repaired to its training mean and the window resco
    channels repaired |  flipped to >= 0.5 |  median error after
   --------------------------------------------------------------
     main()
-  File "D:\zt-cps\zt-cps-starter\scripts\evaluate_explainability_level2.py", line 322, in main
+  File "<REPO_ROOT>\scripts\evaluate_explainability_level2.py", line 322, in main
     minimal_repair_set_measurement()
-  File "D:\zt-cps\zt-cps-starter\scripts\evaluate_explainability_level2.py", line 129, in minimal_repair_set_measurement
+  File "<REPO_ROOT>\scripts\evaluate_explainability_level2.py", line 129, in minimal_repair_set_measurement
     arr = (w - st["mean"]) / st["std"]
            ~~^~~~~~~~~~~~
 ValueError: operands could not be broadcast together with shapes (8,4) (5,)

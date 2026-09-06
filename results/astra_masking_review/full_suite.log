@@ -1,8 +1,8 @@
-test_malformed_content_length_rejected (test_coap_server_hardening.TestCoapServerHardening.test_malformed_content_length_rejected) ... C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\shap\plots\colors\_colors.py:47: PendingDeprecationWarning: The set_bad function will be deprecated in a future version. Use cmap.with_extremes(bad=...) or Colormap(bad=...) instead.
+test_malformed_content_length_rejected (test_coap_server_hardening.TestCoapServerHardening.test_malformed_content_length_rejected) ... <HOME>\AppData\Local\Programs\Python\Python312\Lib\site-packages\shap\plots\colors\_colors.py:47: PendingDeprecationWarning: The set_bad function will be deprecated in a future version. Use cmap.with_extremes(bad=...) or Colormap(bad=...) instead.
   red_blue.set_bad(gray_rgb.tolist(), 1.0)
-C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\shap\plots\colors\_colors.py:48: PendingDeprecationWarning: The set_over function will be deprecated in a future version. Use cmap.with_extremes(over=...) or Colormap(over=...) instead.
+<HOME>\AppData\Local\Programs\Python\Python312\Lib\site-packages\shap\plots\colors\_colors.py:48: PendingDeprecationWarning: The set_over function will be deprecated in a future version. Use cmap.with_extremes(over=...) or Colormap(over=...) instead.
   red_blue.set_over(gray_rgb.tolist(), 1.0)
-C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\shap\plots\colors\_colors.py:49: PendingDeprecationWarning: The set_under function will be deprecated in a future version. Use cmap.with_extremes(under=...) or Colormap(under=...) instead.
+<HOME>\AppData\Local\Programs\Python\Python312\Lib\site-packages\shap\plots\colors\_colors.py:49: PendingDeprecationWarning: The set_under function will be deprecated in a future version. Use cmap.with_extremes(under=...) or Colormap(under=...) instead.
   red_blue.set_under(gray_rgb.tolist(), 1.0)  # "under" is incorrectly used instead of "bad" in the scatter plot
 ok
 test_missing_content_length_rejected (test_coap_server_hardening.TestCoapServerHardening.test_missing_content_length_rejected) ... ok
@@ -57,10 +57,10 @@ Edit a row AND recompute every subsequent hash. The chain is then ... ok
 test_naive_edit_is_caught_by_the_full_scan (test_invariants.TestAuditIntegrity.test_naive_edit_is_caught_by_the_full_scan)
 Edit a row, leave hashes alone. Only the full scan sees this. ... ok
 test_tampered_checkpoint_file_is_detected (test_invariants.TestAuditIntegrity.test_tampered_checkpoint_file_is_detected)
-The checkpoint store itself is HMAC'd; editing it must not help. ... D:\zt-cps\zt-cps-starter\tests\test_invariants.py:485: ResourceWarning: unclosed file <_io.TextIOWrapper name='C:\\Users\\MRITUL~1\\AppData\\Local\\Temp\\ztcps-audit-488a6m8m\\checkpoints.jsonl' mode='r' encoding='utf-8'>
+The checkpoint store itself is HMAC'd; editing it must not help. ... <REPO_ROOT>\tests\test_invariants.py:485: ResourceWarning: unclosed file <_io.TextIOWrapper name='<HOME_8_3>\\AppData\\Local\\Temp\\ztcps-audit-488a6m8m\\checkpoints.jsonl' mode='r' encoding='utf-8'>
   lines = [l for l in open(self.cp, encoding="utf-8").read().splitlines() if l.strip()]
 ResourceWarning: Enable tracemalloc to get the object allocation traceback
-D:\zt-cps\zt-cps-starter\tests\test_invariants.py:491: ResourceWarning: unclosed file <_io.TextIOWrapper name='C:\\Users\\MRITUL~1\\AppData\\Local\\Temp\\ztcps-audit-488a6m8m\\checkpoints.jsonl' mode='w' encoding='utf-8'>
+<REPO_ROOT>\tests\test_invariants.py:491: ResourceWarning: unclosed file <_io.TextIOWrapper name='<HOME_8_3>\\AppData\\Local\\Temp\\ztcps-audit-488a6m8m\\checkpoints.jsonl' mode='w' encoding='utf-8'>
   open(self.cp, "w", encoding="utf-8").write("\n".join(lines) + "\n")
 ResourceWarning: Enable tracemalloc to get the object allocation traceback
 ok
@@ -84,7 +84,7 @@ test_optional_field_does_not_break_ordering (test_invariants.TestCanonicalisatio
 step_up_nonce_echo appears only sometimes; sorted-key ordering must ... ok
 test_all_five_features_match_the_reference (test_invariants.TestFirmwareReferenceEquivalence.test_all_five_features_match_the_reference) ... ok
 test_firmware_uses_real_trig_not_an_approximation (test_invariants.TestFirmwareReferenceEquivalence.test_firmware_uses_real_trig_not_an_approximation)
-Guards the specific regression: a truncated Taylor series had 7.5e-2 ... D:\zt-cps\zt-cps-starter\tests\test_invariants.py:243: ResourceWarning: unclosed file <_io.TextIOWrapper name='D:\\zt-cps\\zt-cps-starter\\tests\\..\\firmware\\main.py' mode='r' encoding='utf-8'>
+Guards the specific regression: a truncated Taylor series had 7.5e-2 ... <REPO_ROOT>\tests\test_invariants.py:243: ResourceWarning: unclosed file <_io.TextIOWrapper name='<REPO_ROOT>\\tests\\..\\firmware\\main.py' mode='r' encoding='utf-8'>
   src = open(path, encoding="utf-8").read()
 ResourceWarning: Enable tracemalloc to get the object allocation traceback
 ok
@@ -133,7 +133,7 @@ A floating ESP32 input fabricates edges indistinguishable from real ... ok
 test_sample_window_paces_itself (test_invariants.TestSW420SamplingContract.test_sample_window_paces_itself)
 A bare read loop with no delay is the defect that produced a 12.3x ... ok
 test_anti_alias_filter_is_configured_below_nyquist (test_invariants.TestSamplingContract.test_anti_alias_filter_is_configured_below_nyquist)
-Pacing the sampling loop moved Nyquist from 615 Hz down to 50 Hz, ... D:\zt-cps\zt-cps-starter\tests\test_invariants.py:651: ResourceWarning: unclosed file <_io.TextIOWrapper name='D:\\zt-cps\\zt-cps-starter\\tests\\..\\firmware\\main.py' mode='r' encoding='utf-8'>
+Pacing the sampling loop moved Nyquist from 615 Hz down to 50 Hz, ... <REPO_ROOT>\tests\test_invariants.py:651: ResourceWarning: unclosed file <_io.TextIOWrapper name='<REPO_ROOT>\\tests\\..\\firmware\\main.py' mode='r' encoding='utf-8'>
   return open(path, encoding="utf-8").read()
 ResourceWarning: Enable tracemalloc to get the object allocation traceback
 ok
@@ -142,7 +142,7 @@ The firmware and the reference implementation must agree, or the ... ok
 test_firmware_drains_the_inbound_queue (test_invariants.TestSamplingContract.test_firmware_drains_the_inbound_queue)
 `check_msg()` handles at most ONE pending message. The gateway publishes ... ok
 test_no_stale_dt_ms_claim (test_invariants.TestSamplingContract.test_no_stale_dt_ms_claim)
-config.py once documented a `dt_ms=10 sampling loop` that did not ... D:\zt-cps\zt-cps-starter\tests\test_invariants.py:709: ResourceWarning: unclosed file <_io.TextIOWrapper name='D:\\zt-cps\\zt-cps-starter\\tests\\..\\src\\config.py' mode='r' encoding='utf-8'>
+config.py once documented a `dt_ms=10 sampling loop` that did not ... <REPO_ROOT>\tests\test_invariants.py:709: ResourceWarning: unclosed file <_io.TextIOWrapper name='<REPO_ROOT>\\tests\\..\\src\\config.py' mode='r' encoding='utf-8'>
   "src", "config.py"), encoding="utf-8").read()
 ResourceWarning: Enable tracemalloc to get the object allocation traceback
 ok

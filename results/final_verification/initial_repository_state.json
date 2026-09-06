@@ -1,5 +1,5 @@
 {
-  "workspace": "D:/zt-cps/zt-cps-starter",
+  "workspace": "<REPO_ROOT>",
   "branch": "astra/verify-pending-masking-20260906",
   "initial_head": "cf4d82c4f7522ec9133d1e86324f8c47a3043288",
   "local_main": "4f6afa25e4721c13a4e9f0355548f8ca07c70a5a",
