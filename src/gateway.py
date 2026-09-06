@@ -71,6 +71,7 @@ from config import (
     DECISION_TOPIC,
     CHALLENGE_TOPIC,
     DEVICE_REGISTRY,
+    REAL_HARDWARE_DEVICE_IDS,
     USE_RL_POLICY,
     FEATURE_NAMES,
     is_feature_vector,
@@ -734,9 +735,16 @@ def _run_full_chain_scan() -> dict:
 
 
 def _build_devices_view() -> list:
+    # DEVICE_REGISTRY also carries the 18 simulated nodes of the offline
+    # 20-node network benchmark (config.py) plus the starter-kit's simulated
+    # sensor-002/actuator-001 -- none of them ever publish to this live
+    # gateway, so listing them here would show permanently-silent devices
+    # the user has no hardware for. The live dashboard shows only devices
+    # this deployment actually has hardware for.
     return [
         {"device_id": d, "kind": info["kind"]}
         for d, info in DEVICE_REGISTRY.items()
+        if d in REAL_HARDWARE_DEVICE_IDS
     ]
 
 
@@ -958,7 +966,11 @@ def _silence_watchdog_loop() -> None:
     deliberately silenced by an attacker would otherwise have none of."""
     while True:
         time.sleep(SILENCE_CHECK_INTERVAL_SECONDS)
-        for device_id in DEVICE_REGISTRY:
+        # Scoped to the same set _build_devices_view() shows -- watching the
+        # offline benchmark's simulated nodes here would log a perpetual
+        # SILENT row for every one of them, since none ever publish to this
+        # live gateway.
+        for device_id in REAL_HARDWARE_DEVICE_IDS:
             # Hold the pipeline lock across the ENTIRE per-device block, not
             # just the staleness read: get_process_anomaly() mutates
             # process_state[device].status (FRESH->STALE), and get_security_trust()
