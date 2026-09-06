@@ -607,14 +607,14 @@
   function renderNist(gov){
     var box=$("nist");box.innerHTML="";
     var cov=gov.coverage||{},tenets=gov.tenets||{};
-    var vals=Object.keys(cov);var avg=vals.length?Math.round(100*vals.reduce(function(a,k){return a+cov[k]},0)/vals.length):0;
-    $("nisttag").textContent="avg "+avg+"% · n="+(gov.sample_size||0);
+    var vals=Object.keys(cov);var avgTxt=vals.length?Math.round(100*vals.reduce(function(a,k){return a+cov[k]},0)/vals.length)+"%":"UNKNOWN";
+    $("nisttag").textContent="avg "+avgTxt+" · n="+(gov.sample_size||0);
     Object.keys(tenets).sort(function(a,b){return a-b}).forEach(function(k){
-      var f=cov[k]==null?0:cov[k],pct=Math.round(f*100);
+      var known=cov[k]!=null,pct=known?Math.round(cov[k]*100):null;
       var n=(gov.evidence_counts||{})[k];
-      box.innerHTML+='<div class="cov"><div class="lab"><span title="'+esc(tenets[k])+'">'+k+". "+esc(tenets[k])+'</span><b>'+pct+'%'+
+      box.innerHTML+='<div class="cov"><div class="lab"><span title="'+esc(tenets[k])+'">'+k+". "+esc(tenets[k])+'</span><b>'+(known?pct+"%":"—")+
         (n==null?"":'<span class="ev">'+n+" rows</span>")+'</b></div>'+
-        '<div class="bar"><i style="width:'+pct+'%;background:'+(pct>=100?"var(--green)":"var(--amber)")+'"></i></div></div>';
+        '<div class="bar"><i style="width:'+(known?pct:0)+'%;background:'+(known?(pct>=100?"var(--green)":"var(--amber)"):"var(--dim)")+'"></i></div></div>';
     });
     if(gov.window_note)$("nistnote").textContent=gov.window_note;
   }
@@ -734,10 +734,10 @@
       renderDevices(devices,latest);renderTimeline(rows);renderDecisions(rows);renderSecurityEvents(rows);
       renderNist(gov);renderValidation(gov);renderIec(iec);renderQtable(qt);setChain(chain);
       var cov=gov.coverage||{},gv=Object.keys(cov);
-      var gpct=gv.length?Math.round(100*gv.reduce(function(a,k){return a+cov[k]},0)/gv.length):0;
+      var gtxt=gv.length?Math.round(100*gv.reduce(function(a,k){return a+cov[k]},0)/gv.length)+"%":"UNKNOWN";
       var impl=(iec.frs||[]).filter(function(f){return f.status!=="not_implemented"});
-      var ipct=impl.length?Math.round(100*impl.reduce(function(a,f){return a+(f.coverage||0)},0)/impl.length):0;
-      $("p-gov").innerHTML='governance: <b>NIST '+gpct+"% · IEC "+ipct+'%</b>';
+      var itxt=impl.length?Math.round(100*impl.reduce(function(a,f){return a+(f.coverage||0)},0)/impl.length)+"%":"UNKNOWN";
+      $("p-gov").innerHTML='governance: <b>NIST '+gtxt+" · IEC "+itxt+'</b>';
     })
     .catch(function(e){
       fails++;$("livedot").className="dot stale";$("liveword").textContent="RECONNECTING";
