@@ -168,7 +168,10 @@ def _with_validity(X, meta=None):
         valid = np.ones((n_snap, n_nodes), dtype=np.float32)
     else:
         valid = np.array([m["valid"] for m in meta], dtype=np.float32)
-    return np.concatenate([X, valid[..., None]], axis=-1)
+    # Exclude missing observations before embeddings/normalization. Masked
+    # attention and multiplication by zero cannot suppress NaN/Infinity.
+    clean = np.where(valid[..., None].astype(bool), X, 0.0)
+    return np.concatenate([clean, valid[..., None]], axis=-1)
 
 # Alarm budgets, declared before any threshold was fitted. 1% of the ~9300
 # normal test rows is ~93 false alarms; at one tick per 2 s per node that is the
@@ -254,7 +257,11 @@ class GATv2(nn.Module):
         e = self.att(nn.functional.leaky_relu(
             self.wl(h).unsqueeze(3) + self.wr(h).unsqueeze(2), 0.2)).squeeze(-1)
         e = e.masked_fill(~mask, float("-inf"))
-        return torch.softmax(e, dim=-1) @ h
+        # An invalid isolated query has no keys. Avoid softmax(-inf, ...)
+        # producing NaNs that can leak through a later dense 0 * NaN product.
+        e = torch.where(mask.any(dim=-1, keepdim=True), e, 0.0)
+        weights = torch.softmax(e, dim=-1).masked_fill(~mask, 0.0)
+        return weights @ h
 
     def forward(self, x, mask):
         b, n, _ = x.shape
@@ -533,7 +540,8 @@ def _train_pooled_sets(sources, sizes, factory=SetTransformer, seed=None):
     # Same validity channel as train_deep_sets/train_mixed_cardinality --
     # valid_all is already computed above, so append it directly rather than
     # going through _with_validity()'s meta-list form.
-    x_all_np = np.concatenate([X_all, valid_all.astype(np.float32)[..., None]], axis=-1)
+    clean = np.where(valid_all[..., None], X_all, 0.0)
+    x_all_np = np.concatenate([clean, valid_all.astype(np.float32)[..., None]], axis=-1)
     x_all_t = torch.tensor(x_all_np, dtype=torch.float32, device=_TORCH_DEVICE)
     t_all_t = torch.tensor(y_all, dtype=torch.float32, device=_TORCH_DEVICE)
     m_all_t = torch.tensor(valid_all, dtype=torch.bool, device=_TORCH_DEVICE)

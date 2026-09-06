@@ -119,7 +119,10 @@ class GNNScorer:
 
         active = (now - self.last_seen) <= GNN_EDGE_WINDOW_SECONDS
         a_hat = normalized_adjacency(active).to(_TORCH_DEVICE)
-        x = torch.tensor(self.last_features, dtype=torch.float32, device=_TORCH_DEVICE)
+        # Disconnected rows still participate in dense matmul: 0 * NaN is NaN.
+        # Canonicalize inactive content before any model arithmetic.
+        x = torch.tensor(np.where(active[:, None], self.last_features, 0.0),
+                         dtype=torch.float32, device=_TORCH_DEVICE)
         with torch.no_grad():
             scores = self.model(x, a_hat)
         return float(scores[i].item())  # .item() implicitly syncs GPU->CPU for this one scalar
@@ -151,7 +154,8 @@ class GNNScorer:
         now = time.time()
         active = (now - self.last_seen) <= GNN_EDGE_WINDOW_SECONDS
         a_hat = normalized_adjacency(active).to(_TORCH_DEVICE)
-        x = torch.tensor(self.last_features, dtype=torch.float32, device=_TORCH_DEVICE)
+        x = torch.tensor(np.where(active[:, None], self.last_features, 0.0),
+                         dtype=torch.float32, device=_TORCH_DEVICE)
         with torch.no_grad():
             base_score = float(self.model(x, a_hat)[i].item())
 
