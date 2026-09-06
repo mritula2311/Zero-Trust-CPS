@@ -481,6 +481,14 @@ KEY_ROTATION_GRACE_SECONDS = 24 * 3600   # docs/02 Section 3's "24 hours in hard
 # simulator's, or vice versa. Empty by default (pure simulation mode).
 REAL_HARDWARE_DEVICE_IDS: set = {"esp32-vib-001", "esp32-vib-002"}
 
+# The original runtime demo/training fleet (device_simulator.py's own
+# devices, before REAL_HARDWARE_DEVICE_IDS onboarding excludes whichever
+# of these a real board has taken over). Single source of truth so
+# gateway.py's watchdog scope and device_simulator.py's own device set
+# cannot drift apart -- moved here rather than left local to
+# device_simulator.py after gateway.py needed the same set too.
+LEGACY_DEVICE_IDS = ("esp32-vib-001", "sensor-002", "actuator-001")
+
 # --- Feature Engineering (Module 3, CLAUDE.md Section 5.1) ---
 FEATURE_NAMES = ["rms", "peak", "crest_factor", "kurtosis", "dominant_freq"]
 # NOMINAL sample rate, and it is NOT the achieved one -- see RESULTS.md 13.4c.
@@ -748,6 +756,28 @@ GNN_LEARNING_RATE = float(os.environ.get("ZTCPS_GNN_LR", "0.05"))
 # Node feature vector: [rule_score, isolation_forest_score, lstm_ae_score]
 GNN_NODE_FEATURE_DIM = 3
 
+# --- M6 Set Transformer live-runtime candidate ---
+# scripts/benchmark_crossdevice_models.py validated the Set Transformer
+# architecture (M6) only via offline node-count/provenance sweeps -- never
+# on the live gateway's actual runtime graph, and never with a saved
+# checkpoint. These constants back a NEW training path
+# (scripts/train_set_transformer.py) that reuses GCN's exact live-runtime
+# replay data (build_snapshots) so M6 becomes a fair, comparable candidate
+# for the live fusion pipeline rather than only a standalone offline result.
+# See docs/paper/17_CLAIM_EVIDENCE_MATRIX.md C05/C15 for why this gap existed.
+SET_TRANSFORMER_MODEL_PATH = os.path.join(MODELS_DIR, "set_transformer_runtime.pt")
+# 300 epochs / lr=1e-2 match benchmark_crossdevice_models.py's own
+# DEEPSETS_EPOCHS/DEEPSETS_LR for this architecture family (M3/M5/M6/M7) --
+# not GCN's GNN_EPOCHS/GNN_LEARNING_RATE, which are tuned for a different
+# (linear-layer, no attention) architecture and converge this one to a
+# poor optimum (verified: lr=0.05/150 epochs left obviously-normal
+# (0.9, 0.9, 0.9) input scoring ~0.3, i.e. "suspicious").
+SET_TRANSFORMER_EPOCHS = int(os.environ.get("ZTCPS_SET_TRANSFORMER_EPOCHS", "300"))
+SET_TRANSFORMER_LEARNING_RATE = float(os.environ.get("ZTCPS_SET_TRANSFORMER_LR", "0.01"))
+SET_TRANSFORMER_DIM = 16
+SET_TRANSFORMER_HEADS = 4
+SET_TRANSFORMER_BLOCKS = 2
+
 # --- Fusion Engine (Module 3, Phase 7) ---
 # Placeholder if_score/lstm_score fed into the fusion/GNN feature vector for
 # messages that FAILED authentication -- the real per-value scorers never
@@ -756,6 +786,15 @@ GNN_NODE_FEATURE_DIM = 3
 # be invisible to offline training entirely.
 AUTH_FAIL_SENTINEL_SCORE = 0.1
 FUSION_SHAP_BACKGROUND_SIZE = 50
+
+# --- M6 fusion variant (evaluation only, NOT the deployed fusion model) ---
+# A separate meta-learner fit on [rule, if, lstm, m6_score] instead of
+# [rule, if, lstm, gnn_score], used only by scripts/evaluate_ablation_m6.py
+# to compare against the deployed GCN-based fusion side by side. Never
+# loaded by src/fusion_engine.py -- deploying this would mean overwriting
+# FUSION_MODEL_PATH itself, a decision this file does not make.
+FUSION_MODEL_PATH_M6_VARIANT = os.path.join(MODELS_DIR, "fusion_meta_learner_m6_variant.joblib")
+FUSION_BACKGROUND_PATH_M6_VARIANT = os.path.join(MODELS_DIR, "fusion_background_m6_variant.npy")
 
 # --- Access Control / Policy Decision Point (Module 5) ---
 # Two-score 2x2 table (docs/06_module5_access_control.md Section 2), NOT a

@@ -72,6 +72,7 @@ from config import (
     CHALLENGE_TOPIC,
     DEVICE_REGISTRY,
     REAL_HARDWARE_DEVICE_IDS,
+    LEGACY_DEVICE_IDS,
     USE_RL_POLICY,
     FEATURE_NAMES,
     is_feature_vector,
@@ -93,7 +94,16 @@ from trust_engine import (
 )
 from isolation_forest_scorer import IsolationForestScorer
 from lstm_ae_scorer import LSTMAEScorer
-from gnn_scorer import GNNScorer
+# M6 Set Transformer is now the deployed relational scorer (validated against
+# the previous GCN deployment in scripts/evaluate_ablation_m6.py: higher
+# fused F1/accuracy, fewer false negatives, better stealthy_forged_values
+# recall -- see docs/paper/17_CLAIM_EVIDENCE_MATRIX.md C05/C15 and
+# README.md). Bound to the name `gnn_scorer` and the audit log's
+# `gnn_score` column/field are kept as-is deliberately: renaming the
+# schema/dashboard/test-facing field would be a much larger, riskier
+# change than swapping which model produces it, and is not what this
+# validation was about.
+from set_transformer_scorer import SetTransformerScorer as GNNScorer
 from fusion_engine import FusionEngine
 from policy_engine import decide
 from adaptive_pdp import AdaptivePDP, ACTIONS
@@ -966,11 +976,16 @@ def _silence_watchdog_loop() -> None:
     deliberately silenced by an attacker would otherwise have none of."""
     while True:
         time.sleep(SILENCE_CHECK_INTERVAL_SECONDS)
-        # Scoped to the same set _build_devices_view() shows -- watching the
-        # offline benchmark's simulated nodes here would log a perpetual
-        # SILENT row for every one of them, since none ever publish to this
-        # live gateway.
-        for device_id in REAL_HARDWARE_DEVICE_IDS:
+        # LEGACY_DEVICE_IDS | REAL_HARDWARE_DEVICE_IDS, NOT all of
+        # DEVICE_REGISTRY: the offline benchmark's 18 simulated network
+        # nodes never publish to this live gateway at all, so watching them
+        # would log a perpetual SILENT row for every one of them. This is
+        # deliberately broader than _build_devices_view()'s dashboard list
+        # (real hardware only, a display preference) -- audit completeness
+        # for the demo/training fleet (sensor-002/actuator-001, whichever
+        # aren't superseded by real hardware) still matters even when this
+        # deployment's dashboard chooses not to show them.
+        for device_id in set(LEGACY_DEVICE_IDS) | REAL_HARDWARE_DEVICE_IDS:
             # Hold the pipeline lock across the ENTIRE per-device block, not
             # just the staleness read: get_process_anomaly() mutates
             # process_state[device].status (FRESH->STALE), and get_security_trust()
@@ -1041,7 +1056,7 @@ def run():
     print(" ZERO-TRUST GATEWAY -- Security Trust + Process Anomaly, independently scored (Ctrl+C to stop)")
     print(f" Policy: {'RL-adaptive' if USE_RL_POLICY else 'static 2x2 table'} | "
           f"Fusion trained: {fusion_engine.is_trained()} | IF trained: {if_scorer.is_trained()} | "
-          f"LSTM-AE trained: {lstm_scorer.is_trained()} | GNN trained: {gnn_scorer.is_trained()}")
+          f"LSTM-AE trained: {lstm_scorer.is_trained()} | M6 trained: {gnn_scorer.is_trained()}")
     print(f" Second transport (HTTPS, substituting for CoAP/DTLS): "
           f"{'enabled, port ' + str(COAP_TLS_PORT) if COAP_ENABLED else 'disabled (no certs/coap_server.* found)'}")
     print(f" MQTT broker auth (IEC 62443 FR5, per-device credentials + topic ACLs): "

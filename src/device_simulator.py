@@ -64,13 +64,10 @@ from config import (
     FEATURE_SAMPLE_RATE_HZ,
     FEATURE_WINDOW_SIZE,
     REAL_HARDWARE_DEVICE_IDS,
+    LEGACY_DEVICE_IDS,
     is_feature_vector,
 )
 import feature_engineering as fe
-
-# The original runtime demo/training task. Network research profiles are built
-# separately by generate_network_data.py, with sensor-specific generators.
-LEGACY_DEVICE_IDS = ("esp32-vib-001", "sensor-002", "actuator-001")
 
 
 def sign(secret: str, payload: dict) -> str:

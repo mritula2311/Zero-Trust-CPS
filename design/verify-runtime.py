@@ -30,7 +30,7 @@ def run():
         import config
 
         assert g.fusion_engine.is_trained(), "Fitted fusion model required"
-        assert g.gnn_scorer.model is not None, "Fitted runtime GCN required"
+        assert g.gnn_scorer.model is not None, "Fitted runtime relational model (M6 Set Transformer) required"
         clock = [1800000000.0]
         stack.enter_context(patch("time.time", side_effect=lambda: clock[0]))
         stack.enter_context(patch.object(g, "trust_engine", g.RuleBasedTrustEngine()))
@@ -115,7 +115,7 @@ def run():
         for device in devices:
             send(device)
         snapshot("resumed synthetic telemetry", rows[start:])
-        return dict(ok=True, mode="OFFLINE REPLAY / SIMULATED", runtime_relational_model="GCN", policy_source="offline bandit" if g.USE_RL_POLICY else "static", rejected_state_unchanged=True, outcomes=outcomes,
+        return dict(ok=True, mode="OFFLINE REPLAY / SIMULATED", runtime_relational_model="M6 Set Transformer", policy_source="offline bandit" if g.USE_RL_POLICY else "static", rejected_state_unchanged=True, outcomes=outcomes,
                     limitations="Transport, physical hardware, persistent audit and enforcement are not exercised. Publish/challenge/quarantine boundaries are disabled. Fixed generator seed and controlled clock are a scenario sample, not statistical evidence. Dual-abnormal scenario NOT CURRENTLY SUPPORTED by this runner.")
 
 
