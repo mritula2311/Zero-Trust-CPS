@@ -7,7 +7,7 @@
 <style>
   :root{
     --bg:#070b12; --panel:#0d1420; --panel2:#111c2c; --edge:#1e2b40; --edge2:#2a3b57;
-    --txt:#e2eaf5; --muted:#8b9bb2; --dim:#5c6c84;
+    --txt:#e2eaf5; --muted:#a8b6ca; --dim:#92a2ba;
     --cyan:#7dd3fc; --blue:#38bdf8; --violet:#a78bfa; --green:#34d399; --amber:#fbbf24;
     --red:#f87171; --pink:#f472b6; --teal:#2dd4bf;
     --mono:'JetBrains Mono',ui-monospace,'SF Mono','Cascadia Mono',Menlo,monospace;
@@ -51,7 +51,7 @@
   @media(max-width:860px){.grid>*{grid-column:span 12!important}}
 
   /* device cards */
-  .devs{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(370px,1fr));align-items:stretch}
+  .devs{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(100%,370px),1fr));align-items:stretch}
   /* flex column + auto-margin footer: cards in a row stay equal height and their
      footers share one baseline, instead of drifting with Level-2 text length */
   .dev{background:var(--panel2);border:1px solid var(--edge);border-radius:12px;
@@ -188,15 +188,23 @@
   .tlnow i{display:inline-block;margin-right:8px;font-style:normal;font-size:10px}
   .tlsvg{flex:1 1 auto;height:104px;width:100%;overflow:visible}
 </style>
+<style>
+  .research-status{margin-top:16px;padding:16px 20px;border:1px solid var(--edge2);border-radius:12px;background:var(--panel)}
+  .research-status h2{margin:0 0 8px;font-size:14px}.research-status p{margin:6px 0;color:var(--muted)}
+  #qtable{overflow-x:auto} .flow .st{white-space:normal}
+  a:focus-visible{outline:2px solid var(--cyan);outline-offset:4px}
+  @media(max-width:600px){.wrap{padding:10px}.brand{min-width:0}header{padding:14px}.card{padding:14px}.preds{grid-template-columns:repeat(3,minmax(0,1fr))}.dev{padding:14px}.dev .name{overflow-wrap:anywhere}.card h2{flex-wrap:wrap}.card h2 .tag{margin-left:0}}
+  @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
 </head>
 <body>
 <div class="wrap">
   <header>
     <div class="brand">
       <h1>Zero-Trust CPS — Command Center</h1>
-      <div class="sub">Security Trust and Process Anomaly, scored independently and fused only at the policy step — Modules 1 to 7</div>
+      <div class="sub">Security Trust and Process Trust remain separate until policy evaluation — Modules 1 to 7</div>
     </div>
-    <span class="live"><span class="dot" id="livedot"></span><span id="liveword">LIVE</span></span>
+    <span class="live" role="status"><span class="dot stale" id="livedot"></span><span id="liveword">CONNECTING</span></span>
     <span class="pill" id="p-policy">policy: …</span>
     <span class="pill" id="p-thr">thresholds: …</span>
     <span class="pill" id="p-chain">chain: …</span>
@@ -204,7 +212,13 @@
     <a class="pill" href="/figures" target="_blank" style="color:var(--cyan)">Model Evaluation Figures</a>
   </header>
 
-  <div class="banner err" id="banner"></div>
+  <div class="banner err" id="banner" role="status"></div>
+  <section class="research-status" aria-labelledby="research-title">
+    <h2 id="research-title">Research status · reconciled 6 September 2026</h2>
+    <p><b>Runtime: GCN + logistic fusion.</b> M6 Set Transformer is the selected standalone relational candidate; it is not deployed and M6 fusion remains untested.</p>
+    <p><b>Physical evidence:</b> one MPU6050 identity and one SW-420 identity. SW-420 TRAIN capture exists; VALIDATION/TEST are pending. The 20-node benchmark is constructed from two physical-source and eighteen simulated identities.</p>
+    <p><b>Task-2: SUPPORTED BUT WEAKER.</b> B0 is a network-level count baseline, not a single-node baseline. Indexed context improves over that count; GNN superiority is unsupported. This research snapshot is separate from the API observations below.</p>
+  </section>
 
   <div class="grid">
     <section class="card span12">
@@ -217,9 +231,11 @@
         a device's score just by spamming its ID).
       </div>
       <div class="flow">
+        <span class="st">envelope / type checks</span><span class="ar">→</span>
         <span class="st">identity</span><span class="ar">→</span>
         <span class="st">revoked?</span><span class="ar">→</span>
         <span class="st">HMAC-SHA256</span><span class="ar">→</span>
+        <span class="st">finite reading</span><span class="ar">→</span>
         <span class="st">replay (boot_id/seq)</span><span class="ar">→</span>
         <span class="st">timestamp freshness</span>
         <span class="ar">⇒</span><span class="st rej">any failure = REJECTED</span>
@@ -227,9 +243,9 @@
       <div class="flow" style="margin-top:8px">
         <span class="st sec">SECURITY TRUST — rate, step-up, silence</span>
         <span class="ar">+</span>
-        <span class="st proc">PROCESS ANOMALY — rule + Isolation Forest + LSTM-AE + GNN → fusion</span>
+        <span class="st proc">PROCESS TRUST — rule + Isolation Forest + LSTM-AE + GCN → logistic fusion</span>
         <span class="ar">→</span>
-        <span class="st">2×2 policy lookup</span><span class="ar">→</span>
+        <span class="st">offline bandit / static 2×2 policy</span><span class="ar">→</span>
         <span class="st">ALLOW / ALERT / STEP_UP / BLOCK</span>
       </div>
       <div class="note">
@@ -247,7 +263,7 @@
         One card per registered device. <b>Both scores run 0 to 1 where 1 = healthy.</b>
         <code>security</code> is cyber evidence only (message rate, step-up outcome,
         silence). <code>process</code> is physical sensor evidence only, fused from four
-        independent signals. The bars show each signal's SHAP contribution — which signal
+        detector signals. The bars show each signal's SHAP contribution — which signal
         pushed the fused score, and in which direction.
       </div>
       <div class="legend">
@@ -257,10 +273,10 @@
         <span><i style="color:var(--red)">BLOCK</i>denied</span>
         <span><i style="color:var(--dim)">SILENT</i>no message in the staleness window</span>
       </div>
-      <div class="devs" id="devs"></div>
-    </div>
+      <div class="devs" id="devs"><div class="empty">Waiting for gateway observations. No telemetry is inferred from the research snapshot.</div></div>
+    </section>
 
-    <div class="panel">
+    <section class="card span12">
       <div class="hd"><span class="ttl">Two-Score Timeline — the separation, over time</span>
         <span class="tag" id="tltag"></span></div>
       <p class="lede">The architecture's central claim is that these two scores never blend.
@@ -271,14 +287,13 @@
         mark spans where the two disagree, which is precisely where a blended score would have
         been wrong. Oldest on the left, newest on the right.</p>
       <div id="timeline"></div>
-    </div>
     </section>
 
     <section class="card span8">
       <h2>Live Decision Stream <span class="tag" id="dectag"></span></h2>
       <div class="why">
         Newest first, one row per logged decision. <code>sec</code>/<code>proc</code> are the
-        two independent scores; <code>rule</code>/<code>IF</code>/<code>LSTM</code>/<code>GNN</code>
+        two independent scores; <code>rule</code>/<code>IF</code>/<code>LSTM</code>/<code>GCN</code>
         are the four Process Anomaly sub-signals and <code>fused</code> is the meta-learner's
         combination of them. A <b>REJECTED</b> row never reached any model — it failed
         authentication, and its scores are blank for that reason, not missing.
@@ -287,7 +302,7 @@
         <table>
           <thead><tr>
             <th>Time</th><th>Device</th><th>Decision</th><th class="mono">sec</th><th class="mono">proc</th>
-            <th class="mono">rule</th><th class="mono">IF</th><th class="mono">LSTM</th><th class="mono">GNN</th><th class="mono">fused</th>
+            <th class="mono">rule</th><th class="mono">IF</th><th class="mono">LSTM</th><th class="mono">GCN</th><th class="mono">fused</th>
             <th>Transport</th><th>Reason</th>
           </tr></thead>
           <tbody id="decrows"></tbody>
@@ -348,13 +363,12 @@
       <div class="note" id="iecnote"></div>
     </section>
     <section class="card span6">
-      <h2>RL Policy — what the gateway would decide <span class="tag">process bucket = 9</span></h2>
+      <h2>Offline bandit policy reference <span class="tag">process bucket = 9</span></h2>
       <div class="why">
-        The deployed policy sliced at process bucket 9 (process score 0.9–1.0), one row per
+        The gateway's bandit table sliced at process bucket 9 (process score 0.9–1.0), one row per
         security-score bucket. The <b>decision</b> column is what this gateway would actually
-        return for that state — read from the same object it uses live, so this table cannot
-        drift from behaviour. <b>Q-values are expected reward</b> (+1 correct action, −1 wrong)
-        estimated as a sample average over training visits.
+        select in bandit mode, before step-up or watchdog overrides. Check the header for the configured policy mode. <b>Q-values are expected reward</b> (+1 correct action, −1 wrong)
+        estimated as a sample average over offline training visits. Serving is greedy; no online exploration or training is performed. This is not full reinforcement learning.
         Rows marked <b style="color:var(--amber)">static fallback</b> were never visited in
         offline training; they show <code>--</code> rather than a misleading <code>0.00</code>,
         because the policy seeds those states from the static 2×2 table instead of guessing.
@@ -383,7 +397,7 @@
   </div>
 
   <footer>
-    Live data polled from this gateway's /api/* endpoints every 2 s — one real ESP32 + MPU6050 (esp32-vib-001) alongside two simulated scalar devices.
+    Read-only gateway API view, refreshed every 2 s after each completed request. Registered identities and historical rows do not establish connected physical-device count. Research evidence comprises one MPU6050 and one SW-420 identity; the constructed benchmark has 20 nodes.
     SHAP contributions are the fusion meta-learner's per-signal log-odds attribution (direction always correct; magnitude in log-odds, not the 0 to 1 trust scale).
   </footer>
 </div>
@@ -394,11 +408,14 @@
   var SIG=[["rule_score","Rule","shap_rule","rule_score"],
            ["isolation_forest_score","Isolation Forest","shap_isolation_forest","anomaly_score"],
            ["lstm_ae_score","LSTM-AE","shap_lstm_ae","lstm_score"],
-           ["gnn_score","GNN","shap_gnn","gnn_score"]];
+           ["gnn_score","GCN","shap_gnn","gnn_score"]];
   function $(id){return document.getElementById(id)}
   function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
   function num(v,d){return v==null?"—":(+v).toFixed(d==null?2:d)}
-  function j(p){return fetch(p).then(function(r){if(!r.ok)throw new Error(p+" "+r.status);return r.json()})}
+  function j(p){
+    var controller=new AbortController(),timeout=setTimeout(function(){controller.abort()},8000);
+    return fetch(p,{signal:controller.signal,cache:"no-store"}).then(function(r){if(!r.ok)throw new Error(p+" "+r.status);return r.json()}).finally(function(){clearTimeout(timeout)});
+  }
   function sc(v){if(v==null)return "var(--dim)";return v>=0.6?"var(--cyan)":v>=0.35?"var(--amber)":"var(--red)"}
   function ago(ts){try{var s=(Date.now()-new Date(ts).getTime())/1000;if(s<60)return Math.round(s)+"s";if(s<3600)return Math.round(s/60)+"m";return Math.round(s/3600)+"h"}catch(e){return""}}
   function latestByDevice(rows){var o={};rows.forEach(function(r){if(!o[r.device_id]&&r.decision!=="REJECTED")o[r.device_id]=r});return o}
@@ -419,7 +436,8 @@
     var mx=Math.max(0.01,Math.max.apply(null,vals.map(function(v){return Math.abs(v||0)})));
     var html="";
     SIG.forEach(function(s,i){
-      var v=vals[i]; if(v==null)v=0;
+      var v=vals[i];
+      if(v==null){html+='<div class="srow"><span class="sn">'+s[1]+'</span><div class="strack"></div><span class="sv">—</span></div>';return;}
       var pos=v>=0, w=Math.min(50,Math.abs(v)/mx*50);
       var isDom=s[0]===dominant;
       html+='<div class="srow"><span class="sn'+(isDom?" dom":"")+'">'+s[1]+'</span>'+
@@ -433,17 +451,20 @@
   function renderDevices(devices,latest){
     var box=$("devs");box.innerHTML="";
     $("devtag").textContent=devices.length+" registered";
+    if(!devices.length){box.innerHTML='<div class="empty">No registered identities returned by the gateway.</div>';return}
     devices.forEach(function(d){
-      var r=latest[d.device_id], dec=r?r.decision:"SILENT", real=d.device_id==="esp32-vib-001";
+      var r=latest[d.device_id], dec=r?r.decision:"SILENT";
+      var modality={"esp32-vib-001":"MPU6050", "esp32-vib-002":"SW-420"}[d.device_id];
+      var real=Boolean(modality),kind=real?"PHYSICAL ID · "+modality:"SIM · "+d.kind;
       var el=document.createElement("div");el.className="dev "+dec;
       if(!r){
         el.innerHTML='<div class="top"><span class="name">'+esc(d.device_id)+'</span>'+
-          '<span class="kind '+(real?"real":"")+'">'+(real?"REAL HW":"SIM")+" · "+esc(d.kind)+'</span>'+
+          '<span class="kind '+(real?"real":"")+'">'+esc(kind)+'</span>'+
           '<span class="badge SILENT">SILENT</span></div><div class="empty">no telemetry received yet</div>';
         box.appendChild(el);return;
       }
       var dominant=null,best=-1;
-      SIG.forEach(function(s){var a=Math.abs(r[s[2]]||0);if(a>best){best=a;dominant=s[0]}});
+      SIG.forEach(function(s){if(r[s[2]]==null)return;var a=Math.abs(r[s[2]]);if(a>best){best=a;dominant=s[0]}});
       var domLabel=(SIG.filter(function(s){return s[0]===dominant})[0]||[null,"—"])[1];
       var l2="";
       if(r.level2_summary&&r.level2_dominant_feature&&r.level2_dominant_feature!=="n/a"&&r.level2_dominant_feature!=="unavailable"){
@@ -451,13 +472,13 @@
       }
       el.innerHTML=
         '<div class="top"><span class="name">'+esc(d.device_id)+'</span>'+
-        '<span class="kind '+(real?"real":"")+'">'+(real?"REAL HW":"SIM")+" · "+esc(d.kind)+'</span>'+
+        '<span class="kind '+(real?"real":"")+'">'+esc(kind)+'</span>'+
         '<span class="badge '+dec+'">'+dec+'</span></div>'+
         meter("Security Trust",r.security_trust_score)+meter("Process (1 = normal)",r.process_trust_score)+
         '<div class="section-t">Model predictions</div>'+
         '<div class="preds">'+
           predChip("Rule",r.rule_score)+predChip("Iso.Forest",r.anomaly_score)+
-          predChip("LSTM-AE",r.lstm_score)+predChip("GNN",r.gnn_score)+
+          predChip("LSTM-AE",r.lstm_score)+predChip("GCN",r.gnn_score)+
           predChip("Fused",r.process_trust_score,true)+
         '</div>'+
         '<div class="section-t">SHAP attribution — which signal moved the fused score (log-odds)</div>'+
@@ -613,7 +634,7 @@
   }
   function renderQtable(q){
     var box=$("qtable");
-    if(!q.trained){box.innerHTML='<div class="empty">Q-table not trained yet</div>';return}
+    if(!q.trained){box.innerHTML='<div class="empty">No loaded offline Q-table reported. Check the configured policy mode; this page never trains a model.</div>';return}
     var acts=q.actions||[];
     var h='<table class="qt"><thead><tr><th>sec bucket</th><th>source</th><th>decision</th>'+acts.map(function(a){return "<th>"+a+"</th>"}).join("")+'</tr></thead><tbody>';
     (q.rows||[]).forEach(function(r){
@@ -675,12 +696,13 @@
 
   var fails=0;
   function refresh(){
-    Promise.all([j("/api/status"),j("/api/devices"),j("/api/decisions"),slowFetches()])
+    return Promise.all([j("/api/status"),j("/api/devices"),j("/api/decisions"),slowFetches()])
     .then(function(p){return [p[0],p[1],p[2],p[3][0],p[3][1],p[3][2],p[3][3]]})
     .then(function(res){
-      fails=0;$("livedot").className="dot";$("liveword").textContent="LIVE";
+      fails=0;$("livedot").className="dot";$("liveword").textContent="API CONNECTED";
+      $("banner").className="banner err";$("banner").textContent="";
       var status=res[0],devices=(res[1].devices||[]),rows=(res[2].rows||[]),chain=res[3],gov=res[4],iec=res[5],qt=res[6];
-      $("p-policy").innerHTML='policy: <b>'+(status.use_rl_policy?"RL-adaptive":"static 2x2")+'</b>';
+      $("p-policy").innerHTML='policy: <b>'+(status.use_rl_policy?"offline bandit":"static 2x2")+'</b>';
       $("p-thr").innerHTML='thresholds: <b>sec '+status.security_threshold+" · proc "+status.process_threshold+'</b>';
       var latest=latestByDevice(rows);
       renderDevices(devices,latest);renderTimeline(rows);renderDecisions(rows);renderSecurityEvents(rows);
@@ -693,10 +715,11 @@
     })
     .catch(function(e){
       fails++;$("livedot").className="dot stale";$("liveword").textContent="RECONNECTING";
-      if(fails>=2){var b=$("banner");b.className="banner err show";b.textContent="Cannot reach the gateway API ("+e.message+"). Is gateway.py running? Retrying every 2 s.";}
+      var b=$("banner");b.className="banner err show";b.textContent="Gateway API unavailable. Any displayed observations are retained from the last successful refresh; they are not current. Open this page through the gateway to receive observations. Retrying in 2 s.";
     });
   }
-  refresh();setInterval(function(){tick++;refresh()},2000);
+  function poll(){refresh().finally(function(){setTimeout(function(){tick++;poll()},2000)})}
+  poll();
 })();
 </script>
 </body>
