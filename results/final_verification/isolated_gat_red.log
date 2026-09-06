@@ -1,0 +1,20 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_ TestNonfiniteRelationalBoundaries.test_isolated_invalid_gat_query_does_not_poison_other_nodes _
+
+self = <test_nonfinite_relational_boundaries.TestNonfiniteRelationalBoundaries testMethod=test_isolated_invalid_gat_query_does_not_poison_other_nodes>
+
+    def test_isolated_invalid_gat_query_does_not_poison_other_nodes(self):
+        torch.manual_seed(14)
+        model = bcm.GATv2().eval().to(bcm._TORCH_DEVICE)
+        x = np.full((1, 3, 3), 0.8, dtype=np.float32)
+        meta = [{'valid': np.array([True, False, True])}]
+        adjacency = torch.eye(3, dtype=torch.bool, device=bcm._TORCH_DEVICE).view(1, 1, 3, 3)
+        expected = bcm.deep_sets_scores(model, x, adjacency, meta=meta)
+>       self.assertTrue(np.isfinite(expected[:, [0, 2]]).all())
+E       AssertionError: np.False_ is not true
+
+tests\test_nonfinite_relational_boundaries.py:24: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_nonfinite_relational_boundaries.py::TestNonfiniteRelationalBoundaries::test_isolated_invalid_gat_query_does_not_poison_other_nodes
+1 failed, 3 deselected in 7.70s

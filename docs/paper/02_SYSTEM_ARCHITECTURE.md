@@ -75,3 +75,25 @@ Parsing/type validation precedes identity; identity and revocation precede HMAC;
 Runtime scorer methods load checkpoints, set evaluation mode and use inference calls; gateway never calls fit, backward, optimizer step or bandit update. Bandit `_get_q` can initialize an unseen bucket from the static policy; this is deterministic memoization, not reward-based online training. Offline scripts use stored `auth_ok`/event annotations rather than cryptographically revalidating historical captures. The no-training-on-rejection property is established for runtime and declared offline filters, not arbitrary maliciously edited dataset files.
 
 Model-file absence can activate neutral score or mean-fusion fallbacks. Startup rejects unconfigured MQTT TLS/broker credentials but does not require every learned checkpoint. This is a deployment limitation: serving availability is not proof that the complete trained chain is loaded. See [03](03_THREAT_MODEL_AND_ZERO_TRUST_DESIGN.md) and [10](10_FUSION_AND_PROCESS_TRUST.md).
+
+## Final architecture verification gate
+
+| Required question | Verified answer and limit |
+|---|---|
+| 1. Where does Security Trust originate? | `score_security_trust`: authenticated rate/step-up evidence, decay and EWMA; initialized at 0.8. |
+| 2. Where does Process Trust originate? | `FusionEngine.combine`: logistic normality from rule, IF, LSTM and runtime GCN. |
+| 3. Where do they first meet? | Gateway policy call to `greedy_action(sec, proc)` or static `decide(sec, proc, status)`. |
+| 4. Can a security failure contaminate process-model training? | No runtime fitting occurs. Offline scripts use curated authentication/event annotations; arbitrary malicious dataset edits are outside this guarantee. |
+| 5. Can process inference bypass authentication? | Not through the inspected telemetry entry point; its gates precede model/state updates. Offline evaluators intentionally replay stored records. |
+| 6. Can rejected traffic mutate trust state? | Tested rejections leave accepted trust/history unchanged. Separate targeting/audit records change; expired previous-key cleanup is a registry-metadata exception. |
+| 7. Does live inference train? | No fit/backward/optimizer/bandit reward update on the gateway path. Static initialization of unseen policy buckets is memoization. |
+| 8. Are local features correct per sensor? | Five MPU and four SW channels, with device-specific ordering and saved dimensions. This does not establish SW held-out accuracy. |
+| 9. Are pending nodes structurally excluded? | Current training/metric/normalization/model boundaries mask invalid observations, with pre-arithmetic canonicalization. The historical permutation probe omits validity; all-invalid low-level semantics remain open. |
+| 10. Is M6 live? | No; selected standalone experimental candidate. |
+| 11. Which relational model does runtime use? | `GNNScorer` and `models/gnn.pt`: three-layer, hidden-32, time-coactive GCN, self-loop weight 3. |
+| 12. Is fusion trained with the selected relational candidate? | No. Saved logistic fusion includes the runtime GCN score, not M6. |
+| 13. Does final policy consume current fused output? | The gateway calls the configured policy with the fused Process Trust score and separate Security Trust; current config selects the offline bandit. Saved policy experiment metrics are a separate replay lineage. |
+| 14. What hardware is physically evidenced? | Captures from one MPU6050 and one SW-420; held-out physical replay exists only for MPU. No fresh flashing or broker session was performed here. |
+| 15. What is generated in the 20-node experiment? | Eighteen simulated identities; the two physical-source columns are constructed by split-respecting resampling. Missing SW held-out data remains pending. |
+| 16. Strongest verified end-to-end result? | Offline replay of the implemented GCN/fusion scoring chain on held-out MPU captures: 30/30 disturbances and 5/12 resting false alarms after exclusions. This is not complete sensor-to-policy-enforcement validation. |
+| 17. Which architectural component still needs validation? | M6 serving/fusion/policy integration and complementarity; physical SW held-out performance, firmware peer verification and full acquisition-to-enforcement latency. |

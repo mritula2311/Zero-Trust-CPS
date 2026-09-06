@@ -1,0 +1,17 @@
+.......................................................................... [ 51%]
+.....................................................................                                                         [100%]
+============================== warnings summary ===============================
+tests/test_coap_server_hardening.py::TestCoapServerHardening::test_malformed_content_length_rejected
+  C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\shap\plots\colors\_colors.py:47: PendingDeprecationWarning: The set_bad function will be deprecated in a future version. Use cmap.with_extremes(bad=...) or Colormap(bad=...) instead.
+    red_blue.set_bad(gray_rgb.tolist(), 1.0)
+
+tests/test_coap_server_hardening.py::TestCoapServerHardening::test_malformed_content_length_rejected
+  C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\shap\plots\colors\_colors.py:48: PendingDeprecationWarning: The set_over function will be deprecated in a future version. Use cmap.with_extremes(over=...) or Colormap(over=...) instead.
+    red_blue.set_over(gray_rgb.tolist(), 1.0)
+
+tests/test_coap_server_hardening.py::TestCoapServerHardening::test_malformed_content_length_rejected
+  C:\Users\MRITULA SHANKAR\AppData\Local\Programs\Python\Python312\Lib\site-packages\shap\plots\colors\_colors.py:49: PendingDeprecationWarning: The set_under function will be deprecated in a future version. Use cmap.with_extremes(under=...) or Colormap(under=...) instead.
+    red_blue.set_under(gray_rgb.tolist(), 1.0)  # "under" is incorrectly used instead of "bad" in the scatter plot
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+143 passed, 3 warnings, 161 subtests passed in 26.91s

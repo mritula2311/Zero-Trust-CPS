@@ -1,0 +1,22 @@
+.................................................D:\zt-cps\zt-cps-starter\tests\test_invariants.py:485: ResourceWarning: unclosed file <_io.TextIOWrapper name='C:\\Users\\MRITUL~1\\AppData\\Local\\Temp\\ztcps-audit-ug6j5up5\\checkpoints.jsonl' mode='r' encoding='utf-8'>
+  lines = [l for l in open(self.cp, encoding="utf-8").read().splitlines() if l.strip()]
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+D:\zt-cps\zt-cps-starter\tests\test_invariants.py:491: ResourceWarning: unclosed file <_io.TextIOWrapper name='C:\\Users\\MRITUL~1\\AppData\\Local\\Temp\\ztcps-audit-ug6j5up5\\checkpoints.jsonl' mode='w' encoding='utf-8'>
+  open(self.cp, "w", encoding="utf-8").write("\n".join(lines) + "\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+..............D:\zt-cps\zt-cps-starter\tests\test_invariants.py:243: ResourceWarning: unclosed file <_io.TextIOWrapper name='D:\\zt-cps\\zt-cps-starter\\tests\\..\\firmware\\main.py' mode='r' encoding='utf-8'>
+  src = open(path, encoding="utf-8").read()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+..............................D:\zt-cps\zt-cps-starter\tests\test_invariants.py:651: ResourceWarning: unclosed file <_io.TextIOWrapper name='D:\\zt-cps\\zt-cps-starter\\tests\\..\\firmware\\main.py' mode='r' encoding='utf-8'>
+  return open(path, encoding="utf-8").read()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+...D:\zt-cps\zt-cps-starter\tests\test_invariants.py:709: ResourceWarning: unclosed file <_io.TextIOWrapper name='D:\\zt-cps\\zt-cps-starter\\tests\\..\\src\\config.py' mode='r' encoding='utf-8'>
+  "src", "config.py"), encoding="utf-8").read()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+......................................................
+----------------------------------------------------------------------
+Ran 150 tests in 21.925s
+
+OK
+sensor-002     | [91mQUARANTINED[0m -- 5 consecutive BLOCKs; device REVOKED, further messages rejected before HMAC until reinstated
+sensor-002     | [91mQUARANTINED[0m -- 5 consecutive BLOCKs; device REVOKED, further messages rejected before HMAC until reinstated

@@ -1,0 +1,15 @@
+{
+  "workspace": "D:/zt-cps/zt-cps-starter",
+  "branch": "astra/verify-pending-masking-20260906",
+  "initial_head": "cf4d82c4f7522ec9133d1e86324f8c47a3043288",
+  "local_main": "4f6afa25e4721c13a4e9f0355548f8ca07c70a5a",
+  "origin_main": "4f6afa25e4721c13a4e9f0355548f8ca07c70a5a",
+  "main_ahead": 0,
+  "main_behind": 0,
+  "initial_status": "clean",
+  "initial_paper_directory": "absent",
+  "remote_scope": "origin/main is the accessible remote-tracking reference; no fetch or network remote-head verification was performed",
+  "other_workspaces": "Only one Git worktree registered; uncommitted work or unpushed commits in other inaccessible clones are not verified",
+  "previous_audit": "results/astra_masking_review and docs/PAPER_GNN_BASELINE_VERIFICATION.md",
+  "initial_tests": "143 passed, 3 warnings, 161 subtests passed; pytest_initial.log"
+}

@@ -1,0 +1,27 @@
+==============================================================================
+REAL HARDWARE EVALUATION -- operator-labelled ESP32 + MPU6050 telemetry
+split = TEST   (allocation: data/splits/session_split.json)
+==============================================================================
+  hardware_session_20260902_221217_labelled.json [session 20260902_221217]: 116 labelled records
+
+Scored 42 real readings through the live pipeline (threshold 0.6).
+
+phase               n    rule     iso    lstm     gnn    fused   flagged
+------------------------------------------------------------------------------
+at_rest            12   0.900   0.569   0.827   0.680    0.847      42%
+fault_strong        8   0.900   0.000   0.000   0.041    0.001     100%
+fault_weak         22   0.900   0.000   0.000   0.041    0.001     100%
+
+FALSE POSITIVE RATE on a genuinely resting board: 41.7% (5/12)   95% CI [19.3%, 68.0%]
+  fused median 0.847, min 0.031
+DETECTION RATE on real physical disturbance:      100.0% (30/30)   95% CI [88.6%, 100.0%]
+
+  2 of 30 action-labelled windows are physically indistinguishable from rest
+  (peak <= 0.031 g, the resting maximum) -- intermittent actions have gaps between them.
+  Detection on the 28 windows that DO contain movement: 100.0%
+  Reported both ways rather than silently excluding the quiet ones, which
+  would measure labelling granularity rather than the model.
+
+Note this measures PHYSICAL anomaly discrimination on real hardware, not
+attack detection -- no attack was performed. Security Trust is untouched
+throughout, which is the two-score separation behaving correctly.

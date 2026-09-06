@@ -1,0 +1,536 @@
+..                                                   [100%]
+================================== FAILURES ===================================
+_ TestNonfiniteRelationalBoundaries.test_live_inactive_node_content_cannot_change_current_score (value=nan) _
+
+self = <test_nonfinite_relational_boundaries.TestNonfiniteRelationalBoundaries testMethod=test_live_inactive_node_content_cannot_change_current_score>
+
+    def test_live_inactive_node_content_cannot_change_current_score(self):
+        with patch.object(live.GNNScorer, '_load'):
+            scorer = live.GNNScorer()
+        torch.manual_seed(14)
+        scorer.model = live._GCN().eval().to(live._TORCH_DEVICE)
+        target = scorer.device_ids[0]
+        with patch.object(live.time, 'time', return_value=1000.0):
+            expected = scorer.score(target, 0.8, 0.7, 0.6)
+            for value in (np.nan, np.inf, -np.inf, np.finfo(np.float32).max):
+                with self.subTest(value=value):
+                    scorer.last_features[1:] = value
+                    actual = scorer.score(target, 0.8, 0.7, 0.6)
+>                   self.assertTrue(np.isfinite(actual))
+E                   AssertionError: np.False_ is not true
+
+tests\test_nonfinite_relational_boundaries.py:48: AssertionError
+_ TestNonfiniteRelationalBoundaries.test_live_inactive_node_content_cannot_change_current_score (value=inf) _
+
+self = <test_nonfinite_relational_boundaries.TestNonfiniteRelationalBoundaries testMethod=test_live_inactive_node_content_cannot_change_current_score>
+
+    def test_live_inactive_node_content_cannot_change_current_score(self):
+        with patch.object(live.GNNScorer, '_load'):
+            scorer = live.GNNScorer()
+        torch.manual_seed(14)
+        scorer.model = live._GCN().eval().to(live._TORCH_DEVICE)
+        target = scorer.device_ids[0]
+        with patch.object(live.time, 'time', return_value=1000.0):
+            expected = scorer.score(target, 0.8, 0.7, 0.6)
+            for value in (np.nan, np.inf, -np.inf, np.finfo(np.float32).max):
+                with self.subTest(value=value):
+                    scorer.last_features[1:] = value
+                    actual = scorer.score(target, 0.8, 0.7, 0.6)
+>                   self.assertTrue(np.isfinite(actual))
+E                   AssertionError: np.False_ is not true
+
+tests\test_nonfinite_relational_boundaries.py:48: AssertionError
+_ TestNonfiniteRelationalBoundaries.test_live_inactive_node_content_cannot_change_current_score (value=-inf) _
+
+self = <test_nonfinite_relational_boundaries.TestNonfiniteRelationalBoundaries testMethod=test_live_inactive_node_content_cannot_change_current_score>
+
+    def test_live_inactive_node_content_cannot_change_current_score(self):
+        with patch.object(live.GNNScorer, '_load'):
+            scorer = live.GNNScorer()
+        torch.manual_seed(14)
+        scorer.model = live._GCN().eval().to(live._TORCH_DEVICE)
+        target = scorer.device_ids[0]
+        with patch.object(live.time, 'time', return_value=1000.0):
+            expected = scorer.score(target, 0.8, 0.7, 0.6)
+            for value in (np.nan, np.inf, -np.inf, np.finfo(np.float32).max):
+                with self.subTest(value=value):
+                    scorer.last_features[1:] = value
+                    actual = scorer.score(target, 0.8, 0.7, 0.6)
+>                   self.assertTrue(np.isfinite(actual))
+E                   AssertionError: np.False_ is not true
+
+tests\test_nonfinite_relational_boundaries.py:48: AssertionError
+_ TestNonfiniteRelationalBoundaries.test_live_inactive_node_content_cannot_change_current_score (value=np.float32(3.4028235e+38)) _
+
+self = <test_nonfinite_relational_boundaries.TestNonfiniteRelationalBoundaries testMethod=test_live_inactive_node_content_cannot_change_current_score>
+
+    def test_live_inactive_node_content_cannot_change_current_score(self):
+        with patch.object(live.GNNScorer, '_load'):
+            scorer = live.GNNScorer()
+        torch.manual_seed(14)
+        scorer.model = live._GCN().eval().to(live._TORCH_DEVICE)
+        target = scorer.device_ids[0]
+        with patch.object(live.time, 'time', return_value=1000.0):
+            expected = scorer.score(target, 0.8, 0.7, 0.6)
+            for value in (np.nan, np.inf, -np.inf, np.finfo(np.float32).max):
+                with self.subTest(value=value):
+                    scorer.last_features[1:] = value
+                    actual = scorer.score(target, 0.8, 0.7, 0.6)
+>                   self.assertTrue(np.isfinite(actual))
+E                   AssertionError: np.False_ is not true
+
+tests\test_nonfinite_relational_boundaries.py:48: AssertionError
+_ TestNonfiniteRelationalBoundaries.test_set_scoring_excludes_nonfinite_invalid_payloads (model='DeepSets', value=nan) _
+
+self = <test_nonfinite_relational_boundaries.TestNonfiniteRelationalBoundaries testMethod=test_set_scoring_excludes_nonfinite_invalid_payloads>
+
+    def test_set_scoring_excludes_nonfinite_invalid_payloads(self):
+        rng = np.random.default_rng(14)
+        x = rng.uniform(0.1, 0.9, (2, 6, 3)).astype(np.float32)
+        meta = [{'valid': np.array([True, False, True, True, True, True])}] * 2
+        for factory in (bcm.DeepSets, bcm.GATv2, bcm.SetTransformer,
+                        bcm.NodePreservingSetTransformer):
+            torch.manual_seed(14)
+            model = factory().eval().to(bcm._TORCH_DEVICE)
+            adjacency = bcm.topology_mask(6) if factory is bcm.GATv2 else None
+            expected = bcm.deep_sets_scores(model, x, adjacency, meta=meta)
+            for value in (np.nan, np.inf, -np.inf, np.finfo(np.float32).max):
+                with self.subTest(model=factory.__name__, value=value):
+                    changed = x.copy()
+                    changed[:, 1] = value
+                    actual = bcm.deep_sets_scores(model, changed, adjacency, meta=meta)
+>                   np.testing.assert_allclose(actual[:, [0, 2, 3, 4, 5]],
+                                               expected[:, [0, 2, 3, 4, 5]], atol=1e-6)
+E                   AssertionError:
+E                   Not equal to tolerance rtol=1e-07, atol=1e-06
+E
+E                   nan location mismatch:
+E                    ACTUAL: array([[nan, nan, nan, nan, nan],
+E                          [nan, nan, nan, nan, nan]], dtype=float32)
+E                    DESIRED: array([[0.593703, 0.593321, 0.59345 , 0.593654, 0.59387 ],
+E                          [0.589562, 0.590045, 0.588964, 0.590301, 0.590403]], dtype=float32)
+
+tests\test_nonfinite_relational_boundaries.py:32: AssertionError
+_ TestNonfiniteRelationalBoundaries.test_set_scoring_excludes_nonfinite_invalid_payloads (model='DeepSets', value=inf) _
+
+self = <test_nonfinite_relational_boundaries.TestNonfiniteRelationalBoundaries testMethod=test_set_scoring_excludes_nonfinite_invalid_payloads>
+
+    def test_set_scoring_excludes_nonfinite_invalid_payloads(self):
+        rng = np.random.default_rng(14)
+        x = rng.uniform(0.1, 0.9, (2, 6, 3)).astype(np.float32)
+        meta = [{'valid': np.array([True, False, True, True, True, True])}] * 2
+        for factory in (bcm.DeepSets, bcm.GATv2, bcm.SetTransformer,
+                        bcm.NodePreservingSetTransformer):
+            torch.manual_seed(14)
+            model = factory().eval().to(bcm._TORCH_DEVICE)
+            adjacency = bcm.topology_mask(6) if factory is bcm.GATv2 else None
+            expected = bcm.deep_sets_scores(model, x, adjacency, meta=meta)
+            for value in (np.nan, np.inf, -np.inf, np.finfo(np.float32).max):
+                with self.subTest(model=factory.__name__, value=value):
+                    changed = x.copy()
+                    changed[:, 1] = value
+                    actual = bcm.deep_sets_scores(model, changed, adjacency, meta=meta)
+>                   np.testing.assert_allclose(actual[:, [0, 2, 3, 4, 5]],
+                                               expected[:, [0, 2, 3, 4, 5]], atol=1e-6)
+E                   AssertionError:
+E                   Not equal to tolerance rtol=1e-07, atol=1e-06
+E
+E                   nan location mismatch:
+E                    ACTUAL: array([[nan, nan, nan, nan, nan],
+E                          [nan, nan, nan, nan, nan]], dtype=float32)
+E                    DESIRED: array([[0.593703, 0.593321, 0.59345 , 0.593654, 0.59387 ],
+E                          [0.589562, 0.590045, 0.588964, 0.590301, 0.590403]], dtype=float32)
+
+tests\test_nonfinite_relational_boundaries.py:32: AssertionError
+_ TestNonfiniteRelationalBoundaries.test_set_scoring_excludes_nonfinite_invalid_payloads (model='DeepSets', value=-inf) _
+
+self = <test_nonfinite_relational_boundaries.TestNonfiniteRelationalBoundaries testMethod=test_set_scoring_excludes_nonfinite_invalid_payloads>
+
+    def test_set_scoring_excludes_nonfinite_invalid_payloads(self):
+        rng = np.random.default_rng(14)
+        x = rng.uniform(0.1, 0.9, (2, 6, 3)).astype(np.float32)
+        meta = [{'valid': np.array([True, False, True, True, True, True])}] * 2
+        for factory in (bcm.DeepSets, bcm.GATv2, bcm.SetTransformer,
+                        bcm.NodePreservingSetTransformer):
+            torch.manual_seed(14)
+            model = factory().eval().to(bcm._TORCH_DEVICE)
+            adjacency = bcm.topology_mask(6) if factory is bcm.GATv2 else None
+            expected = bcm.deep_sets_scores(model, x, adjacency, meta=meta)
+            for value in (np.nan, np.inf, -np.inf, np.finfo(np.float32).max):
+                with self.subTest(model=factory.__name__, value=value):
+                    changed = x.copy()
+                    changed[:, 1] = value
+                    actual = bcm.deep_sets_scores(model, changed, adjacency, meta=meta)
+>                   np.testing.assert_allclose(actual[:, [0, 2, 3, 4, 5]],
+                                               expected[:, [0, 2, 3, 4, 5]], atol=1e-6)
+E                   AssertionError:
+E                   Not equal to tolerance rtol=1e-07, atol=1e-06
+E
+E                   nan location mismatch:
+E                    ACTUAL: array([[nan, nan, nan, nan, nan],
+E                          [nan, nan, nan, nan, nan]], dtype=float32)
+E                    DESIRED: array([[0.593703, 0.593321, 0.59345 , 0.593654, 0.59387 ],
+E                          [0.589562, 0.590045, 0.588964, 0.590301, 0.590403]], dtype=float32)
+
+tests\test_nonfinite_relational_boundaries.py:32: AssertionError
+_ TestNonfiniteRelationalBoundaries.test_set_scoring_excludes_nonfinite_invalid_payloads (model='GATv2', value=nan) _
+
+self = <test_nonfinite_relational_boundaries.TestNonfiniteRelationalBoundaries testMethod=test_set_scoring_excludes_nonfinite_invalid_payloads>
+
+    def test_set_scoring_excludes_nonfinite_invalid_payloads(self):
+        rng = np.random.default_rng(14)
+        x = rng.uniform(0.1, 0.9, (2, 6, 3)).astype(np.float32)
+        meta = [{'valid': np.array([True, False, True, True, True, True])}] * 2
+        for factory in (bcm.DeepSets, bcm.GATv2, bcm.SetTransformer,
+                        bcm.NodePreservingSetTransformer):
+            torch.manual_seed(14)
+            model = factory().eval().to(bcm._TORCH_DEVICE)
+            adjacency = bcm.topology_mask(6) if factory is bcm.GATv2 else None
+            expected = bcm.deep_sets_scores(model, x, adjacency, meta=meta)
+            for value in (np.nan, np.inf, -np.inf, np.finfo(np.float32).max):
+                with self.subTest(model=factory.__name__, value=value):
+                    changed = x.copy()
+                    changed[:, 1] = value
+                    actual = bcm.deep_sets_scores(model, changed, adjacency, meta=meta)
+>                   np.testing.assert_allclose(actual[:, [0, 2, 3, 4, 5]],
+                                               expected[:, [0, 2, 3, 4, 5]], atol=1e-6)
+E                   AssertionError:
+E                   Not equal to tolerance rtol=1e-07, atol=1e-06
+E
+E                   nan location mismatch:
+E                    ACTUAL: array([[nan, nan, nan, nan, nan],
+E                          [nan, nan, nan, nan, nan]], dtype=float32)
+E                    DESIRED: array([[0.529061, 0.529061, 0.529061, 0.529061, 0.529061],
+E                          [0.538024, 0.538024, 0.538024, 0.538024, 0.538024]], dtype=float32)
+
+tests\test_nonfinite_relational_boundaries.py:32: AssertionError
+_ TestNonfiniteRelationalBoundaries.test_set_scoring_excludes_nonfinite_invalid_payloads (model='GATv2', value=inf) _
+
+self = <test_nonfinite_relational_boundaries.TestNonfiniteRelationalBoundaries testMethod=test_set_scoring_excludes_nonfinite_invalid_payloads>
+
+    def test_set_scoring_excludes_nonfinite_invalid_payloads(self):
+        rng = np.random.default_rng(14)
+        x = rng.uniform(0.1, 0.9, (2, 6, 3)).astype(np.float32)
+        meta = [{'valid': np.array([True, False, True, True, True, True])}] * 2
+        for factory in (bcm.DeepSets, bcm.GATv2, bcm.SetTransformer,
+                        bcm.NodePreservingSetTransformer):
+            torch.manual_seed(14)
+            model = factory().eval().to(bcm._TORCH_DEVICE)
+            adjacency = bcm.topology_mask(6) if factory is bcm.GATv2 else None
+            expected = bcm.deep_sets_scores(model, x, adjacency, meta=meta)
+            for value in (np.nan, np.inf, -np.inf, np.finfo(np.float32).max):
+                with self.subTest(model=factory.__name__, value=value):
+                    changed = x.copy()
+                    changed[:, 1] = value
+                    actual = bcm.deep_sets_scores(model, changed, adjacency, meta=meta)
+>                   np.testing.assert_allclose(actual[:, [0, 2, 3, 4, 5]],
+                                               expected[:, [0, 2, 3, 4, 5]], atol=1e-6)
+E                   AssertionError:
+E                   Not equal to tolerance rtol=1e-07, atol=1e-06
+E
+E                   nan location mismatch:
+E                    ACTUAL: array([[nan, nan, nan, nan, nan],
+E                          [nan, nan, nan, nan, nan]], dtype=float32)
+E                    DESIRED: array([[0.529061, 0.529061, 0.529061, 0.529061, 0.529061],
+E                          [0.538024, 0.538024, 0.538024, 0.538024, 0.538024]], dtype=float32)
+
+tests\test_nonfinite_relational_boundaries.py:32: AssertionError
+_ TestNonfiniteRelationalBoundaries.test_set_scoring_excludes_nonfinite_invalid_payloads (model='GATv2', value=-inf) _
+
+self = <test_nonfinite_relational_boundaries.TestNonfiniteRelationalBoundaries testMethod=test_set_scoring_excludes_nonfinite_invalid_payloads>
+
+    def test_set_scoring_excludes_nonfinite_invalid_payloads(self):
+        rng = np.random.default_rng(14)
+        x = rng.uniform(0.1, 0.9, (2, 6, 3)).astype(np.float32)
+        meta = [{'valid': np.array([True, False, True, True, True, True])}] * 2
+        for factory in (bcm.DeepSets, bcm.GATv2, bcm.SetTransformer,
+                        bcm.NodePreservingSetTransformer):
+            torch.manual_seed(14)
+            model = factory().eval().to(bcm._TORCH_DEVICE)
+            adjacency = bcm.topology_mask(6) if factory is bcm.GATv2 else None
+            expected = bcm.deep_sets_scores(model, x, adjacency, meta=meta)
+            for value in (np.nan, np.inf, -np.inf, np.finfo(np.float32).max):
+                with self.subTest(model=factory.__name__, value=value):
+                    changed = x.copy()
+                    changed[:, 1] = value
+                    actual = bcm.deep_sets_scores(model, changed, adjacency, meta=meta)
+>                   np.testing.assert_allclose(actual[:, [0, 2, 3, 4, 5]],
+                                               expected[:, [0, 2, 3, 4, 5]], atol=1e-6)
+E                   AssertionError:
+E                   Not equal to tolerance rtol=1e-07, atol=1e-06
+E
+E                   nan location mismatch:
+E                    ACTUAL: array([[nan, nan, nan, nan, nan],
+E                          [nan, nan, nan, nan, nan]], dtype=float32)
+E                    DESIRED: array([[0.529061, 0.529061, 0.529061, 0.529061, 0.529061],
+E                          [0.538024, 0.538024, 0.538024, 0.538024, 0.538024]], dtype=float32)
+
+tests\test_nonfinite_relational_boundaries.py:32: AssertionError
+_ TestNonfiniteRelationalBoundaries.test_set_scoring_excludes_nonfinite_invalid_payloads (model='SetTransformer', value=nan) _
+
+self = <test_nonfinite_relational_boundaries.TestNonfiniteRelationalBoundaries testMethod=test_set_scoring_excludes_nonfinite_invalid_payloads>
+
+    def test_set_scoring_excludes_nonfinite_invalid_payloads(self):
+        rng = np.random.default_rng(14)
+        x = rng.uniform(0.1, 0.9, (2, 6, 3)).astype(np.float32)
+        meta = [{'valid': np.array([True, False, True, True, True, True])}] * 2
+        for factory in (bcm.DeepSets, bcm.GATv2, bcm.SetTransformer,
+                        bcm.NodePreservingSetTransformer):
+            torch.manual_seed(14)
+            model = factory().eval().to(bcm._TORCH_DEVICE)
+            adjacency = bcm.topology_mask(6) if factory is bcm.GATv2 else None
+            expected = bcm.deep_sets_scores(model, x, adjacency, meta=meta)
+            for value in (np.nan, np.inf, -np.inf, np.finfo(np.float32).max):
+                with self.subTest(model=factory.__name__, value=value):
+                    changed = x.copy()
+                    changed[:, 1] = value
+                    actual = bcm.deep_sets_scores(model, changed, adjacency, meta=meta)
+>                   np.testing.assert_allclose(actual[:, [0, 2, 3, 4, 5]],
+                                               expected[:, [0, 2, 3, 4, 5]], atol=1e-6)
+E                   AssertionError:
+E                   Not equal to tolerance rtol=1e-07, atol=1e-06
+E
+E                   nan location mismatch:
+E                    ACTUAL: array([[nan, nan, nan, nan, nan],
+E                          [nan, nan, nan, nan, nan]], dtype=float32)
+E                    DESIRED: array([[0.474804, 0.479015, 0.489723, 0.482029, 0.480903],
+E                          [0.483115, 0.489535, 0.486805, 0.465323, 0.482393]], dtype=float32)
+
+tests\test_nonfinite_relational_boundaries.py:32: AssertionError
+_ TestNonfiniteRelationalBoundaries.test_set_scoring_excludes_nonfinite_invalid_payloads (model='SetTransformer', value=inf) _
+
+self = <test_nonfinite_relational_boundaries.TestNonfiniteRelationalBoundaries testMethod=test_set_scoring_excludes_nonfinite_invalid_payloads>
+
+    def test_set_scoring_excludes_nonfinite_invalid_payloads(self):
+        rng = np.random.default_rng(14)
+        x = rng.uniform(0.1, 0.9, (2, 6, 3)).astype(np.float32)
+        meta = [{'valid': np.array([True, False, True, True, True, True])}] * 2
+        for factory in (bcm.DeepSets, bcm.GATv2, bcm.SetTransformer,
+                        bcm.NodePreservingSetTransformer):
+            torch.manual_seed(14)
+            model = factory().eval().to(bcm._TORCH_DEVICE)
+            adjacency = bcm.topology_mask(6) if factory is bcm.GATv2 else None
+            expected = bcm.deep_sets_scores(model, x, adjacency, meta=meta)
+            for value in (np.nan, np.inf, -np.inf, np.finfo(np.float32).max):
+                with self.subTest(model=factory.__name__, value=value):
+                    changed = x.copy()
+                    changed[:, 1] = value
+                    actual = bcm.deep_sets_scores(model, changed, adjacency, meta=meta)
+>                   np.testing.assert_allclose(actual[:, [0, 2, 3, 4, 5]],
+                                               expected[:, [0, 2, 3, 4, 5]], atol=1e-6)
+E                   AssertionError:
+E                   Not equal to tolerance rtol=1e-07, atol=1e-06
+E
+E                   nan location mismatch:
+E                    ACTUAL: array([[nan, nan, nan, nan, nan],
+E                          [nan, nan, nan, nan, nan]], dtype=float32)
+E                    DESIRED: array([[0.474804, 0.479015, 0.489723, 0.482029, 0.480903],
+E                          [0.483115, 0.489535, 0.486805, 0.465323, 0.482393]], dtype=float32)
+
+tests\test_nonfinite_relational_boundaries.py:32: AssertionError
+_ TestNonfiniteRelationalBoundaries.test_set_scoring_excludes_nonfinite_invalid_payloads (model='SetTransformer', value=-inf) _
+
+self = <test_nonfinite_relational_boundaries.TestNonfiniteRelationalBoundaries testMethod=test_set_scoring_excludes_nonfinite_invalid_payloads>
+
+    def test_set_scoring_excludes_nonfinite_invalid_payloads(self):
+        rng = np.random.default_rng(14)
+        x = rng.uniform(0.1, 0.9, (2, 6, 3)).astype(np.float32)
+        meta = [{'valid': np.array([True, False, True, True, True, True])}] * 2
+        for factory in (bcm.DeepSets, bcm.GATv2, bcm.SetTransformer,
+                        bcm.NodePreservingSetTransformer):
+            torch.manual_seed(14)
+            model = factory().eval().to(bcm._TORCH_DEVICE)
+            adjacency = bcm.topology_mask(6) if factory is bcm.GATv2 else None
+            expected = bcm.deep_sets_scores(model, x, adjacency, meta=meta)
+            for value in (np.nan, np.inf, -np.inf, np.finfo(np.float32).max):
+                with self.subTest(model=factory.__name__, value=value):
+                    changed = x.copy()
+                    changed[:, 1] = value
+                    actual = bcm.deep_sets_scores(model, changed, adjacency, meta=meta)
+>                   np.testing.assert_allclose(actual[:, [0, 2, 3, 4, 5]],
+                                               expected[:, [0, 2, 3, 4, 5]], atol=1e-6)
+E                   AssertionError:
+E                   Not equal to tolerance rtol=1e-07, atol=1e-06
+E
+E                   nan location mismatch:
+E                    ACTUAL: array([[nan, nan, nan, nan, nan],
+E                          [nan, nan, nan, nan, nan]], dtype=float32)
+E                    DESIRED: array([[0.474804, 0.479015, 0.489723, 0.482029, 0.480903],
+E                          [0.483115, 0.489535, 0.486805, 0.465323, 0.482393]], dtype=float32)
+
+tests\test_nonfinite_relational_boundaries.py:32: AssertionError
+_ TestNonfiniteRelationalBoundaries.test_set_scoring_excludes_nonfinite_invalid_payloads (model='SetTransformer', value=np.float32(3.4028235e+38)) _
+
+self = <test_nonfinite_relational_boundaries.TestNonfiniteRelationalBoundaries testMethod=test_set_scoring_excludes_nonfinite_invalid_payloads>
+
+    def test_set_scoring_excludes_nonfinite_invalid_payloads(self):
+        rng = np.random.default_rng(14)
+        x = rng.uniform(0.1, 0.9, (2, 6, 3)).astype(np.float32)
+        meta = [{'valid': np.array([True, False, True, True, True, True])}] * 2
+        for factory in (bcm.DeepSets, bcm.GATv2, bcm.SetTransformer,
+                        bcm.NodePreservingSetTransformer):
+            torch.manual_seed(14)
+            model = factory().eval().to(bcm._TORCH_DEVICE)
+            adjacency = bcm.topology_mask(6) if factory is bcm.GATv2 else None
+            expected = bcm.deep_sets_scores(model, x, adjacency, meta=meta)
+            for value in (np.nan, np.inf, -np.inf, np.finfo(np.float32).max):
+                with self.subTest(model=factory.__name__, value=value):
+                    changed = x.copy()
+                    changed[:, 1] = value
+                    actual = bcm.deep_sets_scores(model, changed, adjacency, meta=meta)
+>                   np.testing.assert_allclose(actual[:, [0, 2, 3, 4, 5]],
+                                               expected[:, [0, 2, 3, 4, 5]], atol=1e-6)
+E                   AssertionError:
+E                   Not equal to tolerance rtol=1e-07, atol=1e-06
+E
+E                   nan location mismatch:
+E                    ACTUAL: array([[nan, nan, nan, nan, nan],
+E                          [nan, nan, nan, nan, nan]], dtype=float32)
+E                    DESIRED: array([[0.474804, 0.479015, 0.489723, 0.482029, 0.480903],
+E                          [0.483115, 0.489535, 0.486805, 0.465323, 0.482393]], dtype=float32)
+
+tests\test_nonfinite_relational_boundaries.py:32: AssertionError
+_ TestNonfiniteRelationalBoundaries.test_set_scoring_excludes_nonfinite_invalid_payloads (model='NodePreservingSetTransformer', value=nan) _
+
+self = <test_nonfinite_relational_boundaries.TestNonfiniteRelationalBoundaries testMethod=test_set_scoring_excludes_nonfinite_invalid_payloads>
+
+    def test_set_scoring_excludes_nonfinite_invalid_payloads(self):
+        rng = np.random.default_rng(14)
+        x = rng.uniform(0.1, 0.9, (2, 6, 3)).astype(np.float32)
+        meta = [{'valid': np.array([True, False, True, True, True, True])}] * 2
+        for factory in (bcm.DeepSets, bcm.GATv2, bcm.SetTransformer,
+                        bcm.NodePreservingSetTransformer):
+            torch.manual_seed(14)
+            model = factory().eval().to(bcm._TORCH_DEVICE)
+            adjacency = bcm.topology_mask(6) if factory is bcm.GATv2 else None
+            expected = bcm.deep_sets_scores(model, x, adjacency, meta=meta)
+            for value in (np.nan, np.inf, -np.inf, np.finfo(np.float32).max):
+                with self.subTest(model=factory.__name__, value=value):
+                    changed = x.copy()
+                    changed[:, 1] = value
+                    actual = bcm.deep_sets_scores(model, changed, adjacency, meta=meta)
+>                   np.testing.assert_allclose(actual[:, [0, 2, 3, 4, 5]],
+                                               expected[:, [0, 2, 3, 4, 5]], atol=1e-6)
+E                   AssertionError:
+E                   Not equal to tolerance rtol=1e-07, atol=1e-06
+E
+E                   nan location mismatch:
+E                    ACTUAL: array([[nan, nan, nan, nan, nan],
+E                          [nan, nan, nan, nan, nan]], dtype=float32)
+E                    DESIRED: array([[0.48717 , 0.479733, 0.473648, 0.47811 , 0.489418],
+E                          [0.480501, 0.477763, 0.474027, 0.49107 , 0.476402]], dtype=float32)
+
+tests\test_nonfinite_relational_boundaries.py:32: AssertionError
+_ TestNonfiniteRelationalBoundaries.test_set_scoring_excludes_nonfinite_invalid_payloads (model='NodePreservingSetTransformer', value=inf) _
+
+self = <test_nonfinite_relational_boundaries.TestNonfiniteRelationalBoundaries testMethod=test_set_scoring_excludes_nonfinite_invalid_payloads>
+
+    def test_set_scoring_excludes_nonfinite_invalid_payloads(self):
+        rng = np.random.default_rng(14)
+        x = rng.uniform(0.1, 0.9, (2, 6, 3)).astype(np.float32)
+        meta = [{'valid': np.array([True, False, True, True, True, True])}] * 2
+        for factory in (bcm.DeepSets, bcm.GATv2, bcm.SetTransformer,
+                        bcm.NodePreservingSetTransformer):
+            torch.manual_seed(14)
+            model = factory().eval().to(bcm._TORCH_DEVICE)
+            adjacency = bcm.topology_mask(6) if factory is bcm.GATv2 else None
+            expected = bcm.deep_sets_scores(model, x, adjacency, meta=meta)
+            for value in (np.nan, np.inf, -np.inf, np.finfo(np.float32).max):
+                with self.subTest(model=factory.__name__, value=value):
+                    changed = x.copy()
+                    changed[:, 1] = value
+                    actual = bcm.deep_sets_scores(model, changed, adjacency, meta=meta)
+>                   np.testing.assert_allclose(actual[:, [0, 2, 3, 4, 5]],
+                                               expected[:, [0, 2, 3, 4, 5]], atol=1e-6)
+E                   AssertionError:
+E                   Not equal to tolerance rtol=1e-07, atol=1e-06
+E
+E                   nan location mismatch:
+E                    ACTUAL: array([[nan, nan, nan, nan, nan],
+E                          [nan, nan, nan, nan, nan]], dtype=float32)
+E                    DESIRED: array([[0.48717 , 0.479733, 0.473648, 0.47811 , 0.489418],
+E                          [0.480501, 0.477763, 0.474027, 0.49107 , 0.476402]], dtype=float32)
+
+tests\test_nonfinite_relational_boundaries.py:32: AssertionError
+_ TestNonfiniteRelationalBoundaries.test_set_scoring_excludes_nonfinite_invalid_payloads (model='NodePreservingSetTransformer', value=-inf) _
+
+self = <test_nonfinite_relational_boundaries.TestNonfiniteRelationalBoundaries testMethod=test_set_scoring_excludes_nonfinite_invalid_payloads>
+
+    def test_set_scoring_excludes_nonfinite_invalid_payloads(self):
+        rng = np.random.default_rng(14)
+        x = rng.uniform(0.1, 0.9, (2, 6, 3)).astype(np.float32)
+        meta = [{'valid': np.array([True, False, True, True, True, True])}] * 2
+        for factory in (bcm.DeepSets, bcm.GATv2, bcm.SetTransformer,
+                        bcm.NodePreservingSetTransformer):
+            torch.manual_seed(14)
+            model = factory().eval().to(bcm._TORCH_DEVICE)
+            adjacency = bcm.topology_mask(6) if factory is bcm.GATv2 else None
+            expected = bcm.deep_sets_scores(model, x, adjacency, meta=meta)
+            for value in (np.nan, np.inf, -np.inf, np.finfo(np.float32).max):
+                with self.subTest(model=factory.__name__, value=value):
+                    changed = x.copy()
+                    changed[:, 1] = value
+                    actual = bcm.deep_sets_scores(model, changed, adjacency, meta=meta)
+>                   np.testing.assert_allclose(actual[:, [0, 2, 3, 4, 5]],
+                                               expected[:, [0, 2, 3, 4, 5]], atol=1e-6)
+E                   AssertionError:
+E                   Not equal to tolerance rtol=1e-07, atol=1e-06
+E
+E                   nan location mismatch:
+E                    ACTUAL: array([[nan, nan, nan, nan, nan],
+E                          [nan, nan, nan, nan, nan]], dtype=float32)
+E                    DESIRED: array([[0.48717 , 0.479733, 0.473648, 0.47811 , 0.489418],
+E                          [0.480501, 0.477763, 0.474027, 0.49107 , 0.476402]], dtype=float32)
+
+tests\test_nonfinite_relational_boundaries.py:32: AssertionError
+_ TestNonfiniteRelationalBoundaries.test_set_scoring_excludes_nonfinite_invalid_payloads (model='NodePreservingSetTransformer', value=np.float32(3.4028235e+38)) _
+
+self = <test_nonfinite_relational_boundaries.TestNonfiniteRelationalBoundaries testMethod=test_set_scoring_excludes_nonfinite_invalid_payloads>
+
+    def test_set_scoring_excludes_nonfinite_invalid_payloads(self):
+        rng = np.random.default_rng(14)
+        x = rng.uniform(0.1, 0.9, (2, 6, 3)).astype(np.float32)
+        meta = [{'valid': np.array([True, False, True, True, True, True])}] * 2
+        for factory in (bcm.DeepSets, bcm.GATv2, bcm.SetTransformer,
+                        bcm.NodePreservingSetTransformer):
+            torch.manual_seed(14)
+            model = factory().eval().to(bcm._TORCH_DEVICE)
+            adjacency = bcm.topology_mask(6) if factory is bcm.GATv2 else None
+            expected = bcm.deep_sets_scores(model, x, adjacency, meta=meta)
+            for value in (np.nan, np.inf, -np.inf, np.finfo(np.float32).max):
+                with self.subTest(model=factory.__name__, value=value):
+                    changed = x.copy()
+                    changed[:, 1] = value
+                    actual = bcm.deep_sets_scores(model, changed, adjacency, meta=meta)
+>                   np.testing.assert_allclose(actual[:, [0, 2, 3, 4, 5]],
+                                               expected[:, [0, 2, 3, 4, 5]], atol=1e-6)
+E                   AssertionError:
+E                   Not equal to tolerance rtol=1e-07, atol=1e-06
+E
+E                   nan location mismatch:
+E                    ACTUAL: array([[nan, nan, nan, nan, nan],
+E                          [nan, nan, nan, nan, nan]], dtype=float32)
+E                    DESIRED: array([[0.48717 , 0.479733, 0.473648, 0.47811 , 0.489418],
+E                          [0.480501, 0.477763, 0.474027, 0.49107 , 0.476402]], dtype=float32)
+
+tests\test_nonfinite_relational_boundaries.py:32: AssertionError
+=========================== short test summary info ===========================
+SUBFAILED(value=nan) tests/test_nonfinite_relational_boundaries.py::TestNonfiniteRelationalBoundaries::test_live_inactive_node_content_cannot_change_current_score
+SUBFAILED(value=inf) tests/test_nonfinite_relational_boundaries.py::TestNonfiniteRelationalBoundaries::test_live_inactive_node_content_cannot_change_current_score
+SUBFAILED(value=-inf) tests/test_nonfinite_relational_boundaries.py::TestNonfiniteRelationalBoundaries::test_live_inactive_node_content_cannot_change_current_score
+SUBFAILED(value=np.float32(3.4028235e+38)) tests/test_nonfinite_relational_boundaries.py::TestNonfiniteRelationalBoundaries::test_live_inactive_node_content_cannot_change_current_score
+SUBFAILED(model='DeepSets', value=nan) tests/test_nonfinite_relational_boundaries.py::TestNonfiniteRelationalBoundaries::test_set_scoring_excludes_nonfinite_invalid_payloads
+SUBFAILED(model='DeepSets', value=inf) tests/test_nonfinite_relational_boundaries.py::TestNonfiniteRelationalBoundaries::test_set_scoring_excludes_nonfinite_invalid_payloads
+SUBFAILED(model='DeepSets', value=-inf) tests/test_nonfinite_relational_boundaries.py::TestNonfiniteRelationalBoundaries::test_set_scoring_excludes_nonfinite_invalid_payloads
+SUBFAILED(model='GATv2', value=nan) tests/test_nonfinite_relational_boundaries.py::TestNonfiniteRelationalBoundaries::test_set_scoring_excludes_nonfinite_invalid_payloads
+SUBFAILED(model='GATv2', value=inf) tests/test_nonfinite_relational_boundaries.py::TestNonfiniteRelationalBoundaries::test_set_scoring_excludes_nonfinite_invalid_payloads
+SUBFAILED(model='GATv2', value=-inf) tests/test_nonfinite_relational_boundaries.py::TestNonfiniteRelationalBoundaries::test_set_scoring_excludes_nonfinite_invalid_payloads
+SUBFAILED(model='SetTransformer', value=nan) tests/test_nonfinite_relational_boundaries.py::TestNonfiniteRelationalBoundaries::test_set_scoring_excludes_nonfinite_invalid_payloads
+SUBFAILED(model='SetTransformer', value=inf) tests/test_nonfinite_relational_boundaries.py::TestNonfiniteRelationalBoundaries::test_set_scoring_excludes_nonfinite_invalid_payloads
+SUBFAILED(model='SetTransformer', value=-inf) tests/test_nonfinite_relational_boundaries.py::TestNonfiniteRelationalBoundaries::test_set_scoring_excludes_nonfinite_invalid_payloads
+SUBFAILED(model='SetTransformer', value=np.float32(3.4028235e+38)) tests/test_nonfinite_relational_boundaries.py::TestNonfiniteRelationalBoundaries::test_set_scoring_excludes_nonfinite_invalid_payloads
+SUBFAILED(model='NodePreservingSetTransformer', value=nan) tests/test_nonfinite_relational_boundaries.py::TestNonfiniteRelationalBoundaries::test_set_scoring_excludes_nonfinite_invalid_payloads
+SUBFAILED(model='NodePreservingSetTransformer', value=inf) tests/test_nonfinite_relational_boundaries.py::TestNonfiniteRelationalBoundaries::test_set_scoring_excludes_nonfinite_invalid_payloads
+SUBFAILED(model='NodePreservingSetTransformer', value=-inf) tests/test_nonfinite_relational_boundaries.py::TestNonfiniteRelationalBoundaries::test_set_scoring_excludes_nonfinite_invalid_payloads
+SUBFAILED(model='NodePreservingSetTransformer', value=np.float32(3.4028235e+38)) tests/test_nonfinite_relational_boundaries.py::TestNonfiniteRelationalBoundaries::test_set_scoring_excludes_nonfinite_invalid_payloads
+18 failed, 2 passed, 2 subtests passed in 4.34s

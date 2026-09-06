@@ -1,0 +1,86 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_ TestNonfiniteRelationalBoundaries.test_mixed_provenance_training_excludes_invalid_content _
+
+self = <test_nonfinite_relational_boundaries.TestNonfiniteRelationalBoundaries testMethod=test_mixed_provenance_training_excludes_invalid_content>
+
+    def test_mixed_provenance_training_excludes_invalid_content(self):
+        rng = np.random.default_rng(14)
+        x = rng.uniform(0.1, 0.9, (4, 3, 3)).astype(np.float32)
+        labels = np.array([[1, 1, 0]] * 4, dtype=np.float32)
+        meta = [{'valid': np.array([True, False, True])}] * 4
+        changed = x.copy()
+        changed[:, 1] = np.nan
+        with patch.object(bcm, 'DEEPSETS_EPOCHS', 2):
+            expected, _, _ = bcm._train_pooled_sets([(x, labels, meta)], (3,), seed=14)
+>           actual, _, _ = bcm._train_pooled_sets([(changed, labels, meta)], (3,), seed=14)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_nonfinite_relational_boundaries.py:26:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+sources = [(array([[[0.76478666, 0.38875735, 0.66219145],
+        [       nan,        nan,        nan],
+        [0.7098507 , 0.6...id': array([ True, False,  True])}, {'valid': array([ True, False,  True])}, {'valid': array([ True, False,  True])}])]
+sizes = (3,), factory = <class 'benchmark_crossdevice_models.SetTransformer'>
+seed = 14
+
+    def _train_pooled_sets(sources, sizes, factory=SetTransformer, seed=None):
+        """Shared core: pool N (X, y, meta) column-sources along the node axis and
+        train one Set Transformer with per-epoch cardinality cycling across
+        `sizes`, drawing columns uniformly from the FULL pool at every size (not
+        only at the largest) -- see train_mixed_provenance's own docstring for why
+        that matters. All sources must have matching row counts."""
+        Xs, ys, valids = [], [], []
+        n0 = len(sources[0][0])
+        for X, y, meta in sources:
+            assert len(X) == n0, (
+                f"column-pooling requires matching row counts, got {[len(s[0]) for s in sources]}")
+            Xs.append(X)
+            ys.append(y)
+            valids.append(np.array([m["valid"] for m in meta]))
+
+        X_all = np.concatenate(Xs, axis=1)
+        y_all = np.concatenate(ys, axis=1)
+        valid_all = np.concatenate(valids, axis=1)
+        n_cols = X_all.shape[1]
+
+        torch.manual_seed(TRAINING_SEED if seed is None else seed)
+        rng = np.random.default_rng(TRAINING_SEED if seed is None else seed)
+        model = factory().to(_TORCH_DEVICE)
+        # Same validity channel as train_deep_sets/train_mixed_cardinality --
+        # valid_all is already computed above, so append it directly rather than
+        # going through _with_validity()'s meta-list form.
+        x_all_np = np.concatenate([X_all, valid_all.astype(np.float32)[..., None]], axis=-1)
+        x_all_t = torch.tensor(x_all_np, dtype=torch.float32, device=_TORCH_DEVICE)
+        t_all_t = torch.tensor(y_all, dtype=torch.float32, device=_TORCH_DEVICE)
+        m_all_t = torch.tensor(valid_all, dtype=torch.bool, device=_TORCH_DEVICE)
+
+        n_pos = float(t_all_t[m_all_t].sum().item())
+        n_neg = float(m_all_t.sum().item() - n_pos)
+        w_pos = (n_pos + n_neg) / (2 * max(n_pos, 1.0))
+        w_neg = (n_pos + n_neg) / (2 * max(n_neg, 1.0))
+
+        opt = torch.optim.Adam(model.parameters(), lr=DEEPSETS_LR)
+        model.train()
+        t0 = time.perf_counter_ns()
+        for ep in range(DEEPSETS_EPOCHS):
+            k = sizes[ep % len(sizes)]
+            cols = torch.tensor(np.sort(rng.choice(n_cols, size=k, replace=False)),
+                                device=_TORCH_DEVICE)
+            x, t, mask = x_all_t[:, cols], t_all_t[:, cols], m_all_t[:, cols]
+            opt.zero_grad()
+            out = model(x, valid=mask)
+            w = torch.where(t > 0.5, w_pos, w_neg)
+>           loss = (nn.functional.binary_cross_entropy(out, t, reduction="none") * w)[mask].mean()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           torch.AcceleratorError: CUDA error: device-side assert triggered
+E           Search for `cudaErrorAssert' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+E           CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.
+E           For debugging consider passing CUDA_LAUNCH_BLOCKING=1
+E           Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
+
+scripts\benchmark_crossdevice_models.py:560: AcceleratorError
+=========================== short test summary info ===========================
+FAILED tests/test_nonfinite_relational_boundaries.py::TestNonfiniteRelationalBoundaries::test_mixed_provenance_training_excludes_invalid_content
+1 failed, 2 deselected in 6.70s

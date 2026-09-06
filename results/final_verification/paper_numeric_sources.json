@@ -1,0 +1,14 @@
+{
+  "results/crossdevice_benchmark/metrics.json": "a5b6dc75929931d3a1294f6fda294be9d603322be2564be54ed3d03d1e917516",
+  "results/final_verification/local_fusion_evaluation.log": "1f587911ec7b1362ed63db6312f254dc595253041507de589059ac6a430816c2",
+  "results/crossdevice_benchmark/seed_study.json": "965b771656e3f0c67d23f656f1293f04524c8df5e9b8747bfdf52df151cb8e82",
+  "results/crossdevice_benchmark/m9_seed_study.json": "47079b029238e404d93631a266a417abae693a50879e24daf62ba165a8b01b34",
+  "results/crossdevice_benchmark/m9_ablation_investigation.json": "6c52cc73718d75d3baf11c51c138b63191c1da9988cd855d11a6c98e482b97e4",
+  "results/astra_masking_review/historical_metrics.json": "852ce8ec8232366934a764efc88a451eddf8684ffdc383019699b2dbee732dd4",
+  "results/gnn_baselines/metrics.json": "b2c727e41b9b14a851ce99390667e452010aaf91d09d5f7f639032e2e8436b61",
+  "results/policy_comparison/metrics.json": "542522b12d52ea996dd4461375f560cf7f5193a24a7807b2d2855803fcc78db0",
+  "results/latency/latency.json": "63635039c0f04e53c9c658e89911eef3b15d6fdc7f148bf3f896126ae9f02d71",
+  "results/final_verification/generator_validation.log": "8ac7fbf8cc6e2331375684862a6dbd41c9999ab23174d2d3113fbf7c3649d495",
+  "results/final_verification/hardware_evaluation.log": "de5db5f6ed1c3d78e49ae9f9d290a635f1eed0c96a73afaf0db8bd0e243ff11a",
+  "results/final_verification/explainability_evaluation_corrected.log": "426cf5a050c9e48358ef97566abe859af5ccac2de85d9a44e254b87d77a2c6f6"
+}

@@ -1,0 +1,59 @@
+{
+  "pytest": {
+    "collected": 150,
+    "passed": 150,
+    "failed": 0,
+    "skipped": 0,
+    "warnings": 3,
+    "subtests_passed": 185,
+    "seconds": 30.44,
+    "log": "pytest_final.log"
+  },
+  "unittest": {
+    "tests_run": 150,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0,
+    "seconds": 21.925,
+    "status": "OK",
+    "log": "unittest_final.log"
+  },
+  "scope": "Final full suite after source, documentation and cleanup decisions; no tests skipped. Audit inventories/test summary are closing bookkeeping.",
+  "coverage_evidence": {
+    "authentication_replay_freshness_trust": [
+      "tests/test_invariants.py",
+      "tests/test_gateway_input_validation.py"
+    ],
+    "TLS_and_secondary_transport": [
+      "tests/test_firmware_tls_verification.py",
+      "tests/test_coap_server_hardening.py"
+    ],
+    "hardware_schema_and_signing": [
+      "tests/test_invariants.py",
+      "tests/test_firmware_hmac_source_contract.py"
+    ],
+    "masking_Task2_M1_M9": [
+      "tests/test_gnn_pending_node_masking.py",
+      "tests/test_gnn_baseline_pending_node_masking.py",
+      "tests/test_setmodel_pending_node_masking.py",
+      "tests/test_nonfinite_relational_boundaries.py",
+      "tests/test_gnn_baseline_audit_integration.py"
+    ],
+    "temporal_splits": [
+      "tests/test_training_sequences.py"
+    ],
+    "generator_determinism": [
+      "tests/test_virtual_generator.py"
+    ],
+    "legacy_simulation": [
+      "tests/test_legacy_generation.py"
+    ],
+    "research_reporting": [
+      "tests/test_research_reporting.py"
+    ],
+    "explainability_sensor_scope": [
+      "tests/test_sensor_explanations.py",
+      "tests/test_explainability_level2_sensor_filter.py"
+    ]
+  }
+}

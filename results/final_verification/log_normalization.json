@@ -1,0 +1,20 @@
+[
+  {
+    "file": "results\\final_verification\\explainability_evaluation.log",
+    "original_sha256": "ece7b5192e9c3ad1a51a1857f3de9493494ba396ee2cc1d0692b421bbb89f077",
+    "normalized_sha256": "c75329efd601f703e6df6d112cac9c7ffbf889654ddc156857c36d4397eebfd9",
+    "change": "Trailing horizontal whitespace removed from new diagnostic log only; message text and line order retained."
+  },
+  {
+    "file": "results\\final_verification\\nonfinite_red.log",
+    "original_sha256": "84f7bc45329cdce2057ecad2260c8a4944186ed2a1dc44309e2c604cc5dca9cb",
+    "normalized_sha256": "04e531718b56a43a839c6dcd2b1784081ccece790ff86221566b67b1fb0eb838",
+    "change": "Trailing horizontal whitespace removed from new diagnostic log only; message text and line order retained."
+  },
+  {
+    "file": "results\\final_verification\\pooled_training_red.log",
+    "original_sha256": "ab238101c0e80f60fe0f3a13303a514217800e650322d0fd04e97ad43044407b",
+    "normalized_sha256": "45929307cf7e62d26a7c96adca2a8a8b5f94933a2786de91f82f93064bbef01e",
+    "change": "Trailing horizontal whitespace removed from new diagnostic log only; message text and line order retained."
+  }
+]

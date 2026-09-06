@@ -1,0 +1,48 @@
+{
+  "purpose": "Finite-input parity of append-only versus invalid-row canonicalizing _with_validity",
+  "protocol": {
+    "seed": 314,
+    "epochs": 3,
+    "scenario": "NETWORK_NORMAL",
+    "train_snapshots": 600,
+    "test_snapshots": 300,
+    "data_source": "evaluate_gnn_baselines.build_snapshots on checked network train/test JSON and checked local scorer artifacts",
+    "old_representation": "concatenate raw X and validity channel",
+    "new_representation": "zero invalid X rows, then concatenate validity channel",
+    "comparison": "separate same-seed refits; maximum absolute state_dict and valid-output differences"
+  },
+  "models": {
+    "DeepSets": {
+      "max_parameter_abs_delta": 0.0,
+      "max_valid_output_abs_delta": 0.0,
+      "all_invalid_all_outputs_finite": false,
+      "all_invalid_nonfinite_count": 20
+    },
+    "GATv2": {
+      "max_parameter_abs_delta": 0.0,
+      "max_valid_output_abs_delta": 0.0,
+      "all_invalid_all_outputs_finite": false,
+      "all_invalid_nonfinite_count": 20
+    },
+    "SetTransformer": {
+      "max_parameter_abs_delta": 0.0,
+      "max_valid_output_abs_delta": 0.0,
+      "all_invalid_all_outputs_finite": false,
+      "all_invalid_nonfinite_count": 20
+    },
+    "NodePreservingSetTransformer": {
+      "max_parameter_abs_delta": 0.0,
+      "max_valid_output_abs_delta": 0.0,
+      "all_invalid_all_outputs_finite": false,
+      "all_invalid_nonfinite_count": 20
+    }
+  },
+  "canonical_metrics_integrity": {
+    "path": "results/crossdevice_benchmark/metrics.json",
+    "sha256": "a5b6dc75929931d3a1294f6fda294be9d603322be2564be54ed3d03d1e917516",
+    "git_blob_worktree": "c8d5850c41757a8681020102719aeb9d5b132536",
+    "git_blob_HEAD": "c8d5850c41757a8681020102719aeb9d5b132536",
+    "unchanged_from_HEAD": true
+  },
+  "boundedness": "One of four real benchmark scenarios and three rather than 300 epochs; this verifies arithmetic parity, not final metric reproducibility."
+}

@@ -1,0 +1,17 @@
+{
+  "baseline": "cf4d82c4f7522ec9133d1e86324f8c47a3043288",
+  "protected_paths": [
+    "data",
+    "models",
+    "models.archived-20260905_144311",
+    "results/crossdevice_benchmark",
+    "results/gnn_baselines",
+    "results/policy_comparison",
+    "results/latency",
+    "results/simulator_validation",
+    "results/astra_masking_review"
+  ],
+  "changes": [],
+  "deleted_tracked_files": [],
+  "verdict": "PRESERVED"
+}
