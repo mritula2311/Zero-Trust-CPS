@@ -10,13 +10,21 @@ This package reflects the reconciled research state at local main `4ffbe81d93cfa
 
 The presentation preserves the command-center palette and panel layout. `presentation.css` and `presentation.js` replace the missing `support.js`/`DCLogic` dependency. Keep these assets with the HTML files. Both canvas manifests retain their entry filenames and have enough height for the updated presentation. Verification covers ordinary browser rendering; no proprietary canvas editor/import workflow was exercised.
 
-Open `Main.dc.html` directly, or serve the repository root locally:
+Canonical folder: **`design/`**. `Main.dc.html` is the presentation entry; `zero-trust-cps-command-center.html` is the live gateway entry. Both existing paths are preserved. There is no React/Vue framework, package install, transpilation or production bundle: HTML/CSS/JavaScript are the deployable source. Python is needed only for backend/offline verification; Node.js 24 runs the local launcher and browser tests.
+
+Open `Main.dc.html` directly, or start the safe local presentation server from the repository root:
 
 ```powershell
-python -m http.server 8768 --bind 127.0.0.1
+node design/start-demo.mjs
 ```
 
-Then open `http://127.0.0.1:8768/design/Main.dc.html`. The adjacent gateway-view link previews that HTML, but a static server cannot supply its API. For actual observations, open the existing gateway's configured dashboard address. This package does not start the gateway, connect hardware, change policy configuration, or supply synthetic fallback telemetry.
+Then open `http://127.0.0.1:8768`. The launcher binds loopback and serves only public presentation files and linked references. Ctrl+C stops it. The adjacent gateway-view link previews that HTML and honestly reports an unavailable API. For actual observations, start the provisioned backend with `python src/gateway.py` and open `http://127.0.0.1:8600` on that host. The gateway serves the live HTML directly. This package does not provision credentials, connect hardware, change policy configuration, or supply synthetic fallback telemetry. Follow [startup order and physical rehearsal limits](DEMO_CHECKLIST.md).
+
+Production build command: **not applicable**; deploy the existing HTML via the gateway's configured dashboard path. Development command: the local launcher above. Backend requirements and installation remain in the [project README](../README.md) and `requirements.txt`; use `python -m pip install -r requirements.txt` in the project's Python environment. Gateway startup additionally requires its existing secure broker/certificate/credential provisioning.
+
+LIVE API MODE means same-origin REST observations. It does not attest to physical hardware. The presentation is explicitly non-live. DEMO MOCK MODE is confined to the browser verification fixture server and labelled on its screenshots; there is no production mock toggle. The terminal-only offline verifier is labelled SIMULATED / OFFLINE REPLAY and executes real inference without a broker. Neither fixture mode is quantitative physical evidence.
+
+See the [data contract](DATA_CONTRACT.md), [verified scenario matrix and limitations](READINESS.md), [demo checklist](DEMO_CHECKLIST.md), and [file retention manifest](CLEANUP_MANIFEST.md). Raw telemetry histories, true last-seen/connected count, model-loaded/pending status, per-message provenance and live scenario controls **REQUIRE BACKEND INTEGRATION**. Dual-abnormal demo is **NOT CURRENTLY SUPPORTED**. No physical shake or disconnect was executed in this pass.
 
 ## Research boundaries carried by both views
 
@@ -37,10 +45,16 @@ Requires Node.js 24 and an installed Chrome/Chromium browser. No npm packages ar
 
 ```powershell
 node design/verify-dashboard.mjs
+python design/verify-runtime.py
+python design/check-package.py
 ```
 
 The runner uses an isolated temporary browser profile and a loopback fixture server. Optional `CHROME_PATH` selects the browser executable; `DASHBOARD_QA_DIR` selects the screenshot/report output directory. By default outputs use a temporary directory printed on completion. The runner closes its browser and server; it never contacts a production gateway or physical device. On this Windows environment, the sandboxed renderer timed out, so the successful browser run used approved execution outside the sandbox.
 
-[Recorded verification](browser-verification.json): 14 viewport/artboard checks across the three HTML entries, including 320/768/1024/1440 px and the two 1600 px artboards; 10 interaction/state checks; 18 numerical comparisons against the canonical JSON; local presentation reference checks; zero uncaught browser runtime exceptions. Keyboard selection, all four static actions, exact 0.6 boundary behavior, populated/rejected observations, absent SHAP, empty registry, and API outage/recovery were exercised. The presentation issued zero API requests. Desktop, mobile and lower-panel screenshots were visually inspected. These checks do not establish live hardware deployment or full accessibility certification.
+[Recorded verification](browser-verification.json): 14 viewport/artboard checks across the three HTML entries, including 320/768/1024/1440 px and the two 1600 px artboards; 17 interaction/state checks including populated 320/1440 layouts; 18 numerical comparisons against the canonical JSON; local presentation reference checks; zero uncaught browser runtime exceptions. Keyboard selection, all four static actions, exact 0.6 boundary behavior, populated/rejected observations, absent SHAP, unknown scores/checks, watchdog OFFLINE, invalid response schema and API outage/recovery were exercised. The presentation issued zero API requests. These checks do not establish live hardware deployment or full accessibility certification.
+
+Screenshot output is temporary and excluded from Git. Gateway screenshots show synthetic fixtures and a visible DEMO MOCK MODE label; presentation screenshots show preserved research values and labelled illustrations. No physical heavy-shake or coordinated-live screenshot is supplied. Keep these captions when using any image in an implementation chapter or presentation.
+
+The package scanner checks JavaScript/Python syntax, local documentation links, credential-pattern findings, machine-specific absolute paths and unwanted publication files without printing matching values. It is a scoped source scan, not a security certification. Browser and runtime checks are separate from that scan.
 
 All changes and verification assets in this task are confined to `design/`. Research code, datasets, fitted models and measured result artifacts are unchanged.

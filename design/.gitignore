@@ -1,0 +1,10 @@
+# Local browser/test output; durable sanitized evidence is explicitly named.
+node_modules/
+coverage/
+dist/
+.cache/
+qa-output/
+screenshots/
+*.log
+.env*
+__pycache__/
