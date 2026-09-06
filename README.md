@@ -118,7 +118,11 @@ python src/gateway.py
 python src/device_simulator.py
 ```
 
-The dashboard is served by the gateway on port 8600. Real-device provisioning is
+The dashboard is served by the gateway on port 8600. A static, non-live
+implementation/demonstration interface — the same architecture and evidence
+without a running gateway — is in [design/](design/README.md); open
+[design/Main.dc.html](design/Main.dc.html) or run
+`node design/start-demo.mjs`. Real-device provisioning is
 covered by the [MPU6050 guide](firmware/HARDWARE_SETUP.md) and
 [SW-420 guide](firmware/HARDWARE_SETUP_SW420.md). Firmware peer-certificate
 verification remains unresolved: the MPU6050 firmware explicitly uses

@@ -20,6 +20,16 @@ The [paper master guide](paper/00_PAPER_MASTER_GUIDE.md) is the current entry po
 
 [Protocol](paper/12_EXPERIMENTAL_PROTOCOL.md), [historical protocol](EXPERIMENTAL_PROTOCOL.md), [environment snapshot](ENVIRONMENT.md), [M1–M9](paper/07_RELATIONAL_MODELS_M1_M9.md), [generator](paper/09_VIRTUAL_DEVICE_GENERATION.md). Each numeric table identifies its producer, artifact, polarity, split, cardinality and evidence status.
 
+## Implementation / demonstration interface
+
+[Dashboard package](../design/README.md) — a static, non-live implementation/demonstration
+interface for the architecture above: [design/Main.dc.html](../design/Main.dc.html) presents
+preserved measurements and physical/simulated evidence with no gateway connection; the
+existing [gateway dashboard](../design/zero-trust-cps-command-center.html) view is unchanged
+and remains read-only over `/api/*`. This is a presentation of already-documented results, not
+a research contribution; the [claim-evidence gate](paper/17_CLAIM_EVIDENCE_MATRIX.md) and
+[demo scenario matrix](../design/READINESS.md) govern what it may be shown to claim.
+
 ## Hardware documentation
 
 [Hardware provenance](paper/04_HARDWARE_DATA_AND_PROVENANCE.md), [validation](paper/15_HARDWARE_VALIDATION.md), [MPU setup](../firmware/HARDWARE_SETUP.md), [SW setup](../firmware/HARDWARE_SETUP_SW420.md), [capture log](../firmware/HARDWARE_DATA_LOG.md). Setup instructions do not establish a successful current deployment.

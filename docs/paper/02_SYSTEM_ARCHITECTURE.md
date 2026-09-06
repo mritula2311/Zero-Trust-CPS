@@ -2,6 +2,9 @@
 
 [VERIFIED: code; DEPLOYMENT CANDIDATE: current checkout] The runtime paths below are implemented and exercised by tests/offline replay. This audit did not flash hardware or connect to a live broker. “Runtime” identifies the serving code; it is not evidence of a currently running deployment.
 
+A static implementation/demonstration interface for this architecture, with no gateway
+connection, is in [design/Main.dc.html](../../design/Main.dc.html) ([package README](../../design/README.md)). It is a presentation of the results below, not a separate research contribution.
+
 ```mermaid
 flowchart TD
   F[ESP32 telemetry: modality-specific features] --> T[MQTT TLS or HTTPS ingestion]

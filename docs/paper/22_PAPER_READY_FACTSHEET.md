@@ -19,6 +19,7 @@
 | Explanation | Actual linear SHAP in log-odds plus modality-aware detector perturbations; [10](10_FUSION_AND_PROCESS_TRUST.md) |
 | Task2 | B0 count0.3958; B2 indexed MLP0.5267; B1 indexed LR0.5433; GCN-score vector0.5375; [13 N](13_RESULTS_MASTER_TABLES.md) |
 | Hardware result | Post-warm-up MPU:30/30 disturbances,5/12 resting false alarms; [13 Q](13_RESULTS_MASTER_TABLES.md) |
+| Demonstration interface | Static implementation/demonstration presentation, no gateway connection, not a research contribution; [design/](../../design/README.md) |
 | Strong contributions | Implemented two-score separation; auditable explanation; controlled benchmark/mechanism evidence; [17](17_CLAIM_EVIDENCE_MATRIX.md) |
 | Negative findings | Transformer tie, GCN isolation failure, M8/M9 tradeoffs, hardware false alarms; [16](16_ABLATIONS_AND_NEGATIVE_RESULTS.md) |
 | Limits | Fixed-split refit CIs; no held-out SW; no final M6 fusion; no full physical network; [18](18_LIMITATIONS_AND_THREATS_TO_VALIDITY.md) |

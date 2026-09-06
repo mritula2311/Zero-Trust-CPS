@@ -34,6 +34,26 @@ pytest was absent from the original environment. For this audit it was installed
 
 Commands that train or regenerate write canonical artifacts. Run them only in a disposable branch/copy after preserving prior outputs and their hashes; do not overwrite the historical reference to claim a replication. Script flags must be checked against current dispatch before execution. A new code/data version creates a new result lineage, even when the filename is unchanged.
 
+## Demonstration interface checks
+
+The [static demonstration interface](../../design/README.md) has its own reproducible,
+sandboxed checks; none of them contact a production gateway or physical device.
+
+```powershell
+python design/verify-runtime.py
+python design/check-package.py
+node design/verify-dashboard.mjs
+```
+
+`verify-runtime.py` exercises real fitted-model inference (fusion, runtime GCN, offline
+bandit) against synthetic readings with temporary keys and a controlled clock, entirely
+offline. `check-package.py` is a scoped source/secret/link scan over `design/`.
+`verify-dashboard.mjs` requires Node.js and a local Chrome/Chromium (`CHROME_PATH` to
+override); it drives a headless browser against loopback fixtures and reports viewport,
+interaction and numeric-comparison results, recorded in
+[design/browser-verification.json](../../design/browser-verification.json). See
+[design/READINESS.md](../../design/READINESS.md) for the last recorded run and its scope.
+
 ## Complete offline chain
 
 After changing training data/schema/temporal construction, rebuild in order: `train_isolation_forest.py` → `train_lstm_ae.py` → `train_transformer.py` (ablation) → `train_gnn.py` → `train_fusion_meta_learner.py` → `train_adaptive_pdp.py`. Each script is under scripts/. Keep TRAIN/VAL_001/VAL_002/TEST allocations fixed. Do not fit M6 fusion by simply substituting scores into the existing logistic coefficients.
