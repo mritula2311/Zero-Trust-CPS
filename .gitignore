@@ -6,6 +6,7 @@ __pycache__/
 venv/
 .venv/
 env/
+.pytest_cache/
 
 # Environment files and local credential backups. Commit only sanitized
 # templates such as .env.example and src/secrets_local.example.py.
