@@ -47,8 +47,8 @@ the dedicated data-generation scripts. Configuration does not prove live presenc
 | Component | Current role |
 |---|---|
 | Rule, Isolation Forest, LSTM-AE | Local process baseline; training and evaluation must use matched, versioned artifacts. |
-| Legacy GCN | Still deployed; corrected ablations and topology probes do not support a general GNN superiority claim. |
-| Set Transformer (M6/M8/M9) | Relational research candidate; no demonstrated benefit in the live fusion yet. |
+| Legacy GCN | Superseded as the deployed relational scorer by M6 (2026-09-07); corrected ablations and topology probes do not support a general GNN superiority claim. Prior fusion artifacts retained (`models/*_gcn_backup.*`) for reproducibility. |
+| Set Transformer (M6/M8/M9) | M6 is now the deployed live relational scorer -- a held-out fusion-level comparison (`scripts/evaluate_ablation_m6.py`) showed higher fused F1/accuracy and fewer false negatives than the prior GCN-based fusion, with the largest gain on `stealthy_forged_values` recall. M8/M9 remain research candidates only. |
 | Concat MLP | Efficient fixed-size deployment baseline to compare under matched calibration. |
 | Deep Sets | Strong set baseline. |
 | Temporal Transformer | Ablation only; the fair undiluted comparison did not improve on LSTM-AE. |

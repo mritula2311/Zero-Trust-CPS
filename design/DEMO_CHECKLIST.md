@@ -5,11 +5,11 @@ Use [READINESS.md](READINESS.md) for the measured scenario matrix and [DATA_CONT
 ## Verified presentation / offline sequence
 
 1. From the repository root, run `node design/start-demo.mjs`. Open `http://127.0.0.1:8768`. The page says PRESENTATION / NO LIVE TELEMETRY.
-2. Show the two trust channels, runtime GCN and research-only M6. Select MPU6050 and SW-420 evidence; distinguish two physical identities from the constructed 20-node benchmark.
+2. Show the two trust channels and the runtime relational model, M6 Set Transformer (superseded GCN 2026-09-07; prior GCN artifacts retained for reproducibility). Select MPU6050 and SW-420 evidence; distinguish two physical identities from the constructed 20-node benchmark.
 3. Use the labelled static-policy illustration to explain all four actions. Do not present sliders as runtime decisions.
 4. In another terminal run `python design/verify-runtime.py`. Announce **SIMULATED / OFFLINE REPLAY**. This invokes actual gateway ingress and fitted inference with the existing synthetic reading generator, temporary keys and an in-memory audit sink. It starts no broker or HTTP gateway, writes no audit database, publishes no decisions and disables enforcement boundaries.
 5. Show the JSON's normal synthetic windows, replay and invalid-HMAC outcomes. Both rejected cases preserve accepted state and bypass model scoring. Security is not forced to drop for an attacker-controlled claimed identity.
-6. Show isolated and coordinated synthetic anomalies and the actual per-device GCN/process scores and policy outputs. These are sequential scenarios; model history carries forward. Isolated injection can affect neighboring devices through the GCN. This is not a controlled comparison between isolated and coordinated detection.
+6. Show isolated and coordinated synthetic anomalies and the actual per-device M6/process scores and policy outputs. These are sequential scenarios; model history carries forward. Isolated injection can affect neighboring devices through M6's attention over active devices. This is not a controlled comparison between isolated and coordinated detection.
 7. Show the controlled-clock SILENT/STALE watchdog results and resumed telemetry. Read the policy value returned by the bandit, even if it differs from the static quadrant illustration.
 8. For UI screenshots, run `node design/verify-dashboard.mjs`. Its gateway captures visibly say DEMO MOCK MODE and contain synthetic test fixtures. They verify rendering only; never caption them as physical shake, live attack or actual coordinated inference.
 9. Stop the local presentation server with Ctrl+C. The verification runners close their own components. No production state needs recovery.

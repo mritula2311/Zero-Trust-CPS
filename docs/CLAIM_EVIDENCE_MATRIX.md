@@ -1,6 +1,6 @@
 # Claim–Evidence Matrix
 
-> **[Paper-reference authority, 2026-09-06]** The [verified paper package](paper/00_PAPER_MASTER_GUIDE.md) governs current research claims. This document is retained as supporting implementation/history; earlier measurements and interpretations are historical unless reconfirmed there. Runtime uses GCN fusion; M6 is a standalone candidate. SW-420 has TRAIN capture only.
+> **[Paper-reference authority, 2026-09-07]** The [verified paper package](paper/00_PAPER_MASTER_GUIDE.md) governs current research claims. This document is retained as supporting implementation/history; earlier measurements and interpretations are historical unless reconfirmed there. Runtime uses M6 (Set Transformer) fusion as of 2026-09-07, superseding GCN after a held-out fusion-level comparison (`scripts/evaluate_ablation_m6.py`) showed a fused-decision improvement; prior GCN fusion artifacts are retained for reproducibility. SW-420 has TRAIN capture only.
 
 
 Every substantive claim the manuscript may make, the experiment that supports

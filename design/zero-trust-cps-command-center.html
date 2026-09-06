@@ -217,7 +217,7 @@
   <div class="banner err" id="banner" role="status"></div>
   <section class="research-status" aria-labelledby="research-title">
     <h2 id="research-title">Research status · reconciled 6 September 2026</h2>
-    <p><b>Runtime: GCN + logistic fusion.</b> M6 Set Transformer is the selected standalone relational candidate; it is not deployed and M6 fusion remains untested.</p>
+    <p><b>Runtime: M6 Set Transformer + logistic fusion.</b> M6 replaced GCN as the deployed relational scorer after a held-out fusion-level comparison (scripts/evaluate_ablation_m6.py) showed higher fused F1/accuracy and fewer false negatives, with the largest gain on stealthy_forged_values recall. The prior GCN-based fusion artifacts are retained (models/*_gcn_backup.*) for reproducibility.</p>
     <p><b>Physical evidence:</b> one MPU6050 identity and one SW-420 identity. SW-420 TRAIN capture exists; VALIDATION/TEST are pending. The 20-node benchmark is constructed from two physical-source and eighteen simulated identities.</p>
     <p><b>Task-2: SUPPORTED BUT WEAKER.</b> B0 is a network-level count baseline, not a single-node baseline. Indexed context improves over that count; GNN superiority is unsupported. This research snapshot is separate from the API observations below.</p>
   </section>
@@ -229,7 +229,7 @@
         <p>LIVE API MODE displays actual audit observations. Physical MPU6050 shake and disconnect have not been verified in this readiness pass. PHYSICAL ID identifies the registered source identity; per-message physical/simulated provenance is UNKNOWN.</p>
         <p>SIMULATED / OFFLINE REPLAY: <code>python design/verify-runtime.py</code> verifies normal windows, replay, invalid HMAC, isolated/coordinated synthetic anomalies and the silence watchdog using the gateway code. It is terminal-only and sends no network traffic. Browser fixtures are DEMO MOCK MODE, not runtime evidence.</p>
         <p>REQUIRES BACKEND INTEGRATION: raw feature values/charts, last-seen and connected count, independent current HMAC/replay/freshness/revocation status, model-loaded/pending/all-invalid status, and live simulation controls. These states are UNKNOWN when not exposed. Backend SILENT is displayed as OFFLINE; it is not a policy action.</p>
-        <p>Dual-abnormal demo: NOT CURRENTLY SUPPORTED. Runtime relational model: GCN. M6 is a research candidate only, not deployed; M6 fusion is untested. Use each returned policy value directly: the configured offline bandit can differ from the static policy illustration.</p>
+        <p>Dual-abnormal demo: NOT CURRENTLY SUPPORTED. Runtime relational model: M6 Set Transformer. Use each returned policy value directly: the configured offline bandit can differ from the static policy illustration.</p>
       </details>
     </section>
     <section class="card span12">
@@ -254,7 +254,7 @@
       <div class="flow" style="margin-top:8px">
         <span class="st sec">SECURITY TRUST — rate, step-up, silence</span>
         <span class="ar">+</span>
-        <span class="st proc">PROCESS TRUST — rule + Isolation Forest + LSTM-AE + GCN → logistic fusion</span>
+        <span class="st proc">PROCESS TRUST — rule + Isolation Forest + LSTM-AE + M6 Set Transformer → logistic fusion</span>
         <span class="ar">→</span>
         <span class="st">offline bandit / static 2×2 policy</span><span class="ar">→</span>
         <span class="st">ALLOW / ALERT / STEP_UP / BLOCK</span>
@@ -303,7 +303,7 @@
       <h2>Live Decision Stream <span class="tag" id="dectag"></span></h2>
       <div class="why">
         Newest first, one row per logged decision. <code>sec</code>/<code>proc</code> are the
-        two independent scores; <code>rule</code>/<code>IF</code>/<code>LSTM</code>/<code>GCN</code>
+        two independent scores; <code>rule</code>/<code>IF</code>/<code>LSTM</code>/<code>M6</code>
         are the four Process Anomaly sub-signals and <code>fused</code> is the meta-learner's
         combination of them. A <b>REJECTED</b> row never reached any model — it failed
         an ingress check. Its Security Trust is a read-only snapshot; Process Trust is absent.
@@ -313,7 +313,7 @@
         <table>
           <thead><tr>
             <th>Time</th><th>Device</th><th>Decision</th><th class="mono">sec</th><th class="mono">proc</th>
-            <th class="mono">rule</th><th class="mono">IF</th><th class="mono">LSTM</th><th class="mono">GCN</th><th class="mono">fused</th>
+            <th class="mono">rule</th><th class="mono">IF</th><th class="mono">LSTM</th><th class="mono">M6</th><th class="mono">fused</th>
             <th>Transport</th><th>Reason</th>
           </tr></thead>
           <tbody id="decrows"></tbody>
@@ -419,7 +419,7 @@
   var SIG=[["rule_score","Rule","shap_rule","rule_score"],
            ["isolation_forest_score","Isolation Forest","shap_isolation_forest","anomaly_score"],
            ["lstm_ae_score","LSTM-AE","shap_lstm_ae","lstm_score"],
-           ["gnn_score","GCN","shap_gnn","gnn_score"]];
+           ["gnn_score","M6","shap_gnn","gnn_score"]];
   function $(id){return document.getElementById(id)}
   function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
   function finite(v){return typeof v==="number"&&Number.isFinite(v)}
@@ -494,7 +494,7 @@
         '<div class="section-t">Model predictions</div>'+
         '<div class="preds">'+
           predChip("Rule",r.rule_score)+predChip("Iso.Forest",r.anomaly_score)+
-          predChip("LSTM-AE",r.lstm_score)+predChip("GCN",r.gnn_score)+
+          predChip("LSTM-AE",r.lstm_score)+predChip("M6",r.gnn_score)+
           predChip("Fused",r.process_trust_score,true)+
         '</div>'+
         '<div class="section-t">SHAP attribution — which signal moved the fused score (log-odds)</div>'+

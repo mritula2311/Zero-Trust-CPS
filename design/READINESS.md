@@ -24,7 +24,7 @@ Completion pass on the existing dashboard branch, based on reconciled research m
 | Explanation panel | PASS | Backend reason, Level-2 summary, fusion SHAP | Missing attribution remains missing; no invented SHAP |
 | Demo scenario matrix | PASS | Matrix below | Explicit scope per row |
 | Practical demo checklist | PASS | DEMO_CHECKLIST.md | Physical rehearsal steps marked unverified |
-| Runtime model / candidate labels | PASS; preserved | Both HTML entries | Runtime GCN; selected M6 standalone only, not deployed, fusion untested |
+| Runtime model / candidate labels | PASS; updated 2026-09-07 | Both HTML entries | Runtime M6 Set Transformer (superseded GCN); held-out fusion comparison validated, not live-hardware validated |
 | Physical vs simulated identities | PASS | Both HTML entries | Hardware identity does not authenticate physical message origin |
 | Explicit UNKNOWN / OFFLINE | PASS | Gateway cards and chain checks | OFFLINE follows backend SILENT; no browser timer guesses connection status |
 | Raw telemetry / per-feature histories | REQUIRES BACKEND INTEGRATION | DATA_CONTRACT.md | MPU five / SW four values absent from dashboard API |
@@ -65,4 +65,4 @@ The resumed MPU example is why the UI must not infer an action from the conceptu
 
 `node design/start-demo.mjs`: started and stopped successfully. HTTP checks confirmed presentation, README and linked result-reference responses (200), unavailable gateway API (503), and denied unlisted local-secret/environment paths (404). No secret content was read or served by these checks.
 
-Research constraints remain unchanged: Task-2 SUPPORTED BUT WEAKER; B0 network-level count baseline; selected standalone M6 not deployed and fusion untested; runtime GCN; one MPU6050 and one SW-420 physical identity; SW VALIDATION/TEST pending; 20-node benchmark constructed; Security and Process Trust separate until policy. Demonstrations support only the observed implementation behavior, not broader research claims.
+Research constraints, updated 2026-09-07: Task-2 SUPPORTED BUT WEAKER; B0 network-level count baseline; M6 now the deployed runtime relational model (superseded GCN), validated at fusion level on held-out synthetic replay only, not live-hardware validated; one MPU6050 and one SW-420 physical identity; SW VALIDATION/TEST pending; 20-node benchmark constructed; Security and Process Trust separate until policy. Demonstrations support only the observed implementation behavior, not broader research claims.

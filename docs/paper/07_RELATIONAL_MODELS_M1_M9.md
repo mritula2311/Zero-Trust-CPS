@@ -36,7 +36,7 @@ A present validity bit by itself does not establish this property. Tests invoke 
 | Cost | M1 is fastest in the saved single-sample benchmark; M3 has a useful simplicity/cost tradeoff; M6 remains small |
 | Calibration | Compare raw/isotonic Brier and alarm-cap rows separately; do not substitute max-F1 performance |
 | Fusion complementarity | [UNKNOWN] No matched local-only versus M6-augmented fusion result |
-| Deployment compatibility | GCN serving adapter exists; M6 serving/checkpoint/fusion integration does not |
+| Deployment compatibility | Both now exist: GCN serving adapter (`src/gnn_scorer.py`, retained) and M6 serving/checkpoint/fusion integration (`src/set_transformer_scorer.py`, `models/set_transformer_runtime.pt`, `scripts/train_fusion_meta_learner_m6.py`) -- M6 is the deployed one as of 2026-09-07, validated on held-out synthetic replay only (see [17](17_CLAIM_EVIDENCE_MATRIX.md) C15) |
 
 Best standalone candidate: M6. Simple topology-independent baseline: M3; fixed-width baselines: M1/M2. Mixed-cardinality and mixed-provenance variants: M8 and M9 respectively, without a claim that either dominates M6. M7 is retained as a negative complexity ablation; M4 is retained as an implemented runtime lineage and mechanism comparator. No universally best model or statistically significant M1–M9 ranking is established by one seed.
 

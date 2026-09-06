@@ -29,8 +29,8 @@ See the [data contract](DATA_CONTRACT.md), [verified scenario matrix and limitat
 ## Research boundaries carried by both views
 
 - Task-2 claim: **SUPPORTED BUT WEAKER**. B0 is a network-level count, not a single-node baseline.
-- M6 is the selected standalone relational candidate; it is not deployed and its fusion remains untested.
-- Runtime relational inference remains GCN, followed by logistic fusion.
+- M6 was the selected standalone relational candidate in the offline M1-M9 sweep; as of 2026-09-07 a separately-trained M6 checkpoint is the deployed runtime relational model, validated at fusion level on held-out synthetic replay (`scripts/evaluate_ablation_m6.py`), not live-hardware validated.
+- Runtime relational inference is M6 (Set Transformer), followed by logistic fusion. Prior GCN artifacts are retained (`models/*_gcn_backup.*`) for reproducibility.
 - Physical evidence comprises one MPU6050 identity and one SW-420 identity. SW-420 TRAIN capture exists; VALIDATION/TEST are pending.
 - The 20-node benchmark is constructed from two physical-source identities and eighteen simulated identities.
 - Security Trust and Process Trust remain separate until policy evaluation. Serving does not train or explore.

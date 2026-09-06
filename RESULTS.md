@@ -4164,3 +4164,96 @@ design question — the relevant docs already specify *what* to build, only
 Section 11 already argues, and Section 2.2's Transformer result now
 directly confirms, that no amount of additional modeling closes the gap —
 only a change to what data is available (redundant sensing) would.
+
+## 15. M6 Set Transformer Deployed as Runtime Relational Model (2026-09-07)
+
+Prior state (Sections 2–13, `docs/paper/17_CLAIM_EVIDENCE_MATRIX.md` C05/C15
+before this section): M6 Set Transformer was selected as the best-recorded
+standalone candidate in the offline M1–M9 sweep (`scripts/
+benchmark_crossdevice_models.py`), but was never trained as one deployable
+model — that script trains `SetTransformer` fresh in memory for each of
+several robustness sweeps (node-count, provenance-mixing) and never calls
+`torch.save`. The live runtime's relational scorer remained GCN
+(`models/gnn.pt`, `src/gnn_scorer.py`), and M6's "Process Trust advantage"
+was explicitly unmeasured at the fusion level.
+
+**What was built to close that gap:**
+- `scripts/train_set_transformer.py` / `src/set_transformer_scorer.py` —
+  a live-runtime training path and inference scorer for M6, mirroring
+  `train_gnn.py`/`gnn_scorer.py` exactly (same replay of
+  `training_session.json` through the trained IF/LSTM-AE scorers, same
+  `[rule_score, if_score, lstm_score]` node-feature vector), so M6 is
+  trained on the SAME task GCN was, not the offline M1–M9 sweep's
+  synthetic node-count conditions. Validity is expressed as a
+  `key_padding_mask` (no adjacency exists for this architecture); the
+  "isolated device" training augmentation GCN uses (all-neighbours-absent,
+  relying on its unconditional self-loop) does not transfer directly to
+  masked attention (an all-masked row is NaN), so the isolated-augmented
+  snapshot here marks only the current record's own device valid instead.
+  Hyperparameters (300 epochs, lr=1e-2) match `benchmark_crossdevice_
+  models.py`'s own `DEEPSETS_EPOCHS`/`DEEPSETS_LR` for this architecture
+  family, not GCN's `GNN_EPOCHS`/`GNN_LEARNING_RATE` — using GCN's values
+  first left the model markedly undertrained (an obviously-normal
+  (0.9, 0.9, 0.9) isolated input scored ~0.3; corrected, it scores
+  directionally consistent with GCN's own isolated-input behaviour,
+  though still less confident than GCN's — an honest, observed
+  calibration gap between the two architectures on this small feature
+  space, not tuned away).
+- `scripts/train_fusion_meta_learner_m6.py` — a second fusion meta-learner
+  fit on `[rule, if, lstm, m6_score]` instead of `[rule, if, lstm,
+  gnn_score]`, same VALIDATION-split methodology (`train_fusion_meta_
+  learner.py`'s leakage-fix discipline) as the deployed model.
+- `scripts/evaluate_ablation_m6.py` — head-to-head comparison of the two
+  fusion models on the SAME held-out `data/collected/test_session.json`
+  `evaluate_ablation.py` already uses.
+
+**Held-out result** (excludes the 117 `auth_ok=False`/`replay` records
+neither pipeline sees live; 2933 scored messages, 233 suspicious/2700
+legitimate):
+
+| | Accuracy | Precision | Recall | F1 | FP | FN |
+|---|---|---|---|---|---|---|
+| fused (GCN, prior deployed) | 0.698 | 0.992 | 0.677 | 0.805 | 14 | 872 |
+| fused (M6, new) | 0.712 | 0.993 | 0.691 | 0.815 | 13 | 833 |
+
+By event type, fused recall: `anomalous_shock` 1.000/1.000 (tied),
+`coordinated` 0.983/0.983 (tied), `stealthy_forged_values` 0.636 (GCN) →
+0.667 (M6) — the largest single-category gain, on the hardest category
+Section 11 already documents as architecturally capped for any
+telemetry-only detector. The standalone `gnn_score`/`m6_score` columns are
+NOT a fair comparison to each other at `PROCESS_THRESHOLD` (each has its
+own raw scale; that is what the meta-learner's coefficients calibrate for
+— see `evaluate_ablation.py`'s own documented caveat on this).
+
+**What this is not**: a live-hardware field validation. The comparison
+above replays the same held-out synthetic test session both pipelines
+have always been scored against; neither pipeline has been run against
+real SW-420/MPU6050 traffic over time with M6 in the loop. The improvement
+is real but modest (~1 point F1), not dramatic.
+
+**Action taken**: `models/fusion_meta_learner.joblib` and
+`models/fusion_background.npy` were overwritten with the M6-fitted
+variant; the prior GCN-fitted versions are retained as `models/
+fusion_meta_learner_gcn_backup.joblib` / `fusion_background_gcn_backup.
+npy`. `models/gnn.pt` is retained as `models/gnn_backup.pt`, no longer
+read by the live gateway. `src/gateway.py` now imports
+`SetTransformerScorer` (aliased to the name `GNNScorer` at the import
+site, with the swap documented in a comment there) — the audit-log
+column/JSON field `gnn_score` and the Python variable name `gnn_scorer`
+were deliberately NOT renamed (schema/dashboard/test-facing footprint
+too large for what this change is about); the model producing that field
+is now M6. `scripts/train_adaptive_pdp.py` (the offline contextual
+bandit) was retrained afterward, since it fits against fused-score-derived
+state and the fusion model changed underneath it.
+
+Every affected doc (`README.md`, `docs/CLAIM_EVIDENCE_MATRIX.md`,
+`docs/paper/00_PAPER_MASTER_GUIDE.md`, `docs/paper/17_CLAIM_EVIDENCE_
+MATRIX.md` C03/C05/C15, `docs/paper/07_RELATIONAL_MODELS_M1_M9.md`,
+`docs/paper/10_FUSION_AND_PROCESS_TRUST.md`, `design/README.md`,
+`design/READINESS.md`, `design/DEMO_CHECKLIST.md`, the dashboard HTML)
+was updated to say M6 is deployed with the held-out-replay qualifier
+above. The large remaining tail of module docs (`docs/0X_module*.md`,
+`docs/paper/0X_*.md` not listed above) that mention GCN/M6 only in
+passing were NOT swept — a full-repository rename/rewrite pass was out
+of scope for this change; flagging so a future pass knows the gap
+exists rather than assuming it was exhaustive.

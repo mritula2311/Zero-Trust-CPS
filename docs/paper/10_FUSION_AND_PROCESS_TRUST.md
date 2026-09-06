@@ -12,7 +12,7 @@ Runtime returns `confidence=max(P(class))`, a decisiveness measure rather than a
 
 The code actually imports SHAP and constructs `shap.LinearExplainer(model, background)`. For the interventional linear explanation, contributions are background-centered `w_i*(x_i−E_background[x_i])`; expected log-odds plus contributions reconstruct the logistic margin. They are **log-odds contributions**, not additive changes in probability and not merely uncentered `w_i*x_i`. The largest absolute contribution determines the Level-1 explanatory signal. Level-2 repairs features or masks peer scores using the relevant detector; its metrics and thresholds are distinct experiments.
 
-Gateway stores the fused probability in `ProcessAnomalyState`; silence retains the value and changes status. The same fresh fused output reaches the policy branch. Current runtime relational input comes from the time-coactive GCN in `models/gnn.pt`, not benchmark M4's network checkpoint and not M6.
+Gateway stores the fused probability in `ProcessAnomalyState`; silence retains the value and changes status. The same fresh fused output reaches the policy branch. As of 2026-09-07, runtime relational input comes from M6 (Set Transformer) in `models/set_transformer_runtime.pt` -- a checkpoint trained on this runtime's own replay pipeline (`scripts/train_set_transformer.py`), separate from both benchmark M4's network checkpoint and the offline M1-M9 sweep's own (unsaved) M6 runs. The prior time-coactive GCN checkpoint (`models/gnn_backup.pt`) is retained for reproducibility but no longer read by the live gateway.
 
 ## Standalone versus final fusion evidence
 
