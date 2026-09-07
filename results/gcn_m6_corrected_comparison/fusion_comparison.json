@@ -1,0 +1,93 @@
+{
+  "meta": {
+    "commit": "2175ebe3c4a3fad31d80d3b2899c51fe0a33b86b",
+    "seed": 0,
+    "split": "test_session.json (held-out TEST)",
+    "threshold": 0.6,
+    "timestamp": "2026-09-07T04:54:27Z",
+    "n_scored": 2933,
+    "protocol": "Same rule/IF/LSTM local scores shared across arms; only the relational scorer + its matched fusion artifact differ per arm. No training in this command.",
+    "pins": {
+      "gcn": {
+        "relational_checkpoint": "D:\\zt-cps\\zt-cps-starter\\src\\..\\models\\gnn.pt",
+        "relational_checkpoint_sha256": "1d2028708aba69ff8b004eae6e2c58e6641959df10c4ec5ab9769e4cf925fa50",
+        "fusion_model_path": "D:\\zt-cps\\zt-cps-starter\\src\\..\\models\\fusion_meta_learner_gcn_backup.joblib",
+        "fusion_model_sha256": "20ea7bcbba43861b21736c857c47d80434cd8e0daea42cd645a6aabd4abbf8e8"
+      },
+      "m6_deployed": {
+        "relational_checkpoint": "D:\\zt-cps\\zt-cps-starter\\src\\..\\models\\set_transformer_runtime.pt",
+        "relational_checkpoint_sha256": "e4a65b5d899a6e9db18b47092bfc4a3b45ddc2db2ee49cef8adba593ae53b1bb",
+        "fusion_model_path": "D:\\zt-cps\\zt-cps-starter\\src\\..\\models\\fusion_meta_learner_m6_variant.joblib",
+        "fusion_model_sha256": "d5e2bfeecc57142bf432ed233ec8f50c0e45a787f448a3590c8d849af955e934"
+      },
+      "m6_corrected": {
+        "relational_checkpoint": "D:\\zt-cps\\zt-cps-starter\\src\\..\\models\\set_transformer_corrected.pt",
+        "relational_checkpoint_sha256": "910ed7a4b7388ea4025c3de922648e71f7b463459df9b125d84a7e241707859d",
+        "fusion_model_path": "D:\\zt-cps\\zt-cps-starter\\src\\..\\models\\fusion_meta_learner_m6_corrected_variant.joblib",
+        "fusion_model_sha256": "6d89db099e2fd4efd438af27ad2d6da6ea72d093fb7e31f055f11c69bfed19fa"
+      }
+    }
+  },
+  "results": {
+    "gcn": {
+      "macro_f1": 0.5678737290491831,
+      "precision_normal": 0.992399565689468,
+      "recall_normal": 0.677037037037037,
+      "f1_normal": 0.8049317481285778,
+      "precision_anomalous": 0.20073327222731438,
+      "recall_anomalous": 0.9399141630901288,
+      "f1_anomalous": 0.3308157099697885,
+      "accuracy": 0.6979202182066144,
+      "false_alarm_rate_fpr": 0.00760043431053203,
+      "roc_auc": 0.8491575266253377,
+      "isolated_anomaly_recall": 1.0,
+      "coordinated_anomaly_recall": 0.9829059829059829,
+      "stealthy_anomaly_recall": 0.6363636363636364,
+      "tp": 1828,
+      "tn": 219,
+      "fp": 14,
+      "fn": 872,
+      "n": 2933
+    },
+    "m6_deployed": {
+      "macro_f1": 0.5787150162651871,
+      "precision_normal": 0.9930851063829788,
+      "recall_normal": 0.6914814814814815,
+      "f1_normal": 0.8152838427947598,
+      "precision_anomalous": 0.20892687559354226,
+      "recall_anomalous": 0.944206008583691,
+      "f1_anomalous": 0.34214618973561434,
+      "accuracy": 0.7115581316058643,
+      "false_alarm_rate_fpr": 0.006914893617021276,
+      "roc_auc": 0.8603751390875853,
+      "isolated_anomaly_recall": 1.0,
+      "coordinated_anomaly_recall": 0.9829059829059829,
+      "stealthy_anomaly_recall": 0.6666666666666666,
+      "tp": 1867,
+      "tn": 220,
+      "fp": 13,
+      "fn": 833,
+      "n": 2933
+    },
+    "m6_corrected": {
+      "macro_f1": 0.5798183462881327,
+      "precision_normal": 0.9925847457627118,
+      "recall_normal": 0.6940740740740741,
+      "f1_normal": 0.8169136878814297,
+      "precision_anomalous": 0.20956937799043063,
+      "recall_anomalous": 0.9399141630901288,
+      "f1_anomalous": 0.3427230046948357,
+      "accuracy": 0.7136038186157518,
+      "false_alarm_rate_fpr": 0.007415254237288136,
+      "roc_auc": 0.8609489747257988,
+      "isolated_anomaly_recall": 1.0,
+      "coordinated_anomaly_recall": 0.9829059829059829,
+      "stealthy_anomaly_recall": 0.6363636363636364,
+      "tp": 1874,
+      "tn": 219,
+      "fp": 14,
+      "fn": 826,
+      "n": 2933
+    }
+  }
+}

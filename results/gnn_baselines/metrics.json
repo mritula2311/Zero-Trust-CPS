@@ -59,6 +59,9 @@
     "GNN": {
       "self_loop_weight": 5.0,
       "threshold": 0.15
+    },
+    "M6_set_transformer": {
+      "threshold": 0.05
     }
   },
   "task2_network_coordination_pattern": {
@@ -77,6 +80,10 @@
     "GNN_node_embeddings": {
       "validation": 0.5475,
       "test": 0.5375
+    },
+    "M6_node_embeddings": {
+      "validation": 0.6083,
+      "test": 0.5983
     }
   },
   "self_loop_sweep_validation": {
@@ -297,6 +304,39 @@
         "missed_events": 5,
         "event_recall": 0.6667,
         "false_alarm_windows_on_normal_nodes": 1052
+      }
+    },
+    "M6_set_transformer": {
+      "validation": {
+        "n": 22800,
+        "tp": 1375,
+        "fp": 27,
+        "tn": 21273,
+        "fn": 125,
+        "precision": 0.9807,
+        "recall": 0.9167,
+        "f1": 0.9476,
+        "false_positive_rate": 0.0013,
+        "detection_rate": 0.9167
+      },
+      "test": {
+        "n": 22800,
+        "tp": 1492,
+        "fp": 73,
+        "tn": 21227,
+        "fn": 8,
+        "precision": 0.9534,
+        "recall": 0.9947,
+        "f1": 0.9736,
+        "false_positive_rate": 0.0034,
+        "detection_rate": 0.9947
+      },
+      "test_event": {
+        "total_events": 15,
+        "detected_events": 15,
+        "missed_events": 0,
+        "event_recall": 1.0,
+        "false_alarm_windows_on_normal_nodes": 73
       }
     }
   }

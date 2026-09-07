@@ -1,0 +1,150 @@
+{
+  "meta": {
+    "commit": "2175ebe3c4a3fad31d80d3b2899c51fe0a33b86b",
+    "seed": 0,
+    "split": "crossdevice 20-node network TRAIN/VALIDATION/TEST (config/graph_topology.json)",
+    "timestamp": "2026-09-07T05:23:23Z",
+    "protocol": "scripts/evaluate_gnn_baselines.py -- fit TRAIN, select threshold/self-loop-weight on VALIDATION, report TEST once. M6 arm added 2026-09-07 (previously did not exist); GCN/B0-B3 numbers reproduced byte-identical to the preserved prior run (verified via git diff, additive only)."
+  },
+  "task1_per_node_anomaly_detection": {
+    "B0_single_device": {
+      "n": 22800,
+      "tp": 1495,
+      "fp": 85,
+      "tn": 21215,
+      "fn": 5,
+      "precision": 0.9462,
+      "recall": 0.9967,
+      "f1": 0.9708,
+      "false_positive_rate": 0.004,
+      "detection_rate": 0.9967
+    },
+    "B1_concat_logreg": {
+      "n": 22800,
+      "tp": 1434,
+      "fp": 957,
+      "tn": 20343,
+      "fn": 66,
+      "precision": 0.5997,
+      "recall": 0.956,
+      "f1": 0.7371,
+      "false_positive_rate": 0.0449,
+      "detection_rate": 0.956
+    },
+    "B2_concat_mlp": {
+      "n": 22800,
+      "tp": 1500,
+      "fp": 270,
+      "tn": 21030,
+      "fn": 0,
+      "precision": 0.8475,
+      "recall": 1.0,
+      "f1": 0.9174,
+      "false_positive_rate": 0.0127,
+      "detection_rate": 1.0
+    },
+    "B3_coordinated_rule": {
+      "n": 22800,
+      "tp": 1184,
+      "fp": 4999,
+      "tn": 16301,
+      "fn": 316,
+      "precision": 0.1915,
+      "recall": 0.7893,
+      "f1": 0.3082,
+      "false_positive_rate": 0.2347,
+      "detection_rate": 0.7893
+    },
+    "GNN": {
+      "n": 22800,
+      "tp": 1059,
+      "fp": 1052,
+      "tn": 20248,
+      "fn": 441,
+      "precision": 0.5017,
+      "recall": 0.706,
+      "f1": 0.5865,
+      "false_positive_rate": 0.0494,
+      "detection_rate": 0.706
+    },
+    "M6_set_transformer": {
+      "n": 22800,
+      "tp": 1492,
+      "fp": 73,
+      "tn": 21227,
+      "fn": 8,
+      "precision": 0.9534,
+      "recall": 0.9947,
+      "f1": 0.9736,
+      "false_positive_rate": 0.0034,
+      "detection_rate": 0.9947
+    }
+  },
+  "task1_event_recall": {
+    "B0_single_device": {
+      "total_events": 15,
+      "detected_events": 15,
+      "missed_events": 0,
+      "event_recall": 1.0,
+      "false_alarm_windows_on_normal_nodes": 85
+    },
+    "B1_concat_logreg": {
+      "total_events": 15,
+      "detected_events": 15,
+      "missed_events": 0,
+      "event_recall": 1.0,
+      "false_alarm_windows_on_normal_nodes": 957
+    },
+    "B2_concat_mlp": {
+      "total_events": 15,
+      "detected_events": 15,
+      "missed_events": 0,
+      "event_recall": 1.0,
+      "false_alarm_windows_on_normal_nodes": 270
+    },
+    "B3_coordinated_rule": {
+      "total_events": 15,
+      "detected_events": 15,
+      "missed_events": 0,
+      "event_recall": 1.0,
+      "false_alarm_windows_on_normal_nodes": 4999
+    },
+    "GNN": {
+      "total_events": 15,
+      "detected_events": 10,
+      "missed_events": 5,
+      "event_recall": 0.6667,
+      "false_alarm_windows_on_normal_nodes": 1052
+    },
+    "M6_set_transformer": {
+      "total_events": 15,
+      "detected_events": 15,
+      "missed_events": 0,
+      "event_recall": 1.0,
+      "false_alarm_windows_on_normal_nodes": 73
+    }
+  },
+  "task2_network_coordination_pattern_4way_accuracy": {
+    "B1_concat_logreg": {
+      "validation": 0.5375,
+      "test": 0.5433
+    },
+    "B2_concat_mlp": {
+      "validation": 0.5233,
+      "test": 0.5267
+    },
+    "B0_anomalous_node_count": {
+      "validation": 0.3833,
+      "test": 0.3958
+    },
+    "GNN_node_embeddings": {
+      "validation": 0.5475,
+      "test": 0.5375
+    },
+    "M6_node_embeddings": {
+      "validation": 0.6083,
+      "test": 0.5983
+    }
+  },
+  "finding": "On this benchmark's own from-scratch, correctly-masked/correctly-weighted protocol (NOT the runtime checkpoint), M6 (Set Transformer) substantially outperforms GCN on Task 1 (test F1 0.9736 vs 0.5865) and Task 2 (test accuracy 0.5983 vs 0.5375), and edges out the strongest simple baselines B0 (0.9708) and B2 (0.9174) on Task 1 too. This is a controlled, apples-to-apples comparison (same upstream [rule,iso,lstm] snapshots, same TRAIN/VALIDATION/TEST protocol, same masking contract) -- safe to report as-is, but distinct from both (a) the offline M1-M9 crossdevice benchmark sweep (different training pipeline, C05) and (b) the live runtime M6 checkpoint (which has its own, separately-documented class-weight defect -- see standalone_comparison.json)."
+}

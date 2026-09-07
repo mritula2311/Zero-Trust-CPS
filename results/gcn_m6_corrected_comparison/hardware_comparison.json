@@ -1,0 +1,75 @@
+{
+  "meta": {
+    "commit": "2175ebe3c4a3fad31d80d3b2899c51fe0a33b86b",
+    "seed": 0,
+    "split": "test (data/collected hardware_session_20260902_221217_labelled.json)",
+    "threshold": 0.6,
+    "timestamp": "2026-09-07T04:56:35Z",
+    "protocol": "Real MPU6050 hardware capture, offline inference replay only, no training. Same rows/labels/masking for every arm."
+  },
+  "results": {
+    "gcn": {
+      "resting_false_positive_rate": {
+        "k": 5,
+        "n": 12,
+        "rate": 0.4166666666666667,
+        "wilson_95ci": [
+          0.19325746190524656,
+          0.6804926643446272
+        ]
+      },
+      "disturbance_detection_rate": {
+        "k": 30,
+        "n": 30,
+        "rate": 1.0,
+        "wilson_95ci": [
+          0.8864829086095221,
+          1.0
+        ]
+      },
+      "n_scored_total": 42
+    },
+    "m6_deployed": {
+      "resting_false_positive_rate": {
+        "k": 5,
+        "n": 12,
+        "rate": 0.4166666666666667,
+        "wilson_95ci": [
+          0.19325746190524656,
+          0.6804926643446272
+        ]
+      },
+      "disturbance_detection_rate": {
+        "k": 30,
+        "n": 30,
+        "rate": 1.0,
+        "wilson_95ci": [
+          0.8864829086095221,
+          1.0
+        ]
+      },
+      "n_scored_total": 42
+    },
+    "m6_corrected": {
+      "resting_false_positive_rate": {
+        "k": 5,
+        "n": 12,
+        "rate": 0.4166666666666667,
+        "wilson_95ci": [
+          0.19325746190524656,
+          0.6804926643446272
+        ]
+      },
+      "disturbance_detection_rate": {
+        "k": 30,
+        "n": 30,
+        "rate": 1.0,
+        "wilson_95ci": [
+          0.8864829086095221,
+          1.0
+        ]
+      },
+      "n_scored_total": 42
+    }
+  }
+}

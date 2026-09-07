@@ -1,0 +1,69 @@
+{
+  "meta": {
+    "commit_before_fix": "2175ebe3c4a3fad31d80d3b2899c51fe0a33b86b",
+    "date": "2026-09-07",
+    "bug_root_cause": "The 2026-09-07 M6 deployment (3c827e8) overwrote config.FUSION_MODEL_PATH / FUSION_BACKGROUND_PATH with the M6-fitted fusion model (models/fusion_meta_learner.joblib became byte-identical to fusion_meta_learner_m6_variant.joblib, sha256 d5e2bfee...). Every evaluator below constructed FusionEngine() with no arguments, which reads that ambient config path -- so after the deployment, every 'GCN arm' silently paired true GCN relational scores with M6-calibrated fusion coefficients instead of the GCN-fitted ones (preserved separately as fusion_meta_learner_gcn_backup.joblib, sha256 20ea7bcb...)."
+  },
+  "scripts_audited": [
+    {
+      "script": "scripts/evaluate_ablation_m6.py",
+      "loaded_before_fix": {
+        "gcn_arm_relational": "gnn_scorer.GNNScorer() -> models/gnn.pt (true GCN, correct)",
+        "gcn_arm_fusion": "fusion_engine.FusionEngine() -> ambient config.FUSION_MODEL_PATH -> models/fusion_meta_learner.joblib (M6-fitted, WRONG for a 'GCN arm')",
+        "m6_arm_relational": "set_transformer_scorer.SetTransformerScorer() -> models/set_transformer_runtime.pt (correct)",
+        "m6_arm_fusion": "explicitly loaded config.FUSION_MODEL_PATH_M6_VARIANT (correct, this arm was fine)"
+      },
+      "reported_model_identity_vs_actual": "Docstring/comment said 'deployed GCN-based fusion, unmodified' for the fusion object -- FALSE after 2026-09-07: it was the M6-fitted model.",
+      "global_config_causing_share": "config.FUSION_MODEL_PATH itself, read by FusionEngine()'s default constructor.",
+      "fixed_by": "Rewritten to load all three arms (gcn, m6_deployed, m6_corrected) via src/relational_pin.py RelationalPin.load_relational_scorer()/.load_fusion_engine(), each hash-verified before use.",
+      "fail_loud_added": true
+    },
+    {
+      "script": "scripts/evaluate_real_hardware.py",
+      "loaded_before_fix": {
+        "line": 126,
+        "code": "if_s, gnn_s, fusion = IsolationForestScorer(), GNNScorer(), FusionEngine()",
+        "gnn_scorer": "true GCN (correct)",
+        "fusion": "ambient config.FUSION_MODEL_PATH -> M6-fitted model (WRONG, script's own docstring/log framing calls this the GCN-era protocol)"
+      },
+      "reported_model_identity_vs_actual": "Script header/log framing ('preserved GCN-era replay') implied GCN+GCN-fusion; actually GCN-score+M6-fusion after 2026-09-07.",
+      "global_config_causing_share": "config.FUSION_MODEL_PATH, same as above.",
+      "fixed_by": "score_all(rows, pin) now takes an explicit RelationalPin; main() adds --relational-model {gcn,m6_deployed,m6_corrected} (default gcn, preserving historical reproducibility once pinned).",
+      "verified_reproduction": "Pinned to 'gcn', reproduces the historically reported 30/30 disturbance detection and 5/12 (41.7%) resting false-positive rate exactly.",
+      "fail_loud_added": true
+    },
+    {
+      "script": "scripts/evaluate_policy_comparison.py",
+      "loaded_before_fix": {
+        "line": "81-82 (build_triples)",
+        "code": "if_s, lstm_s, gnn_s, fusion = (IsolationForestScorer(), LSTMAEScorer(), GNNScorer(), FusionEngine())",
+        "gnn_scorer": "true GCN (correct)",
+        "fusion": "ambient config.FUSION_MODEL_PATH -> M6-fitted model (WRONG)"
+      },
+      "reported_model_identity_vs_actual": "results/policy_comparison/metrics.json is documented as '[PRESERVED GCN-ERA ARTIFACT]' (frozen 2026-09-04, before the deployment, so THAT file is genuinely GCN-only). But re-running this script's main() today (unfixed) would silently regenerate it with GCN-score+M6-fusion inputs and overwrite that historical evidence with a mismatched-arm result -- confirmed by reproducing this exact mistake and reverting it (see finding below).",
+      "global_config_causing_share": "config.FUSION_MODEL_PATH, same as above.",
+      "fixed_by": "build_triples(path, pin=rp.GCN) now takes an explicit RelationalPin, default gcn.",
+      "additional_finding": "A GCN-pinned rerun's P1/P2/P6 (pure threshold policies, no trained artifact) closely reproduce the historical numbers, with a small residual gap attributable to verified run-to-run wall-clock jitter (GNNScorer.score()'s active-neighbour window uses time.time(), not a controlled replay clock -- confirmed non-deterministic input scores across repeated identical runs). P5 (adaptive bandit) is STABLE at 0.5132 macro-F1 across repeated runs but differs from the historical 0.5271 by more than that jitter magnitude -- evidence that models/adaptive_pdp_qtable.json itself was retrained during the 2026-09-07 deployment via train_adaptive_pdp.py, which has the IDENTICAL GNNScorer()+FusionEngine()-ambient-default bug, corrupting the Q-table's provenance relative to a genuine GCN-only training run. Not corrected in this pass (no policy retrain performed, per explicit scope decision) -- see results/gcn_m6_corrected_comparison/policy_comparison.json.",
+      "fail_loud_added": true
+    },
+    {
+      "script": "scripts/evaluate_explainability_level2.py",
+      "loaded_before_fix": {
+        "line": "211-212",
+        "code": "gnn_scorer = GNNScorer()\nfusion = FusionEngine()",
+        "gnn_scorer": "true GCN (correct)",
+        "fusion": "ambient config.FUSION_MODEL_PATH -> M6-fitted model (WRONG)"
+      },
+      "reported_model_identity_vs_actual": "Same mismatch pattern; log framing implies GCN-era protocol.",
+      "global_config_causing_share": "config.FUSION_MODEL_PATH, same as above.",
+      "fixed_by": "Added --relational-model {gcn,m6_deployed,m6_corrected} flag (default gcn), pin loaded via src/relational_pin.py.",
+      "verified_reproduction": "Pinned to 'gcn', reproduces the historically reported 79/219 (36%) single-channel repair and 179/182 (98%) rank-aware repair numbers.",
+      "fail_loud_added": true
+    }
+  ],
+  "not_audited_but_same_bug_pattern": {
+    "scripts/train_adaptive_pdp.py": "Imports GNNScorer + FusionEngine() ambient default identically. Not fixed/retrained in this pass -- see the 'additional_finding' above and docs/paper/17_CLAIM_EVIDENCE_MATRIX.md C12.",
+    "scripts/evaluate_gnn_baselines.py": "Does NOT import the live GNNScorer/SetTransformerScorer/FusionEngine at all -- it trains its own self-contained per-run models from config/graph_topology.json, so this specific bug pattern does not apply there. It previously had no M6 arm at all; one was added separately (see results/gcn_m6_corrected_comparison/task2_comparison.json)."
+  },
+  "mechanism_of_fix": "src/relational_pin.py's RelationalPin dataclass names a relational checkpoint + its matched fusion artifact together, by explicit path with a recorded SHA-256 each. GNNScorer/SetTransformerScorer/FusionEngine each gained an optional constructor parameter (checkpoint_path / model_path+background_path) that bypasses the ambient config constant when given -- additive, None-default, verified not to change any existing call site's behavior (full 169-test suite unchanged before touching any evaluator). RelationalPin.verify() re-hashes every pinned file before a scorer/fusion engine is constructed and raises ArtifactMismatchError on any mismatch, so a future artifact swap fails loudly instead of silently mixing model families again."
+}

@@ -1,0 +1,51 @@
+{
+  "meta": {
+    "commit": "2175ebe3c4a3fad31d80d3b2899c51fe0a33b86b",
+    "seed": 0,
+    "split": "test_session.json (held-out TEST)",
+    "threshold": 0.6,
+    "timestamp": "2026-09-07T04:54:27Z",
+    "n_scored": 2933,
+    "protocol": "Same rule/IF/LSTM local scores shared across arms; only the relational scorer + its matched fusion artifact differ per arm. No training in this command.",
+    "pins": {
+      "gcn": {
+        "relational_checkpoint": "D:\\zt-cps\\zt-cps-starter\\src\\..\\models\\gnn.pt",
+        "relational_checkpoint_sha256": "1d2028708aba69ff8b004eae6e2c58e6641959df10c4ec5ab9769e4cf925fa50",
+        "fusion_model_path": "D:\\zt-cps\\zt-cps-starter\\src\\..\\models\\fusion_meta_learner_gcn_backup.joblib",
+        "fusion_model_sha256": "20ea7bcbba43861b21736c857c47d80434cd8e0daea42cd645a6aabd4abbf8e8"
+      },
+      "m6_deployed": {
+        "relational_checkpoint": "D:\\zt-cps\\zt-cps-starter\\src\\..\\models\\set_transformer_runtime.pt",
+        "relational_checkpoint_sha256": "e4a65b5d899a6e9db18b47092bfc4a3b45ddc2db2ee49cef8adba593ae53b1bb",
+        "fusion_model_path": "D:\\zt-cps\\zt-cps-starter\\src\\..\\models\\fusion_meta_learner_m6_variant.joblib",
+        "fusion_model_sha256": "d5e2bfeecc57142bf432ed233ec8f50c0e45a787f448a3590c8d849af955e934"
+      },
+      "m6_corrected": {
+        "relational_checkpoint": "D:\\zt-cps\\zt-cps-starter\\src\\..\\models\\set_transformer_corrected.pt",
+        "relational_checkpoint_sha256": "910ed7a4b7388ea4025c3de922648e71f7b463459df9b125d84a7e241707859d",
+        "fusion_model_path": "D:\\zt-cps\\zt-cps-starter\\src\\..\\models\\fusion_meta_learner_m6_corrected_variant.joblib",
+        "fusion_model_sha256": "6d89db099e2fd4efd438af27ad2d6da6ea72d093fb7e31f055f11c69bfed19fa"
+      }
+    }
+  },
+  "results": {
+    "gcn": {
+      "mean_ms": 1.0779979998187628,
+      "median_ms": 0.883800006704405,
+      "p95_ms": 1.8422799985273741,
+      "n_calls": 200
+    },
+    "m6_deployed": {
+      "mean_ms": 1.9235580009990372,
+      "median_ms": 1.6801999881863594,
+      "p95_ms": 3.2392850000178437,
+      "n_calls": 200
+    },
+    "m6_corrected": {
+      "mean_ms": 2.0806449992232956,
+      "median_ms": 1.6542500088689849,
+      "p95_ms": 3.682935012329834,
+      "n_calls": 200
+    }
+  }
+}

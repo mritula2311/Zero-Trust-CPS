@@ -1,0 +1,50 @@
+{
+  "meta": {
+    "commit": "2175ebe3c4a3fad31d80d3b2899c51fe0a33b86b",
+    "seed": 0,
+    "split": "validation_policy_session.json (fit/select) / test_session.json (report, read once)",
+    "timestamp": "2026-09-07T05:03:54Z",
+    "protocol": "Same as scripts/evaluate_policy_comparison.py, with the relational scorer + fusion artifact explicitly pinned to 'gcn' via src/relational_pin.py instead of the ambient FusionEngine()/GNNScorer() default, which silently became M6-fitted-fusion-with-GCN-scores after the 2026-09-07 deployment. Historical results/policy_comparison/metrics.json is NOT modified by this run -- written separately here."
+  },
+  "gcn_pin_repaired_rerun": {
+    "P1_static": {
+      "macro_f1": 0.272,
+      "false_block_rate": 0.0
+    },
+    "P2_static_optimised": {
+      "macro_f1": 0.5512,
+      "false_block_rate": 0.0083
+    },
+    "P6_static_constrained": {
+      "macro_f1": 0.278,
+      "false_block_rate": 0.0
+    },
+    "P5_adaptive_bandit": {
+      "macro_f1": 0.5132,
+      "false_block_rate": 0.0
+    }
+  },
+  "historical_preserved_2026_09_04": {
+    "P1_static": {
+      "macro_f1": 0.2744,
+      "false_block_rate": 0.0
+    },
+    "P2_static_optimised": {
+      "macro_f1": 0.5614,
+      "false_block_rate": 0.0076
+    },
+    "P6_static_constrained": {
+      "macro_f1": 0.2777,
+      "false_block_rate": 0.0
+    },
+    "P5_adaptive_bandit": {
+      "macro_f1": 0.5271,
+      "false_block_rate": 0.0
+    }
+  },
+  "finding": {
+    "P1_P2_P6_static_policies": "Close to historical (within ~0.002-0.01 macro-F1) -- these have no trained-artifact dependency, only s_sec/s_proc threshold rules. The residual gap is run-to-run wall-clock jitter: verified non-deterministic -- repeated calls to this GCN-pinned build_triples() produce different raw s_sec/s_proc values run-to-run (same code, same pin) because GNNScorer.score()'s active-neighbour window is wall-clock (time.time()) based, not a controlled replay clock. See the clock-alignment finding.",
+    "P5_adaptive_bandit": "STABLE and reproducible across repeated runs (0.5132, verified 3x) but differs from the historical 0.5271 by more than the P1/P2/P6 jitter magnitude. This is NOT explained by scoring-input jitter -- it reflects that models/adaptive_pdp_qtable.json itself was retrained during the M6 deployment commit (3c827e8) via train_adaptive_pdp.py, which has the identical GNNScorer()+FusionEngine()-ambient-default bug (GCN scores paired with M6-fitted fusion at training time). The saved Q-table's bucket/action values no longer correspond to a genuine GCN-only training run. Per objective 9D and the user's explicit decision NOT to retrain the policy artifact in this pass, no corrected P5 number is reported here -- this is recorded as an open finding, not silently fixed."
+  },
+  "m6_arm": "INVALID COMPARATOR -- not attempted. There is no M6-trained policy artifact: train_adaptive_pdp.py was not corrected/retrained in this pass (explicit user decision). Scoring the current (GCN-era-trained-then-corrupted) Q-table against M6-derived Process Trust it was never calibrated on would not be a methodologically valid GCN-vs-M6 policy comparison, so no M6 number is reported for objective 9D."
+}

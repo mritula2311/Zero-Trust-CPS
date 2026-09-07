@@ -1,0 +1,73 @@
+{
+  "meta": {
+    "generated_2026_09_07_pre_commit_head": "2175ebe3c4a3fad31d80d3b2899c51fe0a33b86b",
+    "note": "HEAD at generation time, before this repair's own commits. See git log for the commits this work produced."
+  },
+  "lineage": [
+    {
+      "model_path": "models/gnn.pt",
+      "relational_artifact": "GCN (_GCN, gnn_scorer.py), 3-layer hidden-32, self-loop weight 3.0, hybrid device-graph over DEVICE_REGISTRY",
+      "fusion_artifact": "models/fusion_meta_learner_gcn_backup.joblib",
+      "policy_artifact": "models/adaptive_pdp_qtable.json (SHARED, see note below -- not GCN-exclusive)",
+      "dataset": "data/collected/training_session.json (relational), validation_session.json (fusion)",
+      "split": "TRAIN (relational fit), VALIDATION (fusion fit)",
+      "code_version": "pre-2026-09-07 (scripts/train_gnn.py, unmodified by this repair)",
+      "hash": "1d2028708aba69ff8b004eae6e2c58e6641959df10c4ec5ab9769e4cf925fa50",
+      "fusion_hash": "20ea7bcbba43861b21736c857c47d80434cd8e0daea42cd645a6aabd4abbf8e8",
+      "status": "PRESERVED / UNCHANGED -- byte-identical to models/gnn_backup.pt, both predate the M6 deployment"
+    },
+    {
+      "model_path": "models/set_transformer_runtime.pt",
+      "relational_artifact": "M6 Set Transformer (_SetTransformer, set_transformer_scorer.py), dim 16 / 4 heads / 2 blocks, 3-channel node features",
+      "fusion_artifact": "models/fusion_meta_learner_m6_variant.joblib (byte-identical to the DEPLOYED models/fusion_meta_learner.joblib)",
+      "policy_artifact": "models/adaptive_pdp_qtable.json (see note below)",
+      "dataset": "data/collected/training_session.json (relational), validation_session.json (fusion)",
+      "split": "TRAIN (relational fit), VALIDATION (fusion fit)",
+      "code_version": "3c827e8 (M6 deployment commit), scripts/train_set_transformer.py BEFORE this repair's class-weight fix",
+      "hash": "e4a65b5d899a6e9db18b47092bfc4a3b45ddc2db2ee49cef8adba593ae53b1bb",
+      "fusion_hash": "d5e2bfeecc57142bf432ed233ec8f50c0e45a787f448a3590c8d849af955e934",
+      "status": "CURRENT / DEPLOYED -- unchanged by this repair (verified byte-identical before/after). Confirmed class-weight training defect (7.2x suspicious-class overweight); standalone score is poorly calibrated as a direct consequence (13 O4)."
+    },
+    {
+      "model_path": "models/set_transformer_corrected.pt",
+      "relational_artifact": "M6 Set Transformer, same architecture as above, retrained after fixing the class-weight bug (ys[valids]-only counting)",
+      "fusion_artifact": "models/fusion_meta_learner_m6_corrected_variant.joblib (fit against this checkpoint's own scores)",
+      "policy_artifact": "none -- no policy retrain performed in this pass",
+      "dataset": "data/collected/training_session.json (relational), validation_session.json (fusion)",
+      "split": "TRAIN (relational fit), VALIDATION (fusion fit)",
+      "code_version": "this repair, scripts/train_set_transformer.py AFTER the class-weight fix; ZTCPS_SET_TRANSFORMER_OUTPUT/ZTCPS_M6_CHECKPOINT_FOR_FUSION_FIT env overrides used so the deployed artifacts were never opened for writing",
+      "hash": "910ed7a4b7388ea4025c3de922648e71f7b463459df9b125d84a7e241707859d",
+      "fusion_hash": "6d89db099e2fd4efd438af27ad2d6da6ea72d093fb7e31f055f11c69bfed19fa",
+      "status": "NEW / EVALUATION ONLY -- not deployed, not proposed as a redeployment in this pass. Standalone Macro-F1 0.7926 vs. deployed 0.0736 (13 O4)."
+    },
+    {
+      "model_path": "models/gnn_network.pt",
+      "relational_artifact": "GCN, separate checkpoint for the crossdevice/Task-1-2 benchmark (evaluate_gnn_baselines.py), declared 20-node topology, self-loop weight selected on VALIDATION (5.0)",
+      "fusion_artifact": "none -- Task-1/2 comparators use their own logistic/MLP heads, not the runtime FusionEngine",
+      "policy_artifact": "none",
+      "dataset": "config/graph_topology.json + generated network TRAIN/VALIDATION/TEST JSONs",
+      "split": "TRAIN (fit), VALIDATION (self-loop weight + threshold), TEST (report once)",
+      "code_version": "4f6afa2 + nonfinite hardening, unmodified logic; this repair only ADDED an M6 arm alongside it",
+      "hash": "5ebeabaa94a110ac427f2e7fe56d6e8d2ff8ab7ac134c684dcf29139be1bb684",
+      "fusion_hash": null,
+      "status": "PRESERVED -- rerun reproduces the prior B0-B3/GNN numbers byte-identical (verified via git diff: additive only, 0 deletions)"
+    },
+    {
+      "model_path": "models/set_transformer_network.pt",
+      "relational_artifact": "M6 Set Transformer, NEW arm for the same Task-1/2 benchmark, from-scratch training with correct valid-only class weighting from the start",
+      "fusion_artifact": "none (same as GNN arm above)",
+      "policy_artifact": "none",
+      "dataset": "config/graph_topology.json + generated network TRAIN/VALIDATION/TEST JSONs",
+      "split": "TRAIN (fit), VALIDATION (threshold), TEST (report once)",
+      "code_version": "this repair, scripts/evaluate_gnn_baselines.py train_network_m6()",
+      "hash": "028a9c3bdf7090b5a3e33db634e224477ec654b48c9a943ca584b620d062ab0c",
+      "fusion_hash": null,
+      "status": "NEW -- Task-1 test F1 0.9736, Task-2 test accuracy 0.5983, both best-of-five on this protocol (13 N)"
+    }
+  ],
+  "policy_artifact_note": {
+    "path": "models/adaptive_pdp_qtable.json",
+    "hash": "58db72ffc85a90dc62b078f6ed195d41b5ed44d1396d609811b20295bd8f9c52",
+    "finding": "This is the ONLY policy artifact that exists; it is not GCN-exclusive or M6-exclusive by construction. It was trained via scripts/train_adaptive_pdp.py, which imports GNNScorer() (true GCN) + FusionEngine() (ambient FUSION_MODEL_PATH). It was retrained during the 2026-09-07 M6 deployment commit (3c827e8's diff includes this file), at which point FUSION_MODEL_PATH was already the M6-fitted model -- so this Q-table's OWN training run has the identical GCN-score-with-M6-fusion mismatch this whole repair fixes elsewhere. Evidence: a GCN-pinned rerun of evaluate_policy_comparison.py's P5 arm is stably 0.5132 macro-F1 (verified across 3 repeated runs) vs. this table's preserved historical 0.5271 -- a gap too large to be the verified run-to-run wall-clock jitter that explains P1/P2/P6's smaller residual gaps. Not retrained in this pass (explicit scope decision)."
+  }
+}
