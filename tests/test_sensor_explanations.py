@@ -10,6 +10,7 @@ import torch
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 from isolation_forest_scorer import IsolationForestScorer
 from lstm_ae_scorer import LSTMAEScorer
+from explainability import level2_explain
 
 
 class TestSwitchExplanations(unittest.TestCase):
@@ -29,6 +30,26 @@ class TestSwitchExplanations(unittest.TestCase):
                                              baseline_error_mean=0, baseline_error_std=1)}
         name, _, _ = scorer.level2_explain("esp32-vib-002")
         self.assertEqual(name, "burst_max_ms")
+
+
+class TestRelationalExplanationLabels(unittest.TestCase):
+    def explain(self, result):
+        scorer = SimpleNamespace(level2_explain=lambda device_id: result)
+        return level2_explain("gnn_score", "target", None, "", None, None, scorer)
+
+    def test_peer_explanation_does_not_claim_graph_model(self):
+        name, summary = self.explain(("peer", 0.125, 0.9))
+        self.assertEqual(name, "peer")
+        self.assertIn("Relational score", summary)
+        self.assertIn("0.125", summary)
+        self.assertNotIn("GNN", summary)
+
+    def test_no_attribution_does_not_claim_no_active_peers(self):
+        # A scorer can return None when active peers have no measurable effect.
+        _, summary = self.explain(None)
+        self.assertIn("measurable", summary)
+        self.assertNotIn("own signals only", summary)
+        self.assertNotIn("graph", summary)
 
 
 if __name__ == "__main__":

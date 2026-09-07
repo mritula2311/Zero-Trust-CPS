@@ -787,12 +787,17 @@ SET_TRANSFORMER_BLOCKS = 2
 AUTH_FAIL_SENTINEL_SCORE = 0.1
 FUSION_SHAP_BACKGROUND_SIZE = 50
 
-# --- M6 fusion variant (evaluation only, NOT the deployed fusion model) ---
+# --- M6 fusion variant ---
 # A separate meta-learner fit on [rule, if, lstm, m6_score] instead of
-# [rule, if, lstm, gnn_score], used only by scripts/evaluate_ablation_m6.py
-# to compare against the deployed GCN-based fusion side by side. Never
-# loaded by src/fusion_engine.py -- deploying this would mean overwriting
-# FUSION_MODEL_PATH itself, a decision this file does not make.
+# [rule, if, lstm, gnn_score]. As of the 2026-09-07 M6 deployment (3c827e8),
+# FUSION_MODEL_PATH / FUSION_BACKGROUND_PATH themselves were overwritten with
+# this M6-fitted model -- fusion_meta_learner.joblib and
+# fusion_meta_learner_m6_variant.joblib are now byte-identical (see
+# docs/paper/13_RESULTS_MASTER_TABLES.md O2). This constant is kept so
+# scripts/evaluate_ablation_m6.py can still name the M6 arm explicitly even
+# though it now coincides with the deployed default. The pre-deployment
+# GCN-fitted fusion model is preserved separately as
+# fusion_meta_learner_gcn_backup.joblib, NOT loaded by src/fusion_engine.py.
 FUSION_MODEL_PATH_M6_VARIANT = os.path.join(MODELS_DIR, "fusion_meta_learner_m6_variant.joblib")
 FUSION_BACKGROUND_PATH_M6_VARIANT = os.path.join(MODELS_DIR, "fusion_background_m6_variant.npy")
 

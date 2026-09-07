@@ -62,11 +62,10 @@ def level2_explain(
         result = gnn_scorer.level2_explain(device_id)
         if result:
             name, change, _cf_score = result
-            return name, f"GNN score most driven by neighboring device '{name}' (score change={change:.3f})"
+            return name, f"Relational score most affected by peer device '{name}' (score change={change:.3f})"
         return "no_active_neighbors", (
-            "GNN score based on this device's own signals only -- no other "
-            "device is currently active in the graph, so there is no "
-            "relational neighbor to attribute it to"
+            "No active peer produced a measurable relational score change "
+            "under the implemented perturbation"
         )
 
     return "unavailable", f"{dominant_signal} dominant, but Level-2 detail not available yet (cold start or missing window)"
