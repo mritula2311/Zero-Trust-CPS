@@ -82,7 +82,7 @@
     </div>
     <aside class="alert-col" aria-label="Research claim boundaries">
       <section class="panel"><div class="panel-head"><h2 class="panel-title">Claim status</h2></div>
-        <article class="alert-card sev-amber"><h3>Task-2 / claim #3</h3><p class="claim-status">SUPPORTED BUT WEAKER</p><p>B0 is a network-level count baseline, not a single-node baseline. Indexed context improves over that count.</p><p class="scope">Corrected TEST accuracy: B0 0.3958; concat MLP 0.5267; delta +0.1309. No GNN superiority claim.</p></article>
+        <article class="alert-card sev-amber"><h3>Task-2 / claim #3</h3><p class="claim-status">SUPPORTED BUT WEAKER</p><p>B0 is a network-level count baseline, not a single-node baseline. Indexed context improves over that count.</p><p class="scope">Corrected TEST accuracy: B0 count 0.3958; B1 logistic 0.5433; B2 MLP 0.5267; GCN 0.5375; M6 0.5983 — strongest of the five evaluated methods. No general GNN-superiority claim.</p></article>
         <article class="alert-card sev-cyan"><h3>M6 serving integrated</h3><p>Standalone Macro-F1 0.9898 belongs to the benchmark. The separate runtime checkpoint's comparison, training-weight and policy-provenance issues were found and fixed 2026-09-07; the corrected checkpoint is now deployed.</p></article>
         <article class="alert-card sev-amber"><h3>Physical validation boundary</h3><p>SW-420 now has TRAIN/VALIDATION/TEST captures. One device per modality does not establish manufacturing generalization.</p></article>
         <article class="alert-card sev-amber"><h3>Generator and topology</h3><p>LOW generator diagnostics are internal. Stress failures remain negative results. Feature-only permutation is not a graph-equivariance test.</p></article>
