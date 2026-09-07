@@ -23,7 +23,7 @@ No paper figures were fabricated in this audit. Existing images under [docs/figu
 | IV | M1–M9 /13 B | Descriptive standalone selection; no fused-M6 claim |
 | V | Topology /13 D–H | Controlled mechanisms and correct permutation interpretation |
 | VI | Negative results /16 | Preserve failed models and superseded diagnosis |
-| VII | Fusion /10 and13 A/O | Current artifact identity, historical GCN performance and M6 comparison gap |
+| VII | Fusion /10 and13 A/O4/O5 | Current (corrected-M6) artifact identity; correctly-pinned GCN-vs-M6 fusion AND policy comparison now measured, held-out-replay-qualified |
 | VIII | Policy /13 P | Comparator constraint tradeoffs |
 | IX | Hardware /13 Q | Small dependent sample, false alarms included |
 | X | Validity limits /18 | Scope of admissible claims |
@@ -32,4 +32,4 @@ Every exported chart should record source artifact hash, generator command, metr
 
 ## Figure types and publication gate
 
-Fig1 is CONCEPTUAL. Fig2 is an ARCHITECTURE DIAGRAM. Fig3 must label a static-policy schematic CONCEPTUAL; any observed policy chart is MEASURED RESULT for its saved protocol. Fig4 is GENERATED FROM VERIFIED ARTIFACT (provenance inventory), not a photograph of a physical fleet. Fig5–Fig10 are MEASURED RESULT / GENERATED FROM VERIFIED ARTIFACT, using the exact 13 source mappings. Additional M6 gain plots are OPTIONAL and blocked until a correctly pinned comparison exists. None of these labels turns a proposed figure into completed evidence.
+Fig1 is CONCEPTUAL. Fig2 is an ARCHITECTURE DIAGRAM. Fig3 must label a static-policy schematic CONCEPTUAL; any observed policy chart is MEASURED RESULT for its saved protocol. Fig4 is GENERATED FROM VERIFIED ARTIFACT (provenance inventory), not a photograph of a physical fleet. Fig5–Fig10 are MEASURED RESULT / GENERATED FROM VERIFIED ARTIFACT, using the exact 13 source mappings. A correctly-pinned GCN-vs-corrected-M6 comparison now exists (13 O4/O5: standalone, fusion, Task-2, hardware, latency and policy, all held-out-replay-qualified) — an M6 gain plot (standalone+fusion+Task-2 together) is no longer blocked and may be added as a MEASURED RESULT figure sourced from `results/gcn_m6_corrected_comparison/` and `results/m6_corrected_policy/`. None of these labels turns a proposed figure into completed evidence.
