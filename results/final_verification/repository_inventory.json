@@ -1,12 +1,12 @@
 {
   "state": {
     "branch": "main",
-    "head": "040e91412a827ba09358d632464d90fdff88b747",
-    "main": "040e91412a827ba09358d632464d90fdff88b747",
+    "head": "9f72d9b0a7e435dd5f039d8486f274866c3de89a",
+    "main": "9f72d9b0a7e435dd5f039d8486f274866c3de89a",
     "origin_main": "040e91412a827ba09358d632464d90fdff88b747",
-    "main_ahead_behind": "0\t0",
-    "worktrees": "<REPO_ROOT>      040e914 [main]\n<WORKSPACE_ROOT>/zt-cps-design-astra 9dac09a [astra/design-dashboard-20260906]",
-    "status": "M README.md\n M RESULTS.md\n M design/DEMO_CHECKLIST.md\n M design/Main.dc.html\n M design/READINESS.md\n M design/README.md\n M design/browser-verification.json\n M design/extracted/Main.dc.html\n M design/verify-runtime.py\n M design/zero-trust-cps-command-center.html\n M docs/CLAIM_EVIDENCE_MATRIX.md\n M docs/paper/00_PAPER_MASTER_GUIDE.md\n M docs/paper/07_RELATIONAL_MODELS_M1_M9.md\n M docs/paper/10_FUSION_AND_PROCESS_TRUST.md\n M docs/paper/17_CLAIM_EVIDENCE_MATRIX.md\n M firmware/main.py\n M firmware/main_sw420.py\n M models/adaptive_pdp_qtable.json\n M models/fusion_background.npy\n M models/fusion_meta_learner.joblib\n M results/final_verification/credential_scan.json\n M results/final_verification/repository_inventory.json\n M src/config.py\n M src/device_simulator.py\n M src/gateway.py\n?? models/fusion_background_gcn_backup.npy\n?? models/fusion_background_m6_variant.npy\n?? models/fusion_meta_learner_gcn_backup.joblib\n?? models/fusion_meta_learner_m6_variant.joblib\n?? models/gnn_backup.pt\n?? models/set_transformer_runtime.pt\n?? scripts/evaluate_ablation_m6.py\n?? scripts/train_fusion_meta_learner_m6.py\n?? scripts/train_set_transformer.py\n?? src/set_transformer_scorer.py",
+    "main_ahead_behind": "0\t5",
+    "worktrees": "<REPO_ROOT>      9f72d9b [main]\n<WORKSPACE_ROOT>/zt-cps-design-astra 9dac09a [astra/design-dashboard-20260906]",
+    "status": "",
     "workspace": "<REPO_ROOT>",
     "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
     "platform": "Windows-11-10.0.26200-SP0",
@@ -260,11 +260,31 @@
       "bytes": 1728,
       "sha256": "c49113191841753e7d7c9f7b9537a0c9a643defc303581e07f18d251a4b37a71"
     },
+    "models/fusion_background_gcn_backup.npy": {
+      "bytes": 1728,
+      "sha256": "8aa968a671ace9d1495b5f710a68e54e817094000f0f32d62ba8c16cc4fe8684"
+    },
+    "models/fusion_background_m6_variant.npy": {
+      "bytes": 1728,
+      "sha256": "c49113191841753e7d7c9f7b9537a0c9a643defc303581e07f18d251a4b37a71"
+    },
     "models/fusion_meta_learner.joblib": {
       "bytes": 895,
       "sha256": "d5e2bfeecc57142bf432ed233ec8f50c0e45a787f448a3590c8d849af955e934"
     },
+    "models/fusion_meta_learner_gcn_backup.joblib": {
+      "bytes": 895,
+      "sha256": "20ea7bcbba43861b21736c857c47d80434cd8e0daea42cd645a6aabd4abbf8e8"
+    },
+    "models/fusion_meta_learner_m6_variant.joblib": {
+      "bytes": 895,
+      "sha256": "d5e2bfeecc57142bf432ed233ec8f50c0e45a787f448a3590c8d849af955e934"
+    },
     "models/gnn.pt": {
+      "bytes": 7653,
+      "sha256": "1d2028708aba69ff8b004eae6e2c58e6641959df10c4ec5ab9769e4cf925fa50"
+    },
+    "models/gnn_backup.pt": {
       "bytes": 7653,
       "sha256": "1d2028708aba69ff8b004eae6e2c58e6641959df10c4ec5ab9769e4cf925fa50"
     },
@@ -592,6 +612,10 @@
       "bytes": 295,
       "sha256": "a912f7540902bca5b78e28c93f5a192bdb1b526422954ee8d1e6cc6993ec68f6"
     },
+    "models/set_transformer_runtime.pt": {
+      "bytes": 17453,
+      "sha256": "e4a65b5d899a6e9db18b47092bfc4a3b45ddc2db2ee49cef8adba593ae53b1bb"
+    },
     "models/transformer_ae_esp32-vib-001.pt": {
       "bytes": 82539,
       "sha256": "63b4e4ba03625998cecd4139e3835c032fb2c8e5f1eff3ebebeb036c56e29162"
@@ -752,6 +776,10 @@
       "bytes": 14662,
       "sha256": "623869c8808ade0223134256f19d12de4bd759e9d6bd19ddba3a6e55e2df342c"
     },
+    "scripts/evaluate_ablation_m6.py": {
+      "bytes": 5588,
+      "sha256": "7f0593a1bce8f38f6b5a76a7ad91e127599bdcc898697b794f05576f41dfbd9d"
+    },
     "scripts/evaluate_explainability.py": {
       "bytes": 5594,
       "sha256": "427904f48e7f747aa55f712ebb234b20475f8586a69469a12ed560380df724bc"
@@ -844,6 +872,10 @@
       "bytes": 10726,
       "sha256": "f42ec712c500c4944f430615be60e908853cdf8710c0bd647758434e3473393d"
     },
+    "scripts/train_fusion_meta_learner_m6.py": {
+      "bytes": 4245,
+      "sha256": "21555e2c217cf67d754dd1d187ddba411ed21237799ae67426d2ffb0901e18db"
+    },
     "scripts/train_gnn.py": {
       "bytes": 10593,
       "sha256": "2c58bc53b4ae0d2bf4833b5d5a84fa7ddfc3e376b95d8820deda0235b9da3275"
@@ -855,6 +887,10 @@
     "scripts/train_lstm_ae.py": {
       "bytes": 5018,
       "sha256": "7f1f3fa64321bab3712a0b46c9fb36f4890e9e7e2d036c006b342bb484f62fd1"
+    },
+    "scripts/train_set_transformer.py": {
+      "bytes": 7210,
+      "sha256": "81010d586d8b44bc6e7ea04e15b5feaa1d04860bc24e1219ed697097e55df4af"
     },
     "scripts/train_transformer.py": {
       "bytes": 5760,
@@ -909,8 +945,8 @@
       "sha256": "25ad0b121e8207f309933a822a10adde0a1dd853e5103ca9d7f4e60411ff7c11"
     },
     "src/gateway.py": {
-      "bytes": 55012,
-      "sha256": "deedd10ed3a772bd2d031c3c5716496d048312eb7a7f0e1def2a9fa0a9cb73ea"
+      "bytes": 55011,
+      "sha256": "046f340399f299ac92acbbc1764f4dd27f769b4c29581c7b292bfb17ec7a3198"
     },
     "src/gnn_scorer.py": {
       "bytes": 9056,
@@ -943,6 +979,10 @@
     "src/secrets_local.example.py": {
       "bytes": 1238,
       "sha256": "4311cff4450c003cbff8630962948af07edb1c94f63656330ca5af3a43e96323"
+    },
+    "src/set_transformer_scorer.py": {
+      "bytes": 7335,
+      "sha256": "d3494dd93d2d2672cefa642c938688ac8a5a7c5f0e033cd33614ee6513cdc402"
     },
     "src/splits.py": {
       "bytes": 6157,
