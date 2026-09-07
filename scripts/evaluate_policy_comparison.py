@@ -65,7 +65,7 @@ R_MIN_PROCESS = 0.90
 EPS_FALSE_BLOCK = 0.01
 
 
-def build_triples(path, pin=rp.GCN):
+def build_triples(path, pin=rp.GCN, deterministic_clock=False):
     """Replays a session IN ORDER through the full two-score pipeline, exactly
     as train_adaptive_pdp.py does -- Security Trust is stateful (EWMA + decay
     per device via one shared engine), so record order matters and a shuffled
@@ -86,16 +86,29 @@ def build_triples(path, pin=rp.GCN):
     docs/paper/17_CLAIM_EVIDENCE_MATRIX.md C12/objective 9D), so an M6 pin
     here would score the CURRENT policy's saved Q-table/thresholds against
     M6-derived Process Trust it was never calibrated on -- not a valid
-    comparison, and this function does not attempt one."""
+    comparison, and this function does not attempt one.
+
+    `deterministic_clock`: False (default, unchanged) uses wall-clock
+    time.time() for the relational scorer's active-neighbour window --
+    reproduces results/policy_comparison/ and
+    results/gcn_m6_corrected_comparison/ exactly (including their documented
+    run-to-run jitter finding). True instead drives that clock from each
+    record's own `ts` field (mirrors scripts/train_adaptive_pdp.py's
+    deterministic_clock()), for a NEW, fully reproducible evaluation run --
+    see tests/test_policy_training_determinism.py."""
     with open(path) as f:
         records = json.load(f)
-    engine = RuleBasedTrustEngine()
+    clock_box = {"t": 0.0}
+    clock_fn = (lambda: clock_box["t"]) if deterministic_clock else None
+    engine = RuleBasedTrustEngine(clock=clock_fn)
     if_s, lstm_s, gnn_s, fusion = (IsolationForestScorer(), LSTMAEScorer(),
-                                   pin.load_relational_scorer(), pin.load_fusion_engine())
+                                   pin.load_relational_scorer(clock=clock_fn), pin.load_fusion_engine())
     out = []
     for r in sorted(records, key=lambda x: x["tick"]):
         if not r["auth_ok"] or r["event_type"] == "replay":
             continue
+        if deterministic_clock:
+            clock_box["t"] = r["ts"] / 1000.0
         device_id = r["device_id"]
         rule, _ = rule_range_score(device_id, r["reading"])
         if is_feature_vector(device_id):

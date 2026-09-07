@@ -271,10 +271,23 @@ class RuleBasedTrustEngine:
     fusion_engine.py's job; this class only stores what it's told via
     update_process_anomaly()."""
 
-    def __init__(self):
+    def __init__(self, clock=None):
+        """clock: zero-arg callable returning the current time in seconds.
+        None (default) uses time.time() -- unchanged, real wall-clock
+        behaviour for the live gateway and every existing caller. Offline
+        replay-based policy training/evaluation
+        (scripts/train_adaptive_pdp.py, evaluate_policy_comparison.py)
+        injects a deterministic clock derived from each replayed record's
+        own `ts` field instead, so Security Trust's EWMA decay depends only
+        on the data, not on how fast the replay loop executes -- see
+        gnn_scorer.GNNScorer's matching `clock` parameter for the same
+        pattern, and tests/test_policy_training_determinism.py. This does
+        NOT change live production freshness semantics: the live gateway
+        never passes `clock`, so it always gets real time.time()."""
         self.auth_state: dict[str, AuthenticatedBehaviourState] = {}
         self.security_state: dict[str, SecurityTrustState] = {}
         self.process_state: dict[str, ProcessAnomalyState] = {}
+        self._clock = clock or time.time
 
     def _get_auth_state(self, device_id: str) -> AuthenticatedBehaviourState:
         if device_id not in self.auth_state:
@@ -343,7 +356,7 @@ class RuleBasedTrustEngine:
         boot/seq check above: is this message's self-reported timestamp
         within REPLAY_WINDOW_SECONDS of the gateway's own clock? Returns
         True if fresh."""
-        now_ms = time.time() * 1000
+        now_ms = self._clock() * 1000
         return abs(now_ms - ts_ms) <= REPLAY_WINDOW_SECONDS * 1000
 
     def check_flood(self, device_id: str) -> bool:
@@ -355,7 +368,7 @@ class RuleBasedTrustEngine:
         genuinely-authenticated device is still reporting real sensor data)
         -- it only lowers the Security Trust Score, via score_security_trust()."""
         st = self._get_auth_state(device_id)
-        now = time.time()
+        now = self._clock()
         was_flood = bool(st.message_arrivals) and (now - st.message_arrivals[-1]) < MIN_MESSAGE_INTERVAL_SECONDS
         st.message_arrivals.append(now)
         while st.message_arrivals and now - st.message_arrivals[0] > 60.0:
@@ -372,7 +385,7 @@ class RuleBasedTrustEngine:
         nonce = os.urandom(16).hex()
         st = self._get_auth_state(device_id)
         st.pending_step_up_nonce = nonce
-        st.pending_step_up_issued_at = time.time()
+        st.pending_step_up_issued_at = self._clock()
         return nonce
 
     def has_pending_step_up(self, device_id: str) -> bool:
@@ -411,7 +424,7 @@ class RuleBasedTrustEngine:
         st = self._get_auth_state(device_id)
         if st.pending_step_up_nonce is None:
             return None
-        if time.time() - st.pending_step_up_issued_at > STEP_UP_CHALLENGE_TIMEOUT_SECONDS:
+        if self._clock() - st.pending_step_up_issued_at > STEP_UP_CHALLENGE_TIMEOUT_SECONDS:
             st.pending_step_up_nonce = None
             st.pending_step_up_issued_at = None
             return "TIMEOUT"
@@ -437,7 +450,7 @@ class RuleBasedTrustEngine:
         CLAIMED id, not this registered device's own state)."""
         st = self._get_security_state(device_id)
         auth_st = self._get_auth_state(device_id)
-        now = time.time()
+        now = self._clock()
 
         # max(0.0, ...): a backward wall-clock step (NTP correction, manual
         # adjustment) would otherwise make elapsed negative -> decay negative
@@ -481,7 +494,7 @@ class RuleBasedTrustEngine:
         st = self.security_state.get(device_id)
         if st is None:
             return 0.8
-        elapsed = max(0.0, time.time() - st.last_updated_at)  # never let a backward clock inflate trust (see score_security_trust)
+        elapsed = max(0.0, self._clock() - st.last_updated_at)  # never let a backward clock inflate trust (see score_security_trust)
         decay = min(0.3, TRUST_DECAY_PER_SECOND * elapsed)
         return round(max(0.0, st.score - decay), 3)
 
@@ -495,7 +508,7 @@ class RuleBasedTrustEngine:
         st = self._get_process_state(device_id)
         st.score = process_trust_value
         st.status = "FRESH"
-        st.last_updated_at = time.time()
+        st.last_updated_at = self._clock()
 
     def get_process_anomaly(self, device_id: str) -> tuple[float, str]:
         """Lazily evaluates staleness at read-time (checked here, and again
@@ -506,7 +519,7 @@ class RuleBasedTrustEngine:
         at the moments it's actually read (dashboard render, decide()
         call), not continuously between them."""
         st = self._get_process_state(device_id)
-        if st.status == "FRESH" and time.time() - st.last_updated_at > PROCESS_STALE_AFTER_SECONDS:
+        if st.status == "FRESH" and self._clock() - st.last_updated_at > PROCESS_STALE_AFTER_SECONDS:
             st.status = "STALE"
         return st.score, st.status
 
@@ -516,4 +529,4 @@ class RuleBasedTrustEngine:
             return False
         if not st.message_arrivals:
             return False
-        return (time.time() - st.message_arrivals[-1]) > STALE_AFTER_SECONDS
+        return (self._clock() - st.message_arrivals[-1]) > STALE_AFTER_SECONDS

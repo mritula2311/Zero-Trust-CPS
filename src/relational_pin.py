@@ -21,13 +21,25 @@ future artifact swap (accidental overwrite, a new deployment) makes a
 comparator FAIL LOUDLY instead of silently mixing model families again.
 
 Three known arms:
-  gcn          -- the true, pre-deployment GCN checkpoint + its own fusion.
-  m6_deployed  -- exactly what the live gateway runs today.
+  gcn          -- the true, pre-M6 GCN checkpoint + its own fusion.
+  m6_deployed  -- HISTORICAL / SUPERSEDED as of the 2026-09-07 corrected-M6
+                  promotion (config.py's ambient-constant block above
+                  GNN_MODEL_PATH). The checkpoint the live gateway ran from
+                  3c827e8 until that promotion; pinned via an explicit,
+                  ambient-independent config constant
+                  (SET_TRANSFORMER_MODEL_PATH_M6_DEPLOYED_FLAWED_20260907)
+                  so it keeps verifying regardless of what is deployed
+                  later. Has a confirmed class-weight training defect
+                  (13 O4) -- do not redeploy.
   m6_corrected -- a GCN-vs-M6 checkpoint retrained after fixing
                   train_set_transformer.py's class-weight bug (see that
                   file's docstring and
-                  results/gcn_m6_corrected_comparison/summary.md). NOT
-                  deployed -- evaluation/comparison only.
+                  results/gcn_m6_corrected_comparison/summary.md). DEPLOYED
+                  as of the 2026-09-07 promotion -- ambient
+                  SET_TRANSFORMER_MODEL_PATH / FUSION_MODEL_PATH /
+                  FUSION_BACKGROUND_PATH now equal this pin's paths exactly
+                  (see results/m6_corrected_policy/summary.md for the
+                  promotion decision).
 """
 import hashlib
 import os
@@ -39,7 +51,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from config import (
     GNN_MODEL_PATH,
     FUSION_MODEL_PATH_GCN_BACKUP, FUSION_BACKGROUND_PATH_GCN_BACKUP,
-    SET_TRANSFORMER_MODEL_PATH,
+    SET_TRANSFORMER_MODEL_PATH_M6_DEPLOYED_FLAWED_20260907,
     FUSION_MODEL_PATH_M6_VARIANT, FUSION_BACKGROUND_PATH_M6_VARIANT,
     SET_TRANSFORMER_MODEL_PATH_CORRECTED,
     FUSION_MODEL_PATH_M6_CORRECTED_VARIANT, FUSION_BACKGROUND_PATH_M6_CORRECTED_VARIANT,
@@ -89,14 +101,19 @@ class RelationalPin:
                     f"since it was recorded -- do not trust a comparison built on "
                     f"this pin until it is re-verified/re-pinned.")
 
-    def load_relational_scorer(self):
+    def load_relational_scorer(self, clock=None):
+        """clock: optional zero-arg callable forwarded to the scorer's own
+        `clock` constructor argument (see gnn_scorer.GNNScorer /
+        set_transformer_scorer.SetTransformerScorer). None preserves
+        wall-clock behavior; offline replay callers pass a deterministic
+        clock derived from the replayed record's own `ts` field."""
         self.verify()
         if self.family == "gcn":
             from gnn_scorer import GNNScorer
-            return GNNScorer(checkpoint_path=self.relational_checkpoint)
+            return GNNScorer(checkpoint_path=self.relational_checkpoint, clock=clock)
         elif self.family == "m6":
             from set_transformer_scorer import SetTransformerScorer
-            return SetTransformerScorer(checkpoint_path=self.relational_checkpoint)
+            return SetTransformerScorer(checkpoint_path=self.relational_checkpoint, clock=clock)
         raise ValueError(f"unknown family {self.family!r}")
 
     def load_fusion_engine(self):
@@ -119,10 +136,20 @@ GCN = RelationalPin(
     fusion_background_sha256="8aa968a671ace9d1495b5f710a68e54e817094000f0f32d62ba8c16cc4fe8684",
 )
 
+# HISTORICAL / SUPERSEDED as of the 2026-09-07 corrected-M6 promotion (see
+# config.py's ambient-constant block above GNN_MODEL_PATH). This pin
+# describes the checkpoint the live gateway ran from 3c827e8 to that
+# promotion -- pinned by an EXPLICIT config constant
+# (SET_TRANSFORMER_MODEL_PATH_M6_DEPLOYED_FLAWED_20260907), never the
+# ambient SET_TRANSFORMER_MODEL_PATH, precisely so this pin keeps verifying
+# correctly regardless of what gets deployed later. It has a confirmed
+# class-weight training defect (13 O4) -- do not redeploy it. What is
+# actually live today is M6_CORRECTED below (ambient SET_TRANSFORMER_MODEL_PATH
+# / FUSION_MODEL_PATH now point at exactly its checkpoint/fusion files).
 M6_DEPLOYED = RelationalPin(
     name="m6_deployed",
     family="m6",
-    relational_checkpoint=SET_TRANSFORMER_MODEL_PATH,
+    relational_checkpoint=SET_TRANSFORMER_MODEL_PATH_M6_DEPLOYED_FLAWED_20260907,
     relational_checkpoint_sha256="e4a65b5d899a6e9db18b47092bfc4a3b45ddc2db2ee49cef8adba593ae53b1bb",
     fusion_model_path=FUSION_MODEL_PATH_M6_VARIANT,
     fusion_model_sha256="d5e2bfeecc57142bf432ed233ec8f50c0e45a787f448a3590c8d849af955e934",
@@ -142,3 +169,48 @@ M6_CORRECTED = RelationalPin(
 )
 
 KNOWN_PINS = {p.name: p for p in (GCN, M6_DEPLOYED, M6_CORRECTED)}
+
+
+def policy_meta_path(qtable_path: str) -> str:
+    """A policy Q-table's metadata sidecar lives next to it, same stem, with
+    `.meta.json` appended -- e.g. models/adaptive_pdp_qtable_m6_corrected.json
+    -> models/adaptive_pdp_qtable_m6_corrected.meta.json."""
+    base, _ = os.path.splitext(qtable_path)
+    return base + ".meta.json"
+
+
+def verify_policy_lineage(pin: RelationalPin, qtable_path: str) -> dict:
+    """Part 3's explicit lineage check: a policy Q-table trained via
+    scripts/train_adaptive_pdp.py against a given RelationalPin must be
+    evaluated against that SAME pin, never a different one -- otherwise a
+    comparator would score a Q-table's learned (state, action) values
+    against Process Trust it was never calibrated on, exactly the silent
+    mismatch this whole module exists to prevent. Reads the metadata sidecar
+    scripts/train_adaptive_pdp.py writes next to the Q-table and raises
+    ArtifactMismatchError if it is missing, or if its recorded relational
+    checkpoint / fusion artifact / pin name disagree with `pin`. Returns the
+    metadata dict on success, for callers that also want the provenance
+    (seed, clock protocol, training config, commit hash) it carries."""
+    import json as _json
+    meta_path = policy_meta_path(qtable_path)
+    if not os.path.exists(qtable_path):
+        raise ArtifactMismatchError(
+            f"policy lineage check for pin '{pin.name}': Q-table missing at {qtable_path}")
+    if not os.path.exists(meta_path):
+        raise ArtifactMismatchError(
+            f"policy lineage check for pin '{pin.name}': no metadata sidecar at {meta_path} -- "
+            f"a Q-table with no recorded lineage cannot be trusted against any pin. "
+            f"Retrain via scripts/train_adaptive_pdp.py, which always writes one.")
+    with open(meta_path) as f:
+        meta = _json.load(f)
+    mismatches = []
+    if meta.get("pin_name") != pin.name:
+        mismatches.append(f"pin_name: metadata says {meta.get('pin_name')!r}, expected {pin.name!r}")
+    if meta.get("relational_checkpoint_sha256") != pin.relational_checkpoint_sha256:
+        mismatches.append("relational_checkpoint_sha256 does not match this pin's current checkpoint")
+    if meta.get("fusion_model_sha256") != pin.fusion_model_sha256:
+        mismatches.append("fusion_model_sha256 does not match this pin's current fusion artifact")
+    if mismatches:
+        raise ArtifactMismatchError(
+            f"policy lineage check for pin '{pin.name}' at {qtable_path} FAILED: " + "; ".join(mismatches))
+    return meta

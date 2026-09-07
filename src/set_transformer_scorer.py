@@ -73,14 +73,21 @@ class SetTransformerScorer:
     Loads a trained model at construction; `score()` is a pure forward
     pass over the current device-set snapshot, no training."""
 
-    def __init__(self, checkpoint_path: str | None = None):
+    def __init__(self, checkpoint_path: str | None = None, clock=None):
         """checkpoint_path: explicit override for which checkpoint to load,
         bypassing config.SET_TRANSFORMER_MODEL_PATH. None (default)
         preserves the ambient-config behavior every existing caller
         (gateway, tests, other scripts) relies on. An explicit path exists
         so a comparator script can pin exactly which checkpoint an arm uses
         instead of silently reading whatever the shared config constant
-        currently means -- see src/relational_pin.py."""
+        currently means -- see src/relational_pin.py.
+
+        clock: zero-arg callable returning the current time in seconds, used
+        for the active-neighbour window (GNN_EDGE_WINDOW_SECONDS). None
+        (default) uses time.time(), the correct choice live. Offline
+        replay-based training/evaluation injects a deterministic clock
+        derived from each replayed record's own `ts` field instead -- see
+        gnn_scorer.GNNScorer's matching docstring for the full rationale."""
         self.device_ids = list(DEVICE_REGISTRY.keys())
         self._index = {d: i for i, d in enumerate(self.device_ids)}
         n = len(self.device_ids)
@@ -88,6 +95,7 @@ class SetTransformerScorer:
         self.last_features = np.full((n, GNN_NODE_FEATURE_DIM), 0.9, dtype=np.float32)
         self.model: _SetTransformer | None = None
         self._checkpoint_path = checkpoint_path or SET_TRANSFORMER_MODEL_PATH
+        self._clock = clock or time.time
         self._load()
 
     def _load(self):
@@ -100,7 +108,7 @@ class SetTransformerScorer:
         self.model = model.to(_TORCH_DEVICE)
 
     def score(self, device_id: str, rule_score: float, if_score: float, lstm_score: float) -> float:
-        now = time.time()
+        now = self._clock()
         i = self._index[device_id]
         self.last_seen[i] = now
         self.last_features[i] = [rule_score, if_score, lstm_score]
@@ -138,7 +146,7 @@ class SetTransformerScorer:
         if self.model is None:
             return None
 
-        now = time.time()
+        now = self._clock()
         active = (now - self.last_seen) <= GNN_EDGE_WINDOW_SECONDS
         x = torch.tensor(np.where(active[:, None], self.last_features, 0.0),
                          dtype=torch.float32, device=_TORCH_DEVICE).unsqueeze(0)

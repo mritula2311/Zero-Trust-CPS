@@ -90,14 +90,26 @@ class GNNScorer:
     construction; `score()` is a pure forward pass over the current graph
     snapshot, no training."""
 
-    def __init__(self, checkpoint_path: str | None = None):
+    def __init__(self, checkpoint_path: str | None = None, clock=None):
         """checkpoint_path: explicit override for which checkpoint to load,
         bypassing config.GNN_MODEL_PATH. None (default) preserves the
         ambient-config behavior every existing caller (gateway, tests,
         other scripts) relies on. An explicit path exists so a comparator
         script can pin exactly which checkpoint an arm uses instead of
         silently reading whatever the shared config constant currently
-        means -- see src/relational_pin.py."""
+        means -- see src/relational_pin.py.
+
+        clock: zero-arg callable returning the current time in seconds,
+        used for the active-neighbour window (GNN_EDGE_WINDOW_SECONDS).
+        None (default) uses time.time(), i.e. real wall-clock time -- the
+        correct choice for the live gateway, where "active" must mean
+        "actually recent". Offline replay-based training/evaluation
+        (scripts/train_adaptive_pdp.py, evaluate_policy_comparison.py)
+        instead injects a deterministic clock derived from each replayed
+        record's own `ts` field, so which devices count as "active" no
+        longer depends on how fast the host machine executes the replay
+        loop -- see docs/paper/18_LIMITATIONS_AND_THREATS_TO_VALIDITY.md's
+        clock-alignment finding this fixes for offline evaluation."""
         self.device_ids = list(DEVICE_REGISTRY.keys())
         self._index = {d: i for i, d in enumerate(self.device_ids)}
         n = len(self.device_ids)
@@ -105,6 +117,7 @@ class GNNScorer:
         self.last_features = np.full((n, GNN_NODE_FEATURE_DIM), 0.9, dtype=np.float32)
         self.model: _GCN | None = None
         self._checkpoint_path = checkpoint_path or GNN_MODEL_PATH
+        self._clock = clock or time.time
         self._load()
 
     def _load(self):
@@ -117,7 +130,7 @@ class GNNScorer:
         self.model = model.to(_TORCH_DEVICE)
 
     def score(self, device_id: str, rule_score: float, if_score: float, lstm_score: float) -> float:
-        now = time.time()
+        now = self._clock()
         i = self._index[device_id]
         self.last_seen[i] = now
         self.last_features[i] = [rule_score, if_score, lstm_score]
@@ -159,7 +172,7 @@ class GNNScorer:
         if self.model is None:
             return None
 
-        now = time.time()
+        now = self._clock()
         active = (now - self.last_seen) <= GNN_EDGE_WINDOW_SECONDS
         a_hat = normalized_adjacency(active).to(_TORCH_DEVICE)
         x = torch.tensor(np.where(active[:, None], self.last_features, 0.0),

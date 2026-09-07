@@ -62,15 +62,25 @@ def state_key(security_trust_score: float, process_trust_score: float) -> str:
 
 
 class AdaptivePDP:
-    def __init__(self):
+    def __init__(self, path: str | None = None):
+        """path: explicit override for which Q-table to load/save, bypassing
+        config.ADAPTIVE_PDP_MODEL_PATH. None (default) preserves the
+        ambient-config behavior every existing caller (gateway, tests, other
+        scripts) relies on. An explicit path exists so a comparator/training
+        script can pin exactly which policy artifact an arm uses instead of
+        silently reading/overwriting whatever the shared config constant
+        currently means -- mirrors gnn_scorer.GNNScorer's checkpoint_path
+        and set_transformer_scorer.SetTransformerScorer's checkpoint_path;
+        see src/relational_pin.py."""
         self.q: dict[str, dict[str, float]] = {}
         self._visit_counts: dict[tuple[str, str], int] = {}  # (state_key, action) -> visits; training-only, not saved
+        self._path = path or ADAPTIVE_PDP_MODEL_PATH
         self._load()
 
     def _load(self):
-        if not os.path.exists(ADAPTIVE_PDP_MODEL_PATH):
+        if not os.path.exists(self._path):
             return
-        with open(ADAPTIVE_PDP_MODEL_PATH) as f:
+        with open(self._path) as f:
             loaded = json.load(f)
         # A pre-two-score-rearchitecture Q-table used the SAME "int,int"
         # key format (trust_bucket,confidence_bucket) this file now uses
@@ -85,7 +95,7 @@ class AdaptivePDP:
         # trust it, since a table mixing old- and new-semantics entries
         # under colliding keys would be silently wrong, not just incomplete.
         if loaded and any(set(qvals.keys()) != set(ACTIONS) for qvals in loaded.values()):
-            print(f"[adaptive_pdp] {ADAPTIVE_PDP_MODEL_PATH} is in the pre-two-score action format "
+            print(f"[adaptive_pdp] {self._path} is in the pre-two-score action format "
                   f"-- discarding and starting fresh (run scripts/train_adaptive_pdp.py to rebuild it).")
             return
         self.q = loaded
@@ -141,7 +151,8 @@ class AdaptivePDP:
         self._visit_counts[key] = self._visit_counts.get(key, 0) + 1
         q[action] += (reward - q[action]) / self._visit_counts[key]
 
-    def save(self, path: str = ADAPTIVE_PDP_MODEL_PATH) -> None:
+    def save(self, path: str | None = None) -> None:
+        path = path or self._path
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w") as f:
             json.dump(self.q, f, indent=1)
@@ -169,4 +180,4 @@ class AdaptivePDP:
         return 1.0 if action == CORRECT_ACTION_FOR_SITUATION[situation] else -1.0
 
     def is_trained(self) -> bool:
-        return os.path.exists(ADAPTIVE_PDP_MODEL_PATH)
+        return os.path.exists(self._path)
