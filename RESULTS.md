@@ -1268,34 +1268,24 @@ projection is the useful number: **~32 s at 1M rows**, at which point a 300 s
 cache no longer hides it and a checkpoint-anchored partial scan becomes worth
 building. Recorded as a budget with a trigger rather than a vague concern.
 
-## Figure Index
+## Figure Index — SUPERSEDED 2026-09-07
 
-Every figure below is a PNG in `docs/figures/`, produced by
-`scripts/generate_evaluation_graphs.py` — which calls the SAME functions
-the corresponding `evaluate_*.py` script uses (or replays the identical
-logic where a script only prints rather than returns), so a figure and
-this document's numbers can never silently drift apart. Regenerate all
-20 with `python scripts/generate_evaluation_graphs.py` after any retrain.
+The `fig1`-`fig17` and `figA`-`figD` PNGs this section used to index (produced by
+`scripts/generate_evaluation_graphs.py` / `scripts/generate_paper_figures.py`) were
+generated before the comparator repair and the corrected-M6 promotion, and are
+**deleted** as of that pass (recoverable from git history if needed for any reason).
+They described pipeline behaviour on synthetic data, `RL vs. static` policy
+comparisons and hardware discrimination under the pre-correction, ambient-config-
+mismatched pipeline this project's 2026-09-07 work found and fixed — see
+`docs/paper/17_CLAIM_EVIDENCE_MATRIX.md` and `docs/paper/18_LIMITATIONS_AND_THREATS_TO_VALIDITY.md`.
 
-| Figure | Shows | Section |
-|---|---|---|
-| `fig1_signal_comparison_blended.png` | Accuracy/precision/recall/F1, all 6 signals | 2 |
-| `fig2_per_event_type_recall.png` | Per-event-type recall, all 6 signals | 2.1 |
-| `fig3_fair_lstm_vs_transformer.png` | LSTM-AE vs. Transformer, undiluted | 2.2 |
-| `fig4_capacity_vs_accuracy_tradeoff.png` | Params vs. F1 scatter, LSTM-AE vs. Transformer | 2.2 |
-| `fig5_rl_vs_static_reward.png` | Avg reward, static vs. RL | 3.1 |
-| `fig6_confusion_matrix_static.png` / `_rl.png` | 4-class confusion matrix heatmaps | 3.2 |
-| `fig7_macro_f1_comparison.png` | Macro-F1, static vs. RL | 3.2 |
-| `fig8_latency.png` | HMAC-only vs. full-pipeline latency | 6 |
-| `fig9_level1_explainability.png` | SHAP top-feature match rate | 4 |
-| `fig10_level2_explainability_by_signal.png` | Perturbation flip rate by dominant signal | 4.1 |
-| `fig11_rl_convergence_trend.png` | Fresh-bandit reward per episode | 3.3 |
-| `fig12_nist_governance_coverage.png` | NIST SP 800-207 tenet coverage | 5.1 |
-| `fig13_iec62443_fr_coverage.png` | IEC 62443-3-3 FR coverage | 5.2 |
-| `fig14_score_responsiveness.png` | Mean messages to threshold break, by event type | 7 |
-| `fig15_dataset_class_balance.png` | Train vs. test event-type composition | 12 |
-| `fig16_threshold_sensitivity_*.png` | Precision/recall/F1 vs. decision threshold (IF, GNN, fused) | 2 |
-| `fig17_training_loss_lstm_vs_transformer.png` | Training loss curves, both architectures | 2.2 |
+The current figure set is `docs/figures/r1_*.png` through `r15_*.png`, produced by
+`scripts/generate_corrected_m6_figures.py` from the corrected-M6 evidence in
+`results/gcn_m6_corrected_comparison/` and `results/m6_corrected_policy/` plus the
+frozen `results/crossdevice_benchmark/` and `results/final_verification/` artifacts
+— see `docs/paper/19_FIGURE_AND_TABLE_PLAN.md` for the full R1-R15 index (title,
+source, priority). Regenerate with `python scripts/generate_corrected_m6_figures.py`
+after any retrain of the corrected-M6 chain.
 
 ---
 

@@ -45,14 +45,14 @@ docs/paper/15_HARDWARE_VALIDATION.md,AUTHORITATIVE,CURRENT paper reference,2896
 docs/paper/16_ABLATIONS_AND_NEGATIVE_RESULTS.md,AUTHORITATIVE,CURRENT paper reference,4032
 docs/paper/17_CLAIM_EVIDENCE_MATRIX.md,AUTHORITATIVE,CURRENT paper reference,14462
 docs/paper/18_LIMITATIONS_AND_THREATS_TO_VALIDITY.md,AUTHORITATIVE,CURRENT paper reference,10311
-docs/paper/19_FIGURE_AND_TABLE_PLAN.md,AUTHORITATIVE,CURRENT paper reference,3843
+docs/paper/19_FIGURE_AND_TABLE_PLAN.md,AUTHORITATIVE,CURRENT paper reference,5829
 docs/paper/20_RELATED_WORK_POSITIONING.md,AUTHORITATIVE,CURRENT paper reference,2888
 docs/paper/21_FINAL_PAPER_OUTLINE.md,AUTHORITATIVE,CURRENT paper reference,4743
 docs/paper/22_PAPER_READY_FACTSHEET.md,AUTHORITATIVE,CURRENT paper reference,3835
 docs/paper/23_TERMINOLOGY_AND_NOTATION.md,AUTHORITATIVE,CURRENT paper reference,3861
 docs/paper/24_REPRODUCIBILITY_GUIDE.md,AUTHORITATIVE,CURRENT paper reference,8030
 docs/paper/25_OPEN_ITEMS_BEFORE_SUBMISSION.md,AUTHORITATIVE,CURRENT paper reference,5987
-docs/paper/REPOSITORY_CLEANUP_MANIFEST.md,AUTHORITATIVE,CURRENT paper reference,4154
+docs/paper/REPOSITORY_CLEANUP_MANIFEST.md,AUTHORITATIVE,CURRENT paper reference,5281
 docs/PAPER_GNN_BASELINE_VERIFICATION.md,PRIVATE AUDIT,Historical research claims; supporting implementation/chronology,15354
 docs/PAPER_READINESS_VERIFICATION.md,SUPPORTING,Historical research claims; supporting implementation/chronology,6141
 docs/README.md,AUTHORITATIVE,CURRENT paper reference,3645
@@ -72,6 +72,6 @@ results/final_verification/masking_boundary_review.md,PRIVATE AUDIT,Historical r
 results/final_verification/research_review.md,PRIVATE AUDIT,Historical research claims; supporting implementation/chronology,13980
 results/gcn_m6_corrected_comparison/summary.md,PRIVATE AUDIT,Historical research claims; supporting implementation/chronology,4511
 results/m6_corrected_policy/summary.md,PRIVATE AUDIT,Historical research claims; supporting implementation/chronology,5366
-RESULTS.md,HISTORICAL,Historical research claims; supporting implementation/chronology,248009
+RESULTS.md,HISTORICAL,Historical research claims; supporting implementation/chronology,247343
 SESSION_LOG.md,HISTORICAL,Historical research claims; supporting implementation/chronology,197671
 ZERO_TRUST_CPS_KB.md,SUPPORTING,Historical research claims; supporting implementation/chronology,70252

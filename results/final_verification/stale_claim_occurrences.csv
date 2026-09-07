@@ -102,59 +102,59 @@ RESULTS.md,542,0\.0000,HISTORICAL,0.00001.
 RESULTS.md,838,reinforcement learning,HISTORICAL,reinforcement learning (C6).
 RESULTS.md,969,0\.0000,HISTORICAL,`proc = 0.00001` and a continuous ALERT. The board was not stuck (28 distinct
 RESULTS.md,993,0\.0000,HISTORICAL,| live periodic source | 14 | **0.0000** | **14/14** | 0.0000 | 14/14 |
-RESULTS.md,1404,0\.6567,HISTORICAL,| B2 concat MLP | 0.6475 | **0.6567** |
-RESULTS.md,1407,0\.4142,HISTORICAL,| B0 anomalous-node count | 0.4592 | 0.4142 |
-RESULTS.md,1413,0\.6567,HISTORICAL,"single-node view cannot answer even in principle, accuracy rises 0.4142 → 0.6567."
-RESULTS.md,1413,0\.4142,HISTORICAL,"single-node view cannot answer even in principle, accuracy rises 0.4142 → 0.6567."
-RESULTS.md,1440,0\.0000,HISTORICAL,| P3 decision tree | 0.4722 | 0.5834 | 0.6183 | **0.5272** | 0.0000 |
-RESULTS.md,1441,0\.0000,HISTORICAL,| P5 adaptive bandit | 0.7300 | 0.5329 | 0.7896 | 0.0000 | 0.0007 |
-RESULTS.md,1443,0\.0000,HISTORICAL,| P1 static (deployed) | 0.6577 | 0.2744 | 0.7029 | 0.0000 | 0.0000 |
-RESULTS.md,1446,reinforcement learning,HISTORICAL,"reinforcement learning** — no discount factor, no next-state bootstrapping,"
-RESULTS.md,1453,0\.0000,HISTORICAL,| P1 static | 0 | 0 | 33 | 0.0000 | 0.0000 |
-RESULTS.md,1454,0\.0000,HISTORICAL,| P2 static optimised | 0 | 14 | 33 | 0.0000 | 0.0000 |
-RESULTS.md,1457,0\.0000,HISTORICAL,| P5 adaptive bandit | 0 | 0 | 33 | 0.0000 | 0.0000 |
-RESULTS.md,1653,0\.0000,HISTORICAL,| M4 GCN | 0.8625 | 0.7550 | 0.1700 | 0.0025 | **0.0000** |
-RESULTS.md,1697,0\.0000,HISTORICAL,M3 deep sets        0.000000    invariant
-RESULTS.md,1698,0\.0000,HISTORICAL,M6 set transformer  0.000000    invariant
-RESULTS.md,1699,0\.0000,HISTORICAL,M7 NP-ST            0.000000    invariant
-RESULTS.md,1742,0\.0000,HISTORICAL,| P3 decision tree | 0.7770 | **0.6453** | 0.8398 | **0.1510** | 0.0000 | 0.9850 |
-RESULTS.md,1744,0\.0000,HISTORICAL,| P5 adaptive bandit | 0.7238 | 0.5271 | 0.7846 | 0.0000 | 0.0022 | 0.9600 |
-RESULTS.md,1746,0\.0000,HISTORICAL,| P6 static constrained | 0.6662 | 0.2777 | 0.7088 | 0.0000 | 0.0000 | 0.9900 |
-RESULTS.md,1747,0\.0000,HISTORICAL,| P1 static (deployed) | 0.6577 | 0.2744 | 0.7029 | 0.0000 | 0.0000 | 0.9900 |
-RESULTS.md,1772,0\.0000,HISTORICAL,| **P6 constrained** | 0.05 | 0.5 | **0.2777** | **0.9900** | 0.0000 |
-RESULTS.md,1784,GNN superiority,HISTORICAL,withdrawn.** §0.12.3 already withdrew GNN superiority against same-information
-RESULTS.md,1895,0\.0000,HISTORICAL,Deep Sets. M8 is also exactly permutation-invariant (max |Δ| = 0.000000) and
-RESULTS.md,1909,PENDING_REAL_HARDWARE_DATA,HISTORICAL,`PENDING_REAL_HARDWARE_DATA` rows only). Every cross-device number in §0.13.3
-RESULTS.md,1990,0\.0000,HISTORICAL,"| M6, M3 | either | 0.0000 | — | — | flat by construction |"
-RESULTS.md,2251,PENDING_REAL_HARDWARE_DATA,HISTORICAL,"PENDING=0`, previously 100% `PENDING_REAL_HARDWARE_DATA`). VALIDATION/TEST"
-RESULTS.md,2285,0\.1467,HISTORICAL,| M1 concat_mlp | 0.9785 / 1.0000 | 0.9802 / 0.8867 | ~~0.9538 / 0.1467~~ |
-RESULTS.md,2286,0\.0000,HISTORICAL,| M2 grad_boosting | 0.9820 / 0.9933 | 0.9474 / **0.0000** | ~~0.9474 / 0.0000~~ |
-RESULTS.md,2288,0\.0000,HISTORICAL,| M4 gcn | 0.8814 / 0.0067 | 0.8811 / 0.0267 | **0.5865 / 0.0000** (still current — see note above) |
-RESULTS.md,2302,0\.0000,HISTORICAL,test isolated-anomaly recall from 0.0267 to 0.0000. This is not a new
-RESULTS.md,2329,0\.1467,HISTORICAL,"At 20 nodes, M1's isolated recall fell 0.9800→0.1467 and M2's fell to"
-RESULTS.md,2330,0\.0000,HISTORICAL,"**exactly 0.0000** — investigated directly rather than left as noise, because"
-RESULTS.md,2367,PENDING_REAL_HARDWARE_DATA,HISTORICAL,`PENDING_REAL_HARDWARE_DATA` placeholder — but appending a feature does not
-RESULTS.md,2405,0\.0000,HISTORICAL,| M4 gcn | 0.5865 | 0.0000 | 0.7844 |
-RESULTS.md,2415,0\.1467,HISTORICAL,recall recovers from 0.1467 to **1.0000** and M2's from 0.0000 to **0.9800**
-RESULTS.md,2415,0\.0000,HISTORICAL,recall recovers from 0.1467 to **1.0000** and M2's from 0.0000 to **0.9800**
-RESULTS.md,2450,20 physical,HISTORICAL,"representation in this constructed benchmark, not 20 physical devices."
-RESULTS.md,2479,0\.4175,HISTORICAL,| B0 anomalous-node count | 0.4175 | 0.3958 |
-RESULTS.md,2479,0\.3958,HISTORICAL,| B0 anomalous-node count | 0.4175 | 0.3958 |
-RESULTS.md,2481,0\.6567,HISTORICAL,| B2 concat MLP | **0.6567** | **0.5283** |
-RESULTS.md,2481,0\.5283,HISTORICAL,| B2 concat MLP | **0.6567** | **0.5283** |
-RESULTS.md,2485,0\.3958,HISTORICAL,"20-node benchmark (single-node 0.3958 → concat-MLP 0.5283, a ~0.13 delta),"
-RESULTS.md,2485,0\.5283,HISTORICAL,"20-node benchmark (single-node 0.3958 → concat-MLP 0.5283, a ~0.13 delta),"
-RESULTS.md,2487,0\.4175,HISTORICAL,"10-node experiment (0.4175 → 0.6567, a ~0.24 delta). The 10→20 change"
-RESULTS.md,2487,0\.6567,HISTORICAL,"10-node experiment (0.4175 → 0.6567, a ~0.24 delta). The 10→20 change"
-RESULTS.md,2528,20 physical,HISTORICAL,real measured values. Not 20 physical devices.
-RESULTS.md,2640,0\.0000,HISTORICAL,"| M4 gcn | 0.7755 | 0.5017 | 0.0494 | 0.0000 | 0.7844 | 0.9458 | 1,217 | 0.5560 |"
-RESULTS.md,2659,0\.0000,HISTORICAL,"that reason. `M4_gcn` remains the clear outlier (isolated recall 0.0000),"
-RESULTS.md,2758,0\.4175,HISTORICAL,| B0 anomalous-node count | 0.4175 | 0.3958 | 0.3958 (unchanged) |
-RESULTS.md,2758,0\.3958,HISTORICAL,| B0 anomalous-node count | 0.4175 | 0.3958 | 0.3958 (unchanged) |
-RESULTS.md,2760,0\.6567,HISTORICAL,| B2 concat MLP | 0.6567 | 0.5283 | 0.5267 |
-RESULTS.md,2760,0\.5283,HISTORICAL,| B2 concat MLP | 0.6567 | 0.5283 | 0.5267 |
-RESULTS.md,2799,0\.3958,HISTORICAL,Task-2 TEST accuracy B0/B1/B2/GNN = **0.3958/0.5433/0.5267/0.5375**.
-RESULTS.md,3107,reinforcement learning,HISTORICAL,not reinforcement learning (C6).
+RESULTS.md,1394,0\.6567,HISTORICAL,| B2 concat MLP | 0.6475 | **0.6567** |
+RESULTS.md,1397,0\.4142,HISTORICAL,| B0 anomalous-node count | 0.4592 | 0.4142 |
+RESULTS.md,1403,0\.6567,HISTORICAL,"single-node view cannot answer even in principle, accuracy rises 0.4142 → 0.6567."
+RESULTS.md,1403,0\.4142,HISTORICAL,"single-node view cannot answer even in principle, accuracy rises 0.4142 → 0.6567."
+RESULTS.md,1430,0\.0000,HISTORICAL,| P3 decision tree | 0.4722 | 0.5834 | 0.6183 | **0.5272** | 0.0000 |
+RESULTS.md,1431,0\.0000,HISTORICAL,| P5 adaptive bandit | 0.7300 | 0.5329 | 0.7896 | 0.0000 | 0.0007 |
+RESULTS.md,1433,0\.0000,HISTORICAL,| P1 static (deployed) | 0.6577 | 0.2744 | 0.7029 | 0.0000 | 0.0000 |
+RESULTS.md,1436,reinforcement learning,HISTORICAL,"reinforcement learning** — no discount factor, no next-state bootstrapping,"
+RESULTS.md,1443,0\.0000,HISTORICAL,| P1 static | 0 | 0 | 33 | 0.0000 | 0.0000 |
+RESULTS.md,1444,0\.0000,HISTORICAL,| P2 static optimised | 0 | 14 | 33 | 0.0000 | 0.0000 |
+RESULTS.md,1447,0\.0000,HISTORICAL,| P5 adaptive bandit | 0 | 0 | 33 | 0.0000 | 0.0000 |
+RESULTS.md,1643,0\.0000,HISTORICAL,| M4 GCN | 0.8625 | 0.7550 | 0.1700 | 0.0025 | **0.0000** |
+RESULTS.md,1687,0\.0000,HISTORICAL,M3 deep sets        0.000000    invariant
+RESULTS.md,1688,0\.0000,HISTORICAL,M6 set transformer  0.000000    invariant
+RESULTS.md,1689,0\.0000,HISTORICAL,M7 NP-ST            0.000000    invariant
+RESULTS.md,1732,0\.0000,HISTORICAL,| P3 decision tree | 0.7770 | **0.6453** | 0.8398 | **0.1510** | 0.0000 | 0.9850 |
+RESULTS.md,1734,0\.0000,HISTORICAL,| P5 adaptive bandit | 0.7238 | 0.5271 | 0.7846 | 0.0000 | 0.0022 | 0.9600 |
+RESULTS.md,1736,0\.0000,HISTORICAL,| P6 static constrained | 0.6662 | 0.2777 | 0.7088 | 0.0000 | 0.0000 | 0.9900 |
+RESULTS.md,1737,0\.0000,HISTORICAL,| P1 static (deployed) | 0.6577 | 0.2744 | 0.7029 | 0.0000 | 0.0000 | 0.9900 |
+RESULTS.md,1762,0\.0000,HISTORICAL,| **P6 constrained** | 0.05 | 0.5 | **0.2777** | **0.9900** | 0.0000 |
+RESULTS.md,1774,GNN superiority,HISTORICAL,withdrawn.** §0.12.3 already withdrew GNN superiority against same-information
+RESULTS.md,1885,0\.0000,HISTORICAL,Deep Sets. M8 is also exactly permutation-invariant (max |Δ| = 0.000000) and
+RESULTS.md,1899,PENDING_REAL_HARDWARE_DATA,HISTORICAL,`PENDING_REAL_HARDWARE_DATA` rows only). Every cross-device number in §0.13.3
+RESULTS.md,1980,0\.0000,HISTORICAL,"| M6, M3 | either | 0.0000 | — | — | flat by construction |"
+RESULTS.md,2241,PENDING_REAL_HARDWARE_DATA,HISTORICAL,"PENDING=0`, previously 100% `PENDING_REAL_HARDWARE_DATA`). VALIDATION/TEST"
+RESULTS.md,2275,0\.1467,HISTORICAL,| M1 concat_mlp | 0.9785 / 1.0000 | 0.9802 / 0.8867 | ~~0.9538 / 0.1467~~ |
+RESULTS.md,2276,0\.0000,HISTORICAL,| M2 grad_boosting | 0.9820 / 0.9933 | 0.9474 / **0.0000** | ~~0.9474 / 0.0000~~ |
+RESULTS.md,2278,0\.0000,HISTORICAL,| M4 gcn | 0.8814 / 0.0067 | 0.8811 / 0.0267 | **0.5865 / 0.0000** (still current — see note above) |
+RESULTS.md,2292,0\.0000,HISTORICAL,test isolated-anomaly recall from 0.0267 to 0.0000. This is not a new
+RESULTS.md,2319,0\.1467,HISTORICAL,"At 20 nodes, M1's isolated recall fell 0.9800→0.1467 and M2's fell to"
+RESULTS.md,2320,0\.0000,HISTORICAL,"**exactly 0.0000** — investigated directly rather than left as noise, because"
+RESULTS.md,2357,PENDING_REAL_HARDWARE_DATA,HISTORICAL,`PENDING_REAL_HARDWARE_DATA` placeholder — but appending a feature does not
+RESULTS.md,2395,0\.0000,HISTORICAL,| M4 gcn | 0.5865 | 0.0000 | 0.7844 |
+RESULTS.md,2405,0\.1467,HISTORICAL,recall recovers from 0.1467 to **1.0000** and M2's from 0.0000 to **0.9800**
+RESULTS.md,2405,0\.0000,HISTORICAL,recall recovers from 0.1467 to **1.0000** and M2's from 0.0000 to **0.9800**
+RESULTS.md,2440,20 physical,HISTORICAL,"representation in this constructed benchmark, not 20 physical devices."
+RESULTS.md,2469,0\.4175,HISTORICAL,| B0 anomalous-node count | 0.4175 | 0.3958 |
+RESULTS.md,2469,0\.3958,HISTORICAL,| B0 anomalous-node count | 0.4175 | 0.3958 |
+RESULTS.md,2471,0\.6567,HISTORICAL,| B2 concat MLP | **0.6567** | **0.5283** |
+RESULTS.md,2471,0\.5283,HISTORICAL,| B2 concat MLP | **0.6567** | **0.5283** |
+RESULTS.md,2475,0\.3958,HISTORICAL,"20-node benchmark (single-node 0.3958 → concat-MLP 0.5283, a ~0.13 delta),"
+RESULTS.md,2475,0\.5283,HISTORICAL,"20-node benchmark (single-node 0.3958 → concat-MLP 0.5283, a ~0.13 delta),"
+RESULTS.md,2477,0\.4175,HISTORICAL,"10-node experiment (0.4175 → 0.6567, a ~0.24 delta). The 10→20 change"
+RESULTS.md,2477,0\.6567,HISTORICAL,"10-node experiment (0.4175 → 0.6567, a ~0.24 delta). The 10→20 change"
+RESULTS.md,2518,20 physical,HISTORICAL,real measured values. Not 20 physical devices.
+RESULTS.md,2630,0\.0000,HISTORICAL,"| M4 gcn | 0.7755 | 0.5017 | 0.0494 | 0.0000 | 0.7844 | 0.9458 | 1,217 | 0.5560 |"
+RESULTS.md,2649,0\.0000,HISTORICAL,"that reason. `M4_gcn` remains the clear outlier (isolated recall 0.0000),"
+RESULTS.md,2748,0\.4175,HISTORICAL,| B0 anomalous-node count | 0.4175 | 0.3958 | 0.3958 (unchanged) |
+RESULTS.md,2748,0\.3958,HISTORICAL,| B0 anomalous-node count | 0.4175 | 0.3958 | 0.3958 (unchanged) |
+RESULTS.md,2750,0\.6567,HISTORICAL,| B2 concat MLP | 0.6567 | 0.5283 | 0.5267 |
+RESULTS.md,2750,0\.5283,HISTORICAL,| B2 concat MLP | 0.6567 | 0.5283 | 0.5267 |
+RESULTS.md,2789,0\.3958,HISTORICAL,Task-2 TEST accuracy B0/B1/B2/GNN = **0.3958/0.5433/0.5267/0.5375**.
+RESULTS.md,3097,reinforcement learning,HISTORICAL,not reinforcement learning (C6).
 SESSION_LOG.md,2711,0\.0000,HISTORICAL,38 ALERT      0.900  0.000  0.000  0.021  0.00001  0.909   <- board picked up and shaken
 SESSION_LOG.md,2713,0\.0000,HISTORICAL,73 ALERT      0.900  0.000  0.000  0.021  0.00001  0.909
 SESSION_LOG.md,2718,0\.0000,HISTORICAL,together and `proc` reads 0.00001. Widening the resting region (ADR-18) cost
