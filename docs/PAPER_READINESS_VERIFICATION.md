@@ -79,11 +79,13 @@ Unchanged by this pass — see [docs/paper/17_CLAIM_EVIDENCE_MATRIX.md](paper/17
 for the current claim gate and [docs/paper/25_OPEN_ITEMS_BEFORE_SUBMISSION.md](paper/25_OPEN_ITEMS_BEFORE_SUBMISSION.md)
 for the full list. Headline items: the comparator-mismatch fix and re-run described
 above; M6 training's valid-only class-weight and replay-clock corrections; a matched
-M6 policy retrain with recorded producing hashes; SW-420 physical VALIDATION/TEST
-capture (TRAIN-only today); a physical M6 acquisition-to-enforcement trial; external
-Wi-Fi credential rotation (not performed by any documentation pass). None of these
-block writing the bounded paper described in the current claim gate; they block the
-specific claims listed there.
+M6 policy retrain with recorded producing hashes; a physical M6 acquisition-to-enforcement
+trial; external Wi-Fi credential rotation (not performed by any documentation pass).
+**[CLOSED 2026-09-07, after this pass]** SW-420 physical VALIDATION/TEST capture — was
+TRAIN-only at the time this document was written; now closed (`results/sw420_real_hardware/`,
+doc 13 Q2). Kept here as an accurate record of this pass's own scope; see 25 for current status.
+None of the remaining items block writing the bounded paper described in the current claim gate;
+they block the specific claims listed there.
 
 Local `main` was not pushed by this pass.
 

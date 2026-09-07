@@ -1,9 +1,11 @@
 # Hardware Data Log — `esp32-vib-001` (real ESP32 + MPU6050)
 
-> **Audit qualification (2026-09-05):** MPU6050 captures exist; SW-420
-> captures remain pending. SW-420 is another modality, not another MPU6050.
-> Firmware peer-certificate verification is opt-in and untested on real
-> hardware — do not rely on it for deployment claims.
+> **Audit qualification, updated 2026-09-07:** MPU6050 and SW-420 both now
+> have TRAIN/VALIDATION/TEST captures (SW-420: `results/sw420_real_hardware/`,
+> 0/70 and 0/108 resting FP, 109/109 and 115/115 detection on VALIDATION/TEST).
+> SW-420 is another modality, not another MPU6050. Firmware peer-certificate
+> verification is opt-in, hardened (see `HARDWARE_SETUP.md` §13) but still
+> untested on real hardware — do not rely on it for deployment claims.
 
 Captured with `scripts/collect_hardware_session.py` against one physical
 MPU6050 over I2C — there is no separate vibration sensor; the accelerometer

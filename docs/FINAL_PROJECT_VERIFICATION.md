@@ -32,7 +32,7 @@ Security Trust originates in `trust_engine.score_security_trust`: authenticated 
 
 ## 8. 20-node provenance verdict
 
-[VERIFIED CONSTRUCTED BENCHMARK] The canonical network contains 2 REAL_HARDWARE source identities and 18 LEGACY_SIMULATED identities; it is HYBRID. It contains no additional REAL_DERIVED_VIRTUAL identities. The separate generator provides five virtual identities for M9. Held-out SW data is pending, leaving 19 valid nodes. Physical-source network rows are resampled with replacement. The runtime registry has 22 entries, including two legacy scalar identities; these counts do not imply concurrent physical connections. The complete node table is in [provenance](paper/04_HARDWARE_DATA_AND_PROVENANCE.md).
+[VERIFIED CONSTRUCTED BENCHMARK] The canonical network contains 2 REAL_HARDWARE source identities and 18 LEGACY_SIMULATED identities; it is HYBRID. It contains no additional REAL_DERIVED_VIRTUAL identities. The separate generator provides five virtual identities for M9. Held-out SW data within this constructed network benchmark is still pending (`PENDING_REAL_HARDWARE_DATA`, unaffected by the 2026-09-07 standalone SW-420 closure below — a separate pipeline), leaving 19 valid nodes. Physical-source network rows are resampled with replacement. The runtime registry has 22 entries, including two legacy scalar identities; these counts do not imply concurrent physical connections. The complete node table is in [provenance](paper/04_HARDWARE_DATA_AND_PROVENANCE.md). **[2026-09-07]** A standalone, non-network SW-420 held-out evaluation now exists outside this benchmark: `results/sw420_real_hardware/` (0/70 and 0/108 resting FP, 109/109 and 115/115 detection).
 
 ## 9. Feature-schema verdict
 
@@ -203,7 +203,7 @@ Fresh offline replays and test execution are logged; canonical JSONs/checkpoints
 
 ## 42. Paper blockers — P0
 
-These block specific proposed claims, not every possible bounded paper: integrated M6 efficacy lacks serving/fusion evidence; heterogeneous held-out physical performance lacks SW validation/test; low physical false-alarm reliability contradicts the current 5/12 result; formal permutation claims require a correct probe; literature novelty requires primary-source comparison. The package already excludes unsupported wording. A narrower paper can omit those claims while retaining limitations.
+These block specific proposed claims, not every possible bounded paper: integrated M6 efficacy lacks serving/fusion evidence; low physical false-alarm reliability contradicts the current 5/12 result; formal permutation claims require a correct probe; literature novelty requires primary-source comparison. **[CLOSED 2026-09-07]** Heterogeneous held-out physical performance — standalone SW-420 VALIDATION/TEST now exist (`results/sw420_real_hardware/`); the network-benchmark's own SW-420 slot remains a separate, still-pending gap (§8 above). The package already excludes unsupported wording. A narrower paper can omit those claims while retaining limitations.
 
 ## 43. Important pre-submission items — P1
 

@@ -11,7 +11,7 @@ Current documentation reconciliation: 2026-09-07. The presentation remains `desi
 | README completeness / organization | PASS | README.md | Static source; no compiled build; working paths preserved |
 | Live / mock / simulation labelling | PASS | Both HTML entries, browser runner, runtime runner | API cannot attest message provenance |
 | MPU6050 physical normal / heavy shake | NOT VERIFIED | DEMO_CHECKLIST.md | Hardware not exercised; raw feature chart requires integration |
-| SW-420 physical demo | NOT VERIFIED | DEMO_CHECKLIST.md | One physical identity; VALIDATION/TEST pending |
+| SW-420 physical demo | NOT VERIFIED (dashboard/demo layer not re-checked) | DEMO_CHECKLIST.md | Held-out evaluation closed 2026-09-07 (`results/sw420_real_hardware/`); the demo/dashboard integration itself remains unverified against it |
 | Disconnect / OFFLINE | PASS for backend event rendering and offline watchdog | Gateway HTML, verify-runtime.py | No physical disconnect measured; true last-seen/connected status unavailable |
 | Replay demo | PASS for isolated gateway path | verify-runtime.py; rejected-event panel | Terminal-only; live trigger requires integration |
 | Invalid-HMAC demo | PASS for isolated gateway path | verify-runtime.py; rejected-event panel | Rejection leaves accepted trust unchanged, not an artificial Security Trust drop |
@@ -65,4 +65,4 @@ The resumed MPU example is why the UI must not infer an action from the conceptu
 
 `node design/start-demo.mjs`: started and stopped successfully. HTTP checks confirmed presentation, README and linked result-reference responses (200), unavailable gateway API (503), and denied unlisted local-secret/environment paths (404). No secret content was read or served by these checks.
 
-Research constraints, reconciled 2026-09-07: Task-2 SUPPORTED BUT WEAKER; B0 network-level count; configured M6 serving with unresolved comparative/training/policy lineage; physical M6 validation pending; one MPU6050 and one SW-420 physical identity; SW held-out sessions pending; 20-node constructed benchmark; Security and Process Trust separate until policy.
+Research constraints, reconciled 2026-09-07: Task-2 SUPPORTED BUT WEAKER; B0 network-level count; configured M6 serving with unresolved comparative/training/policy lineage; physical M6 acquisition-to-enforcement validation pending; one MPU6050 and one SW-420 physical identity, both now with held-out (VALIDATION/TEST) sessions as of 2026-09-07 (`results/sw420_real_hardware/` for SW-420); SW-420's slot in the 20-node constructed benchmark remains PENDING_REAL_HARDWARE_DATA, a separate pipeline; Security and Process Trust separate until policy.

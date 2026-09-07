@@ -206,19 +206,63 @@ def connect_mqtt():
     pw = MQTT_PASSWORD if MQTT_USE_AUTH else None
     if MQTT_USE_TLS:
         if MQTT_CA_CERT_FILE:
-            with open(MQTT_CA_CERT_FILE, "rb") as f:
-                ca_cert = f.read()
+            # Verification was explicitly requested (MQTT_CA_CERT_FILE is set) --
+            # any failure below is reported loudly and re-raised, never silently
+            # downgraded to an unverified connection. A silent fallback here would
+            # defeat the operator's explicit intent and mask a real MITM as a
+            # boring connectivity hiccup. See HARDWARE_SETUP.md Section 13.
+            try:
+                with open(MQTT_CA_CERT_FILE, "rb") as f:
+                    ca_cert = f.read()
+            except OSError as e:
+                raise OSError(
+                    "MQTT_CA_CERT_FILE=%r is set in device_secrets.py but could not be "
+                    "read (%s) -- upload the DER-encoded CA certificate alongside this "
+                    "firmware, or unset MQTT_CA_CERT_FILE to accept the (documented, "
+                    "encrypted-but-unverified) CERT_NONE fallback instead." % (MQTT_CA_CERT_FILE, e)
+                )
             ssl_params = {"cert_reqs": ussl.CERT_REQUIRED, "ca_certs": ca_cert}
             print("[mqtt] connecting over TLS to", MQTT_HOST, MQTT_TLS_PORT,
                   "-- verifying broker certificate against", MQTT_CA_CERT_FILE)
+            client = MQTTClient(client_id, MQTT_HOST, port=MQTT_TLS_PORT, user=user, password=pw,
+                                 ssl=True, ssl_params=ssl_params)
+            try:
+                client.connect()
+            except TypeError as e:
+                # ussl.wrap_socket() on this MicroPython build does not accept
+                # ca_certs/cert_reqs at all -- a build incompatibility, not a
+                # certificate problem. Distinguishing this from a verification
+                # failure is exactly the "has not been verified against real
+                # hardware" gap HARDWARE_SETUP.md Section 13 names; surface it
+                # instead of leaving the operator to guess.
+                raise RuntimeError(
+                    "This MicroPython build's ussl.wrap_socket() does not support the "
+                    "ca_certs/cert_reqs parameters used for certificate verification "
+                    "(%s). MQTT_CA_CERT_FILE-based verification is not supported on this "
+                    "firmware build -- unset MQTT_CA_CERT_FILE in device_secrets.py to "
+                    "fall back to the documented CERT_NONE path, or flash a MicroPython "
+                    "build with full ussl.wrap_socket ca_certs support." % e
+                )
+            except OSError as e:
+                # A real TLS handshake/verification failure -- e.g. the broker's
+                # certificate does not chain to this CA. Re-raise with the CA
+                # file named so it is not mistaken for a plain network outage.
+                raise OSError(
+                    "TLS handshake/certificate verification against MQTT_CA_CERT_FILE=%r "
+                    "failed (%s) -- the broker's certificate does not verify against this "
+                    "CA, or the network path is being intercepted. Not falling back to "
+                    "CERT_NONE automatically." % (MQTT_CA_CERT_FILE, e)
+                )
+            print("[mqtt] connected", "with broker credentials" if MQTT_USE_AUTH else "anonymously")
+            return client
         else:
             ssl_params = {"cert_reqs": ussl.CERT_NONE}
             print("[mqtt] connecting over TLS to", MQTT_HOST, MQTT_TLS_PORT,
                   "-- WARNING: broker certificate NOT verified (no MQTT_CA_CERT_FILE in "
                   "device_secrets.py); a network man-in-the-middle could present a fake "
                   "certificate undetected, see HARDWARE_SETUP.md Section 13")
-        client = MQTTClient(client_id, MQTT_HOST, port=MQTT_TLS_PORT, user=user, password=pw,
-                             ssl=True, ssl_params=ssl_params)
+            client = MQTTClient(client_id, MQTT_HOST, port=MQTT_TLS_PORT, user=user, password=pw,
+                                 ssl=True, ssl_params=ssl_params)
     else:
         client = MQTTClient(client_id, MQTT_HOST, port=1883, user=user, password=pw)
         print("[mqtt] connecting over PLAIN MQTT to", MQTT_HOST, "-- TLS disabled, debugging only")

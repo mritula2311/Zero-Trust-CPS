@@ -1,1202 +1,359 @@
-# Zero-Trust CPS — System Architecture & Knowledge Base
+# Zero-Trust CPS / ZT-Duo — System Architecture & Knowledge Base
 
-> **Current reference, 2026-09-07 (final corrected-M6 pass):** Use the [paper master guide](docs/paper/00_PAPER_MASTER_GUIDE.md), [architecture](docs/paper/02_SYSTEM_ARCHITECTURE.md), [numerical authority](docs/paper/13_RESULTS_MASTER_TABLES.md), [claim gate](docs/paper/17_CLAIM_EVIDENCE_MATRIX.md) and [limitations](docs/paper/18_LIMITATIONS_AND_THREATS_TO_VALIDITY.md). The configured gateway uses a corrected M6 Set Transformer checkpoint with its matched fusion and policy artifacts (promoted after a confirmed training defect was found and fixed in the originally-deployed checkpoint, preserved as historical evidence); the standalone M1–M9 benchmark and preserved GCN replay are separate evidence. M6 comparative gains (fusion and policy) are now measured under an explicitly-pinned, held-out-replay-qualified comparison — see 13 O4/O5. SW-420 has TRAIN capture only. Older sections below retain their historical scope.
-
-
-## Historical audit snapshot — 2026-09-05
-
-At that snapshot the runtime used Rule + IF + LSTM-AE + legacy GCN → logistic fusion;
-Security Trust stays separate until static/contextual-bandit policy evaluation.
-Set Transformer (M6/M8/M9) is a research candidate, concat MLP a fixed-size
-deployment baseline, Deep Sets a set baseline, GCN/GATv2 research baselines,
-temporal Transformer ablation-only and NP-ST a rejected ablation.
-
-Saved metrics predate the Astra temporal-training correction. They remain the
-historical evidence for their archived model chain, not a validation of models
-trained with the corrected sequence builder. Read RESULTS.md §0.13.17, then
-§0.13.18–§0.13.22, before quoting them. Missing-node context, resampled
-hardware trajectories and non-independent calibration halves qualify the network
-experiments. M9 trains through 15 slots but has no persisted 15-node test; the
-virtual-only-vs-hybrid comparison (RESULTS.md §0.13.16) did **not** reproduce
-at 20 nodes with corrected masking — CIs now overlap and two of five checked
-slices reversed direction (§0.13.21). Neither direction is currently
-supported; broader-coverage benefit remains unproved either way.
-
-`esp32-vib-001` (MPU6050) has a full TRAIN/VALIDATION/TEST capture.
-`esp32-vib-002` (SW-420) has its **first real capture, TRAIN split only**
-(§0.13.18) — VALIDATION/TEST capture is still pending, so it does not yet
-test MPU6050-vs-SW-420 cross-modality or same-model manufacturing variation
-end to end. LOW passes TRAIN resting-residual consistency checks (not
-held-out realism validation). MEDIUM/HIGH remain OOD stress regimes.
-Production readiness is not established.
-
-> Single source of truth for humans and coding agents. Every number in this
-> document was measured on this repository, not estimated. Where a result is
-> weak or a target is missed, it is stated as such.
+**Reconstructed 2026-09-07** after every project Markdown file was manually deleted. This document is built from the live codebase (`src/`, `scripts/`, `tests/`, `config.py`, `firmware/`), frozen evidence under `results/`, and `scripts/build_paper_results.py`'s own source — not from memory of the deleted files. Where a fact could not be verified against a file on disk in this session, it is marked `[UNVERIFIED]` rather than stated as settled.
 
 ---
 
 ## 1. Vision & Purpose
 
-### The Problem
+**The problem.** A Zero-Trust gateway for a cyber-physical system (CPS) must decide, on every message, whether to trust it — but "trust" is really two unrelated questions: *is this identity authentic and well-behaved* (a cybersecurity question), and *is the physical process it describes healthy* (an operations/safety question). Every conventional trust-score design blends these into one number, and that blend is provably wrong on at least one of the two situations that matter most: a compromised device reporting plausible physical values (should be blocked on identity grounds, regardless of how "normal" the physics looks), and a legitimate device correctly reporting a real fault (should be alerted-on and kept, not treated as an intrusion). Blending guarantees the same response to both.
 
-Industrial Cyber-Physical Systems (CPS) authenticate a device **once**, at
-connection time, and then implicitly trust every message it sends for the rest
-of the session. That model has two failure modes it structurally cannot see:
+**Why now.** Zero-Trust architectures are increasingly mandated for CPS/OT deployments (NIST SP 800-207, IEC 62443), but published implementations rarely evaluate against real hardware, rarely report negative/overturned results, and rarely make their comparator protocol reproducible enough that a claimed model improvement can be told apart from a benchmarking bug. This project treats those three gaps as the actual contribution: a real ESP32+MPU6050 device in the loop, a policy of reporting failures as prominently as successes, and a hash-pinned comparator (`src/relational_pin.py`) that turns "which checkpoint was this number measured against?" from a documentation problem into a verifiable one.
 
-1. **A valid identity behaving badly.** A device holding genuine credentials
-   that has been physically compromised, or is failing, keeps its access.
-2. **A trust score that can itself be attacked.** In naive designs, anyone who
-   merely *claims* a device's ID can drag that device's trust score down by
-   sending garbage — a trust-poisoning denial of service requiring no secret.
-
-Conventional IT zero-trust tooling does not transfer directly, because a CPS
-device emits **physical** evidence (vibration, temperature, valve position)
-alongside its **cyber** evidence (signatures, message rates). Collapsing both
-into a single "trust number" destroys the distinction between *"this device is
-lying about who it is"* and *"this machine is genuinely shaking."* Those demand
-different responses.
-
-### Why Now
-
-IEC 62443 and NIST SP 800-207 are now procurement requirements in industrial
-settings, but both are prose frameworks. Neither ships a reference
-implementation that produces *auditable evidence* of compliance per decision.
-This project treats governance as a measurable output, not a design document.
-
-### Target Audience / Consumer
-
-| Consumer | Interaction |
-|---|---|
-| A real ESP32 + MPU6050 board | Publishes signed vibration telemetry over MQTT/TLS |
-| Two simulated devices | `sensor-002` (humidity), `actuator-001` (valve position) |
-| Security analyst / operator | Live dashboard on `:8600`, hash-chained SQLite audit log |
-| Auditor | NIST/IEC coverage reports generated from real logged decisions |
-| Researcher | `scripts/evaluate_*.py` reproduce every published figure |
+**Target audience / consumers.** The project author (research author of record, `mritulashankar@gmail.com`), readers of the resulting paper, and — as literal runtime consumers — the 22 identities in `DEVICE_REGISTRY`: one real MPU6050 vibration sensor (`esp32-vib-001`), one real SW-420 vibration sensor (`esp32-vib-002`, TRAIN/VALIDATION/TEST captures all exist as of 2026-09-07), 18 network-research simulated devices, and 2 legacy scalar simulated devices (`sensor-002`, `actuator-001`).
 
 ---
 
 ## 2. Core Concept & Mental Model
 
-### Central Metaphor
+**Central metaphor.** Two independent witnesses testifying about the same event: a **notary** who only ever checks papers (identity, signature, freshness — never looks at the cargo) and an **inspector** who only ever checks the cargo (physical sensor reading — never looks at the papers). Neither is allowed to see the other's evidence while forming their opinion. A judge (`policy_engine.decide()`) hears both opinions and is the *only* place their testimony is combined — via a fixed rulebook (the 2×2 table), never by averaging their confidence.
 
-**A border checkpoint with two independent inspectors who are never allowed to
-average their opinions.**
-
-- **Inspector A (Security Trust)** checks *papers*: signature validity, message
-  rate, replay counters, response to a challenge. Cyber evidence only.
-- **Inspector B (Process Anomaly)** checks *cargo*: is the physical sensor
-  reading consistent with a healthy machine? Physical evidence only.
-
-They report separately. A supervisor (the Policy Decision Point) reads **both
-numbers** and looks up one cell in a 2×2 table. The scores meet at that lookup
-and nowhere else. Averaging them into "trust = 0.7" would make a device with
-perfect papers and violently abnormal cargo indistinguishable from one with
-forged papers and perfectly normal cargo — two situations demanding opposite
-responses.
-
-### Design Philosophy
-
-1. **Two scores, never blended.** Enforced structurally: `score_security_trust()`
-   and the Process Anomaly fusion pipeline share no state and no inputs.
-2. **Rejected traffic never touches the victim's state.** A failed
-   authentication attempt updates an `IdentityTargetingRisk` counter for the
-   *claimed* ID, never that device's own trust. This closes the trust-poisoning
-   hole described above.
-3. **Training is strictly offline.** The gateway only ever runs inference. No
-   `.fit()` call exists on the live path. This is a hard constraint
-   (`docs/paper/02_SYSTEM_ARCHITECTURE.md`), not a preference — an online-learning PDP is an attack
-   surface, because an attacker who can generate traffic can move the model.
-4. **Honest measurement over flattering numbers.** Where the system fails
-   (`stealthy_forged_values` detection, Level-2 single-channel explainability at 37% against a
-   70% target), the failure is reported and kept in the figures.
-5. **Evidence, not assertion.** Every decision emits an audit row tagged with
-   the NIST tenets and IEC FRs it is evidence for.
+**Design philosophy:**
+- **Two-score separation is inviolable.** Never blend Security Trust and Process Anomaly Trust before the policy lookup — this is the one property every other design decision in the system is subordinate to.
+- **Offline-only learning.** Every model trains in `scripts/train_*.py`, never on the live gateway path. An online-learning policy is treated as an attack surface, not a feature.
+- **Report what you measured, including failure.** Level-2 explainability at 36% against a 70% target, `stealthy_forged_values` recall near zero, the adaptive bandit losing to a static policy — all stay in the record with their explanation. A metric is never swapped for one the system happens to pass.
+- **A check that cannot fail is not a check.** Every governance-validation tenet names its own falsifier (`governance_validation.py`); "unfalsifiable" is a reported status, not silently upgraded to "pass."
+- **Deterministic, hash-pinned comparisons.** Any claim that Model A beats Model B is only as trustworthy as the guarantee that A and B were actually evaluated against matched artifacts — enforced by `RelationalPin.verify()` raising loudly on drift rather than silently mixing model families.
 
 ---
 
 ## 3. Architecture Overview
 
-### System Topology
+**System topology (narrative).** A telemetry-producing device — real (ESP32 + MPU6050, MicroPython firmware) or simulated (`device_simulator.py` / `virtual_device_generator.py`) — publishes an HMAC-signed, canonically-JSON-encoded reading over MQTT/TLS (or HTTPS, via `coap_server.py`) to `gateway.py`, the single process that is both Policy Decision Point and Policy Enforcement Point. The gateway authenticates the envelope, computes a Security Trust Score from purely cyber evidence and a Process Anomaly Score from purely physical evidence (fusing four independent detectors), looks the two scores up in a fixed 2×2 table (or an offline-trained contextual-bandit policy) to get one of `ALLOW`/`ALERT`/`STEP_UP`/`BLOCK`, and writes a hash-chained, NIST/IEC-tagged audit row before optionally publishing a decision back to the device's own decisions topic. A live dashboard (served by `gateway.py` on port 8600) and a separate offline evaluation/paper pipeline (`scripts/evaluate_*.py`, `scripts/build_paper_results.py`) both read from this same audit trail and the same frozen model artifacts.
 
-```
-  ESP32 + MPU6050                  Simulated devices
-  (firmware/main.py)               (src/device_simulator.py)
-  100Hz x 32-sample window         sensor-002, actuator-001
-  5 features computed ON-DEVICE    scalar readings
-        |                                  |
-        |  HMAC-SHA256 over canonical JSON, boot_id + seq
-        +----------------+-----------------+
-                         |
-                 MQTT/TLS :8883  (per-device credentials + topic ACLs)
-                 HTTPS    :5684  (second transport, coap_server.py)
-                         |
-        =================v==================================
-        |            THE GATEWAY (src/gateway.py)          |
-        |                                                  |
-        |  M1 identity  -> DEVICE_REGISTRY lookup          |
-        |  M1 revocation-> is_revoked()   [hard override]  |
-        |  M2 throttle  -> IdentityTargetingRisk           |
-        |  M2 HMAC      -> verify_signature()              |
-        |  M2 replay    -> check_boot_replay(boot_id, seq) |
-        |  M2 freshness -> check_timestamp_freshness(ts)   |
-        |     ---- any failure above => _reject() ----     |
-        |          (claimed device's own state UNTOUCHED)  |
-        |                                                  |
-        |  +-- SECURITY TRUST ------+  +-- PROCESS ANOMALY-+
-        |  | flood / rate           |  | rule range check  |
-        |  | step-up outcome        |  | Isolation Forest  |
-        |  | silence                |  | LSTM-Autoencoder  |
-        |  |                        |  | GNN (relational)  |
-        |  |                        |  |   -> FusionEngine |
-        |  +-----------+------------+  +---------+---------+
-        |              |                         |
-        |              +----> POLICY (2x2) <-----+
-        |                 static | RL bandit          |
-        |                        |                    |
-        |     ALLOW / ALERT / STEP_UP / BLOCK         |
-        =====================|============================
-                             |
-      +----------------------+-----------------------+
-      |                      |                       |
-  signed decision      hash-chained audit      live dashboard
-  back to device       log (SQLite) +          :8600 + /figures
-  (mutual auth)        separate checkpoints
-```
+**Execution loop (per message):**
+1. Parse envelope → look up claimed `device_id` in `DEVICE_REGISTRY`.
+2. Verify HMAC-SHA256 signature over the canonical JSON payload.
+3. Verify boot_id/sequence freshness (`check_boot_replay` — primary anti-replay, does not depend on wall-clock) then timestamp freshness (secondary, NTP-dependent).
+4. **On any failure above:** reject. Update `IdentityTargetingRisk` only for the *claimed* device_id — never mutate the claimed device's actual trust state. Log and return.
+5. **On success:** compute Security Trust (rate/flood, step-up outcomes, silence — `trust_engine.score_security_trust()`).
+6. Compute the four Process Anomaly sub-scores (rule range check, per-device Isolation Forest, per-device LSTM-AE, relational scorer over the current active device set) and fuse them (`FusionEngine.combine()`) into one Process Anomaly Score + confidence + SHAP reason.
+7. Look up `(security_trust, process_trust, process_status)` in `policy_engine.decide()` or `adaptive_pdp.AdaptivePDP.greedy_action()` → one of `ALLOW`/`ALERT`/`STEP_UP`/`BLOCK`.
+8. `STEP_UP` issues a nonce challenge the device must echo in its next message. Automatic quarantine is disabled by default.
+9. Write one hash-chained audit row (both scores, decision, SHAP reason, NIST/IEC tenet tags). Periodically checkpoint the chain to a separately keyed file.
+10. Dashboard and downstream evaluation scripts read this same audit trail; nothing is computed twice.
 
-### Execution Loop
-
-`_process_telemetry()` in `src/gateway.py`, serialized under `_pipeline_lock`:
-
-1. **Parse envelope.** Malformed → drop silently.
-2. **Identity.** Unknown `device_id` → `_reject("unknown_device_id")`.
-3. **Revocation.** Revoked → reject *before* HMAC (hard override).
-4. **Throttle.** `IdentityTargetingRisk.is_throttled()` → drop.
-5. **HMAC.** Current key first, then `secret_previous` inside the rotation
-   grace window only.
-6. **Replay.** `check_boot_replay(boot_id, seq)`.
-7. **Freshness.** Secondary timestamp window.
-   *Steps 2–7 failing means the message never reaches any scorer.*
-8. **Security Trust** ← flood check + step-up resolution.
-9. **Process Anomaly** ← rule + IF + LSTM-AE + GNN → `FusionEngine.combine()`.
-10. **Explainability.** Level 1 (which signal, via SHAP), Level 2 (which raw
-    feature or neighbour within that signal).
-11. **Policy.** 2×2 lookup on `(security, process)`. A failed step-up forces
-    `BLOCK` regardless.
-12. **Emit.** Signed decision to the device, audit row, console line.
-
-### Base Engine Rationale
-
-| Engine | Why | Rejected alternative |
-|---|---|---|
-| Hand-rolled GCN (PyTorch matmul) | 3-node graph; identical math to a library layer | `torch-geometric` — version-locked compiled extensions, a common broken-install source, for zero benefit at this scale |
-| Isolation Forest | Unsupervised, fast, needs only normal data | One-Class SVM — poorer scaling, more hyperparameter-sensitive |
-| LSTM-AE | Captures *temporal* shape a point detector cannot | Transformer — fairly evaluated, lost the fair comparison (F1 0.882 vs 0.863); kept as an ablation, deliberately **not** wired in |
-| Logistic-regression stacker | Interpretable coefficients, SHAP-friendly | Gradient boosting — opaque, overkill for 4 inputs |
-| Tabular Q-learning bandit | 100 discrete states; exactly inspectable | Deep RL — unauditable for a security control |
+**Base engine / primary rationale.** The relational (cross-device) scorer is the one component the project has actively swapped: a hand-rolled GCN (PyTorch, no `torch-geometric`, over a hybrid device graph) was the original choice, superseded on 2026-09-07 by an M6 Set Transformer (self-attention over the active device set, no declared graph, permutation-equivariant by construction) after a hash-pinned, held-out-replay-qualified comparison showed a modest but consistent win on fusion, Task-1/Task-2, and policy metrics, with zero hardware regression. GCN is preserved as a historical/comparator baseline, not deleted — see ADR-1 in §9.
 
 ---
 
 ## 4. Components & Module Boundaries
 
-### `gateway.py` — Policy Decision & Enforcement Point
-- **Ownership:** The entire live request path; the only process that talks to
-  every other module. Also serves the dashboard and `/api/*`.
-- **Inputs:** Telemetry envelopes from MQTT and HTTPS transports.
-- **Outputs:** Signed decisions, audit rows, console lines, JSON APIs.
-- **NOT:** Never trains. Never blends the two scores. Never mutates a claimed
-  device's trust state on a rejected message.
+### `gateway.py` — Zero-Trust Gateway (Policy Decision + Enforcement Point)
+- **Ownership:** orchestrates every other module per-message; owns the MQTT client, the HTTPS handler (via `coap_server.py`), the dashboard HTTP server, and the silence watchdog thread. Shared pipeline state is serialized by a lock.
+- **Inputs & Outputs:** input = one device telemetry message (MQTT or HTTPS POST); output = one audit row + (optionally) a decision published to `cps/decisions/<device_id>` + a step-up challenge to `cps/challenge/<device_id>`.
+- **Explicit boundaries:** does **not** train any model (inference only); does **not** compute scores itself (delegates to `trust_engine`/`fusion_engine`/relational scorer); does **not** blend the two scores itself (delegates to `policy_engine`/`adaptive_pdp`).
 
-### `trust_engine.py` — Security Trust + state store
-- **Ownership:** Cyber-behaviour evidence: flood detection, step-up
-  challenge/response, silence/staleness, boot/seq replay, key rotation,
-  revocation, `IdentityTargetingRisk`.
-- **Inputs:** `device_id`, flood flag, step-up result.
-- **Outputs:** `(security_trust_score, reason)`; per-device state.
-- **NOT:** Never looks at a sensor value. Contains no ML.
+### `trust_engine.py` — Security Trust Score + per-device state store (Modules 2/3A/4)
+- **Ownership:** cyber-behaviour evidence only (rate, flood, step-up outcomes, silence, boot/seq replay bookkeeping, Identity Targeting Risk). Also owns the per-device `ProcessAnomalyState` store (both scores' staleness/retention semantics), though it never computes the Process Anomaly value itself.
+- **Inputs & Outputs:** input = per-message auth outcome + timing; output = `security_trust_score` (0–1, trust-style) + `process_status` (`FRESH`/`STALE`).
+- **Explicit boundaries:** does **not** read or influence the Process Anomaly Score's value (only stores/retains it). Does **not** decide access (that is `policy_engine`).
 
-### `isolation_forest_scorer.py` / `lstm_ae_scorer.py` / `gnn_scorer.py`
-- **Ownership:** One Process Anomaly sub-signal each. Inference only.
-- **Inputs:** Feature vector (IF, LSTM-AE) or `(rule, if, lstm)` node features
-  across the device graph (GNN).
-- **Outputs:** A score in `[0,1]` where **1 = normal**, plus a Level-2
-  explanation.
-- **NOT:** Never call `.fit()`. Never see cyber evidence. Scalar devices
-  (`sensor-002`, `actuator-001`) have no IF/LSTM model — their slots mirror
-  `rule_score`, documented, not silently faked.
+### `feature_engineering.py` / `feature_engineering_sw420.py` — reference feature implementations (Module 3)
+- **Ownership:** the five MPU6050 vibration features (`rms`, `peak`, `crest_factor`, `kurtosis`, `dominant_freq`) and the disjoint SW-420 feature set. The single reference every scorer, every `train_*.py`, and the on-device firmware math are checked against.
+- **Inputs & Outputs:** input = raw sample window + sample rate; output = a fixed-order feature dict/vector.
+- **Explicit boundaries:** pure functions, no state, no I/O. Does **not** know about devices, scoring, or policy — only about converting a sample window into numbers.
 
-### `fusion_engine.py` — stacking meta-learner
-- **Ownership:** Combines the 4 sub-signals; computes SHAP (Level 1).
-- **NOT:** Does not compute Level-2 explanations — it lacks the scorer
-  instances needed to drill in. That lives in `explainability.py`.
+### `isolation_forest_scorer.py` / `lstm_ae_scorer.py` / `gnn_scorer.py` / `set_transformer_scorer.py` — local & relational detectors (Module 3, Phases 6a/6b/6c/M6)
+- **Ownership:** each wraps exactly one trained artifact and exposes inference only. Isolation Forest scores one feature vector against a learned density; LSTM-AE scores a short sequence for gradual drift; GNN/Set Transformer score the current cross-device set for coordinated anomalies.
+- **Inputs & Outputs:** input = feature vector(s) (+ current active-device context for the relational scorers); output = one score per device, 0–1.
+- **Explicit boundaries:** none of the four ever calls `.fit()`/`.update()` in the live path — training lives exclusively in the matching `scripts/train_*.py`. `gnn_scorer.py`/`set_transformer_scorer.py` do **not** decide which one is "deployed" — that is `config.py`'s ambient path constants, and for comparator code, `src/relational_pin.py`.
 
-### `policy_engine.py` / `adaptive_pdp.py` — Access Control
-- **Ownership:** The *only* place the two scores meet. Static 2×2 table, or an
-  offline-trained Q-table bandit over the same 2-D state.
-- **Outputs:** `ALLOW | ALERT | STEP_UP | BLOCK`.
-- **NOT:** Never updates Q-values live (`update()` is training-only; the
-  gateway calls `greedy_action()`).
+### `fusion_engine.py` — stacking meta-learner + Level-1 explainability (Module 3, Phase 7)
+- **Ownership:** combines the four Process Anomaly sub-scores into one trust value + confidence + SHAP-grounded reason string.
+- **Inputs & Outputs:** input = `[rule_score, if_score, lstm_score, relational_score]`; output = `(trust: float, confidence: float, reason: str)`, plus `last_shap` (the full 4-signal SHAP vector, for the audit log/dashboard).
+- **Explicit boundaries:** never blended with Security Trust — that only happens in `policy_engine`/`adaptive_pdp`. Does **not** hold references to the individual scorer instances (Level-2 explainability, which needs those, lives in `explainability.py` instead, deliberately kept out of this file).
 
-### `governance_validation.py` — Governance validation
-- **Ownership:** Independently checking that each NIST tenet's *claim* holds,
-  as distinct from whether it was *tagged*.
-- **Inputs:** A list of audit-log rows (nothing else).
-- **Outputs:** Per-tenet `{status, claim, method, falsifier, evidence, checked,
-  violations}`; `PASS | FAIL | UNFALSIFIABLE | INSUFFICIENT_DATA`.
-- **NOT:** Never reads live in-memory state — an assertion that depends on
-  trusting the running process is not independent of it. Never emits `PASS`
-  for a claim it could not test: it returns `UNFALSIFIABLE` instead.
+### `explainability.py` — Level-2 explainability orchestration (Module 3, Section C)
+- **Ownership:** given which of the four fused signals Level 1 named dominant, drills into which raw feature/node within that signal actually drove the score.
+- **Inputs & Outputs:** input = dominant signal name + feature vector + the live scorer instances; output = `(level2_dominant_feature, level2_summary)`.
+- **Explicit boundaries:** does **not** compute Level-1 SHAP itself (reads `fusion_engine.last_shap`). Does **not** run inference — only interprets outputs already computed by `gateway.py`.
 
-### `audit_log.py` — Monitoring
-- **Ownership:** Hash-chained SQLite rows + a separately-keyed, separately-
-  stored checkpoint file.
-- **NOT:** Never deletes or rewrites a row.
+### `policy_engine.py` — static Access Control Point (Module 5)
+- **Ownership:** the single 2×2 lookup table that is the *only* place Security Trust and Process Anomaly meet.
+- **Inputs & Outputs:** input = `(security_trust_score, process_trust_score, process_status)`; output = one of `ALLOW`/`ALERT`/`STEP_UP`/`BLOCK`.
+- **Explicit boundaries:** takes **exactly** those three inputs — a fourth evidence input is architecturally forbidden (enforced by `TestTwoScoreSeparation`). Does **not** learn, adapt, or retain state across calls.
 
-### `firmware/main.py` — the physical device
-- **Ownership:** Sampling, on-device feature extraction, HMAC signing,
-  `boot_id` persistence, decision verification, step-up echo.
-- **NOT:** No scoring, no policy. It emits evidence and obeys decisions.
+### `adaptive_pdp.py` — contextual-bandit Access Control Point (Module 5, RL-adaptive variant)
+- **Ownership:** an alternative to `policy_engine.decide()`, selected via `config.USE_RL_POLICY`. Learns a Q-table offline; at runtime only ever *selects* (`greedy_action()`, pure exploitation) — never updates.
+- **Inputs & Outputs:** input = `(security_trust_bucket, process_trust_bucket)` state key; output = one of the same four decisions.
+- **Explicit boundaries:** `update()` exists only for `scripts/train_adaptive_pdp.py` to call. The live gateway and every `evaluate_*.py` script call `greedy_action()` only — never `update()`. Not reinforcement learning (no discount, no bootstrapping) — a contextual bandit, stated as such throughout.
+
+### `audit_log.py` — hash-chained monitoring & audit (Module 7)
+- **Ownership:** persists every trust score and decision to SQLite with a `prev_hash`/`this_hash` chain, plus a separately keyed, separate-file checkpoint store.
+- **Inputs & Outputs:** input = one decision record; output = a durable, tamper-evident row + periodic checkpoint.
+- **Explicit boundaries:** append-only — no update or delete path for existing rows (rows cannot be deleted to tidy up, even in tests, which must redirect `AUDIT_DB_PATH` to a temp directory instead).
+
+### `nist_mapping.py` / `iec62443_mapping.py` / `governance_validation.py` — governance layer (Module 7 extensions)
+- **Ownership:** `nist_mapping.py` tags each decision with which of NIST SP 800-207's 7 tenets it touches (coverage/tagging). `iec62443_mapping.py` maps the architecture to IEC 62443 zones/conduits and scores Foundational Requirements FR1–FR7 (implemented/partial/not_implemented). `governance_validation.py` independently checks whether a tagged claim actually *holds* against real audit-log evidence — a falsifiable check, not a tautology.
+- **Explicit boundaries:** none of the three constitute certification. `governance_validation.py` reads only the audit log (the same evidence an external auditor would get), never live in-memory state — an assertion that depends on trusting the running process is not independent of it.
+
+### `device_simulator.py` / `virtual_device_generator.py` — synthetic telemetry (Modules 1/3 support)
+- **Ownership:** generate realistic multi-device telemetry (normal + attack scenarios) calibrated against measured real-hardware statistics (`REST_DC_CENTRE` etc.), for training and for populating the live demo without real hardware present.
+- **Explicit boundaries:** simulator output is training/demo data, never treated as held-out validation evidence for hardware-specific claims — real-hardware sessions are evaluated separately and explicitly (`RESULTS.md` §7).
+
+### `relational_pin.py` — comparator artifact pinning (cross-cutting, evaluation-only)
+- **Ownership:** names a relational checkpoint + its matched fusion artifact together, by explicit SHA-256-verified path, for any script that needs to compare model families fairly.
+- **Explicit boundaries:** not used by `gateway.py` at runtime (the gateway reads ambient `config.py` paths directly, by design — this module exists specifically to stop *comparator* scripts from silently doing the same thing when correctness of the comparison depends on not doing that).
+
+### `firmware/main.py` — on-device client (MicroPython, ESP32)
+- **Ownership:** samples the MPU6050/SW-420, computes the same five/N features as the Python reference implementation, signs and publishes over MQTT/TLS, handles boot_id persistence and step-up nonce echo.
+- **Explicit boundaries:** does **not** decide anything — pure sensor-and-publish client. Firmware TLS peer-certificate verification is explicitly `[UNRESOLVED]` (`CERT_NONE` in the shipped MPU6050 firmware) — must be provisioned and validated before any real deployment.
 
 ---
 
 ## 5. Data, Memory & State Management
 
-### Persistence Layer
+**Persistence layer:**
 
-| Store | Path | Purpose | Committed? |
-|---|---|---|---|
-| Audit log | `src/data/audit_log.db` | Hash-chained decision history | No (runtime) |
-| Checkpoints | `data/checkpoint_log.jsonl` | Independent tamper detection | No (key-derived) |
-| Audit key | `data/audit_key.bin` | HMAC key for checkpoints | **Never** |
-| Sessions | `data/collected/*.json` | Training/test/hardware captures | Yes |
-| Models | `models/*` | Trained artifacts | Yes |
-| Device secrets | `src/secrets_local.py` | HMAC + MQTT credentials | **Never** |
+| Store | Format | Contents |
+|---|---|---|
+| `data/audit_log.db` | SQLite | Hash-chained decision rows (Module 7) |
+| `data/audit_key.bin` | Raw key material | HMAC key for the checkpoint store — never shared with any device registry entry |
+| `data/checkpoint_log.jsonl` | JSON Lines | Periodic chain checkpoints, independent of the SQLite file |
+| `data/collected/` | JSON | Real-hardware sessions (`training_session.json`, `test_session.json`, `*_labelled.json`) |
+| `data/splits/` | JSON | Train/validation/test split definitions |
+| `config/` | JSON | `graph_topology.json`, `simulated_nodes.json`, `virtual_generator.json` — simulator/topology configuration, not runtime secrets |
+| `certs/` | PEM/CRT/KEY, Mosquitto ACL/passwd files | TLS material and per-device broker credentials/ACLs |
+| `models/` | `.joblib` (sklearn), `.pt` (PyTorch state dicts), `.json` (Q-tables + metadata sidecars), `.npy` (SHAP background samples) | Every offline-trained artifact, plus `*_meta.json`/`.meta.json` calibration and lineage sidecars |
+| `results/` | JSON + `.log` + `.md` | Frozen evaluation evidence, one subdirectory per evaluation pass, never overwritten in place — see the naming convention in §8 |
 
-> The checkpoint store is deliberately in a *different directory* from the
-> audit DB and keyed with a *different* secret. An attacker who rewrites the
-> in-DB chain consistently still fails the checkpoint cross-check.
+**Key data schemas:**
 
-### Data Schemas
-
-Telemetry envelope (device → gateway):
-
-```json
-{
-  "payload": {
-    "device_id": "esp32-vib-001", "ts": 1788291422000,
-    "boot_id": 18, "seq": 1182,
-    "rms": 1.0244, "peak": 0.0164, "crest_factor": 0.016,
-    "kurtosis": -0.7026, "dominant_freq": 9.375,
-    "step_up_nonce_echo": "<optional>"
-  },
-  "signature": "<hex HMAC-SHA256 over json.dumps(payload, sort_keys=True)>"
-}
+Audit log row (`audit_log.py`, `log_decision()`):
+```
+{ device_id, timestamp, security_trust_score, process_trust_score, process_status,
+  trust_score,           # legacy alias, populated with security_trust_score
+  decision,               # ALLOW / ALERT / STEP_UP / BLOCK / REJECTED / SILENT
+  reason, reason_category, nist_tenets,   # comma-separated tenet numbers
+  transport,              # "mqtt" / "https" / "" (empty for gateway-originated rows)
+  auth_ok, prev_hash, this_hash }
 ```
 
-Decision envelope (gateway → device), same signing scheme:
-
-```json
-{
-  "payload": {"device_id":"sensor-002","decision":"ALLOW","ts":1788291521898,
-              "gateway_boot_id":10,"decision_seq":1071},
-  "signature": "<hex HMAC-SHA256>"
-}
+Relational-pin lineage sidecar (`models/*.meta.json`, written by `train_adaptive_pdp.py`):
+```
+{ pin_name, relational_checkpoint_sha256, fusion_model_sha256,
+  seed, clock_protocol, training_config, commit_hash }
 ```
 
-**Canonicalisation is the most fragile integration point in the system.** The
-firmware must reproduce Python's `json.dumps(payload, sort_keys=True)`
-byte-for-byte or every message is rejected. It builds the string manually
-(`canonical_json()` + `format_py_float()`) rather than trusting MicroPython's
-JSON encoder to match CPython's float formatting.
+Feature vector (Module 3, `feature_engineering.py`):
+```
+{ rms: float, peak: float, crest_factor: float, kurtosis: float, dominant_freq: float }
+```
+(SW-420 devices instead carry `{ trigger_rate, ... }` — the two sets are disjoint by design, so `feature_vector()` dispatches on which keys are present.)
 
-### State Lifecycle
-
-- **Security/Process state:** in-memory per device, recomputed on every
-  authenticated message (Module 4 continuous verification). Frozen — *not*
-  decayed toward normal — when a device goes silent, so silence never looks
-  like recovery.
-- **`boot_id`:** persisted on device flash, one write per boot. `seq` is RAM
-  only; a higher `boot_id` makes every prior `seq` stale.
-- **Audit rows:** append-only, hash-chained, checkpointed every 100 rows.
-- **Eviction:** none by design. Rotation produces `*.archived-*` files.
+**State lifecycle:**
+- **Write:** every authenticated message updates `trust_engine`'s per-device store (both scores) and appends one audit row. A rejected message updates only `IdentityTargetingRisk` for the claimed identity — never the claimed device's actual trust state.
+- **Read:** the dashboard and every `evaluate_*.py`/`build_paper_results.py` script read the audit log / frozen `results/*.json` — never live in-process state, so evaluation is reproducible from artifacts alone.
+- **Update:** no in-place update of any audit row (append-only, hash-chained). Model artifacts are versioned by filename suffix (`_corrected`, `_gcn_backup`, `_m6_variant`) rather than overwritten — a promoted artifact's predecessor stays on disk, byte-identical, reachable via `relational_pin.py`.
+- **Invalidation/eviction:** `ProcessAnomalyState.score` is retained exactly (never faded) on silence — there is no implicit eviction of an unresolved anomaly. Rotated audit-log files are archived with a `.archived-<timestamp>` suffix, which `.gitignore` must match explicitly (`*.db` alone does not match `audit_log.db.archived-…`).
 
 ---
 
 ## 6. External Tooling & Integrations
 
-| Dependency | Interface | Note |
+**Third-party dependencies and integration interfaces** (`requirements.txt`):
+
+| Dependency | Used for | Note |
 |---|---|---|
-| Mosquitto broker | MQTT/TLS :8883 | Per-device credentials + `certs/mosquitto_acl` topic ACLs |
-| `paho-mqtt` | Gateway/simulator client | — |
-| PyTorch | LSTM-AE, GNN, Transformer | Auto-detects CUDA, falls back to CPU |
-| scikit-learn | Isolation Forest, stacker | — |
-| SHAP | Level-1 explainability | — |
-| MicroPython | ESP32 runtime | `umqtt.simple`, `ntptime`, `math`, `uhashlib` |
+| `paho-mqtt>=2.0` | MQTT/TLS transport (Module 6) | — |
+| `numpy>=1.24` | Feature engineering, GNN/LSTM scorers | Direct import, not just transitive |
+| `scikit-learn>=1.3` | Isolation Forest, `LogisticRegression` fusion meta-learner | Pulls in `scipy` (used directly for `ks_2samp` in the generator validator) |
+| `joblib>=1.4` | Saving/loading sklearn artifacts | — |
+| `torch>=2.0` | LSTM-AE, hand-rolled GCN, Set Transformer | CPU/GPU auto-detected; GCN training is batched per-epoch (not per-sample) after a measured ~6.5× GPU slowdown from unbatched kernel-launch overhead was found and fixed |
+| `shap>=0.52` | Level-1 fusion explainability (`LinearExplainer`) | Must be ≥0.46-ish for NumPy 2.x; an old cached 0.44.1 install crashes on import |
+| `matplotlib>=3.7` | Figure generation only | Not a runtime dependency |
+| ~~`aiocoap`~~ | **Not used** — tried, rejected | CoAP-over-TLS transport reproducibly failed to accept real connections (verified on native Windows and WSL/Linux, two library versions); replaced with an HTTPS endpoint on the Python standard library |
 
-### Extensibility — registering a new device
+**Extensibility — registering a new device:**
+1. Add an entry to `DEVICE_REGISTRY` in `config.py` (secret, `kind`, expected range or feature set, MQTT credentials).
+2. If it is a new *sensor type* (feature names disjoint from existing sets), add a `feature_engineering_<type>.py` module and extend `feature_vector()`'s key-based dispatch.
+3. Provision per-device MQTT broker credentials + topic ACL (`certs/mosquitto_passwd`, `certs/mosquitto_acl`).
+4. If it is a real device: implement/port `firmware/main.py`'s HMAC + canonical-JSON signing for its target hardware, verify formula parity against the Python reference feature module by differential test, not code review.
+5. Retrain the six-stage chain in order (§8 below) so per-device Isolation Forest/LSTM-AE artifacts and the relational scorer's node-feature slot exist for the new device.
+6. Add the device to any simulator/topology config (`config/graph_topology.json`, `config/simulated_nodes.json`) if it should also be reachable via simulation.
 
-1. Add an entry to `DEVICE_REGISTRY` in `src/config.py` with `kind`
-   (`scalar` or `feature_vector`), expected ranges, and MQTT username.
-2. Add its HMAC secret and MQTT password to `src/secrets_local.py`.
-3. Regenerate `certs/mosquitto_passwd` and add ACL lines for the new user.
-4. If `feature_vector`: retrain per-device models in this exact order —
-   `train_isolation_forest` → `train_lstm_ae` → `train_gnn` →
-   `train_fusion_meta_learner` → `train_adaptive_pdp`. Each later script
-   replays through the earlier models, so order is not optional.
-5. Add to `REAL_HARDWARE_DEVICE_IDS` if a physical board owns that identity,
-   so the simulator stops racing it on `boot_id`/`seq`.
+**Extensibility — registering a new relational-scorer candidate (e.g., a future M10):**
+1. Implement inference class + shared training-time architecture module, mirroring `gnn_scorer.py`/`set_transformer_scorer.py`'s split (`_GCN`/`_SetTransformer` importable by both the scorer and its `train_*.py`).
+2. Add a `scripts/train_<name>.py`, offline-only.
+3. Add a `RelationalPin` entry in `src/relational_pin.py` with a recorded SHA-256 hash — do not compare it against an existing arm without this.
+4. Run the comparator suite (`evaluate_ablation_m6.py`-equivalent, `evaluate_real_hardware.py --relational-model`, `evaluate_policy_comparison.py`) pinned explicitly to both arms.
+5. Only promote to `config.py`'s ambient paths after a documented decision record (see ADR pattern in §9) — never by editing the ambient path without a comparison.
 
 ---
 
 ## 7. Tech Stack & Infrastructure Rationale
 
-| Layer | Technology | Rationale & Why Chosen | Alternative Rejected |
+| Layer | Technology | Rationale & why chosen | Alternative rejected |
 |---|---|---|---|
-| Device runtime | MicroPython on ESP32 | Rapid iteration on real hardware; `uhashlib` gives native SHA-256 | C/ESP-IDF — far slower iteration for a research prototype |
-| Device auth | HMAC-SHA256 over canonical JSON | Symmetric, cheap on an MCU, no per-device PKI to manage | Per-device TLS client certs — heavy for the MCU, complex provisioning |
-| Transport | MQTT over TLS | Standard industrial pub/sub, broker-enforced ACLs | Raw TCP — no ACL layer, no topic model |
-| 2nd transport | HTTPS (`coap_server.py`) | Satisfies "two secured transports" with a stdlib server | **CoAP/DTLS — genuinely substituted**; documented, not hidden |
-| Anomaly detection | 4-signal fusion | Each signal catches what the others structurally cannot | Any single model — see the per-event-type table in §11 |
-| Policy | 2×2 table + tabular Q-learning | Fully inspectable, auditable | Deep RL — unauditable for a security control |
-| Audit | SQLite + hash chain + separate checkpoints | Zero-ops, tamper-evident against two distinct attacker models | Plain log file — trivially rewritable |
-| Dashboard | stdlib `http.server` | No framework dependency for ~10 endpoints | Flask/FastAPI — unnecessary weight |
+| Language | Python 3 | Single language across gateway, training, and evaluation; rich ML ecosystem | — |
+| On-device firmware | MicroPython (ESP32) | Small footprint, direct hardware I2C/WiFi access, fast iteration | A C/C++ ESP-IDF firmware would be faster but far slower to iterate on for a research prototype |
+| Local anomaly detectors | `sklearn.IsolationForest`, hand-rolled LSTM-Autoencoder (`torch`) | Cheap, well-understood baselines for per-device density/sequence anomaly; no need for a heavier model at this data volume | — |
+| Relational (cross-device) scorer | M6 Set Transformer (self-attention, `torch`, hand-rolled) — deployed; GCN — historical/comparator | Set-based attention needs no declared graph and is permutation-equivariant by construction; measured to modestly beat GCN on fusion/Task-1/Task-2/policy under a hash-pinned comparison, zero hardware regression | `torch-geometric` (rejected — version-locked compiled extensions, common install breakage, not worth the risk for a ≤20-node graph); GCN alone (superseded, not deleted — kept as historical baseline) |
+| Fusion | `sklearn.LogisticRegression` stacking meta-learner + `shap.LinearExplainer` | Simple, interpretable, exact closed-form SHAP (affordable per-message); coefficients kept sign-stable across relational-scorer swaps by deliberately keeping both fused scores trust-style | A neural fusion layer would remove the closed-form SHAP guarantee and complicate the explainability story for no measured accuracy benefit |
+| Policy | Static 2×2 table (default, currently stronger) + contextual bandit (offline-trained alternative) | The static table is simple, auditable, and currently the better-measured option; the bandit is retained as a documented, honestly-reported negative result, not removed | Full reinforcement learning (rejected — no natural multi-step reward signal in this problem; the bandit framing fits the actual decision structure) |
+| Transport | MQTT/TLS (primary), HTTPS on stdlib `http.server`+`ssl` (secondary) | Both encrypted, no plaintext fallback once `certs/` is populated; HTTPS needs zero extra dependency | CoAP/DTLS via `aiocoap` (rejected — reproducible connection-acceptance failure across two OS/library-version combinations) |
+| Audit storage | SQLite + hash chain + separately keyed checkpoint file | Durable, embedded, no server process; hash chain + independent checkpoint store catches both single-row tampering and a fully-recomputed-but-inconsistent chain | A write-only external log service would add an operational dependency this research prototype doesn't need |
+| Governance mapping | Custom NIST SP 800-207 / IEC 62443 tagging + independent falsifiable validation | No off-the-shelf tool computes tenet coverage *and* validates the claim against this system's own audit evidence | Asserting compliance in prose only (rejected — the whole point is that a claim without a falsifier is not evidence) |
 
 ---
 
 ## 8. Coding Conventions & Project Structure
 
+**Directory layout:**
+
 ```
-zt-cps-starter/
-├── src/                     # everything the LIVE gateway path imports
-│   ├── gateway.py           # PDP/PEP + dashboard + /api  (the one process to run)
-│   ├── config.py            # ALL tunables, registry, paths, thresholds
-│   ├── trust_engine.py      # Security Trust + auth state machine
-│   ├── policy_engine.py     # static 2x2 table
-│   ├── adaptive_pdp.py      # RL bandit (inference live, training offline)
-│   ├── *_scorer.py          # Process Anomaly sub-signals (INFERENCE ONLY)
-│   ├── fusion_engine.py     # stacking meta-learner + SHAP
-│   ├── explainability.py    # Level-2 orchestration
-│   ├── audit_log.py         # hash-chained log + checkpoints
-│   ├── nist_mapping.py      # NIST SP 800-207 tenet tagging
-│   ├── iec62443_mapping.py  # IEC 62443 FR/zone/conduit model
-│   ├── feature_engineering.py  # REFERENCE implementation of the 5 features
-│   ├── device_simulator.py  # simulated devices
-│   ├── coap_server.py       # HTTPS second transport
-│   └── secrets_local.py     # gitignored; template in secrets_local.example.py
-├── scripts/                 # OFFLINE only — never imported by the gateway
-│   ├── train_*.py           # run in dependency order (see §6)
-│   ├── evaluate_*.py        # every published number
-│   └── generate_evaluation_graphs.py   # calls the SAME functions as evaluate_*
-├── firmware/main.py         # MicroPython, real ESP32
-├── models/                  # trained artifacts + calibration metadata
-├── data/collected/          # training / test / real hardware sessions
-├── docs/                    # 00–13 design docs + figures/
-└── design/                  # live dashboard HTML
+src/            gateway.py, trust_engine.py, policy_engine.py, adaptive_pdp.py,
+                fusion_engine.py, explainability.py, feature_engineering{,_sw420}.py,
+                config.py, audit_log.py, nist_mapping.py, iec62443_mapping.py,
+                governance_validation.py, relational_pin.py, coap_server.py,
+                device_simulator.py, virtual_device_generator.py, datasets.py, splits.py,
+                {isolation_forest,lstm_ae,transformer,gnn,set_transformer}_scorer.py,
+                secrets_local.py (gitignored), secrets_local.example.py
+firmware/       main.py (MicroPython, on-device), HARDWARE_SETUP.md, HARDWARE_SETUP_SW420.md
+scripts/        train_*.py, evaluate_*.py, generate_*.py, benchmark_crossdevice_models.py,
+                collect_hardware_session.py, merge_real_hardware_data.py,
+                build_paper_results.py, verify_paper_package.py
+models/         trained artifacts + *_meta.json / *.meta.json calibration+lineage sidecars
+data/           audit_log.db, checkpoint_log.jsonl, audit_key.bin, collected/, splits/
+config/         graph_topology.json, simulated_nodes.json, virtual_generator.json
+certs/          TLS material, Mosquitto ACL/credentials
+results/        one subdirectory per evaluation pass (frozen JSON/log/summary.md evidence)
+design/         static demo build of the dashboard UI (no live gateway required)
+tests/          19 focused test files, stdlib unittest (no pytest)
 ```
 
-**Naming.** `*_scorer.py` = inference-only Process Anomaly signal.
-`train_*.py` / `evaluate_*.py` = offline, never imported live. Config constants
-are `UPPER_SNAKE` in `config.py` only — no magic numbers at call sites.
-Device-facing IDs are kebab (`esp32-vib-001`); MQTT usernames match device IDs
-so `pattern read cps/decisions/%u` scopes each device to itself.
+**Naming conventions:**
+- Model artifacts: `<architecture>_<variant>.{pt,joblib}` — `_gcn_backup`, `_m6_variant`, `_m6_corrected_variant`, `_corrected` suffixes mark provenance explicitly; a bare name (no suffix) means "currently ambient/ ever-deployed."
+- Result directories: `results/<evaluation_name>/` — one directory per evaluation pass, never reused for a re-run with different findings (a repaired comparator gets a new directory, e.g. `gcn_m6_corrected_comparison`, not an overwrite of the old one).
+- Test files: `test_<subsystem_or_invariant>.py`, one class per invariant under test (e.g. `TestTwoScoreSeparation`, `TestBootReplayStateIsolation`).
+- Config constants: `SCREAMING_SNAKE_CASE` in `config.py`; every constant whose value affects trained-model correctness (sample rate, window size, thresholds) is a single source of truth read by both training scripts and the live gateway — never duplicated as a literal elsewhere.
 
-**Error handling.** Fail *closed* on the auth path — any parse, identity, HMAC,
-replay, or freshness failure rejects the message. Fail *neutral* on the ML
-path — an untrained or unavailable scorer returns `0.9` ("no evidence, defer to
-the others"), never a confident verdict.
+**Error handling strategy:** fail loudly on artifact/provenance mismatches (`ArtifactMismatchError` in `relational_pin.py`) rather than silently falling back to a plausible-looking wrong artifact. Fall back gracefully only where "not trained yet" is a legitimate, expected state (`FusionEngine.combine()`'s plain-mean fallback before the meta-learner exists). Reject-and-log, never reject-and-drop, for authentication failures — every rejection is an audit row.
 
-**Logging.** One console line per decision; one audit row per decision with the
-full score breakdown, SHAP values, both explainability levels, and the
-NIST/IEC tags. Rejections log with `reason_category` and the identity-targeting
-count.
+**Logging & observability:** every decision is a structured audit-log row (§5) carrying both scores, the decision, a human-readable + machine-tagged reason, and NIST/IEC tenet tags. A live dashboard (served by `gateway.py`, port 8600, ~2s refresh) renders this in real time. There is no separate structured-logging framework beyond the audit log itself and console output — the audit log *is* the observability surface, deliberately, since it is also the governance-evidence artifact.
 
 ---
 
 ## 9. Decision Log (ADRs)
 
-> These are intended designs. Do not "fix" them without reading the rationale.
+**ADR-1: Promote M6 Set Transformer over GCN as the deployed relational scorer (2026-09-07).**
+- **Context:** A confirmed class-weight training defect (7.2× overweight on the suspicious class, from computing inverse-frequency weights over an unmasked tensor when the loss only trains on the masked subset) made the originally-deployed M6 checkpoint's standalone score badly miscalibrated (Macro-F1 0.0736). A comparator bug independently meant every prior "GCN vs. M6" comparison had silently mixed model families.
+- **Chosen path:** Fix both bugs; retrain M6 (`set_transformer_corrected.pt`); compare under hash-pinned, held-out-replay-qualified protocol; promote on a clean gate sweep (lineage, fusion, policy, 193/193 tests, zero hardware regression, latency within budget). Preserve every previously-deployed artifact byte-identical on disk.
+- **Rejected alternatives:** (a) revert to GCN outright — rejected, since GCN itself scores worse on Task-1/Task-2 and is not architecturally superior, just not affected by this particular bug; (b) redeploy the flawed M6 checkpoint anyway on standalone-score grounds alone — explicitly rejected per the promotion record ("not decided on standalone Macro-F1 alone").
 
-**ADR-1 — Two permanently separate scores.**
-*Context:* A single blended trust number cannot distinguish "forged papers" from
-"shaking machine."
-*Chosen:* Two scores meeting only in a 2×2 lookup.
-*Rejected:* Weighted average — destroys the distinction that drives the response.
-*Evidence it holds:* measured — `high_rate` moves only Security (3.21 msgs to
-break), `anomalous_shock`/`coordinated` move only Process (0.00/0.10). No leak.
+**ADR-2: Never blend Security Trust and Process Anomaly Trust before `policy_engine.decide()`.**
+- **Context:** A blended score cannot distinguish "forged papers, normal cargo" from "valid papers, machine shaking" — opposite correct responses.
+- **Chosen path:** Two independently computed, trust-style scores, combined only via a fixed 2×2 lookup (or its bandit equivalent), enforced by a dedicated invariant test.
+- **Rejected alternatives:** a single EWMA'd trust score (the system's own prior design, explicitly rearchitected away from); a weighted-average combination (rejected for the same reason — averaging still conflates the two failure modes, just with tunable knobs).
 
-**ADR-2 — Rejected messages never touch the claimed device's state.**
-*Context:* A real trust-poisoning DoS: anyone could lower a device's score by
-spamming its ID with garbage.
-*Chosen:* `_reject()` updates only `IdentityTargetingRisk` for the claimed ID.
-*Rejected:* Penalising the claimed device — that *is* the vulnerability.
+**ADR-3: Offline-only model training; no online learning in the live gateway path.**
+- **Context:** An online-learning PDP would let anyone who can generate traffic move the model.
+- **Chosen path:** All six model stages train exclusively in `scripts/train_*.py`; `gateway.py` and `adaptive_pdp.AdaptivePDP.greedy_action()` never call `.fit()`/`.update()`.
+- **Rejected alternatives:** continual/online fine-tuning of the relational scorer or policy against live traffic — rejected as an unacceptable attack surface, not a performance tradeoff.
 
-**ADR-3 — All training offline.**
-*Chosen:* `scripts/train_*.py` produce artifacts; the gateway only infers.
-*Rejected:* Online learning — an attacker who can generate traffic could move
-the model. Also makes runs non-reproducible.
+**ADR-4: Hand-rolled GCN instead of `torch-geometric`; HTTPS instead of CoAP/DTLS.**
+- **Context:** Both are dependency-risk decisions.
+- **Chosen path:** Plain-PyTorch matrix-multiply GCN layer; stdlib `http.server`+`ssl` for the second transport.
+- **Rejected alternatives:** `torch-geometric` (version-locked compiled extensions, common install breakage, not worth it for ≤20 nodes); `aiocoap`'s CoAP-over-TLS (reproducible connection-refusal defect on two OS/library-version combinations, verified before rejecting).
 
-**ADR-4 — Isolation Forest score calibration.**
-*Context:* sklearn's `decision_function` is not a `[-0.5, 0.5]` score. With
-`contamination=0.1` its inlier side is compressed into a narrow positive band
-(measured: normal median `+0.079`, best case `+0.121`). The original mapping
-`raw + 0.5` therefore capped a *perfectly normal* reading at **0.621** and put
-the median normal at **0.579** — both under `PROCESS_THRESHOLD = 0.6`. The
-signal could never say "normal," and dragged the fused score below threshold on
-healthy telemetry, including the real ESP32 at rest.
-*Chosen:* Two anchors taken from the **normal class only** (so training stays
-unsupervised): `raw = 0 → 0.5` (sklearn's own inlier/outlier boundary) and
-`raw = median(normal) → 0.9`. Linear, monotonic, clipped.
-*Rejected:* Lowering `PROCESS_THRESHOLD` — hides the bug and shifts every other
-signal's meaning.
+**ADR-5: Explicit, hash-verified artifact pinning for comparator scripts (`src/relational_pin.py`).**
+- **Context:** Four evaluator scripts silently read whichever fusion artifact was *currently* ambient in `config.py`, which was correct only until the M6 deployment changed what "ambient" meant — every subsequent "GCN arm" measurement was actually comparing GCN relational scores against M6-calibrated fusion coefficients, undetected until audited.
+- **Chosen path:** `RelationalPin` dataclasses naming both a relational checkpoint and its matched fusion artifact by explicit path, hash-verified, failing loudly on mismatch.
+- **Rejected alternatives:** documenting the correct artifact pairing in a comment (rejected — this is exactly the kind of drift comments don't catch; the whole prior failure happened despite the code being readable).
 
-**ADR-5 — Weighted GCN self-loop (`GNN_SELF_LOOP_WEIGHT = 3.0`).**
-*Context:* With the textbook `A + I` and 3 active nodes, symmetric normalisation
-gives a node's own evidence only 1/3 of its representation. One identical ESP32
-reading scored fused **0.020 / 0.057 / 0.577** for 1 / 2 / 3 active devices —
-the verdict depended on whether *unrelated* devices happened to be publishing.
-*Chosen:* `A + 3I`, so self-weight is 0.6 vs 0.2 per neighbour.
-*Rejected:* Dropping the GNN when isolated — within the deployed ensemble it is
-the only signal that detects coordinated attacks (its cross-device view, not graph
-structure specifically — C3), and abstention injects a strong implicit "normal" vote.
-
-**ADR-6 — Isolated-topology training augmentation.**
-*Context:* The only isolated-graph examples in training were merged real-hardware
-rows, all labelled normal. The GCN learned "no neighbours ⇒ normal" and
-saturated to **1.000** on a genuinely shaken board (`rms=2.5`, IF `0.00`,
-LSTM `0.40`) — masking a real anomaly.
-*Chosen:* Emit the isolated variant of every snapshot, covering that topology
-with the same class balance. Labels are unchanged and remain correct per node.
-*Rejected:* Special-casing at inference — trains one thing, deploys another.
-
-**ADR-7 — Sample-average Q-values, not fixed-α EMA.**
-*Context:* `α = 0.2` is an EMA with a ~5-visit memory. One state bucket holds a
-*mixture* of ground-truth situations, so the stored value reflected visit order,
-not the mean: every action in the high-trust states sat within 0.4 of every
-other (state `9,8`: BLOCK `-0.3` vs ALLOW `-0.7`), making `argmax` effectively
-random. The deployed policy answered **BLOCK** for a device at security `0.91`,
-process `0.87` — where the static table correctly answers ALLOW.
-*Chosen:* Incremental sample average (`α = 1/N`), the correct estimator for a
-stationary contextual bandit.
-*Rejected:* More episodes at fixed α — does not reduce EMA variance.
-
-**ADR-8 — `combined`/`stealthy_forged_values` excluded from RL training.**
-*Context:* This class is, by construction, drawn from the same feature
-distribution as normal traffic (`docs/04` §B.8). Training a `(security,
-process)`-keyed policy against it cannot teach detection — only to block the
-region where normal traffic lives. Measured on state `9,8`: **3295 legitimate
-messages vs 69 stealthy**, a 48:1 majority, which the 22.66× inverse-frequency
-weight flipped to 1564 vs 948 of reward mass.
-*Chosen:* Exclude it from what the policy *trains* on. Confusion matrices still
-score it, because failing to detect it is a result worth reporting.
-*Rejected:* Unweighted rewards — collapses to ALLOW even at process `0.05`.
-
-**ADR-9 — Real trig in firmware.**
-*Context:* A hand-rolled truncated-Taylor `_sin()` had **7.5e-2** max error over
-`[0, 2π]`, selecting the wrong `dominant_freq` bin in **57/300** windows (19%),
-off by up to 46.9 Hz — a silent train/serve skew present only on real telemetry.
-*Chosen:* `math.sin`/`math.cos` (present in every standard ESP32 build).
-Firmware now reproduces `feature_engineering.dominant_frequency()` exactly
-(**0/300** mismatches).
-*Rejected:* Keeping the approximation — it saved nothing measurable.
-*Follow-up (a regression this caused):* the same change removed a hardcoded
-`machine.RTC().datetime(...)` line, which broke the next flash — every message
-was rejected as `stale_timestamp`, the board measuring **+19,784s ≈ 5h30m**
-ahead. This deployment has no NTP route, so the RTC holds whatever last set it,
-and Thonny syncs **local** time (`local_rtc: True`) while the firmware assumes
-UTC. Repaired with `RTC_LOCAL_UTC_OFFSET_SECONDS`, applied only when
-`sync_time()` reports NTP failed — an offset does not rot the way a pinned date
-does, and a working NTP route bypasses it automatically. **Do not "simplify"
-this back to a fixed timestamp.**
-
-**ADR-10 — HTTPS substituted for CoAP/DTLS.**
-*Chosen:* A stdlib HTTPS server as the second secured transport.
-*Rejected:* A real CoAP/DTLS stack — documented openly as a substitution rather
-than claimed as CoAP.
-
-**ADR-11 — Threading + caching on the dashboard server.**
-*Context:* The dashboard polls seven `/api/*` endpoints every 2s. On a
-single-threaded `HTTPServer`, one full refresh cost **~1.99s of serial time**
-once the audit log reached ~14k rows (`/api/chain` re-verifies the whole hash
-chain: 0.66s, O(rows), and rows only grow). At ~100% saturation refreshes
-overlapped, queued, and endpoints returned **empty** responses — the page froze
-on its last good render, which presented as "the dashboard shows static values".
-*Chosen:* `ThreadingHTTPServer` (safe: `audit_log` opens a fresh sqlite
-connection per call and guards writes with its own lock), a 10s TTL cache on
-chain verification, a 5s TTL on the NIST/IEC tallies, and tiered client polling.
-Refresh cycle 1990 ms → ~690 ms; `/api/chain` 0.66 s → 0.004 s.
-*Rejected:* Trimming `/api/decisions`' payload — the detail is the point of the
-page, and it was not the bottleneck.
-*Do not revert to a plain `HTTPServer`* to "avoid concurrency": the concurrency
-is already safe, and serial handling is what broke the page.
-
-**ADR-12 — The LSTM-AE Level-2 counterfactual stays single-channel and
-flat-mean (a better-looking alternative was measured and reverted).**
-*Context:* The LSTM-AE Level-2 flip rate is 0/122. The obvious hypothesis is
-that substituting a channel's flat training mean hands the autoencoder an
-out-of-distribution input (a perfectly constant channel never occurs in
-training), so splicing a real normal *trajectory* should recover better.
-*Chosen:* It was implemented — `train_lstm_ae.py` saving reference windows, the
-scorer splicing them — measured, and **reverted**: 33.63 vs 33.70 median
-counterfactual error, better in only 9/40 windows. No material gain for real
-added complexity.
-*Rejected:* Keeping it anyway because it is more "methodologically correct" —
-it changed nothing measurable, and unused complexity misleads the next reader.
-*What the experiment established:* the ceiling is the **single-channel
-restriction**, not the fill value. A shock moves `rms`, `peak`, `crest_factor`
-and `kurtosis` together; the best single-channel repair reaches ~33.7 against
-the ≤4.28 needed. Re-deriving this is wasted effort — the diagnosis is printed
-by `evaluate_explainability_level2.py` itself.
-
-**ADR-13 — Governance coverage and governance validation are reported
-separately, and coverage is labelled tautological where it is.**
-*Context:* `tenets_for_decision()` tags tenets 1/3/4/5/6 on every decision
-unconditionally. Reporting the resulting "100% coverage" as evidence of
-compliance overstates it: the number is 100% because the tagger always writes
-it, and no arrangement of the system could change that.
-*Chosen:* Keep coverage (it is the metric the synopsis names), but add
-`governance_validation.py` alongside it — falsifiable per-tenet checks over the
-audit log only — and state plainly in every surface (script output, dashboard
-panel, `RESULTS.md` §5.3) that coverage measures tagging while validation
-measures compliance. A falsifiability self-test injects each check's own
-falsifier and requires it to FAIL, so no check can be silently vacuous.
-*Rejected:* Making the tagger conditional so coverage drops below 100% and
-"looks earned" — that would corrupt the synopsis's own defined metric to flatter
-a different one, and still would not prove the claims hold.
-*Do not "simplify" this into one number.* The two answer different questions,
-and a reader who only sees the merged figure cannot tell which they are getting.
-
-**ADR-14 — Policy decisions enforce via revocation, and ship disabled.**
-*Context:* `BLOCK` was advisory. Measured: 1,112 BLOCK decisions logged, and
-after the last one the same device sent 6,264 more messages, all accepted and
-scored. `docs/06` promised "Block / quarantine"; nothing quarantined.
-*Chosen:* Escalate a run of `AUTO_QUARANTINE_CONSECUTIVE_BLOCKS` (default 20)
-**consecutive** BLOCKs into `trust_engine.revoke_device()` — the enforcement
-primitive that already exists and is already checked before HMAC. Any non-BLOCK
-decision resets the run. Recovery is manual only. Applied after the triggering
-decision is published and logged, so the device receives the BLOCK that
-quarantined it and the audit trail always explains the revocation.
-*Default OFF, on evidence:* during the Isolation Forest defect the physically
-healthy ESP32 produced 953 BLOCKs — 108 runs of ≥3, 20 runs of ≥10, one run of
-50. Auto-quarantine at any threshold up to 50 would have revoked live hardware
-because of a scoring bug, and `is_revoked()` is a hard override. Establish the
-false-positive rate first, then arm enforcement.
-*Rejected:* device-side enforcement. A compromised device ignores the
-instruction, so it provides no guarantee, and silencing a suspicious device
-destroys the evidence trail. Enforcement must not depend on the adversary.
-
-**ADR-15 — Chain verification is three checks at two periods, and the full scan
-is never dropped.**
-*Context:* `/api/chain` re-verified the whole hash chain per poll, O(rows) and
-growing — the saturation behind ADR-11.
-*Chosen:* An incremental tail check every poll, plus the full scan and the
-checkpoint check on a longer period, with the full scan's **age displayed**.
-*Rejected:* replacing the full scan with the incremental one. That was
-implemented first and **proved unsound by testing it**: checkpoints attest a
-chain-hash *value* (stored vs stored), so they miss a naive edit entirely, and a
-tail check skips it by definition. Only the full scan recomputes an old row's
-hash from its fields. The measured attack matrix is in §12.
-*Do not "optimise" the full scan away.* Its interval is the detection latency
-for naive tampering, which is why the UI shows it.
-
-**ADR-16 -- Acquisition rate, anti-alias filter and window are one decision.**
-*Context:* `sample_window()` ran unpaced at ~1231 Hz while declaring 100 Hz, so
-`dominant_freq` was scaled by a constant 12.3x wrong.
-*Chosen:* 500 Hz deadline-paced sampling, MPU6050 DLPF at 184 Hz (66 Hz below
-the 250 Hz Nyquist), 32-sample window.
-*Rejected:* (a) 100 Hz with a 44 Hz filter -- only 6 Hz of margin, and 38% of
-samples still landed in the top three bins from the filter's gradual rolloff;
-(b) 100 Hz with a 21 Hz filter -- clean, but throws away most of the vibration
-band; (c) keeping 100 Hz at all -- it was never a requirement, it came from a
-comment describing a loop that did not exist.
-*Confirmed on device, not just in the constants:* the firmware's own
-`ticks_ms()` instrumentation reads sampling at an invariant **64 ms** (= 32/500 Hz)
-at `boot_id = 33`, against 26-30 ms before the fix. The variance disappearing is
-the evidence that matters -- the old spread was I2C jitter in a free-running loop,
-and a deadline-paced loop is supposed to absorb exactly that. Feature extraction
-97-101 ms, signing 9 ms, ~172 ms total, 8.6% duty cycle (`RESULTS.md` 13.1).
-*The trap, recorded because it cost two regressions:* at ~1231 Hz Nyquist was
-615 Hz, above the sensor's 260 Hz passband, so **there was no aliasing to see**.
-Correcting the rate is what created it. Do not change one of these three without
-the other two, and do not change any of them without retraining -- every
-`dominant_freq` the models learned is scaled by the rate.
-
-**ADR-17 -- The simulator models the real board's physics, not white noise.**
-*Context:* The synthetic baseline was `random.gauss(1.0, 0.006)`. White noise
-puts the dominant DFT bin roughly uniformly across the band; a real resting board
-is low-frequency weighted and carries its state between windows. Measured
-consequence: the Isolation Forest scored synthetic normals 0.900 and the real
-resting board **0.000**, even with the real samples inside its own training set.
-*Chosen:* low-frequency drift over a smaller white floor, drift frequency drawn
-per window, resting DC drawn from a range, and the resting state
-**mean-reverting** between windows so the sequence has the temporal continuity a
-real board has.
-*Rejected:* a free random walk for that state -- unanchored (the mean drifted and
-clamped) and far too persistent (lag-1 0.89 against the real 0.26).
-*Honest limitation:* the temporal fix did **not** resolve the residual false
-positives. It is kept for fidelity -- the simulator now matches the real board on
-a property it previously got wrong -- not because it fixed the symptom it aimed at.
-*Do not revert to white noise for simplicity.* It is simpler and measurably wrong.
-
-
-**ADR-18 -- The resting normal region is sized by cross-session spread, not by
-one session's median.**
-*Context:* the same board's resting rms median measured 1.041 g, 1.056 g and
-1.011 g on three different occasions -- a 0.045 g spread against a within-session
-std of 0.009 g. Accelerometer bias and resting orientation both move it.
-*Chosen:* centre `REST_DC_CENTRE` on the midpoint of the observed range (1.036)
-and widen the stationary spread to ~0.020 (`REST_DC_WALK` 0.019,
-`REST_DC_MIN/MAX` 0.975/1.10), so all three observed states sit within ±1.3 sigma.
-*Rejected:* centring on the latest measured median (1.053). It was implemented and
-measured -- real-hardware false positives went 2/49 to 0/49 (pre-split figures,
-now withdrawn as leaky per C4 — cited here only to show the *movement*) -- and then
-the next live resting board read 1.011 g, i.e. **-4.0 sigma** under the model that
-had just "improved". Tuning the centre optimises for the last session captured.
-*Verified on the opposite case, because widening a normal region is exactly the
-change that can destroy detection:* real-hardware detection stayed 94/94, the
-same session's disturbed readings stayed pinned at `iso` 0.000, synthetic
-`anomalous_shock` recall stayed 1.000 and `coordinated` 0.974, GNN accuracy rose
-0.907 to 0.915.
-*Do not re-tune `REST_DC_CENTRE` onto a single session's median.* A disturbed
-board reconstructs at 7,000-62,000 sigma of baseline error, so the resting
-tolerance has room; the centre does not.
-
+**ADR-6: Keep both trust scores on a "high = good" scale, including Process Anomaly.**
+- **Context:** The literal module-docstring naming in early design docs implied Process Anomaly should be "high = bad" (anomaly-style).
+- **Chosen path:** Keep both trust-style, so the already-fitted fusion meta-learner's coefficients (verified positive-signed against real held-out data) never had to change sign across the rearchitecture.
+- **Rejected alternatives:** inverting Process Anomaly to anomaly-style and re-deriving fusion coefficients — rejected as unnecessary churn with no measured benefit, and a documented, deliberate naming deviation rather than an oversight.
 
 ---
 
 ## 10. Roadmap & Milestones
 
-- **Current:** Real hardware in the loop; four-signal fusion; RL policy;
-  governance reporting; hash-chained audit.
-- **Upcoming:** A formal, structured physical adversarial session with
-  human-labelled ground truth (two real faults have already been found by
-  informal live manipulation). Firmware-side latency instrumentation via
-  `time.ticks_ms()`. Raising Level-2 explainability toward its 70% target.
-- **Explicitly out of scope — will never be supported:**
-  - Online/continuous learning on the live gateway (ADR-3).
-  - Blending the two scores into one number (ADR-1).
-  - Detecting a perfectly-executed `stealthy_forged_values` attack from
-    single-node telemetry — information-theoretically out of reach for this
-    design, and reported rather than engineered around.
-  - Hardware secure-element key storage; secrets are plaintext constants, an
-    accepted prototype simplification (`docs/paper/02_SYSTEM_ARCHITECTURE.md`).
+**Current phase:** post-promotion stabilization of the corrected-M6 deployment (commit `1326db1` and its immediate predecessors) — reconciling every stale GCN-runtime reference project-wide, regenerating the paper figure set against the corrected-M6 evidence, and (this document) rebuilding the deleted Markdown knowledge base from source.
+
+**Upcoming phase (genuine future scope — do not claim as solved):**
+- `esp32-vib-002`/SW-420's held-out results (0/108 resting FP, 115/115 detection, `RESULTS.md` §7.1, captured 2026-09-07) rest on two sessions — a real minimum, not a large sample; widening it needs more independent captures, the same way `esp32-vib-001`'s 5/12 does.
+- Physical fault injection on real hardware — all captured hardware events to date are legitimate physical conditions; only transport-level attacks have been tested against the real device.
+- Tightening the resting false-positive confidence interval (currently 5/12, Wilson CI 19.3–68.0%, on a small dependent-window sample) — needs many more clean resting sessions; mounting-robustness capture is the highest-value next experiment.
+- A second sensor to test whether resting-DC spread is a sensor property (ADR-18 in the deleted historical log assumed this; one unit cannot prove it).
+- A decision on whether to redeploy `set_transformer_corrected.pt`'s *training recipe* more broadly, versus leaving the current promoted checkpoint as the operating point.
+
+**Explicit out-of-scope (this project will never claim):**
+- Physical/VLAN network segmentation between zones (FR5 stays "partial" by design boundary, not by oversight).
+- Multi-instance gateway redundancy/failover (FR7 stays "partial").
+- Third-party security certification of any kind.
+- Detection of `stealthy_forged_values`/`combined`-class attacks from single-node telemetry (architecturally excluded, not an open bug).
+- A claim that graph/attention structure is inherently superior to simpler cross-device models in general — only the specific, measured claim that M6 beats GCN and simpler baselines *on this system's data* is made.
+- A claim that the adaptive bandit outperforms a validation-tuned static policy on this state space.
 
 ---
 
 ## 11. Evaluation, Testing & Verification
 
-### Strategy
+**Testing strategy:** stdlib `unittest`, no pytest, 19 test files under `tests/` (`python -m unittest discover -s tests`), 193/193 passing at the last verification gate. Coverage spans: two-score separation, boot/replay state isolation, firmware HMAC/TLS contract parity, policy-training determinism, relational-comparator pinning, GNN/Set-Transformer pending-node masking (three separate files — GCN baseline, GNN pending-node, Set-model pending-node), credential-scanner regression, dashboard hash normalization, coAP/HTTPS hardening, gateway input validation, and general invariants.
 
-Verification is by **reproducible offline evaluation against a held-out test
-set** (`generate_test_data.py`, different seed) plus **live hardware
-observation**. `generate_evaluation_graphs.py` calls the *same functions* as the
-`evaluate_*.py` scripts, so a figure and its script's printed numbers cannot
-silently drift apart.
+**Verification scenarios that define correctness (each guards a property that has already been broken once):**
+- A rejected message must never change the claimed device's actual trust state (`TestBootReplayStateIsolation` and related).
+- The two scores must never be combinable through a third evidence channel (`TestTwoScoreSeparation`).
+- No model artifact may be older than its training data (`test_no_model_artifact_is_older_than_its_training_data`) — catches silent staleness like the Transformer-ablation incident that invalidated ~6 retrains' worth of published numbers.
+- `config.FEATURE_SAMPLE_RATE_HZ` must exactly match the firmware's own sampling rate — a mismatch here is invisible to every offline evaluation and only shows up as train/serve skew on real hardware.
+- Filling the LSTM window must drop `2*LSTM_SEQ_LEN-1` records per block, not `LSTM_SEQ_LEN-1` — dropping too few leaves settling disturbance inside the first "clean" scored window.
+- Every NIST governance tenet check must be able to fail on this system's own data, or it is reported `UNFALSIFIABLE`, never silently counted as passing.
+- A relational/fusion comparator must fail loudly (`ArtifactMismatchError`) on any artifact-hash drift, never silently substitute a different checkpoint.
 
-### Held-out results (2933 authenticated messages)
-
-| Signal | Accuracy | Precision | Recall | F1 |
-|---|---|---|---|---|
-| rule_score | 0.921 | 0.921 | 1.000 | 0.959 |
-| isolation_forest_score | 0.949 | 0.959 | 0.987 | 0.973 |
-| lstm_ae_score | 0.776 | 0.953 | 0.796 | 0.867 |
-| gnn_score | 0.915 | 0.987 | 0.920 | 0.952 |
-| fused_score | 0.747 | 0.990 | 0.732 | 0.842 |
-
-Per-event-type recall — **why four signals exist**:
-
-| Signal | anomalous_shock | coordinated | stealthy |
-|---|---|---|---|
-| rule_score | 0.000 | 0.000 | 0.000 |
-| isolation_forest | 1.000 | 0.316 | 0.000 |
-| lstm_ae | 1.000 | 0.222 | 0.515 |
-| **gnn** | 1.000 | **1.000** | 0.000 |
-| fused | 1.000 | 0.974 | 0.515 |
-
-Within the deployed ensemble the GNN is the only signal that detects `coordinated`
-attacks — because it is the only one with a cross-device view. Isolation Forest
-and LSTM-AE are *structurally* blind to them — they only ever see one device's
-own vector. The benefit is the cross-device *information*, not graph structure
-specifically: given the same multi-device input a concat MLP matches or beats the
-GNN, so no GNN-necessity or -superiority claim follows (C3).
-
-### Verification scenarios
-
-1. **Healthy board must be ALLOWed.** Clean ESP32 normals (no anomaly within
-   the 8-sample LSTM window): fused median **0.888**, false-positive rate at
-   `PROCESS_THRESHOLD=0.6` of **0.0%** (n=84).
-2. **Real physical disturbance must be caught.** Live board, shaken:
-   **19/19 readings (rms>1.2) → ALERT, zero ALLOW**; at rest → ALLOW; with a
-   short ALERT recovery tail while the LSTM window flushes.
-3. **GNN must respond to neighbours alone.** Own evidence pinned at
-   `(0.9, 0.9, 0.9)`, neighbours degraded `0.90 → 0.30`: GNN `0.647 → 0.316`.
-   Level-2 correctly names whichever neighbour degraded.
-4. **Two-score separation must not leak.** Verified — see ADR-1.
-5. **Mutual authentication.** 10/10 gateway→device decisions verified HMAC-valid
-   by recomputing with the device's own secret; **0** cross-device leakage.
-6. **Least privilege is enforced, not just configured.** A client holding
-   *gateway* credentials is refused a subscription to `cps/decisions/#`
-   (write-only ACL) — observed live.
-7. **Audit integrity.** Hash chain intact and checkpoint cross-check passing
-   over 5516 rows.
-8. **Firmware ≡ reference maths.** All five features match
-   `feature_engineering.py` exactly across 300 windows in 3 signal regimes.
-
-### Governance
-
-Two distinct claims, deliberately not conflated:
-
-- **Coverage** (`nist_mapping`) — **7/7 tenets at 100%** across every logged
-  decision. This measures *tagging*, and tenets 1/3/4/5/6 are tagged
-  unconditionally, so 100% there is true by construction, not a finding.
-- **Validation** (`governance_validation`) — **7/7 PASS** over 10,000 audit
-  rows. This measures whether the claim *holds*, reading only the hash-chained
-  log and naming what would falsify each check. Sharpest evidence: ALLOW rate
-  15% below the process threshold vs 91% above, and 0% vs 88% on the security
-  axis (tested per axis, so each score is shown to move the outcome on its own);
-  213 rejected rows, none of which reached an access decision; the learned
-  fusion moved the score away from the rule-only baseline on 100% of rows.
-- **Falsifiability self-test** — **6/6** checks reject their own falsifier when
-  it is injected as synthetic rows. Tenet 5 is excluded rather than assumed
-  (its falsifier is missing data, not a constructible row).
-- **IEC 62443-3-3:** FR1–FR4, FR6 **implemented** (100% of 8524 logged
-  decisions); FR5, FR7 honestly **partial** — real transport controls exist,
-  physical segmentation and redundancy do not.
-- **Security Level: SL-2**, argued with evidence both for and against.
-
-### Performance
-
-| Measurement | Value |
-|---|---|
-| HMAC verification | median **0.005 ms** |
-| Full pipeline (auth + 4 scorers + fusion + policy) | median **26.85 ms**, p95 **36.09 ms** |
-| Level-1 explainability | **200/200 (100%)** SHAP attributions physically sensible |
+**Statistical discipline (see `METHODOLOGY.md` §7 for full detail):** session-level (leakage-free) splits, hash-pinned matched comparisons, deterministic offline-replay clocks, ten-seed studies reported as optimizer-variance-only (not population CIs), and explicit acknowledgment that reported per-row metrics are `(tick, node)` windows nested in a small number of anomaly events, not independent trials.
 
 ---
 
 ## 12. Known Limitations & Open Risks
 
-> Each entry says whether it is **resolved**, an **accepted design limit**, or
-> still **open**. An accepted limit is not a TODO — it is a boundary with a
-> reason, and "fixing" it would trade away something that matters more.
+**Fragile areas (do not "fix" without re-reading why they are this way — see `CLAUDE.md` §4 for the full incident list this section summarizes):**
+- The acquisition chain (`SAMPLE_RATE_HZ`, `WINDOW_SIZE`, DLPF config) moves as one unit — changing any one without a full retrain silently invalidates every `dominant_freq` the models learned.
+- `REST_DC_CENTRE` must be sized by the *spread* of observed resting values across sessions, not the latest session's median — re-tuning it onto one session has already caused a real board to land at −4.0σ from "normal."
+- `feature_engineering.py` is a reference implementation the firmware must match exactly; verify by differential test over randomised windows, never by code review alone.
+- Window-averaged reconstruction error is not severity — a peak-aware statistic does not trivially fix this (tried; Spearman ρ 0.781→0.723).
 
-### Resolved since first writing
+**Performance/measurement bottlenecks:**
+- Real-hardware resting false-positive rate (5/12, 41.7%) has a wide confidence interval (19.3–68.0%) from a small, dependent-window sample — not yet tight enough for a strong deployment claim.
+- Level-2 explainability recovers only 36% of flagged cases against a 70% target — structurally, a rank-1 instrument explaining a rank-3 anomaly signal, not a bug awaiting a fix.
+- M9 (mixed-provenance relational scorer) degrades sharply in precision/FPR under heterogeneity stress (F1 0.68→0.30 LOW→HIGH) despite retaining near-1 recall — a calibration failure that must always be reported with FPR/precision, never recall alone.
 
-**Dashboard chain verification is no longer O(all rows) per poll.** *(was: a
-live outage — ADR-11.)* Verification now runs at three tiers, because the two
-existing checks turn out to catch **different** attacks and neither subsumes
-the other. Measured on a copy of a real 39k-row log:
+**Technical debt / open items:**
+- **[CLOSED 2026-09-07]** SW-420 (`esp32-vib-002`) now has held-out VALIDATION (0/70 FP, 109/109 detection) and TEST (0/108 FP, 115/115 detection) real-hardware results — `RESULTS.md` §7.1, `results/sw420_real_hardware/summary.md`. Closing this exposed and fixed a real bug: `evaluate_real_hardware.py` had `DEVICE` hardcoded to `esp32-vib-001`, and once an `esp32-vib-002` session entered the same split, the evaluator would have silently scored SW-420 rows through the MPU6050's models. Fixed with an explicit `--device` argument and per-device row filtering; verified `esp32-vib-001`'s published numbers reproduce byte-identically with the fix in place. Still only two independent sessions — a real minimum, not a large sample.
+- **[HARDENED, not flash-verified, 2026-09-07]** Firmware TLS peer-certificate verification (`CERT_NONE` default) now fails loudly on three distinct failure modes instead of silently downgrading or crashing opaquely when `MQTT_CA_CERT_FILE` opt-in verification is requested (`firmware/main.py::connect_mqtt()`), and `HARDWARE_SETUP.md` §13 has a concrete one-line command to generate the DER CA cert. Still not flash-tested against real hardware — `ussl.wrap_socket`'s `ca_certs` support varies by MicroPython build, so this remains a real gap until verified on a board.
+- **[FIXED 2026-09-07]** `evaluate_rl_policy.py` and two call sites in `generate_evaluation_graphs.py` were silently defaulting to the GCN pin regardless of which relational model the ambient-deployed policy Q-table was actually trained against — the same silent-mismatch failure class the fusion comparator bug was. Fixed via `resolve_deployed_pin()`, which reads the Q-table's own metadata sidecar and hash-verifies it through `relational_pin.verify_policy_lineage()` before use, failing loudly on an unpinned table (exactly the legacy `adaptive_pdp_qtable.json`/`*_corrupted_provenance` case). Verified end-to-end and the full 193-test suite still passes.
 
-| Attack | Full scan | Checkpoints | Incremental tail |
-|---|---|---|---|
-| Naive edit — row changed, hashes left alone | **DETECTED** | missed | missed |
-| Consistent rewrite — every following hash recomputed | missed | **DETECTED** | missed |
-
-The tail check is bounded by `CHECKPOINT_INTERVAL_ROWS` and runs every poll;
-the full scan is the *only* thing that catches a naive edit, so it still runs —
-just every `CHAIN_FULL_SCAN_TTL_SECONDS` (300 s) instead of every 10 s. **That
-interval is therefore the detection latency for a naive edit**, and the
-dashboard displays its age rather than implying continuous coverage. Cost: a
-full `/api/chain` build went 925 ms → 32 ms warm.
-
-An earlier version of this change was **unsound and was caught by testing it**:
-it anchored the tail check at the newest checkpoint and claimed the checkpoints
-attested everything before it. They do not — a checkpoint attests a chain-hash
-*value*, comparing stored against stored, so it misses a naive edit entirely. The
-claim was removed rather than the speed kept quietly.
-
-**BLOCK can now actually enforce.** *(was: the decision was advisory — 1,112
-BLOCKs logged, and the same device sent 6,264 more messages after the last one.)*
-`config.AUTO_QUARANTINE_ENABLED` escalates a sustained run of BLOCKs into a real
-revocation through `trust_engine.revoke_device()`, which is checked before HMAC.
-**It ships disabled**, on evidence rather than caution: during the Isolation
-Forest defect the physically healthy ESP32 produced 953 BLOCKs, including one
-unbroken run of 50, and auto-quarantine at any threshold up to 50 would have
-revoked live hardware because of a scoring bug. Establish your false-positive
-rate first, then arm it. See ADR-14.
-
-**There is an automated test suite.** *(was: verification was only
-`evaluate_*.py` plus live observation.)* `tests/test_invariants.py`, 33 tests,
-stdlib `unittest` so it needs no install:
-
-```
-python -m unittest discover -s tests -v
-```
-
-It deliberately does not chase coverage. **Every test corresponds to a property
-that has already been broken once in this repository**, and its docstring names
-the incident. It guards the two-score separation, policy monotonicity, the IF
-calibration anchors, firmware↔reference feature equivalence, canonicalisation
-drift, GNN adjacency, the RL sample-average estimator and its static fallback,
-audit tamper detection (both attacks, against a temp copy — the real log is
-never written), quarantine escalation, and the governance checks' falsifiability.
-
-The suite found a real defect on its first run: `TestAuditIntegrity` reloads
-`audit_log` against a temp database and was leaking those paths into later
-tests. That is exactly the class of cross-test contamination that makes a suite
-untrustworthy, and it was fixed rather than worked around.
-
-**Firmware-side latency is instrumented.** *(was: recorded here as
-"unmeasured".)* `firmware/main.py` prints `sampling` / `feature_extraction` /
-`sign` per publish, using `time.ticks_diff()` — the wraparound-correct
-comparison, where naive subtraction would be wrong. The numbers appear on the
-board's serial console (Thonny's Shell) and have **not yet been transcribed into
-`RESULTS.md`**; that is the remaining step, not the measurement.
-
-### Accepted design limits — not defects
-
-**`stealthy_forged_values` is not reliably detected** (recall 0.515). A
-compromised device reporting deliberately innocuous, in-range values is drawn
-from the same feature distribution as normal traffic. This is
-information-theoretically out of reach for single-node telemetry, and the honest
-consequence is documented rather than engineered around — including its exclusion
-from RL training, where chasing it would only teach the policy to block the
-region where normal traffic lives (ADR-8).
-
-**Aggregate fused accuracy (0.747) is below the best single signal (0.949).**
-Deliberate. The meta-learner is class-weighted so the rare `coordinated` class
-survives — unweighted, fused recall on it was 0.261, *worse* than the GNN alone
-at 0.870. Aggregate accuracy is the wrong single number for a security system
-where missing a rare coordinated attack costs more than extra alerts.
-
-**Level-2 explainability misses its 70% target at 37%** (100% GNN, 0% LSTM-AE).
-The ceiling is measured, not assumed: a flagged window reconstructs with error
-~46–62 and recovery needs ≤ 4.28, but an impulsive shock moves `rms`, `peak`,
-`crest_factor` and `kurtosis` together, so the best single-channel repair reaches
-only ~33.7. Splicing a real normal trajectory instead of a flat mean was
-implemented, measured (33.63 vs 33.70), and **reverted** as complexity that
-bought nothing — which is what locates the limit in the single-channel
-restriction rather than the fill value. The attribution stays sound:
-`kurtosis` is named in 110/122 cases. Closing this needs a
-multi-channel counterfactual, a different validation design from the one the
-method specifies.
-
-**The device does not enforce its own BLOCK, and should not.** Enforcement that
-depends on the adversary complying is not enforcement, and silencing a
-suspicious device destroys the evidence you most want. See `docs/06` §2.0.2.
-
-### Still open
-
-**The pipeline cannot rank anomaly SEVERITY, and the score mapping is not the
-reason.** `_error_to_score` pins to exactly 0.000 at z >= 3.6, which looks like
-the cause -- but measured on real hardware, `sharp_impact` (max peak 2.968 g) has
-the LOWEST median reconstruction-error z of the four disturbance classes (10392)
-while `gentle_tap` sits at 18745. The obstacle is duty cycle: 29% of
-`sharp_impact` samples are physically indistinguishable from rest (brief impulses
-with pauses) against 0% for continuous shaking, and error is averaged over the
-8-message window. **Window-averaged error measures how much of the window is
-disturbed, not how violently.** A compressive score map was proposed and NOT
-implemented, because it would produce a number that looks like severity and is
-not -- and on this data there is nothing to grade regardless: rest sits at z ~ 0,
-every real disturbance at z = 4,200-48,000, the middle empty. Ranking severity
-needs a peak-aware statistic alongside the sequence model. See `RESULTS.md`
-0.10.9.
-
-**Real hardware is 3.0% of training and materially reduces false positives.**
-Measured by withholding it and retraining the whole chain
-(`merge_real_hardware_data.py --synthetic-only`): synthetic-only gave **13/49**
-operator-marked false positives, adding the real at-rest rows gave **0/49**, with
-detection unchanged. ⚠ **Both figures here are pre-split and the 0/49 baseline is
-withdrawn** — this ablation was measured before session-level train/test splitting
-was enforced (see the resting-FP entry below and `docs/CLAIM_EVIDENCE_MATRIX.md`
-C4/C14). The *direction* — the real rows materially reduce false positives — is
-unaffected and load-bearing, but the exact synthetic-only magnitude must be
-re-measured under the corrected splits before "13/49 vs 0/49" is quoted again.
-Synthetic data alone cannot place the normal region where the real board actually
-sits, however well calibrated.
-*Do not treat the real rows as a rounding error because they are 3% of the count.*
-
-**A rejected message COULD mutate anti-replay state -- found by live adversarial
-test, now fixed.** `check_boot_replay` advanced `last_seen_boot_id` as a side
-effect and ran BEFORE the freshness gate, so a validly-signed stale message with an
-inflated boot_id bumped the baseline and was then rejected -- a rejected message
-mutating device state, and it locked the real board out as
-`replay_of_superseded_boot_session`. Now `check_boot_replay` is a pure predicate
-and `commit_boot_seq()` advances the baseline only after every gate passes, called
-from gateway.py after the freshness check. Guarded by `TestBootReplayStateIsolation`.
-The exploit needed the HMAC secret, but the same ordering fires on a real device
-during clock skew, which this project has hit before. See `RESULTS.md` 0.10.17.
-
-**Synthetic test-set attack density makes the blended accuracy misleading.**
-95.0% of esp32-vib-001's "normal" test rows sit within `LSTM_SEQ_LEN` of an
-injected attack, because attacks land every 12-30 ticks against an 8-message
-window. Result: the real device shows **73.0%** false positives on all normals but
-**0/40 (0.0%)** on genuinely clean ones -- every failure is window residue. The
-simulated devices show no such effect (9.3% vs 11.3%) because they mirror
-`rule_score` and have no window to contaminate. *The blended fused accuracy of
-0.717 is a property of the injection schedule, not of the models*, and the
-dedicated real-hardware evaluation on operator-marked resting windows is the
-trustworthy one (now **5/12** under session-level splitting, superseding the
-withdrawn 1/29 — see the resting-FP entry below). Keep injection density low
-relative to the sequence window in any dataset extension. See `RESULTS.md` 0.10.15.
-
-**Governance is 7/7 tenets and 7/7 falsifiers.** Tenet 5 was excluded from the
-falsifiability count for a long time as "not injectable -- its falsifier is missing
-data". Wrong: the check compares devices present in the rows against
-`DEVICE_REGISTRY`, so a row set covering fewer devices falsifies it, which is an
-ordinary row list. Corrected, and built from the live registry so it cannot drift.
-See `RESULTS.md` 0.10.16.
-
-**A stale model artifact is silent, and one cost every Transformer number
-published for a day.** `models/transformer_ae_esp32-vib-001.pt` sat at the
-previous day's build through ~6 full retrains because the documented training
-order named five steps and the Transformer was the sixth. Measured on the stale
-artifact it read accuracy **0.694** and **0.970** recall on
-`stealthy_forged_values` -- against the deployed fusion's 0.606, which looked like
-a free fix for this design's acknowledged blind spot and triggered a full
-evaluation of folding it into fusion. Retrained on current data: accuracy 0.754,
-stealthy recall **0.606**, statistically indistinguishable from the LSTM-AE
-(correlation 0.998, 4/1050 flag disagreements). *A comparison is only valid if
-every arm was trained on the same data*, and nothing enforced that until
-`test_no_model_artifact_is_older_than_its_training_data` was written. Training
-order is now **IF -> LSTM-AE -> Transformer -> GNN -> fusion -> RL**. See
-`RESULTS.md` 2.2 and 0.10.13.
-
-**The Isolation Forest is the weakest of the four signals, and that is now
-measured rather than suspected.** It swings 0.000-1.000 across physically
-near-identical resting samples (25-28 of 121 below 0.6) and produced the only
-live resting dip (`proc` 0.474 with `lstm` healthy at 0.780). Three hypotheses
-were tested: a single dominant feature (**wrong** -- all abs(rho) <= 0.19),
-estimator variance (**wrong** -- IQR ~0.37 across `n_estimators` 100-1000 and
-`max_samples` 256-4088), and `contamination=0.1` misplacing the threshold (real,
-but lowering it trades resting dips for missed anomalies: 0.005 gives 8/121
-resting dips but 15/192 missed disturbances against 8/192 today). It stays at
-0.1. Fusion still absorbs most of the weakness (detection unaffected), but note
-the resting false-positive rate is **5/12 on the untouched test session under
-session-level splitting**, not the pre-split 0/49 quoted in the original entry
-(withdrawn — see the resting-FP entry below) -- so this is margin plus a real,
-reported residual FP cost, not a fully-clean signal. See `RESULTS.md` 0.10.8.
-
-**Level-2 explainability: two metrics, both reported.** The single-channel flip
-test (literature-comparable, [21]'s method) is **37%** and stays. What it measures
-on this signal is channel correlation: repairing the best single channel drops
-reconstruction error 26825 -> 7157 (3.7x) where ~9700x is needed, while repairing
-the anomaly's **minimal sufficient set** (rank 3, `{peak, rms, crest_factor}`)
-clears it in **178/182 (98%)** windows. The anomaly has **rank ~3 and a rank-1
-instrument cannot undo it**; `gnn_score` passes the single-channel test at 100%
-because its anomaly genuinely is single-source. The **rank-aware metric (98%) is
-reported as a first-class result that meets the 70% target** -- legitimate, not
-goalpost-moving, precisely because the same rank-aware test leaves single-source
-anomalies at rank 1 (the GNN control proves it). *Do not report ONLY the higher
-number and do not delete the 37% -- both are printed together, and making the
-single-channel test itself pass is a model-architecture change (a rank-1 feature
-representation), which is future work.*
-
-**Resting-board false positives: 5/12 (41.7%) on the untouched TEST session under
-session-level splitting, detection 30/30.** ⚠ **This supersedes and withdraws the
-earlier 1/29 (3.4%) and 0/49 headlines**, which were measured while the test
-session's own at-rest rows were in the training set (`docs/REPOSITORY_AUDIT.md`
-§2.2). With TRAIN/VALIDATION/TEST split by session (`src/splits.py`,
-`data/splits/session_split.json`), the honest figures are: TEST
-(`20260902_221217`) detection **30/30**, 95% CI [88.6%, 100%], resting FP **5/12
-(41.7%)**, 95% CI [19.3%, 68.0%]; VALIDATION (`20260902_173108`) detection 14/14,
-FP 0/3. The 12-window denominator makes the interval very wide, and the jump from
-0/49 is direct evidence the learned normal region may be session- or
-mounting-specific — the mounting-robustness capture (`docs/REVIEW_RESPONSE_TRACKER.md`
-D) is the highest-value outstanding experiment for it. Reducing this rate is
-required future work, not a solved item. See `docs/CLAIM_EVIDENCE_MATRIX.md` C4,
-`RESULTS.md` §0.12.1.
-
-*(Historical, retained for the reasoning:* the pre-split correction from a warm-up
-rule that dropped enough records to FILL the LSTM window but left the block's own
-settling disturbance inside it — corrected to drop `2*LSTM_SEQ_LEN-1` — is what
-moved the leaky figure from 10/83 to 1/29; both are now withdrawn as leaky. See
-`RESULTS.md` 0.10.10.)*
-
-The hypothesis this entry used to carry -- that short per-phase blocks deny the
-autoencoder its steady run -- was **tested and refuted**. Control for input sigma
-and block position explains nothing: 0/50 resting windows below 5 sigma failed at
-every position, 10/11 at or above 5 sigma failed. The real mechanism is the hard
-cliff in `_error_to_score` (`clip(0.9 - 0.25*max(z,0))` pins to exactly 0.000 at
-z >= 3.6), which is why the signal is bimodal rather than continuous.
-
-**The detection floor is measured below the amplitude THRESHOLD, not at equal
-amplitude.** An unplanned periodic source (96% of `dominant_freq` in one 93.75 Hz
-bin, against 15 scattered bins and a 21% top bin at rest) let this be tested:
-windows built only from samples at or below the operator-marked resting ceiling
-(p99 = 0.0411 g) separate **14/14 flagged against 0/14** -- perfect separation on
-windows a per-sample amplitude threshold cannot separate at all. That is the first
-evidence the sequence model earns its place. *The claim is bounded:* within the
-below-ceiling band the live windows still carry ~2x the amplitude (0.0403 vs
-0.0190 max-peak-in-window), so amplitude is capped, not held equal. See
-`RESULTS.md` 0.10.14. The superseded statement follows.
-
-**Previously recorded, now partly closed:** Every detected event -- including the
-sustained phone-vibrate fault -- exceeds the resting band by a wide margin
-(`fault_weak` peak median 0.2557 g against a resting p99 of 0.0411 g). Of 30
-scored fault windows, **zero** have all 8 messages at or below the resting
-ceiling, so detection is still carried by amplitude, not by sequence structure a
-threshold would miss. Measuring the floor needs a continuous low-amplitude source
-(small DC motor with an unbalanced mass), not a phone: phone vibrate couples
-strongly through a desk and is intermittent rather than continuous.
-
-**The `dominant_freq` axis is only as good as the acquisition chain.** Now
-correct (500 Hz, DLPF 184 Hz, 66 Hz of anti-alias margin), but three successive
-defects lived here and each was invisible until the previous was fixed. Rate,
-filter and window size are ONE decision -- `firmware/main.py` records the full
-sequence so the next reader does not repeat it.
-
-**GNN response is not monotonic in neighbour health -- measured, and justified
-rather than fixed.** 25 violations across a 51-point sweep, confined to the
-saturated regions (0.00-0.20 and 0.70-1.00); the transition between them is sharp
-and correct. It matters more than it looks because the GNN carries the largest
-fusion coefficient (leakage-free set `[rule −0.003, iso +2.97, lstm +5.97, gnn
-+8.33]`, concern H / C13) -- so the decision-level question
-was asked directly: worst fused excursion **0.00295**, one decision change across
-the sweep and it is in the correct direction, **zero** cases of a verdict getting
-stricter as a neighbourhood improves. Ripple inside a saturated region, not a
-defect. *Not being fixed:* the only available fix is fabricating neighbour
-training data for input combinations the live system never produces, which is
-risk for no decision-level benefit. `TestTwoScoreSeparation` now pins the property
-that matters instead. See `RESULTS.md` 0.10.12.
-
-**The evaluated GCN does not establish graph superiority.** The exact local
-`4f6afa2` benchmark and its reporting were independently reviewed in
-`docs/PAPER_GNN_BASELINE_VERIFICATION.md` (RESULTS §0.13.25). Task-1 TEST F1:
-B0 0.9708, B1 0.7371, B2 **0.9174**, B3 0.3082, GNN **0.5865**. GNN beats
-B3 but loses to B0/B1/B2. B2's correction from **0.9662 to 0.9174** is material
-(FP 28→270). Task-2 TEST accuracy: global count 0.3958, concat logistic
-**0.5433**, concat MLP 0.5267, GNN scalar-output-vector head 0.5375. Thus GNN
-beats B0/B2 on Task 2 and loses to B1; it does not lose to every baseline.
-
-C2 is **SUPPORTED BUT WEAKER**: indexed multi-node representations outperform
-a global count here. B0 Task 2 already counts all valid nodes, so the literal
-single-node claim requires a new control. No statistical significance or
-network-size causation is established. Network size, sensor composition,
-provenance and the upstream model chain changed between historical runs.
-
-**Historical runs are distinct.** This KB previously cited the early 10-node
-artifact at `ba562f7:results/gnn_baselines/metrics.json` (Task-1 B2/GNN
-0.9852/0.8381; Task-2 B0/B1/B2/GNN 0.4142/0.6433/0.6567/0.6058).
-The later `de3654a` artifact follows a model-chain rebuild and GNN validity
-repair (Task-1 B2/GNN 0.9823/0.8760; Task-2
-0.4175/0.6533/0.6567/0.6117). Earlier unlabeled comparisons were stale,
-not alternative rounding. Both runs remain preserved in Git and the paper
-ledger. The current 20-node corrected artifact is `4f6afa2`; its pre-audit
-20-node predecessor is `c5cd38d`, unchanged at `162d4a6`.
-
-GNN/GCN was the deployed relational scorer at the time this section was written; as of 2026-09-07 it was superseded by a (corrected, as of the same day) M6 Set Transformer — see `docs/paper/13_RESULTS_MASTER_TABLES.md` O4/O5. This benchmark still evaluates a separate GCN trained on the constructed network, unaffected by that deployment change. See C2/C3 for permitted claim wording.
-
-**A validation-tuned static policy beats the adaptive policy -- reported as a
-negative result.** `scripts/evaluate_policy_comparison.py` scores five policies on
-identical inputs on the untouched test split. Macro-F1: static-optimised
-**0.5879**, decision tree 0.5834, **adaptive bandit 0.5329**, multiclass LR
-0.4355, deployed static 0.2744. The adaptive policy clearly beats the *deployed*
-static table but is beaten by the same table with thresholds selected on
-validation. **Terminology corrected: it is a contextual bandit with sample-average
-action-value estimation, not reinforcement learning** (no discount factor, no
-next-state bootstrapping; `RL_*` config names retained only to avoid a ~20-site
-rename). Caveat on the tuned static winner: its selected `θ_proc = 0.05` would make
-the deployed system nearly blind to process anomalies — the selection objective is
-not the deployment objective, so deployed thresholds stay 0.6/0.6. See
-`docs/CLAIM_EVIDENCE_MATRIX.md` C6/C7, `RESULTS.md` §0.13.6.
-
-**The transformer is NOT a fusion input, and that was re-tested rather than
-inherited.** It recalls `stealthy_forged_values` at 0.970 against the deployed
-fusion's 0.606, which looks like a free fix for the one attack class this design
-admits it cannot see. Adding it as a 5th input was measured offline: synthetic
-stealthy recall 0.636 -> 0.970 for +6.3 points of false positives, but on REAL
-hardware resting FP went **5/29 -> 15/29** and detection **92/92 -> 87/92** (the
-/29 denominator is the pre-split corpus, now superseded by session-level splitting
-— the *direction*, adding the transformer worsens real FP, is what the decision
-rests on). Rejected before shipping. The transfer failure is the signature of a model keying
-on an artefact of how `stealthy_forged_values` is *generated* rather than a
-property of stealthy attacks -- inference, not proof, since no real-hardware
-stealthy data exists. *Read the ablation table's per-class recalls with that in
-mind: a class measured only on generated attacks can reward recognising the
-generator.* See `RESULTS.md` 0.10.13.
-
-**Seed sensitivity is measured, not assumed.** `TRAINING_SEED` (env `ZTCPS_SEED`)
-threads through all five models. Across seeds 0-4: `fused` 0.715 +/- 0.002, the
-adaptive policy (**a contextual bandit, not RL** — no discount factor, no
-next-state bootstrapping; C6/concern N) macro-F1 0.537 +/- 0.002 against the
-*deployed* static table 0.278 +/- 0.001. ⚠ **The "beats static" claim is now
-qualified and partly withdrawn:** on the leakage-free test split the bandit
-(0.5329) beats the *deployed* static table (0.2744) but is **beaten by a
-validation-tuned static table (0.5879)** — so it does not outperform a well-tuned
-static baseline (`docs/CLAIM_EVIDENCE_MATRIX.md` C6, `RESULTS.md` §0.13.6). **The
-GNN is the seed-sensitive component** at +/- 0.011, ~10x the fused spread, while
-also being the heaviest-weighted input. `lstm_ae` and `transformer` show
-+/- 0.000, which was verified rather than trusted: seeds 11 and 12 produce weights
-differing by up to 1.40 per tensor, so they genuinely converge to the same
-held-out accuracy from different initialisations. Headline rates carry Wilson
-intervals — **resting FP is now 5/12 (41.7%), 95% CI [19.3%, 68.0%]** on the
-untouched test session (the tight-looking 1/29 [0.6%, 17.2%] was leaky and is
-withdrawn, C4). See `RESULTS.md` 0.10.11, §0.12–§0.13.
-
-**`data/` and `src/data/` split -- deliberate, and now guarded.** The audit
-database lives under `src/data/`; the checkpoint store that ATTESTS it lives at
-the repository root. Co-locating them would put the evidence and its witness in
-one directory, so a single `rm -rf` or one mis-scoped restore takes out both --
-and the checkpoint store exists precisely to detect tampering with the database.
-Previously recorded as "partly deliberate, partly historical"; it is now just
-deliberate, documented at both constants in `config.py`, and pinned by a test.
-*Do not consolidate them.*
-
-**Audit chain full-scan cost -- a budget with a trigger, not a worry.** Measured
-at 78,546 rows: incremental tail verification **46.7 ms** on every request, full
-O(rows) scan **2,539 ms** (32.3 us/row) cached for 300 s, i.e. a 0.85% duty cycle.
-The scan interval IS the naive-tamper detection latency, so it is deliberate.
-Projection: **~32 s at 1M rows**, the point at which a 300 s cache stops hiding it
-and a checkpoint-anchored partial scan becomes worth building.
-
-### Fragile areas — where to be careful
-
-- **Canonicalisation** (`firmware/main.py` ↔ `json.dumps(sort_keys=True)`). Any
-  change to payload fields or float formatting breaks **all** authentication.
-  Now guarded by `TestCanonicalisationContract`, but the guard is a
-  transcription of the firmware maths, so it must be updated alongside it.
-- **Training order.** `train_*.py` must run in dependency order; each replays
-  through the earlier models.
-- **`normalized_adjacency()`** is shared by training and inference. Changing it,
-  or `GNN_SELF_LOOP_WEIGHT`, without retraining silently invalidates the GNN.
-  `TestGNNAdjacency` pins the properties but cannot detect a stale artifact.
-- **On-device feature maths.** Signature validity proves the envelope, never the
-  contents. `TestFirmwareReferenceEquivalence` is the guard.
+---
 
 ## 13. Glossary
 
-- **Security Trust Score** — `[0,1]`, cyber-behaviour evidence only (rate,
-  step-up outcome, silence). 1 = trustworthy.
-- **Process Anomaly Score** — `[0,1]`, physical sensor evidence only, fused
-  from 4 sub-signals. 1 = normal. Never blended with Security Trust.
-- **PDP / PEP** — Policy Decision Point / Policy Enforcement Point; both live in
-  `gateway.py`.
-- **IdentityTargetingRisk** — per-*claimed*-ID counter of failed verification
-  attempts. The mechanism that makes trust-poisoning impossible (ADR-2).
-- **Step-up** — a gateway-issued nonce the device must echo inside a signed
-  message. Failure forces `BLOCK`.
-- **boot_id / seq** — anti-replay pair. `boot_id` persists across reboots
-  (one flash write per boot); `seq` is per-session.
-- **Level 1 / Level 2 explainability** — which *signal* dominated (SHAP over the
-  4 fusion inputs) / which *raw feature or neighbour* within that signal.
-- **Coordinated attack** — multiple devices individually in-range but jointly
-  anomalous. Only the GNN can see it.
-- **stealthy_forged_values** — a compromised device reporting deliberately
-  innocuous in-range values behind valid credentials. Not reliably detectable.
-- **Window-contaminated normal** — a genuinely normal message arriving within
-  the 8-sample LSTM window of a real anomaly. Correctly scored low; excluded
-  when measuring the true false-positive rate.
-- **Fused score / meta-learner** — the logistic-regression stacker combining the
-  4 Process Anomaly sub-signals.
-- **FR (IEC 62443)** — Foundational Requirement, FR1–FR7.
-- **Tenet (NIST SP 800-207)** — one of the 7 zero-trust principles; every audit
-  row is tagged with those it evidences.
-
-## Astra operational handoff — 2026-09-05
-
-The current audit section at the start and RESULTS 0.13.17 supersede earlier
-model-selection and policy headlines; ADRs and historical measurements above
-remain traceable. The full findings, exact stored topology/M9 values, P1–P6
-constraint interpretation and remaining blockers are in RESULTS.md §0.13.17.
-
-Do not overwrite archived model/result files to make the new temporal tests
-green. New model builds must consume contiguous normal runs and newly merged
-source ticks, then rebuild GCN, fusion, policy and research inputs in a versioned
-output location. Do not claim SHA-256 hashes captured now prove historical
-training provenance. Do not rename gnn_score until a runtime relational interface
-has artifact-schema compatibility and end-to-end complementarity evidence.
-
-The current runtime uses a bandit with frozen learned values. P6 is not an
-overall policy winner; the saved P5 result also meets the stated test constraints.
-Preserve all-negative controls with FPR and undefined detection F1. Preserve
-physical feature names and correlated rank-aware explanations.
+- **Security Trust Score** — trust-style (high=good) score computed from cyber evidence only (identity, HMAC, freshness, rate, step-up outcomes, silence).
+- **Process Anomaly (Trust) Score** — trust-style (high=good) score computed from physical sensor evidence only, fused from four sub-detectors.
+- **Two-score separation** — the architectural invariant that the two scores above are never blended before the policy lookup.
+- **PDP / PEP** — Policy Decision Point / Policy Enforcement Point; both roles are implemented in the single `gateway.py` process.
+- **RelationalPin** — a hash-verified pairing of a relational-scorer checkpoint and its matched fusion artifact, used by comparator scripts to prevent silent model-family mixing (`src/relational_pin.py`).
+- **M6** — the Set Transformer relational-scorer architecture; the currently deployed relational scorer as of 2026-09-07.
+- **GCN** — the legacy graph-convolutional relational scorer; preserved as a historical/comparator baseline, not deployed.
+- **M1–M9** — the offline cross-device benchmark model family (`scripts/benchmark_crossdevice_models.py`): concat-MLP, gradient boosting, Deep Sets, GCN, GATv2, Set Transformer, NP-ST, mixed-cardinality ST, mixed-provenance ST.
+- **Fusion meta-learner** — the `LogisticRegression` stacking model combining the four Process Anomaly sub-scores.
+- **Level-1 / Level-2 explainability** — SHAP over the four fused sub-scores (Level 1) and a drill-down into the dominant sub-score's own driving feature/node (Level 2).
+- **Contextual bandit (adaptive PDP)** — the offline-trained, epsilon-greedy-selected alternative policy; explicitly not RL/Q-learning.
+- **Held-out-replay-qualified** — a comparison measured on the untouched `test_session.json` under a matched, hash-pinned artifact pairing.
+- **Session-level split** — a train/validation/test split that keeps entire recording sessions on one side of the split, preventing the leakage that produced the withdrawn 0/49 and 1/29 resting-FP figures.
+- **Identity Targeting Risk** — a per-claimed-identity cooldown counter that throttles repeated failed-auth attempts against one device_id, without ever touching that device's actual trust state.
+- **Hash chain / checkpoint store** — the two-layer audit-log tamper-evidence mechanism: in-row `prev_hash`/`this_hash` linking, plus an independent, separately keyed periodic checkpoint file.
+- **FR1–FR7** — IEC 62443-3-3 Foundational Requirements; this system scores FR1/FR2/FR3/FR4/FR6 "implemented" and FR5/FR7 "partial" (see `PRD.md` §4).
+- **SL-2** — the IEC 62443-3-3 Security Level this system targets ("protection against intentional violation using simple means, low resources, generic skills, low motivation") — a design-time self-assessment, not a certification.
+- **Stealthy forged values / combined class** — the attack pattern this system's policy layer architecturally cannot learn to BLOCK from a `(security_trust, process_trust)` state space alone; reported as a negative result, not hidden.

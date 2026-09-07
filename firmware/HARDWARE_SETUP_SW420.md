@@ -1,9 +1,11 @@
 # Hardware Setup — `esp32-vib-002` (ESP32 + SW-420)
 
-> **Audit qualification (2026-09-05):** MPU6050 captures exist; SW-420
-> captures remain pending. SW-420 is another modality, not another MPU6050.
-> Firmware peer-certificate verification is opt-in and untested on real
-> hardware — do not rely on it for deployment claims.
+> **Audit qualification, updated 2026-09-07:** MPU6050 and SW-420 both now
+> have TRAIN/VALIDATION/TEST captures (SW-420: `results/sw420_real_hardware/`,
+> 0/70 and 0/108 resting FP, 109/109 and 115/115 detection on VALIDATION/TEST).
+> SW-420 is another modality, not another MPU6050. Firmware peer-certificate
+> verification is opt-in, hardened (see `HARDWARE_SETUP.md` §13) but still
+> untested on real hardware — do not rely on it for deployment claims.
 
 Second physical node. Read `HARDWARE_SETUP.md` first for the shared parts
 (flashing MicroPython, Thonny, the hotspot, Mosquitto/TLS) — this document

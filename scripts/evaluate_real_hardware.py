@@ -26,6 +26,13 @@ genuinely quiet moments between them: a tap every ~2 seconds means some 64 ms
 windows legitimately catch silence. Those samples are labelled with the action
 but physically indistinguishable from rest, and scoring them as misses would
 be measuring the labelling granularity rather than the model.
+
+--device DEVICE_ID selects which real physical device to evaluate (default
+esp32-vib-001, the MPU6050). esp32-vib-002 (SW-420) got its first held-out
+VALIDATION/TEST sessions on 2026-09-07 -- see DEVICE's module-level comment
+for the correctness fix (device-filtering in load_sessions()) this made
+necessary: a split can now contain labelled sessions from more than one
+physical device.
 """
 
 import collections
@@ -45,7 +52,20 @@ from trust_engine import rule_range_score
 import relational_pin as rp
 import splits
 
-DEVICE = "esp32-vib-001"
+# --device selects which real physical device to evaluate (default
+# esp32-vib-001, the MPU6050 -- preserves every prior call site's exact
+# behaviour unchanged). Threaded through explicitly rather than left as a
+# bare module constant, because data/splits/session_split.json's `test` and
+# `validation` splits can now contain labelled sessions from MORE THAN ONE
+# physical device (esp32-vib-002/SW-420 sessions were added 2026-09-07) --
+# load_sessions() below filters to just this device's own rows, which is the
+# fix for a real bug this would otherwise cause: scoring an SW-420 reading's
+# trigger_rate-shaped feature vector against the MPU6050's Isolation
+# Forest/LSTM-AE models (or vice versa) is a shape mismatch/garbage score,
+# not a graceful fallback, and would have silently corrupted the existing
+# esp32-vib-001 headline numbers the moment a second device's session
+# entered either split.
+DEVICE = sys.argv[sys.argv.index("--device") + 1] if "--device" in sys.argv else "esp32-vib-001"
 
 # Phases that represent a healthy, undisturbed board. Everything else is a real
 # physical disturbance the Process Anomaly engine should score lower.
@@ -54,6 +74,14 @@ NORMAL_PHASES = {"at_rest"}
 # Actions performed intermittently, so a fraction of their windows genuinely
 # contain no activity. Reported separately rather than counted as failures.
 INTERMITTENT_PHASES = {"gentle_tap", "tilt_rotate", "sharp_impact"}
+
+# Per-device "how much did this window actually move" proxy, used only for the
+# quiet-window diagnostic below -- NOT a scoring input. MPU6050's `peak` and
+# SW-420's `trigger_rate` are each that device's own documented primary
+# activity indicator (feature_engineering.py / feature_engineering_sw420.py:
+# a resting board reads trigger_rate == 0 by construction, exactly the
+# SW-420 analogue of a low peak).
+AMPLITUDE_KEY = {"esp32-vib-001": "peak", "esp32-vib-002": "trigger_rate"}
 
 
 def wilson(k, n, z=1.96):
@@ -74,7 +102,7 @@ def wilson(k, n, z=1.96):
 
 
 
-def load_sessions(split: str = "test"):
+def load_sessions(split: str = "test", device: str = DEVICE):
     """Loads ONLY the sessions allocated to `split`.
 
     This used to glob every `*_labelled.json` on disk, including the sessions
@@ -83,25 +111,37 @@ def load_sessions(split: str = "test"):
     false-positive rates over those was reporting partly on training data.
 
     Default is `test`, because that is the number the manuscript quotes. Pass
-    --split validation while tuning; TEST is read once, at the end."""
+    --split validation while tuning; TEST is read once, at the end.
+
+    A split can now hold labelled sessions from more than one physical
+    device (see DEVICE's module-level comment) -- labelled_session_paths()
+    itself is device-agnostic by design (it only knows about splits, not
+    sensors), so filtering to `device` happens here, once, rather than at
+    every downstream caller. A session file containing zero rows for
+    `device` is skipped with a note rather than silently contributing an
+    empty block."""
     splits.assert_disjoint()
     rows = []
     for path in splits.labelled_session_paths(split):
         with open(path) as f:
             session = json.load(f)
         sid = splits.session_id_of(path)
+        session = [r for r in session if r.get("device_id") == device]
+        if not session:
+            print(f"  {os.path.basename(path)} [session {sid}]: 0 records for {device!r}, skipped")
+            continue
         for r in session:
             r["_session"] = os.path.basename(path)
             r["_session_id"] = sid
             r.setdefault("source_type", "REAL")
-            r.setdefault("sensor_type", "MPU6050")
+            r.setdefault("sensor_type", "MPU6050" if device == "esp32-vib-001" else "SW-420")
             r["split"] = split
         rows.extend(session)
-        print(f"  {os.path.basename(path)} [session {sid}]: {len(session)} labelled records")
+        print(f"  {os.path.basename(path)} [session {sid}]: {len(session)} labelled records for {device!r}")
     return rows
 
 
-def score_all(rows, pin):
+def score_all(rows, pin, device: str = DEVICE):
     """Scores each record through the real pipeline.
 
     The LSTM-AE's rolling window is RESET at every phase boundary, and the first
@@ -150,16 +190,16 @@ def score_all(rows, pin):
             warmup = 0
         warmup += 1
         reading = r["reading"]
-        rule, _ = rule_range_score(DEVICE, reading)
-        if is_feature_vector(DEVICE):
+        rule, _ = rule_range_score(device, reading)
+        if is_feature_vector(device):
             fv = fe.feature_vector(reading)
-            iso = if_s.score(DEVICE, fv)
-            lstm = lstm_s.score(DEVICE, fv)
+            iso = if_s.score(device, fv)
+            lstm = lstm_s.score(device, fv)
         else:
             iso = lstm = rule
         gnn_s.score("sensor-002", 0.9, 0.9, 0.9)
         gnn_s.score("actuator-001", 0.9, 0.9, 0.9)
-        gnn = gnn_s.score(DEVICE, rule, iso, lstm)
+        gnn = gnn_s.score(device, rule, iso, lstm)
         fused, _, _ = fusion.combine(rule, iso, lstm, gnn)
         # Drop 2*LSTM_SEQ_LEN-1, not LSTM_SEQ_LEN-1. Filling the window is not the
         # same as clearing the block's own settling disturbance out of it: a window
@@ -191,19 +231,20 @@ def main():
     split = sys.argv[sys.argv.index("--split") + 1] if "--split" in sys.argv else "test"
     pin_name = sys.argv[sys.argv.index("--relational-model") + 1] if "--relational-model" in sys.argv else "gcn"
     pin = rp.KNOWN_PINS[pin_name]  # raises KeyError loudly on an unknown name
+    sensor_label = "MPU6050" if DEVICE == "esp32-vib-001" else "SW-420" if DEVICE == "esp32-vib-002" else "?"
     print("=" * 78)
-    print("REAL HARDWARE EVALUATION -- operator-labelled ESP32 + MPU6050 telemetry")
+    print(f"REAL HARDWARE EVALUATION -- operator-labelled {DEVICE} ({sensor_label}) telemetry")
     print(f"split = {split.upper()}   (allocation: data/splits/session_split.json)")
     print(f"relational model pin = {pin_name}   (checkpoint {pin.relational_checkpoint})")
     print("=" * 78)
-    rows = load_sessions(split)
+    rows = load_sessions(split, DEVICE)
     if not rows:
         raise SystemExit(
-            f"No *_labelled.json sessions allocated to the {split} split. Capture one with:\n"
-            "    python collect_hardware_session.py --labelled\n"
+            f"No *_labelled.json sessions allocated to the {split} split for device {DEVICE!r}. Capture one with:\n"
+            f"    python collect_hardware_session.py --device {DEVICE} --labelled\n"
             "then add its session id to data/splits/session_split.json.")
 
-    scored = score_all(rows, pin)
+    scored = score_all(rows, pin, DEVICE)
     by = collections.defaultdict(list)
     for r in scored:
         by[r["phase"]].append(r)
@@ -241,16 +282,17 @@ def main():
               f"({kd}/{len(events)})   95% CI [{lo:.1%}, {hi:.1%}]")
 
     # The honest caveat: some labelled-action windows contain no action.
-    if normal and events:
-        rest_max_peak = max(r["reading"]["peak"] for r in normal)
-        quiet = [r for r in events if r["reading"]["peak"] <= rest_max_peak]
+    amp_key = AMPLITUDE_KEY.get(DEVICE)
+    if normal and events and amp_key and all(amp_key in r["reading"] for r in normal + events):
+        rest_max_peak = max(r["reading"][amp_key] for r in normal)
+        quiet = [r for r in events if r["reading"][amp_key] <= rest_max_peak]
         if quiet:
-            loud = [r for r in events if r["reading"]["peak"] > rest_max_peak]
+            loud = [r for r in events if r["reading"][amp_key] > rest_max_peak]
             det_loud = sum(1 for r in loud if r["fused"] < PROCESS_THRESHOLD) / len(loud)
             print()
             print(f"  {len(quiet)} of {len(events)} action-labelled windows are physically "
                   f"indistinguishable from rest")
-            print(f"  (peak <= {rest_max_peak:.3f} g, the resting maximum) -- intermittent "
+            print(f"  ({amp_key} <= {rest_max_peak:.3f}, the resting maximum) -- intermittent "
                   f"actions have gaps between them.")
             print(f"  Detection on the {len(loud)} windows that DO contain movement: {det_loud:.1%}")
             print(f"  Reported both ways rather than silently excluding the quiet ones, which")

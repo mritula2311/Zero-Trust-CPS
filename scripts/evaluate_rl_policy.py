@@ -16,15 +16,32 @@ ordered replay) never has two independent implementations that could drift
 apart.
 
 Three things reported:
-1. Held-out comparison: the ALREADY-DEPLOYED AdaptivePDP
-   (models/adaptive_pdp_qtable.json) vs. the static 2x2 policy_engine.decide(),
-   both scored by AdaptivePDP.reward_for() against real ground-truth
-   situations on data/collected/test_session.json.
+1. Held-out comparison: the ALREADY-DEPLOYED AdaptivePDP (whichever Q-table
+   config.ADAPTIVE_PDP_MODEL_PATH ambiently points to -- see
+   _resolve_deployed_pin() below for why this can no longer be assumed to be
+   a fixed filename) vs. the static 2x2 policy_engine.decide(), both scored
+   by AdaptivePDP.reward_for() against real ground-truth situations on
+   data/collected/test_session.json.
 2. Convergence trend: trains a FRESH bandit from scratch (does NOT touch
    the deployed Q-table) over the training data, to show it actually
    converges rather than asserting it does.
 3. Multi-class confusion matrix + macro-F1 for both policies on the
    held-out set.
+
+RELATIONAL/FUSION PIN: this script used to call build_training_triples()
+with no `pin` argument, silently defaulting to rp.GCN (see that function's
+signature in train_adaptive_pdp.py) regardless of which relational scorer
+the ambient Q-table was actually trained against. Once config.py's ambient
+SET_TRANSFORMER_MODEL_PATH/FUSION_MODEL_PATH were repointed at the corrected
+M6 artifacts (2026-09-07 promotion, see results/m6_corrected_policy/), that
+default silently became wrong -- this script would have scored an
+M6-trained Q-table's greedy actions against GCN-computed (security, process)
+triples, exactly the artifact-family-mixing bug src/relational_pin.py exists
+to catch (see results/gcn_m6_corrected_comparison/summary.md finding 1 for
+the sibling bug this mirrors in the fusion comparator scripts). Fixed by
+resolving the ambient Q-table's OWN claimed pin from its metadata sidecar
+and hash-verifying that claim via relational_pin.verify_policy_lineage()
+before using it, instead of assuming one.
 """
 
 import os
@@ -32,8 +49,9 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from config import DATA_COLLECTED_DIR, RL_TRAINING_EPISODES
+from config import DATA_COLLECTED_DIR, RL_TRAINING_EPISODES, ADAPTIVE_PDP_MODEL_PATH
 import json
+import relational_pin as rp
 from policy_engine import decide
 from adaptive_pdp import AdaptivePDP, ACTIONS, CORRECT_ACTION_FOR_SITUATION
 from train_adaptive_pdp import build_training_triples, situation_weights
@@ -44,16 +62,47 @@ TEST_PATH = os.path.join(DATA_COLLECTED_DIR, "test_session.json")
 SITUATIONS = ["normal", "physical_fault", "security_concern", "combined"]
 
 
-def _load_triples(path):
+def resolve_deployed_pin(qtable_path: str = ADAPTIVE_PDP_MODEL_PATH) -> rp.RelationalPin:
+    """Which RelationalPin the Q-table at qtable_path was actually trained
+    against -- read from its own metadata sidecar (written unconditionally
+    by scripts/train_adaptive_pdp.py) and hash-verified via
+    relational_pin.verify_policy_lineage(), never assumed. Fails loudly,
+    the same way every other comparator in this project does on a lineage
+    mismatch, rather than silently defaulting to GCN. A Q-table with no
+    sidecar at all (the pre-lineage-fix artifact format --
+    models/adaptive_pdp_qtable.json and its preserved
+    *_corrupted_provenance copy) is exactly the case this must refuse to
+    guess about."""
+    meta_path = rp.policy_meta_path(qtable_path)
+    if not os.path.exists(meta_path):
+        raise SystemExit(
+            f"{qtable_path} has no lineage metadata sidecar ({meta_path}) -- this is the "
+            f"pre-lineage-fix artifact format (see scripts/train_adaptive_pdp.py's "
+            f"docstring for the corrupted-provenance incident this caused). Retrain via "
+            f"scripts/train_adaptive_pdp.py (which always writes one) before evaluating "
+            f"it here -- this script does not assume a pin for an unpinned table."
+        )
+    with open(meta_path) as f:
+        pin_name = json.load(f).get("pin_name")
+    if pin_name not in rp.KNOWN_PINS:
+        raise SystemExit(f"{meta_path} names unknown pin {pin_name!r} -- not one of {sorted(rp.KNOWN_PINS)}")
+    pin = rp.KNOWN_PINS[pin_name]
+    meta = rp.verify_policy_lineage(pin, qtable_path)  # hash-verifies the claim, does not just trust the name
+    print(f"[evaluate_rl_policy] ambient deployed Q-table ({qtable_path}) lineage-verified "
+          f"against pin={pin.name!r} (seed={meta.get('seed')}, clock_protocol={meta.get('clock_protocol')})")
+    return pin
+
+
+def _load_triples(path, pin: rp.RelationalPin):
     with open(path) as f:
         records = json.load(f)
-    return build_training_triples(records)
+    return build_training_triples(records, pin=pin)
 
 
 def evaluate_static_vs_rl(triples):
-    pdp = AdaptivePDP()  # loads the already-trained, deployed Q-table -- read-only here
+    pdp = AdaptivePDP()  # loads the already-trained, deployed Q-table (config.ADAPTIVE_PDP_MODEL_PATH) -- read-only here
     if not pdp.is_trained():
-        raise SystemExit("adaptive_pdp_qtable.json not found -- run scripts/train_adaptive_pdp.py first.")
+        raise SystemExit(f"{ADAPTIVE_PDP_MODEL_PATH} not found -- run scripts/train_adaptive_pdp.py first.")
 
     policies = {
         "Static": lambda sec, proc: decide(sec, proc),
@@ -142,13 +191,13 @@ def convergence_trend(triples):
     triples = [t for t in triples if t[2] != "combined"]
     print(f"\nConvergence trend -- training a FRESH bandit from scratch on "
           f"{len(triples)} training messages (does not touch the deployed "
-          f"models/adaptive_pdp_qtable.json), {RL_TRAINING_EPISODES} episodes, "
+          f"Q-table at {ADAPTIVE_PDP_MODEL_PATH}), {RL_TRAINING_EPISODES} episodes, "
           f"situation-balanced reward (same weighting scripts/train_adaptive_pdp.py "
           f"uses for the deployed model -- see situation_weights()'s docstring):\n")
     weights = situation_weights(triples)
     pdp = AdaptivePDP()
-    # AdaptivePDP() loads the already-deployed adaptive_pdp_qtable.json in its
-    # constructor, so without this reset the "fresh" bandit would actually be
+    # AdaptivePDP() loads the ambient-deployed Q-table (config.ADAPTIVE_PDP_MODEL_PATH)
+    # in its constructor, so without this reset the "fresh" bandit would actually be
     # warm-started from the fully-trained table -- episode 0 would already
     # show near-optimal reward and the from-scratch convergence claim in this
     # function's docstring/header would be false. Start from an empty Q-table
@@ -166,7 +215,8 @@ def convergence_trend(triples):
 
 def main():
     print("Scoring held-out and training sessions through the full two-score pipeline...\n")
-    test_triples = _load_triples(TEST_PATH)
+    deployed_pin = resolve_deployed_pin()
+    test_triples = _load_triples(TEST_PATH, deployed_pin)
     policies = evaluate_static_vs_rl(test_triples)
 
     deployed_pdp = policies["RL (greedy)"]
@@ -174,7 +224,7 @@ def main():
     confusion_matrix(test_triples, static_policy, "Static 2x2 table")
     confusion_matrix(test_triples, deployed_pdp, "RL (greedy, deployed)")
 
-    train_triples = _load_triples(TRAIN_PATH)
+    train_triples = _load_triples(TRAIN_PATH, deployed_pin)
     convergence_trend(train_triples)
 
 

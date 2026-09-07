@@ -1,5 +1,7 @@
 # Independent hardware, temporal-split, feature, and virtual-generator review
 
+> **[UPDATE, 2026-09-07 — after this review]** This review's SW-420 findings below (only one TRAIN capture, zero held-out physical rows, "no held-out physical SW-420 performance can be reported") reflect the state *as observed at the time of this review*, preserved here unedited as the historical record. Since then, two independent SW-420 VALIDATION/TEST sessions were captured and evaluated (`results/sw420_real_hardware/`: VALIDATION 0/70 resting FP, 109/109 detection; TEST 0/108 resting FP, 115/115 detection) — a standalone real-hardware evaluation now exists. This is a **separate pipeline** from the 20-node constructed network benchmark this review's row-count analysis below describes (`generate_network_data.py`'s resampling and its `PENDING_REAL_HARDWARE_DATA` placeholder mechanism); that benchmark's SW-420 slot in VALIDATION/TEST remains pending exactly as this review found — it was not touched by the new captures. See `docs/paper/15_HARDWARE_VALIDATION.md`'s "SW-420 boundary" section and `docs/paper/13_RESULTS_MASTER_TABLES.md` §Q2 for the current, full writeup.
+
 **Scope.** Read-only inspection of raw capture JSON, the split manifest/loaders, generated network files, local-model trainers, firmware/gateway signing code, feature implementations, virtual generator, validation script, and available result artifacts. I ran only lightweight readers/counts; no model training or data generation. Branch observed: `<historical-review-branch>`.
 
 ## Verdict

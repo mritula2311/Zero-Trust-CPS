@@ -1,6 +1,6 @@
 # ZT-Duo / Zero-Trust CPS
 
-> **Current reference, 2026-09-07 (final corrected-M6 pass):** Use the [paper master guide](docs/paper/00_PAPER_MASTER_GUIDE.md), [architecture](docs/paper/02_SYSTEM_ARCHITECTURE.md), [numerical authority](docs/paper/13_RESULTS_MASTER_TABLES.md), [claim gate](docs/paper/17_CLAIM_EVIDENCE_MATRIX.md) and [limitations](docs/paper/18_LIMITATIONS_AND_THREATS_TO_VALIDITY.md). The configured gateway uses a corrected M6 Set Transformer checkpoint with its matched fusion and policy artifacts (promoted after a confirmed training defect was found and fixed in the originally-deployed checkpoint, preserved as historical evidence); the standalone M1–M9 benchmark and preserved GCN replay are separate evidence. M6 comparative gains (fusion and policy) are now measured under an explicitly-pinned, held-out-replay-qualified comparison — see 13 O4/O5. SW-420 has TRAIN capture only. Older sections below retain their historical scope.
+> **Current reference, 2026-09-07 (final corrected-M6 pass):** Use the [paper master guide](docs/paper/00_PAPER_MASTER_GUIDE.md), [architecture](docs/paper/02_SYSTEM_ARCHITECTURE.md), [numerical authority](docs/paper/13_RESULTS_MASTER_TABLES.md), [claim gate](docs/paper/17_CLAIM_EVIDENCE_MATRIX.md) and [limitations](docs/paper/18_LIMITATIONS_AND_THREATS_TO_VALIDITY.md). The configured gateway uses a corrected M6 Set Transformer checkpoint with its matched fusion and policy artifacts (promoted after a confirmed training defect was found and fixed in the originally-deployed checkpoint, preserved as historical evidence); the standalone M1–M9 benchmark and preserved GCN replay are separate evidence. M6 comparative gains (fusion and policy) are now measured under an explicitly-pinned, held-out-replay-qualified comparison — see 13 O4/O5. SW-420 has TRAIN/VALIDATION/TEST capture as of 2026-09-07 (see 13 Q2); its slot in the separate constructed 20-node network benchmark remains PENDING_REAL_HARDWARE_DATA in VALIDATION/TEST, unaffected by this closure. Older sections below retain their historical scope.
 
 
 A research gateway that authenticates CPS telemetry and keeps **Security Trust**
@@ -36,10 +36,15 @@ not CoAP or DTLS.
 The registry has 22 identities: two configured physical devices, eighteen network
 research simulations and two legacy scalar simulations. `esp32-vib-001`
 (ESP32 + MPU6050) has TRAIN/VALIDATION/TEST physical captures. `esp32-vib-002`
-(SW-420) has a TRAIN-only capture (`20260905_162002`); its held-out captures
-remain pending. The live legacy simulator publishes only its original
-three-device cohort, excluding configured physical IDs; network simulations use
-the dedicated data-generation scripts. Configuration does not prove live presence.
+(SW-420) has TRAIN/VALIDATION/TEST physical captures as of 2026-09-07
+(`20260905_162002` TRAIN; `20260907_165627` VALIDATION, 0/70 resting FP,
+109/109 detection; `20260907_170639` TEST, 0/108 resting FP, 115/115 detection —
+`results/sw420_real_hardware/`). Its slot in the separate constructed 20-node
+network benchmark remains `PENDING_REAL_HARDWARE_DATA` in VALIDATION/TEST, a
+different pipeline this closure did not touch. The live legacy simulator
+publishes only its original three-device cohort, excluding configured physical
+IDs; network simulations use the dedicated data-generation scripts.
+Configuration does not prove live presence.
 
 ## What the research supports
 

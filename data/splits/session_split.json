@@ -20,13 +20,18 @@
     "  20260902_221217 -> TEST. Operator-marked, and the only session containing",
     "                     graded fault_weak / fault_strong phases, so the untouched",
     "                     test set is the one that can speak to detection floor.",
-    "  20260905_162002 -> TRAIN. esp32-vib-002 (SW-420), the FIRST and ONLY real",
-    "                     capture for this device -- it anchors the learned normal",
-    "                     region the same way 20260902_171313 does for",
-    "                     esp32-vib-001, but there is currently NO held-out real",
-    "                     SW-420 session: every real SW-420 evaluation number is",
-    "                     against synthetic data only until a second session is",
-    "                     captured and allocated to validation/test.",
+    "  20260905_162002 -> TRAIN. esp32-vib-002 (SW-420), the FIRST real capture",
+    "                     for this device -- anchors the learned normal region",
+    "                     the same way 20260902_171313 does for esp32-vib-001.",
+    "  20260907_165627 -> VALIDATION. esp32-vib-002 (SW-420), SECOND independent",
+    "                     real capture session (299 operator-marked records, 8/8",
+    "                     intervals marked, matched 299/299 to a gateway decision).",
+    "  20260907_170639 -> TEST. esp32-vib-002 (SW-420), THIRD independent real",
+    "                     capture session (343 operator-marked records, 8/8",
+    "                     intervals marked, matched 343/343 to a gateway decision).",
+    "                     Untouched by fitting/normalization/threshold selection/",
+    "                     model selection for this device -- the first genuine",
+    "                     held-out real SW-420 test set.",
     "",
     "TEST is untouched by model fitting, normalization, threshold selection,",
     "hyperparameter tuning, fusion training, reward design, and model selection.",
@@ -42,10 +47,12 @@
     "20260905_162002"
   ],
   "validation_sessions": [
-    "20260902_173108"
+    "20260902_173108",
+    "20260907_165627"
   ],
   "test_sessions": [
-    "20260902_221217"
+    "20260902_221217",
+    "20260907_170639"
   ],
   "excluded_sessions": {
     "20260901_112219": "old unpaced acquisition chain, different frequency axis",

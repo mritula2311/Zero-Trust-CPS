@@ -209,6 +209,54 @@ def _render_o5_corrected_policy():
     return ''.join(out)
 
 
+def _render_q2_sw420_hardware():
+    """Q2: reads results/sw420_real_hardware/hardware_results.json (produced
+    by the 2026-09-07 SW-420 capture-and-evaluate pass) rather than
+    hand-transcribing numbers, so a future rerun of evaluate_real_hardware.py
+    --device esp32-vib-002 regenerates this section correctly. Mirrors the
+    O4/O5 pattern: read frozen JSON via read() (hash-tracked into SOURCES),
+    build markdown, return a string for main() to append."""
+    d = 'results/sw420_real_hardware'
+    j = read(f'{d}/hardware_results.json')
+    SOURCES[f'{d}/hardware_evaluation.log'] = hashlib.sha256((ROOT / f'{d}/hardware_evaluation.log').read_bytes()).hexdigest()
+
+    out = ['## Q2. SW-420 (esp32-vib-002) held-out physical hardware (2026-09-07)\n']
+    out.append(
+        '[CURRENT] Closes the "PENDING VALIDATION" gap in Q above. Until this pass, '
+        f"`{j['meta']['device']}` (SW-420) had exactly one labelled real-hardware capture "
+        f"(TRAIN-only) and zero held-out VALIDATION/TEST sessions. Two independent new capture "
+        f"sessions were collected under the identical operator-marked protocol Q uses for "
+        f"esp32-vib-001: VALIDATION (session `{j['meta']['sessions']['validation']['session_id']}`, "
+        f"{j['meta']['sessions']['validation']['records']} records, "
+        f"{j['meta']['sessions']['validation']['intervals_marked']} intervals marked, "
+        f"{j['meta']['sessions']['validation']['matched_to_gateway_decision']} matched to a gateway "
+        f"decision) and TEST (session `{j['meta']['sessions']['test']['session_id']}`, "
+        f"{j['meta']['sessions']['test']['records']} records, "
+        f"{j['meta']['sessions']['test']['intervals_marked']} intervals marked, "
+        f"{j['meta']['sessions']['test']['matched_to_gateway_decision']} matched).\n")
+    out.append(f"**A real evaluator bug this exposed and fixed.** {j['meta']['bug_found_and_fixed']}\n")
+
+    rows = []
+    for key, label in (('validation_gcn', 'VALIDATION, gcn'), ('test_gcn', 'TEST, gcn'),
+                        ('test_m6_corrected', 'TEST, m6_corrected (deployed)')):
+        r = j['results'][key]
+        fp, det = r['resting_false_positive_rate'], r['disturbance_detection_rate']
+        rows.append([label, f"{fp['k']} / {fp['n']}", f"{fp['rate']:.1%}",
+                     f"[{fp['wilson_ci95'][0]:.1%}, {fp['wilson_ci95'][1]:.1%}]",
+                     f"{det['k']} / {det['n']}", f"{det['rate']:.1%}",
+                     f"[{det['wilson_ci95'][0]:.1%}, {det['wilson_ci95'][1]:.1%}]"])
+    out.append(table(['Split, pin', 'Resting FP', 'Rate', 'Wilson 95% CI', 'Detection', 'Rate', 'Wilson 95% CI'], rows))
+    out.append(
+        'No regression/difference between the GCN and the actually-deployed corrected-M6 relational '
+        'pin on this device — consistent with the same finding already established for esp32-vib-001 '
+        '(Q above, `results/gcn_m6_corrected_comparison/hardware_comparison.json`).\n')
+    out.append(f"**Read qualification, not a \"better sensor\" claim.** {j['qualification']}\n")
+    out.append(
+        f"Source for this section: `{j['source_log']}`, `{d}/hardware_results.json`, `{j['source_summary']}`; "
+        f"producer `{j['meta']['producer']}`; session allocation `data/splits/session_split.json`.\n")
+    return ''.join(out)
+
+
 def main():
     bpath = 'results/crossdevice_benchmark/metrics.json'
     b = read(bpath)
@@ -346,9 +394,10 @@ def main():
     out.append('**2026-09-07 comparator fix and finding** (see O4 and [results/gcn_m6_corrected_comparison/policy_comparison.json](../../results/gcn_m6_corrected_comparison/policy_comparison.json)): `evaluate_policy_comparison.py` is now explicitly pinned to `gcn` by default (was silently reading the ambient, now-M6-fitted `FUSION_MODEL_PATH`). A pinned rerun reproduces P1/P2/P6 within verified wall-clock-jitter tolerance, but P5 is stably different from this table\'s preserved number — evidence `models/adaptive_pdp_qtable.json` was itself retrained under the mismatched-artifact bug during the 2026-09-07 deployment. **Same day, final pass: closed — see O5** for a corrected, deterministic-clock, clean-provenance GCN-vs-M6 policy comparison (17 Claim D).\n')
     out.append('## Q. Held-out physical hardware\n')
     out.append(citation('results/final_verification/hardware_evaluation.log','scripts/evaluate_real_hardware.py','[VERIFIED PRESERVED GCN-ERA REPLAY] One MPU6050 TEST session 20260902_221217. Reset/warm-up exclusion leaves 42 scored observations at threshold 0.6. Raw session has 116 rows.'))
-    out.append(table(['Endpoint','Count','Rate','Printed Wilson 95% interval','Limit'],[['Rest false alarm','5 / 12','41.7%','19.3%–68.0%','Small dependent sample'],['Disturbance detection','30 / 30','100%','88.6%–100%','Hand-induced physical events; no cyberattack'],['SW-420 held-out','0 physical sessions',None,None,'PENDING VALIDATION']]))
+    out.append(table(['Endpoint','Count','Rate','Printed Wilson 95% interval','Limit'],[['Rest false alarm','5 / 12','41.7%','19.3%–68.0%','Small dependent sample'],['Disturbance detection','30 / 30','100%','88.6%–100%','Hand-induced physical events; no cyberattack'],['SW-420 held-out','see Q2 below','—','—','see Q2 below — CLOSED 2026-09-07, no longer pending']]))
     out.append('Two action-labelled windows have peak no greater than resting maximum; 28 movement-containing windows are also all detected. Do not drop the quiet windows silently or use this replay as twenty-device field evidence.\n')
     out.append('**2026-09-07: M6 comparison now exists.** `evaluate_real_hardware.py --relational-model {gcn,m6_deployed,m6_corrected}` (src/relational_pin.py) reproduces this exact table when pinned to `gcn`, and gives identical numbers for both M6 variants — no regression on the available physical evidence (Gate H). See O4 and [results/gcn_m6_corrected_comparison/hardware_comparison.json](../../results/gcn_m6_corrected_comparison/hardware_comparison.json).\n')
+    out.append(_render_q2_sw420_hardware())
     out.append('## Explainability: single-channel and exploratory rank-aware repair\n')
     ep='results/final_verification/explainability_evaluation_corrected.log'
     out.append(citation(ep,'scripts/evaluate_explainability_level2.py','[VERIFIED PRESERVED GCN-ERA REPLAY] Single-channel evaluation uses flagged resolvable legacy TEST rows and a historical 0.5 threshold, not runtime 0.6. The separate minimal repair analysis pools labelled MPU captures across TRAIN/VALIDATION/TEST and is exploratory, not held-out validation. 2026-09-07: `--relational-model {gcn,m6_deployed,m6_corrected}` now pins this explicitly; default `gcn` reproduces the table below exactly. Not in the required GCN-vs-M6 comparison set, so no new M6 explainability headline number is reported.'))

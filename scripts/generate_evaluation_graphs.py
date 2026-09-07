@@ -196,7 +196,11 @@ def fig_rl_policy():
     from adaptive_pdp import AdaptivePDP, ACTIONS, CORRECT_ACTION_FOR_SITUATION
     from policy_engine import decide
 
-    test_triples = er._load_triples(er.TEST_PATH)
+    # See evaluate_rl_policy.py's module docstring: triples must be computed
+    # against the SAME relational/fusion pin the ambient-deployed Q-table
+    # below was actually trained on, hash-verified, not a silent GCN default.
+    deployed_pin = er.resolve_deployed_pin()
+    test_triples = er._load_triples(er.TEST_PATH, deployed_pin)
     pdp = AdaptivePDP()
 
     policies = {
@@ -478,11 +482,18 @@ def fig_rl_convergence():
     from adaptive_pdp import AdaptivePDP
     from train_adaptive_pdp import situation_weights
 
-    train_triples = er._load_triples(er.TRAIN_PATH)
+    # Resolve which relational/fusion pin the ambient-deployed Q-table was
+    # actually trained against (hash-verified, not assumed) -- see
+    # evaluate_rl_policy.py's module docstring for the silent-GCN-default
+    # bug this replaces; using the wrong pin here would compute
+    # (security, process) triples inconsistent with the Q-table this figure
+    # is meant to represent.
+    deployed_pin = er.resolve_deployed_pin()
+    train_triples = er._load_triples(er.TRAIN_PATH, deployed_pin)
     weights = situation_weights(train_triples)
     pdp = AdaptivePDP()
-    # AdaptivePDP() loads the deployed adaptive_pdp_qtable.json in its
-    # constructor -- reset to empty so this genuinely trains from scratch, or
+    # AdaptivePDP() loads the ambient-deployed Q-table (config.ADAPTIVE_PDP_MODEL_PATH)
+    # in its constructor -- reset to empty so this genuinely trains from scratch, or
     # the plotted curve (titled "Fresh Bandit Trained From Scratch") would
     # start already-converged and misrepresent convergence. Mirrors the same
     # fix in evaluate_rl_policy.convergence_trend().

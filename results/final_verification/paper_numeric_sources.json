@@ -31,6 +31,8 @@
   "results/astra_masking_review/historical_metrics.json": "852ce8ec8232366934a764efc88a451eddf8684ffdc383019699b2dbee732dd4",
   "results/gnn_baselines/metrics.json": "a4fb8d9e3e248db2dc69c6d33cdfb144c9b2c2c2820c9b30ea123477ef1d3b37",
   "results/policy_comparison/metrics.json": "90d46d6a4363a2a6f53fe8161f8f5ab300800f6d12fb12c76505888265fbf66c",
+  "results/sw420_real_hardware/hardware_results.json": "ef357f9d08ce92850ed6c233e7a7341c5acef791be3545a20794407a253f4bb7",
+  "results/sw420_real_hardware/hardware_evaluation.log": "2a0859746d54f50fa5a8bde6c3ecc8c9967d5494cd0162ee92a24ed616a9fd64",
   "results/latency/latency.json": "63635039c0f04e53c9c658e89911eef3b15d6fdc7f148bf3f896126ae9f02d71",
   "results/final_verification/generator_validation.log": "8ac7fbf8cc6e2331375684862a6dbd41c9999ab23174d2d3113fbf7c3649d495",
   "results/final_verification/hardware_evaluation.log": "de5db5f6ed1c3d78e49ae9f9d290a635f1eed0c96a73afaf0db8bd0e243ff11a",

@@ -1,9 +1,11 @@
 # Hardware Setup — ESP32 + MPU6050
 
-> **Audit qualification (2026-09-05):** MPU6050 captures exist; SW-420
-> captures remain pending. SW-420 is another modality, not another MPU6050.
-> Firmware peer-certificate verification is opt-in and untested on real
-> hardware (Section 13) — do not rely on it for deployment claims.
+> **Audit qualification, updated 2026-09-07:** MPU6050 and SW-420 both now
+> have TRAIN/VALIDATION/TEST captures (SW-420: `results/sw420_real_hardware/`,
+> 0/70 and 0/108 resting FP, 109/109 and 115/115 detection on VALIDATION/TEST).
+> SW-420 is another modality, not another MPU6050. Firmware peer-certificate
+> verification is opt-in, hardened (Section 13) but still untested on real
+> hardware — do not rely on it for deployment claims.
 
 A complete, zero-to-running guide for flashing `firmware/main.py` onto a
 real ESP32 and getting it publishing real, HMAC-signed, boot-aware
@@ -537,18 +539,35 @@ to reflect the real observed range with reasonable margin.
   default the board does not verify the broker's TLS certificate. Traffic is
   still encrypted, but a man-in-the-middle with control of your local network
   could in principle present a fake certificate the board wouldn't reject.
-  `connect_mqtt()` now supports opting into verification: set
+  `connect_mqtt()` supports opting into verification: set
   `MQTT_CA_CERT_FILE` in `device_secrets.py` to a DER-encoded CA certificate
   uploaded alongside the firmware, and it switches to
-  `cert_reqs=ussl.CERT_REQUIRED` with that CA. **This path has not been
-  verified against real hardware** — `ussl.wrap_socket`'s `ca_certs` support
-  varies by MicroPython build (this is the same class of blocker documented
-  for CoAP/DTLS in `src/coap_server.py`'s docstring) — so flash-test it on a
-  spare board before relying on it, and keep `MQTT_CA_CERT_FILE` unset (the
-  prior behavior) if it doesn't connect. Left unset, `connect_mqtt()` now
-  prints an explicit unverified-TLS warning at boot instead of connecting
-  silently. Accepted as a stated prototype simplification (`CLAUDE.md`
-  Section 8) until verified.
+  `cert_reqs=ussl.CERT_REQUIRED` with that CA. To generate that DER file from
+  this deployment's own CA (`certs/ca.crt`, the same CA that signs
+  `certs/server.crt` — verify with `openssl verify -CAfile certs/ca.crt
+  certs/server.crt`):
+  ```bash
+  openssl x509 -in certs/ca.crt -outform DER -out firmware/ca.der
+  ```
+  Upload the resulting `firmware/ca.der` alongside `main.py` and
+  `device_secrets.py` when flashing, and set `MQTT_CA_CERT_FILE = "ca.der"`
+  in `device_secrets.py`. It is gitignored (`firmware/*.der`), same as
+  `certs/ca.crt` itself — regenerate it fresh per deployment, never commit
+  it. `connect_mqtt()` now fails loudly instead of silently downgrading or
+  crashing opaquely when this path is used: a missing/unreadable CA file, an
+  `ussl.wrap_socket` build that doesn't accept `ca_certs`/`cert_reqs` at all,
+  and a genuine certificate-verification failure each raise a distinct,
+  named error instead of falling back to `CERT_NONE` unannounced. **This
+  path has still not been flash-tested against real hardware** —
+  `ussl.wrap_socket`'s `ca_certs` support varies by MicroPython build (the
+  same class of blocker documented for CoAP/DTLS in `src/coap_server.py`'s
+  docstring), so the error handling above tells you *which* of the three
+  failure modes you hit, but does not by itself prove the happy path works
+  on your board. Flash-test on a spare board before relying on it in a real
+  deployment, and keep `MQTT_CA_CERT_FILE` unset (the prior behavior) if it
+  doesn't connect. Left unset, `connect_mqtt()` prints an explicit
+  unverified-TLS warning at boot instead of connecting silently. Accepted as
+  a stated prototype simplification (`CLAUDE.md` Section 8) until verified.
 - **`DEVICE_SECRET`/`MQTT_PASSWORD` are plaintext constants in flash** —
   no secure element, no flash encryption. Same accepted simplification,
   same section.

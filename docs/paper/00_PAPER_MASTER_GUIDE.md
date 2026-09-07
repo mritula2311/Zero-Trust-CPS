@@ -12,7 +12,7 @@ The research benchmark compares M1–M9 on a 20-node constructed heterogeneous n
 - [EXPERIMENTAL] The corrected fixed-split M1–M9 benchmark favors M6 by Macro-F1, FPR and anomaly F1. This is descriptive evidence, not universal superiority or a significance result.
 - [VERIFIED] Pending-node masking repairs and regression evidence are retained. The final audit additionally excludes nonfinite invalid content before model arithmetic.
 - [EXPERIMENTAL] Controlled topology interventions expose architecture-dependent score/recall sensitivity. The historical feature permutation is a fixed-topology reassignment probe, not a test of graph equivariance.
-- [VERIFIED] Physical captures exist for one ESP32/MPU6050 and one ESP32/SW-420. Only MPU6050 has held-out physical validation/test sessions. The constructed benchmark also contains eighteen legacy simulated identities.
+- [VERIFIED] Physical captures exist for one ESP32/MPU6050 and one ESP32/SW-420. **[UPDATED 2026-09-07]** Both now have held-out physical validation/test sessions — SW-420's closed this date (`results/sw420_real_hardware/summary.md`): VALIDATION 0/70 resting FP, 109/109 detection; TEST 0/108 resting FP, 115/115 detection, identical under both the GCN and the deployed corrected-M6 relational pin. Two sessions is a real minimum, not a large sample. The constructed benchmark also contains eighteen legacy simulated identities.
 
 ## Limitations that must travel with the results
 

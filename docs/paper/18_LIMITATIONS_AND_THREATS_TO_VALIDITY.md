@@ -6,7 +6,7 @@ Model and threshold fitting use designated splits, but the project has evolved a
 
 ## External validity
 
-Only one MPU6050 physical source has held-out evaluation. SW-420 is a different sensing modality and has only TRAIN data. Eighteen benchmark identities are parametrically simulated; five separate virtual streams are derived from the same MPU source. Network cardinality is not independent-device support. Hand-induced motion on an ESP32 sensor is not a representative industrial failure population.
+**[UPDATED 2026-09-07]** Both physical sources — MPU6050 and SW-420 — now have held-out VALIDATION/TEST evaluation (`results/sw420_real_hardware/summary.md`), each on two independent sessions, a real minimum rather than a large sample. SW-420 is a different sensing modality (a binary comparator switch, not an accelerometer) and its near-zero resting false-positive rate (0/108, vs. MPU6050's 5/12) should be read as a structurally easier discrimination problem — `trigger_rate` is exactly 0 on a still desk by construction — not as evidence the pipeline performs better on this device. Eighteen benchmark identities are parametrically simulated; five separate virtual streams are derived from the same MPU source. Network cardinality is not independent-device support. Hand-induced motion on an ESP32 sensor is not a representative industrial failure population.
 
 ## Construct validity
 

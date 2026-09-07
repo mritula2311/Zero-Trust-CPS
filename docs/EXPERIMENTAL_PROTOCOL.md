@@ -1,6 +1,6 @@
 # Experimental Protocol — ZT-Duo 20-Node Hybrid CPS Testbed
 
-> **[Paper-reference authority, 2026-09-07]** The [verified paper package](paper/00_PAPER_MASTER_GUIDE.md) governs current research claims. This document is retained as supporting implementation/history; earlier measurements and interpretations are historical unless reconfirmed there. Runtime uses a corrected M6 (Set Transformer) fusion, deployed 2026-09-07 after a confirmed training defect was found and fixed in the originally-deployed checkpoint (preserved as historical evidence); M6 was also the selected standalone candidate in the separate M1-M9 benchmark. SW-420 has TRAIN capture only.
+> **[Paper-reference authority, 2026-09-07]** The [verified paper package](paper/00_PAPER_MASTER_GUIDE.md) governs current research claims. This document is retained as supporting implementation/history; earlier measurements and interpretations are historical unless reconfirmed there. Runtime uses a corrected M6 (Set Transformer) fusion, deployed 2026-09-07 after a confirmed training defect was found and fixed in the originally-deployed checkpoint (preserved as historical evidence); M6 was also the selected standalone candidate in the separate M1-M9 benchmark. SW-420 has TRAIN/VALIDATION/TEST capture as of 2026-09-07 (VALIDATION 0/70 resting FP, 109/109 detection; TEST 0/108 resting FP, 115/115 detection — results/sw420_real_hardware/, doc 13 Q2); its slot in the separate constructed 20-node network benchmark remains PENDING_REAL_HARDWARE_DATA in VALIDATION/TEST, a different pipeline not touched by this closure.
 
 
 > **2026-09-05 audit update:** Two physical identities are configured; Device 001 (MPU6050) contributes TRAIN/VALIDATION/TEST observations, Device 002 (SW-420) contributes TRAIN observations only (first capture, session `20260905_162002` — see §0.13.18). The network was grown from 10 to 20 configured slots the same day to equalise sensor-type representation (§1 below). VALIDATION/TEST still use a pending context placeholder for Device 002; this is not 20 independently observed streams or source-independent calibration.
@@ -31,6 +31,8 @@ in the manuscript traces to a run described here.
 | 02 | `esp32-vib-002` | REAL in TRAIN, PENDING_REAL_HARDWARE_DATA in VALIDATION/TEST | ESP32 + SW-420 vibration switch (GPIO4) | 4: trigger_rate, duty_cycle, burst_max_ms, inter_event_cv |
 | 03–10 | `esp32-sim-03` … `esp32-sim-10` | SIMULATED | none | parameterised from real telemetry (`config/simulated_nodes.json`), original 8 |
 | 11–20 | `esp32-sim-11` … `esp32-sim-20` | SIMULATED | none | added 2026-09-05 (§0.13.18) to equalise sensor-type counts (10 MPU6050-type / 10 SW-420-type total); the 7 new SW-420-type profiles are calibrated against Device 002's real measured stats, not the sensor datasheet |
+
+**Do not confuse this table's `PENDING_REAL_HARDWARE_DATA` with a general SW-420 held-out data gap.** This row describes only the *constructed 20-node network benchmark*'s node-column source (`scripts/generate_network_data.py`'s resampling), which was not rerun and remains PENDING here. A **separate, standalone** real-hardware VALIDATION/TEST evaluation for `esp32-vib-002` now exists as of 2026-09-07 (`scripts/evaluate_real_hardware.py --device esp32-vib-002`, `results/sw420_real_hardware/`) — see §0.13's hardware section below for the updated wording. The two are different pipelines with different evidence.
 
 **The required wording, and the only accurate one:**
 
@@ -324,15 +326,19 @@ silently land in TRAIN.
 - Disturbances are **laboratory operator actions**, not industrial bearing
   degradation. Validation on rotating machinery and naturally developing faults
   remains future work.
-- Session count is small (five labelled sessions at time of writing — four
-  MPU6050, one SW-420), so the test denominator is small and its intervals
+- Session count is small (seven labelled sessions as of 2026-09-07 — four
+  MPU6050, three SW-420), so the test denominator is small and its intervals
   are wide. This is reported, not smoothed over.
-- The SW-420 device has **no held-out VALIDATION or TEST session** — its one
-  capture is TRAIN only. Every SW-420-specific number (its deployed
-  per-device model, its slot in the 20-node network) is currently unvalidated
-  against held-out real data. (§0.13.18.2 originally claimed a concrete,
-  measured cost of this gap; §0.13.19 found that specific measurement was
-  actually a masking bug, now fixed, and the claimed cost did not
-  reproduce — the split gap itself remains real and unvalidated.)
+- **[UPDATED 2026-09-07]** The SW-420 device now has held-out standalone
+  VALIDATION and TEST sessions (`results/sw420_real_hardware/`: 0/70 and
+  0/108 resting FP, 109/109 and 115/115 detection) — its *standalone*
+  real-hardware model is validated against held-out real data. Its slot in
+  the **separate** 20-node constructed network benchmark (`generate_network_data.py`
+  resampling) remains `PENDING_REAL_HARDWARE_DATA` in VALIDATION/TEST, unaffected
+  by this closure — do not conflate the two. (§0.13.18.2 originally claimed a
+  concrete, measured cost of the network-benchmark gap; §0.13.19 found that
+  specific measurement was actually a masking bug, now fixed, and the claimed
+  cost did not reproduce — the network-benchmark split gap itself remains
+  real and unvalidated.)
 - Simulator-to-real domain shift is measured (`RESULTS.md` 0.10.9) but not
   eliminated.

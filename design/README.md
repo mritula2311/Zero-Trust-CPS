@@ -31,7 +31,7 @@ See the [data contract](DATA_CONTRACT.md), [verified scenario matrix and limitat
 - Task-2 claim: **SUPPORTED BUT WEAKER**. B0 is a network-level count, not a single-node baseline.
 - M6 is selected in the standalone M1–M9 benchmark. A separate checkpoint is configured in gateway serving and M6-fitted fusion. Correctly pinned comparative evaluation, training-weight correction and policy lineage remain open; no physical end-to-end M6 validation is claimed.
 - Runtime relational inference is M6 (Set Transformer), followed by logistic fusion. Prior GCN artifacts are retained (`models/*_gcn_backup.*`) for reproducibility.
-- Physical evidence comprises one MPU6050 identity and one SW-420 identity. SW-420 TRAIN capture exists; VALIDATION/TEST are pending.
+- Physical evidence comprises one MPU6050 identity and one SW-420 identity. SW-420 TRAIN/VALIDATION/TEST captures all exist as of 2026-09-07 (`results/sw420_real_hardware/`); its slot in the separate constructed 20-node network benchmark remains PENDING_REAL_HARDWARE_DATA in VALIDATION/TEST.
 - The 20-node benchmark is constructed from two physical-source identities and eighteen simulated identities.
 - Security Trust and Process Trust remain separate until policy evaluation. Serving does not train or explore.
 

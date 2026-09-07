@@ -38,6 +38,12 @@ certs/*.srl
 certs/mosquitto_passwd
 certs/mosquitto_acl
 
+# DER-encoded copy of certs/ca.crt for MQTT_CA_CERT_FILE-based firmware TLS
+# verification (HARDWARE_SETUP.md Section 13). Same treatment as certs/*.crt
+# above: derived from this machine's local CA, regenerated per deployment,
+# never shared via git.
+firmware/*.der
+
 # Real HMAC secrets / MQTT broker passwords for this machine's local
 # deployment -- see src/secrets_local.example.py for the committed
 # template. config.py imports from this file if it exists, falling back

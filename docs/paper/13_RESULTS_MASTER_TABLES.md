@@ -599,12 +599,26 @@ Source: [results/final_verification/hardware_evaluation.log](../../results/final
 |---|---|---|---|---|
 | Rest false alarm | 5 / 12 | 41.7% | 19.3%–68.0% | Small dependent sample |
 | Disturbance detection | 30 / 30 | 100% | 88.6%–100% | Hand-induced physical events; no cyberattack |
-| SW-420 held-out | 0 physical sessions | NOT REPORTED / undefined | NOT REPORTED / undefined | PENDING VALIDATION |
+| SW-420 held-out | see Q2 below | — | — | see Q2 below — CLOSED 2026-09-07, no longer pending |
 
 
 Two action-labelled windows have peak no greater than resting maximum; 28 movement-containing windows are also all detected. Do not drop the quiet windows silently or use this replay as twenty-device field evidence.
 
 **2026-09-07: M6 comparison now exists.** `evaluate_real_hardware.py --relational-model {gcn,m6_deployed,m6_corrected}` (src/relational_pin.py) reproduces this exact table when pinned to `gcn`, and gives identical numbers for both M6 variants — no regression on the available physical evidence (Gate H). See O4 and [results/gcn_m6_corrected_comparison/hardware_comparison.json](../../results/gcn_m6_corrected_comparison/hardware_comparison.json).
+
+## Q2. SW-420 (esp32-vib-002) held-out physical hardware (2026-09-07)
+[CURRENT] Closes the "PENDING VALIDATION" gap in Q above. Until this pass, `esp32-vib-002` (SW-420) had exactly one labelled real-hardware capture (TRAIN-only) and zero held-out VALIDATION/TEST sessions. Two independent new capture sessions were collected under the identical operator-marked protocol Q uses for esp32-vib-001: VALIDATION (session `20260907_165627`, 299 records, 8/8 intervals marked, 299/299 matched to a gateway decision) and TEST (session `20260907_170639`, 343 records, 8/8 intervals marked, 343/343 matched).
+**A real evaluator bug this exposed and fixed.** evaluate_real_hardware.py had DEVICE hardcoded to esp32-vib-001; src/splits.py's labelled_session_paths() is split-based, not device-based, so once an esp32-vib-002 session entered the same split-allocation manifest as an esp32-vib-001 session, the evaluator would have silently scored SW-420's trigger_rate-shaped readings through the MPU6050's Isolation Forest/LSTM-AE models. Fixed with an explicit --device argument and per-device row filtering in load_sessions()/score_all(); verified esp32-vib-001's published numbers (5/12 resting FP, 30/30 detection) reproduce byte-identically with the fix applied.
+
+| Split, pin | Resting FP | Rate | Wilson 95% CI | Detection | Rate | Wilson 95% CI |
+|---|---|---|---|---|---|---|
+| VALIDATION, gcn | 0 / 70 | 0.0% | [0.0%, 5.2%] | 109 / 109 | 100.0% | [96.6%, 100.0%] |
+| TEST, gcn | 0 / 108 | 0.0% | [0.0%, 3.4%] | 115 / 115 | 100.0% | [96.8%, 100.0%] |
+| TEST, m6_corrected (deployed) | 0 / 108 | 0.0% | [0.0%, 3.4%] | 115 / 115 | 100.0% | [96.8%, 100.0%] |
+
+No regression/difference between the GCN and the actually-deployed corrected-M6 relational pin on this device — consistent with the same finding already established for esp32-vib-001 (Q above, `results/gcn_m6_corrected_comparison/hardware_comparison.json`).
+**Read qualification, not a "better sensor" claim.** SW-420 is a binary comparator switch, not an accelerometer -- trigger_rate reads exactly 0 on a still desk by construction (feature_engineering_sw420.py). A 0% resting false-positive rate here reflects a structurally easier discrimination problem than MPU6050's continuous-amplitude resting noise (5/12, 41.7%), not a better-calibrated pipeline. The Isolation Forest sub-score for this device is flat at 0.500 across every phase (not discriminating at all on ~620 total real rows); the fused decision is carried mostly by lstm/gnn. Two independent sessions is a real minimum, not a large sample -- the same caveat already applied to esp32-vib-001's 5/12.
+Source for this section: `results/sw420_real_hardware/hardware_evaluation.log`, `results/sw420_real_hardware/hardware_results.json`, `results/sw420_real_hardware/summary.md`; producer `scripts/evaluate_real_hardware.py --device esp32-vib-002`; session allocation `data/splits/session_split.json`.
 
 ## Explainability: single-channel and exploratory rank-aware repair
 

@@ -7,7 +7,7 @@
 | Architecture | Security Trust and Process Trust meet at static/contextual-bandit policy; [02](02_SYSTEM_ARCHITECTURE.md) |
 | Security | Identity, revocation, HMAC, finite payload, boot/seq, freshness gates; accepted-only EWMA; [03](03_THREAT_MODEL_AND_ZERO_TRUST_DESIGN.md) |
 | Process | Rule+IF+LSTM→runtime M6→four-score logistic fusion; high means normal; [10](10_FUSION_AND_PROCESS_TRUST.md) |
-| Hardware | One MPU6050-equipped and one SW-420-equipped ESP32; SW TRAIN only; [04](04_HARDWARE_DATA_AND_PROVENANCE.md) |
+| Hardware | One MPU6050-equipped and one SW-420-equipped ESP32; both now have held-out VALIDATION/TEST as of 2026-09-07 (SW-420: 0/108 resting FP, 115/115 detection); [04](04_HARDWARE_DATA_AND_PROVENANCE.md) |
 | Features | MPU5, SW4; peak-to-peak/RMS crest definition; [05](05_PROCESS_FEATURES_AND_PREPROCESSING.md) |
 | Local models | IF/LSTM runtime; Transformer ablation-only; [06](06_LOCAL_ANOMALY_MODELS.md) |
 | Relational model status | M6 is selected in the standalone benchmark; a corrected M6 checkpoint is deployed in serving as of the 2026-09-07 promotion, comparative fusion/policy gain over GCN now measured (held-out-replay-qualified); [07](07_RELATIONAL_MODELS_M1_M9.md), [10](10_FUSION_AND_PROCESS_TRUST.md) and [13 O4/O5](13_RESULTS_MASTER_TABLES.md) |

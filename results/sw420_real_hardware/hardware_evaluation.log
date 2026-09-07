@@ -1,0 +1,98 @@
+########## esp32-vib-002 (SW-420) VALIDATION split, gcn pin ##########
+==============================================================================
+REAL HARDWARE EVALUATION -- operator-labelled esp32-vib-002 (SW-420) telemetry
+split = VALIDATION   (allocation: data/splits/session_split.json)
+relational model pin = gcn   (checkpoint D:\zt-cps\zt-cps-starter\src\..\models\gnn.pt)
+==============================================================================
+  hardware_session_20260902_173108_labelled.json [session 20260902_173108]: 0 records for 'esp32-vib-002', skipped
+  hardware_session_20260907_165627_labelled.json [session 20260907_165627]: 299 labelled records for 'esp32-vib-002'
+
+Scored 179 real readings through the live pipeline (threshold 0.6).
+
+phase               n    rule     iso    lstm     gnn    fused   flagged
+------------------------------------------------------------------------------
+at_rest            70   0.900   0.500   0.900   0.680    0.842       0%
+gentle_tap         21   0.900   0.500   0.000   0.174    0.009     100%
+moderate_shake     31   0.900   0.500   0.000   0.174    0.009     100%
+sharp_impact       32   0.900   0.500   0.000   0.174    0.009     100%
+tilt_rotate        25   0.900   0.500   0.000   0.174    0.009     100%
+
+FALSE POSITIVE RATE on a genuinely resting board: 0.0% (0/70)   95% CI [0.0%, 5.2%]
+  fused median 0.842, min 0.842
+DETECTION RATE on real physical disturbance:      100.0% (109/109)   95% CI [96.6%, 100.0%]
+
+  9 of 109 action-labelled windows are physically indistinguishable from rest
+  (trigger_rate <= 0.000, the resting maximum) -- intermittent actions have gaps between them.
+  Detection on the 100 windows that DO contain movement: 100.0%
+  Reported both ways rather than silently excluding the quiet ones, which
+  would measure labelling granularity rather than the model.
+
+Note this measures PHYSICAL anomaly discrimination on real hardware, not
+attack detection -- no attack was performed. Security Trust is untouched
+throughout, which is the two-score separation behaving correctly.
+
+########## esp32-vib-002 (SW-420) TEST split, gcn pin ##########
+==============================================================================
+REAL HARDWARE EVALUATION -- operator-labelled esp32-vib-002 (SW-420) telemetry
+split = TEST   (allocation: data/splits/session_split.json)
+relational model pin = gcn   (checkpoint D:\zt-cps\zt-cps-starter\src\..\models\gnn.pt)
+==============================================================================
+  hardware_session_20260902_221217_labelled.json [session 20260902_221217]: 0 records for 'esp32-vib-002', skipped
+  hardware_session_20260907_170639_labelled.json [session 20260907_170639]: 343 labelled records for 'esp32-vib-002'
+
+Scored 223 real readings through the live pipeline (threshold 0.6).
+
+phase               n    rule     iso    lstm     gnn    fused   flagged
+------------------------------------------------------------------------------
+at_rest           108   0.900   0.500   0.900   0.680    0.842       0%
+gentle_tap         38   0.900   0.500   0.000   0.174    0.009     100%
+moderate_shake     21   0.900   0.500   0.000   0.174    0.009     100%
+sharp_impact       28   0.900   0.500   0.000   0.174    0.009     100%
+tilt_rotate        28   0.900   0.500   0.000   0.174    0.009     100%
+
+FALSE POSITIVE RATE on a genuinely resting board: 0.0% (0/108)   95% CI [0.0%, 3.4%]
+  fused median 0.842, min 0.842
+DETECTION RATE on real physical disturbance:      100.0% (115/115)   95% CI [96.8%, 100.0%]
+
+  8 of 115 action-labelled windows are physically indistinguishable from rest
+  (trigger_rate <= 0.000, the resting maximum) -- intermittent actions have gaps between them.
+  Detection on the 107 windows that DO contain movement: 100.0%
+  Reported both ways rather than silently excluding the quiet ones, which
+  would measure labelling granularity rather than the model.
+
+Note this measures PHYSICAL anomaly discrimination on real hardware, not
+attack detection -- no attack was performed. Security Trust is untouched
+throughout, which is the two-score separation behaving correctly.
+
+########## esp32-vib-002 (SW-420) TEST split, m6_corrected pin (deployed) ##########
+==============================================================================
+REAL HARDWARE EVALUATION -- operator-labelled esp32-vib-002 (SW-420) telemetry
+split = TEST   (allocation: data/splits/session_split.json)
+relational model pin = m6_corrected   (checkpoint D:\zt-cps\zt-cps-starter\src\..\models\set_transformer_corrected.pt)
+==============================================================================
+  hardware_session_20260902_221217_labelled.json [session 20260902_221217]: 0 records for 'esp32-vib-002', skipped
+  hardware_session_20260907_170639_labelled.json [session 20260907_170639]: 343 labelled records for 'esp32-vib-002'
+
+Scored 223 real readings through the live pipeline (threshold 0.6).
+
+phase               n    rule     iso    lstm     gnn    fused   flagged
+------------------------------------------------------------------------------
+at_rest           108   0.900   0.500   0.900   0.729    0.734       0%
+gentle_tap         38   0.900   0.500   0.000   0.727    0.018     100%
+moderate_shake     21   0.900   0.500   0.000   0.727    0.018     100%
+sharp_impact       28   0.900   0.500   0.000   0.727    0.018     100%
+tilt_rotate        28   0.900   0.500   0.000   0.727    0.018     100%
+
+FALSE POSITIVE RATE on a genuinely resting board: 0.0% (0/108)   95% CI [0.0%, 3.4%]
+  fused median 0.734, min 0.734
+DETECTION RATE on real physical disturbance:      100.0% (115/115)   95% CI [96.8%, 100.0%]
+
+  8 of 115 action-labelled windows are physically indistinguishable from rest
+  (trigger_rate <= 0.000, the resting maximum) -- intermittent actions have gaps between them.
+  Detection on the 107 windows that DO contain movement: 100.0%
+  Reported both ways rather than silently excluding the quiet ones, which
+  would measure labelling granularity rather than the model.
+
+Note this measures PHYSICAL anomaly discrimination on real hardware, not
+attack detection -- no attack was performed. Security Trust is untouched
+throughout, which is the two-score separation behaving correctly.
