@@ -1,12 +1,12 @@
 {
   "state": {
     "branch": "main",
-    "head": "9f72d9b0a7e435dd5f039d8486f274866c3de89a",
-    "main": "9f72d9b0a7e435dd5f039d8486f274866c3de89a",
-    "origin_main": "040e91412a827ba09358d632464d90fdff88b747",
-    "main_ahead_behind": "0\t5",
-    "worktrees": "<REPO_ROOT>      9f72d9b [main]\n<WORKSPACE_ROOT>/zt-cps-design-astra 9dac09a [astra/design-dashboard-20260906]",
-    "status": "",
+    "head": "30079024b4159d08f293118c46ebd7e18f27008c",
+    "main": "30079024b4159d08f293118c46ebd7e18f27008c",
+    "origin_main": "30079024b4159d08f293118c46ebd7e18f27008c",
+    "main_ahead_behind": "0\t0",
+    "worktrees": "<REPO_ROOT>      3007902 [main]\n<WORKSPACE_ROOT>/zt-cps-design-astra 9dac09a [astra/design-dashboard-20260906]",
+    "status": "MM .gitignore\n M METHODOLOGY.md\n M PRD.md\n M PUBLICATION_MANIFEST.md\n M README.md\n M RESULTS.md\n M SESSION_LOG.md\n M ZERO_TRUST_CPS_KB.md\n M design/DATA_CONTRACT.md\n M design/Main.dc.html\n M design/READINESS.md\n M design/README.md\n M design/extracted/Main.dc.html\n M design/zero-trust-cps-command-center.html\n M docs/00_overview.md\n M docs/04_module3_trust_evaluation.md\n M docs/CLAIM_EVIDENCE_MATRIX.md\n M docs/FINAL_PROJECT_VERIFICATION.md\n M docs/MANUAL_EXTERNAL_REVIEW.md\n M docs/PAPER_GNN_BASELINE_VERIFICATION.md\n M docs/README.md\n M docs/paper/00_PAPER_MASTER_GUIDE.md\n M docs/paper/01_RESEARCH_PROBLEM_AND_MOTIVATION.md\n M docs/paper/02_SYSTEM_ARCHITECTURE.md\n M docs/paper/07_RELATIONAL_MODELS_M1_M9.md\n M docs/paper/10_FUSION_AND_PROCESS_TRUST.md\n M docs/paper/11_POLICY_ENGINE.md\n M docs/paper/12_EXPERIMENTAL_PROTOCOL.md\n M docs/paper/13_RESULTS_MASTER_TABLES.md\n M docs/paper/15_HARDWARE_VALIDATION.md\n M docs/paper/16_ABLATIONS_AND_NEGATIVE_RESULTS.md\n M docs/paper/17_CLAIM_EVIDENCE_MATRIX.md\n M docs/paper/18_LIMITATIONS_AND_THREATS_TO_VALIDITY.md\n M docs/paper/19_FIGURE_AND_TABLE_PLAN.md\n M docs/paper/21_FINAL_PAPER_OUTLINE.md\n M docs/paper/22_PAPER_READY_FACTSHEET.md\n M docs/paper/23_TERMINOLOGY_AND_NOTATION.md\n M docs/paper/24_REPRODUCIBILITY_GUIDE.md\n M docs/paper/25_OPEN_ITEMS_BEFORE_SUBMISSION.md\n M results/final_verification/credential_scan.json\n M results/final_verification/documentation_validation.json\n M results/final_verification/hardware_temporal_review.md\n M results/final_verification/markdown_inventory.csv\n M results/final_verification/paper_numeric_sources.json\n M results/final_verification/repository_inventory.json\n M results/final_verification/research_review.md\n M results/final_verification/source_claim_occurrences.csv\n M results/final_verification/stale_claim_occurrences.csv\n M scripts/build_paper_results.py\n M src/config.py\n M src/explainability.py\n M tests/test_sensor_explanations.py\n?? docs/PAPER_READINESS_VERIFICATION.md",
     "workspace": "<REPO_ROOT>",
     "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
     "platform": "Windows-11-10.0.26200-SP0",
@@ -761,8 +761,8 @@
       "sha256": "ed222bae47339bf9063d44899bc0170d78d1431dce40be280c8b1227ad9db511"
     },
     "scripts/build_paper_results.py": {
-      "bytes": 18041,
-      "sha256": "f04bff425681bf14bf044a0efbe7864bd8d9090ac584cfa46c6d3920e432107c"
+      "bytes": 21121,
+      "sha256": "b96c02bac46f724449b6e8b5494b4398f489c8dcb97e70b13dad0ec0ca1b4ce8"
     },
     "scripts/collect_hardware_session.py": {
       "bytes": 37431,
@@ -917,8 +917,8 @@
       "sha256": "01f787712053b971643c7f16dbb9d0e71625f89923907e52c43151ba78010bb1"
     },
     "src/config.py": {
-      "bytes": 55342,
-      "sha256": "60f1ff6b0c16c7944e4cc816719691adcdf74d43ace28fdff2f007d8e17f74f0"
+      "bytes": 55642,
+      "sha256": "ba21fdeccaa6ad23e6b906a149beaea46bc0c47662d0884503c3def59c80eb19"
     },
     "src/datasets.py": {
       "bytes": 4389,
@@ -929,8 +929,8 @@
       "sha256": "aa3a403f193c4001988d325d027b8d749bf96e3c240127219d07996c60d52cbb"
     },
     "src/explainability.py": {
-      "bytes": 3897,
-      "sha256": "4ffdbed043e70ef5cf6b0649ad4163523986e9b1d9a6c5acf943e61d603b5955"
+      "bytes": 3823,
+      "sha256": "cd4b604a853d7aa9388eab60bb668f5a440cdf61c8b0b8484389a78d15b1798a"
     },
     "src/feature_engineering.py": {
       "bytes": 4636,

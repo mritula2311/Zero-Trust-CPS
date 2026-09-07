@@ -1,8 +1,8 @@
 # Results and Evaluation
 
-> **Final verification, 2026-09-06:** The [50-section audit](docs/FINAL_PROJECT_VERIFICATION.md) and [canonical numerical reference](docs/paper/13_RESULTS_MASTER_TABLES.md) record the current interpretation. Fresh replay confirms MPU disturbance detection 30/30 with 5/12 resting false alarms. M6 remains a standalone candidate. Corrected Task-2 count-to-MLP accuracy is 0.3958 to 0.5267; B0 is a network count. Nonfinite invalid-node arithmetic and a mixed-sensor explanation-evaluation crash were corrected without overwriting historical metrics, captures or checkpoints. Earlier sections retain their chronology.
+> **Historical verification, 2026-09-06:** The [earlier audit](docs/FINAL_PROJECT_VERIFICATION.md) preserves the GCN-era replay and corrected masking evidence. The current numerical reference is [13](docs/paper/13_RESULTS_MASTER_TABLES.md); its lineage notes govern interpretation after the M6 change. Earlier sections retain their original observations, including results that were later withdrawn.
 
-> **[Paper-reference authority, 2026-09-06]** The [verified paper package](docs/paper/00_PAPER_MASTER_GUIDE.md) governs current research claims. This document is retained as supporting implementation/history; earlier measurements and interpretations are historical unless reconfirmed there. Runtime uses GCN fusion; M6 is a standalone candidate. SW-420 has TRAIN capture only.
+> **Current reference, 2026-09-07:** Use the [paper master guide](docs/paper/00_PAPER_MASTER_GUIDE.md), [architecture](docs/paper/02_SYSTEM_ARCHITECTURE.md), [numerical authority](docs/paper/13_RESULTS_MASTER_TABLES.md), [claim gate](docs/paper/17_CLAIM_EVIDENCE_MATRIX.md) and [limitations](docs/paper/18_LIMITATIONS_AND_THREATS_TO_VALIDITY.md). The configured gateway uses M6 Set Transformer with M6-fitted fusion; the standalone M1–M9 benchmark and preserved GCN replay are separate evidence. M6 comparative gains need a correctly pinned replay. SW-420 has TRAIN capture only. Older sections below retain their historical scope.
 
 
 > **Current interpretation:** §0.13.17 qualifies M9, generator validation and
@@ -2792,7 +2792,7 @@ Test coverage: `tests/test_gnn_baseline_pending_node_masking.py`.
 
 Reviewed exact accessible local main
 `4f6afa25e4721c13a4e9f0355548f8ca07c70a5a`; nothing pushed. Corrections
-are on `astra/verify-pending-masking-20260906`. Full evidence and paper-ready
+are on `<historical-review-branch>`. Full evidence and paper-ready
 wording: `docs/PAPER_GNN_BASELINE_VERIFICATION.md`.
 
 - **Numeric audit:** §0.13.24's current metrics match the Git artifact.

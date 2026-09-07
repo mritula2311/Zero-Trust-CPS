@@ -1,6 +1,13 @@
 {
   "results/crossdevice_benchmark/metrics.json": "a5b6dc75929931d3a1294f6fda294be9d603322be2564be54ed3d03d1e917516",
   "results/final_verification/local_fusion_evaluation.log": "1f587911ec7b1362ed63db6312f254dc595253041507de589059ac6a430816c2",
+  "models/fusion_meta_learner.joblib": "d5e2bfeecc57142bf432ed233ec8f50c0e45a787f448a3590c8d849af955e934",
+  "models/fusion_meta_learner_m6_variant.joblib": "d5e2bfeecc57142bf432ed233ec8f50c0e45a787f448a3590c8d849af955e934",
+  "models/fusion_meta_learner_gcn_backup.joblib": "20ea7bcbba43861b21736c857c47d80434cd8e0daea42cd645a6aabd4abbf8e8",
+  "models/set_transformer_runtime.pt": "e4a65b5d899a6e9db18b47092bfc4a3b45ddc2db2ee49cef8adba593ae53b1bb",
+  "models/fusion_background.npy": "c49113191841753e7d7c9f7b9537a0c9a643defc303581e07f18d251a4b37a71",
+  "models/fusion_background_m6_variant.npy": "c49113191841753e7d7c9f7b9537a0c9a643defc303581e07f18d251a4b37a71",
+  "models/fusion_background_gcn_backup.npy": "8aa968a671ace9d1495b5f710a68e54e817094000f0f32d62ba8c16cc4fe8684",
   "results/crossdevice_benchmark/seed_study.json": "965b771656e3f0c67d23f656f1293f04524c8df5e9b8747bfdf52df151cb8e82",
   "results/crossdevice_benchmark/m9_seed_study.json": "47079b029238e404d93631a266a417abae693a50879e24daf62ba165a8b01b34",
   "results/crossdevice_benchmark/m9_ablation_investigation.json": "6c52cc73718d75d3baf11c51c138b63191c1da9988cd855d11a6c98e482b97e4",

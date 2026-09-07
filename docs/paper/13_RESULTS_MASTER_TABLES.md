@@ -1,12 +1,12 @@
 # Results master tables
 
-[CURRENT] Numerical reference generated directly from frozen JSON and fresh replay logs. A result is current for its stated protocol, not automatically for every runtime or data revision. Final invalid-content hardening has new regression/parity evidence; archived benchmark metrics were not overwritten. Missing PR-AUC/checkpoint identities are explicit.
+[CURRENT NUMERICAL AUTHORITY] Generated from frozen JSON, preserved replay logs and inspected model artifacts. A result is current for its stated protocol, not automatically for every runtime or data revision. Final invalid-content hardening has new regression/parity evidence; archived benchmark metrics were not overwritten. Missing PR-AUC/checkpoint identities are explicit.
 
 **Polarity:** relational F1 treats anomaly as positive; local/fusion replay F1 treats normal as positive. Macro-F1 averages class F1 values. A normality score below its threshold flags an anomaly.
 
-## A / O. Local detectors and actual GCN fusion
+## A / O. Local detectors and preserved GCN fusion
 
-Source: [results/final_verification/local_fusion_evaluation.log](../../results/final_verification/local_fusion_evaluation.log); producer [scripts/evaluate_ablation.py](../../scripts/evaluate_ablation.py). [VERIFIED FRESH REPLAY] 3,050 legacy synthetic TEST records, 117 rejected excluded, 2,933 accepted (2,700 normal/233 anomalous); three identities; threshold 0.6. Printed precision is three decimals. No training in this command.
+Source: [results/final_verification/local_fusion_evaluation.log](../../results/final_verification/local_fusion_evaluation.log); producer [scripts/evaluate_ablation.py](../../scripts/evaluate_ablation.py). [VERIFIED PRESERVED GCN-ERA REPLAY; SUPERSEDED AS RUNTIME LINEAGE] 3,050 legacy synthetic TEST records, 117 rejected excluded, 2,933 accepted (2,700 normal/233 anomalous); three identities; threshold 0.6. Printed precision is three decimals. Two scalar identities substitute rule scores into learned local channels; this is not a three-physical-device evaluation. Current default fusion is M6-fitted, so the producer requires explicit GCN backup selection for a matched replication.
 
 
 | Signal | Accuracy | Normal precision | Normal recall | Normal F1 |
@@ -30,6 +30,22 @@ Fair primary-device temporal subset: 1,000 MPU test rows, 746 window-residue nor
 
 The log also reports anomaly-event recall: fused shock 1.000, coordinated 0.983, stealthy-forged-values 0.636. These are event-type window recalls, not independent attack trials. M6 fusion comparison is [REQUIRES FINAL FUSION VALIDATION].
 
+## O2. Configured fusion artifact identity, not a performance result
+
+[VERIFIED ARTIFACT INSPECTION, 2026-09-07] Active fusion/background match the M6 variants. The fourth input retains the legacy name `gnn_score`, but the gateway supplies M6. The older model_metadata.json describes the GCN backup. Source: the following saved joblib files; producer of this inspection: `scripts/build_paper_results.py`. No evaluation or fitting occurs.
+
+
+| Artifact | Coefficients: rule, IF, LSTM, relational | Intercept | SHA-256 |
+|---|---|---|---|
+| [models/fusion_meta_learner.joblib](../../models/fusion_meta_learner.joblib) | -0.01457110136, 2.808748237, 5.249222727, 12.18787891 | -8.53572 | d5e2bfeecc57142bf432ed233ec8f50c0e45a787f448a3590c8d849af955e934 |
+| [models/fusion_meta_learner_m6_variant.joblib](../../models/fusion_meta_learner_m6_variant.joblib) | -0.01457110136, 2.808748237, 5.249222727, 12.18787891 | -8.53572 | d5e2bfeecc57142bf432ed233ec8f50c0e45a787f448a3590c8d849af955e934 |
+| [models/fusion_meta_learner_gcn_backup.joblib](../../models/fusion_meta_learner_gcn_backup.joblib) | -0.004829691542, 3.286754353, 4.31543991, 5.007398278 | -7.26074 | 20ea7bcbba43861b21736c857c47d80434cd8e0daea42cd645a6aabd4abbf8e8 |
+
+
+## O3. Historical reported M6 comparison — not a verified headline
+
+[HISTORICAL PROSE ONLY / REQUIRES PINNED REPLAY] [RESULTS.md](../../RESULTS.md) records normal-positive fused F1 0.805→0.815, accuracy 0.698→0.712, normal false negatives 872→833 and anomaly misses 14→13. No matching raw comparison log/JSON was found. After promotion, `evaluate_ablation_m6.py` uses default M6 fusion for its GCN arm; these prose values are not independently reproduced by that current command. Runtime-M6 class weights also count inactive labels and replay activity depends on wall time. Preserve the reported observation without claiming verified superiority, physical validation or local-only complementarity.
+
 ## B / C. M1–M9, validation max-anomaly-F1 operating point
 
 Source: [results/crossdevice_benchmark/metrics.json](../../results/crossdevice_benchmark/metrics.json); producer [scripts/benchmark_crossdevice_models.py](../../scripts/benchmark_crossdevice_models.py). [CURRENT EXPERIMENTAL] Seed 0; fit TRAIN 2,400 snapshots/48,000 valid rows, select VALIDATION 1,200 snapshots/22,800 valid rows, report TEST with same held-out counts; declared network 20 (19 valid held-out); hybrid provenance. TEST has 1,500 anomalous rows: 150 isolated and 1,350 coordinated, plus 21,300 normal; 15 anomaly events.
@@ -48,7 +64,7 @@ Source: [results/crossdevice_benchmark/metrics.json](../../results/crossdevice_b
 | M9_mixed_provenance | 0.9842 | 0.9445 | 0.998 | 0.9705 | 0.0041 | 0.98 | 1 | 0.9997 | NOT REPORTED / undefined | 0.55 |
 
 
-JSON keys: `results.<model>.test.*`, `test_macro_f1`, `test_roc_auc`, `recall_isolated_anomaly`, `recall_coordinated_anomaly`. PR-AUC is absent from these nine max-F1 rows, not zero. No standalone M1–M9 checkpoints are persisted. M4 has a distinct baseline GCN checkpoint lineage.
+JSON keys: `results.<model>.test.*`, `test_macro_f1`, `test_roc_auc`, `recall_isolated_anomaly`, `recall_coordinated_anomaly`. PR-AUC is absent from these nine max-F1 rows, not zero. The offline M1–M9 benchmark fits have no saved per-model checkpoints. A separate runtime M6 checkpoint exists; it does not inherit these benchmark numbers. M4 has a distinct baseline GCN checkpoint lineage.
 
 ## R / S. M1–M9 model cost
 
@@ -460,9 +476,11 @@ Source: [results/astra_masking_review/historical_metrics.json](../../results/ast
 
 B0 Task 2 counts network anomalies, B1 is indexed concatenated logistic regression, B2 is indexed concatenated MLP; `GNN_node_embeddings` actually concatenates final scalar GCN scores before a logistic head. Corrected B0→B2 is 0.3958→0.5267 (delta +0.1309); pre-fix B2 0.5283 (delta +0.1325). B1 0.5433 exceeds GCN-score 0.5375 numerically. Verdict: SUPPORTED BUT WEAKER for indexed representation versus count; no graph-superiority claim.
 
+The same preserved historical_metrics.json records B2 Task-1 anomaly F1 **0.9662→0.9174**, false positives **28→270**, and false negatives **72→0** (`pre_audit_20_node` versus `corrected_20_node`, `metrics.results.B2_concat_mlp.test`). Keep this degradation alongside the Task-2 correction.
+
 ## P. Policy comparison
 
-Source: [results/policy_comparison/metrics.json](../../results/policy_comparison/metrics.json); producer [scripts/evaluate_policy_comparison.py](../../scripts/evaluate_policy_comparison.py). [CURRENT PRESERVED ARTIFACT] 2,933 accepted legacy TEST rows; comparators share two-score replay inputs. Fitting/threshold selection uses simulated VAL_002. These are offline policy classifications, not measured enforcement effectiveness.
+Source: [results/policy_comparison/metrics.json](../../results/policy_comparison/metrics.json); producer [scripts/evaluate_policy_comparison.py](../../scripts/evaluate_policy_comparison.py). [PRESERVED GCN-ERA ARTIFACT; NOT CURRENT M6 POLICY VALIDATION] 2,933 accepted legacy TEST rows; comparators share two-score replay inputs. Fitting/threshold selection uses simulated VAL_002. These are offline policy classifications, not measured enforcement effectiveness. Current policy producers use GCN plus default M6 fusion; the saved runtime Q table lacks producing-model hashes.
 
 
 | Policy | Accuracy | Macro-F1 | False-block rate | ALERT recall | BLOCK recall |
@@ -479,7 +497,7 @@ P6 is constrained static, P5 contextual bandit. P6 searches under ALERT recall�
 
 ## Q. Held-out physical hardware
 
-Source: [results/final_verification/hardware_evaluation.log](../../results/final_verification/hardware_evaluation.log); producer [scripts/evaluate_real_hardware.py](../../scripts/evaluate_real_hardware.py). [VERIFIED FRESH REPLAY] One MPU6050 TEST session 20260902_221217. Reset/warm-up exclusion leaves 42 scored observations at threshold 0.6. Raw session has 116 rows.
+Source: [results/final_verification/hardware_evaluation.log](../../results/final_verification/hardware_evaluation.log); producer [scripts/evaluate_real_hardware.py](../../scripts/evaluate_real_hardware.py). [VERIFIED PRESERVED GCN-ERA REPLAY; NOT M6 VALIDATION] One MPU6050 TEST session 20260902_221217. Reset/warm-up exclusion leaves 42 scored observations at threshold 0.6. Raw session has 116 rows. Select matching GCN fusion backups before reproducing this protocol.
 
 
 | Endpoint | Count | Rate | Printed Wilson 95% interval | Limit |
@@ -493,7 +511,7 @@ Two action-labelled windows have peak no greater than resting maximum; 28 moveme
 
 ## Explainability: single-channel and exploratory rank-aware repair
 
-Source: [results/final_verification/explainability_evaluation_corrected.log](../../results/final_verification/explainability_evaluation_corrected.log); producer [scripts/evaluate_explainability_level2.py](../../scripts/evaluate_explainability_level2.py). [VERIFIED FRESH REPLAY] Single-channel evaluation uses flagged resolvable legacy TEST rows and a historical 0.5 threshold, not runtime 0.6. The separate minimal repair analysis pools labelled MPU captures across TRAIN/VALIDATION/TEST and is exploratory, not held-out validation.
+Source: [results/final_verification/explainability_evaluation_corrected.log](../../results/final_verification/explainability_evaluation_corrected.log); producer [scripts/evaluate_explainability_level2.py](../../scripts/evaluate_explainability_level2.py). [VERIFIED PRESERVED GCN-ERA REPLAY; NOT M6 VALIDATION] Single-channel evaluation uses flagged resolvable legacy TEST rows and a historical 0.5 threshold, not runtime 0.6. The separate minimal repair analysis pools labelled MPU captures across TRAIN/VALIDATION/TEST and is exploratory, not held-out validation. Current replay requires a matching GCN fusion/background pair.
 
 
 | Protocol | Repair | Recovered / denominator | Interpretation |

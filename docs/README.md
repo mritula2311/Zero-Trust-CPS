@@ -12,6 +12,8 @@ The [paper master guide](paper/00_PAPER_MASTER_GUIDE.md) is the current entry po
 - [Numerical results](paper/13_RESULTS_MASTER_TABLES.md)
 - [Claim-evidence gate](paper/17_CLAIM_EVIDENCE_MATRIX.md)
 - [Limitations](paper/18_LIMITATIONS_AND_THREATS_TO_VALIDITY.md)
+- [Terminology and notation](paper/23_TERMINOLOGY_AND_NOTATION.md)
+- [Remaining work](paper/25_OPEN_ITEMS_BEFORE_SUBMISSION.md)
 - [Reproduction commands](paper/24_REPRODUCIBILITY_GUIDE.md)
 - [Paper outline](paper/21_FINAL_PAPER_OUTLINE.md)
 - [Complete 27-document index](paper/00_PAPER_MASTER_GUIDE.md)
@@ -42,4 +44,4 @@ a research contribution; the [claim-evidence gate](paper/17_CLAIM_EVIDENCE_MATRI
 
 [Final 50-section verification report](FINAL_PROJECT_VERIFICATION.md) records findings, tests, preservation decisions and remaining claim blockers.
 
-[Baseline verification](PAPER_GNN_BASELINE_VERIFICATION.md), [repository audit](REPOSITORY_AUDIT.md), [response tracker](REVIEW_RESPONSE_TRACKER.md), [final verification evidence](../results/final_verification), [cleanup manifest](paper/REPOSITORY_CLEANUP_MANIFEST.md). Nothing was merged or pushed to main by this audit.
+[Baseline verification](PAPER_GNN_BASELINE_VERIFICATION.md), [repository audit](REPOSITORY_AUDIT.md), [response tracker](REVIEW_RESPONSE_TRACKER.md), [final verification evidence](../results/final_verification), [cleanup manifest](paper/REPOSITORY_CLEANUP_MANIFEST.md). Those older receipts describe their recorded snapshots. The [current paper-readiness audit](PAPER_READINESS_VERIFICATION.md) records this reconciliation and its verification gates.

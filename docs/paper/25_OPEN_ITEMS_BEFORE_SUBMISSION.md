@@ -1,29 +1,34 @@
 # Open items before submission
 
-Only evidence-backed gaps are listed. A blocker is scoped to the claim it prevents; the paper can sometimes omit that claim instead of inventing evidence.
+Paper writing and submission have different gates. The [claim matrix](17_CLAIM_EVIDENCE_MATRIX.md) permits bounded architecture and frozen benchmark writing now; it does not permit unsupported deployment or superiority claims.
 
-## P0 — paper claim blockers
+## PAPER-WRITING BLOCKER
 
-1. **Final selected-model end-to-end claim:** M6 has no serving/fusion integration or matched complementarity result. Implement a checkpointed adapter, compare local-only versus local+M6 under identical splits, refit/calibrate fusion and evaluate final policy before claiming deployed M6. Otherwise frame M6 as a standalone candidate.
-2. **Heterogeneous held-out physical claim:** SW-420 has one TRAIN capture and no physical VALIDATION/TEST. Obtain disjoint sessions or explicitly restrict held-out hardware results to MPU6050.
-3. **Low-false-alarm physical claim:** Current MPU replay flags 5/12 resting windows. Obtain a controlled calibration/generalization study without test tuning before claiming hardware operational reliability.
-4. **Formal graph-permutation claim:** Existing probe is not joint graph relabelling. Correct the experiment and retain historical numbers, or remove the invalid order-dependence claim. The documentation now removes that interpretation.
-5. **Literature novelty/priority claim:** Related work has not been independently verified in this task. Complete primary-source comparison before “first,” “novel” or superiority claims.
+None for the evidence-bounded scope in the master guide once this reconciliation's publication checks pass. Describe the configured M6 implementation separately from the standalone benchmark and preserved GCN-era replay. Do not depend on unverified M6 comparative gains or physical end-to-end operation.
 
-## P1 — important before submission
+## SUBMISSION BLOCKER
 
-- Freeze exact source/data/checkpoint/command/seed provenance for M1–M9 and M9 seed-study reruns; the old JSON metadata cannot attest every original run cardinality.
-- Run corrected-mask 10-versus20 experiments with matched data composition/threshold protocol to separate cardinality from masking and training-chain changes.
-- Preserve source-row identity for resampled physical data. Compare raw-session-only SW training and fix/rebuild primary temporal fragmentation if it is changed; current nominal support exaggerates independent observations.
-- Perform proper joint graph permutation and all-invalid snapshot checks where those inputs are permitted. Pending payload masking is now tested for nonfinite values; low-level all-invalid model behavior needs an explicit API contract.
-- Establish independent-session/block generator validation and uncertainty; LOW is currently an internal fit diagnostic.
-- Evaluate P5/P6 under explicitly matched deployment constraints and deterministic timestamp replay; retain the zero BLOCK recall and per-class supports.
-- Measure acquisition-to-enforcement latency including broker transit, queuing, explanation and actual persistence. Existing timing is partial/historical.
-- Validate broker certificate verification on both actual firmware builds; document freshness tolerance, persistent replay state and model-readiness startup requirements for production claims.
-- Regenerate publication figures from the canonical numbers and retain code/input hashes. Pin a reproduction environment.
+- Verify related work from primary publications and replace the clearly marked literature plan with sourced comparisons. Avoid priority claims until supported.
+- Freeze the paper's exact source/data/model/environment versions and figure inputs. Regenerate and visually verify selected publication figures; present metric polarity, denominators and protocol with every result.
+- Select a reproducible experimental scope. For archived GCN replay claims, explicitly pin matching GCN scorer/fusion/background artifacts in an isolated reproduction; current default evaluators mix GCN scores with promoted M6 fusion. Record commands, hashes, outputs and execution-clock assumptions. Historical logs may be discussed as archived evidence with these limits, but must not be described as reproduced by today's default commands.
+- If claiming current M6 comparative effectiveness, correct the comparison's GCN artifact selection, calculate training weights only from valid targets, align replay activity clocks, and run a separately versioned retrain/evaluation. Preserve the old evidence. Compare local-only versus local-plus-M6 if claiming complementarity.
+- If claiming a trained/evaluated M6 policy chain, align `train_adaptive_pdp.py` with serving and persist its producing model/data hashes. Its current producer still uses GCN plus default M6 fusion; the saved table has no lineage metadata. Preserve P5/P6 zero BLOCK recall in the archived experiment.
+- Resolve each claim-scoped physical gap or omit the claim: SW-420 physical VALIDATION/TEST are pending; MPU resting false alarms remain 5/12; no physical M6 acquisition-to-enforcement trial is recorded. These gaps prohibit heterogeneous held-out accuracy, low physical FPR and validated live-M6 claims; they do not prevent writing the bounded paper.
 
-## P2 — optional strengthening
+## OPTIONAL STRENGTHENING
 
-Add independent physical devices of the same modality for manufacturing variation; independent sites/load regimes; grouped multi-seed uncertainty and multiplicity policy; broader correlated fault families; robustness to missingness mechanisms; cost-matched alternative architectures. These should strengthen a defined claim, not expand the narrative without evidence.
+- Freeze new immutable M1–M9/M9 experiment fingerprints if rerunning; original seed-study cardinality metadata remains incomplete. There is no persisted M9 n=15 test and virtual-only versus hybrid superiority is inconclusive.
+- Use matched 10-versus-20-node, masking and composition experiments to separate their effects. Test proper joint feature/adjacency permutations before formal empirical graph-equivariance claims.
+- Define all-invalid low-level model behavior. Benchmark masking tests and runtime inactive-feature canonicalization do not establish every training/API boundary.
+- Preserve raw source-row identities and compare raw-session-only SW training; investigate fragmented MPU temporal training under a separate downstream rebuild.
+- Add independent sessions/devices, grouped generator validation, refit uncertainty and multiplicity treatment. LOW remains an internal diagnostic; MEDIUM/HIGH remain OOD stress regimes.
 
-Resolved during this audit: mandatory pytest availability; preserved standalone generator diagnostic; nonfinite invalid-content boundaries; sensor-mixing explainability evaluation defect; explicit Task2/policy/permutation wording; canonical documentation and numerical tables. Resolution evidence is under [final_verification](../../results/final_verification). No new physical capture, M6 deployment, expensive full benchmark rerun or literature-priority proof is implied.
+## DEMO / DEPLOYMENT FOLLOW-UP
+
+Physical heavy-shake-to-webpage behavior, recovery, disconnect and real enforcement remain unverified. Measure acquisition, broker transit, queueing, explanation and persistence in end-to-end latency. Validate actual firmware peer certificates, narrower freshness requirements, durable replay/revocation and fail-closed model readiness before production claims. Raw telemetry histories and explicit model-loaded/provenance status require dashboard/backend work. These enhancements are not prerequisites for beginning the paper.
+
+## SECURITY FOLLOW-UP
+
+**EXTERNAL CREDENTIAL ROTATION PENDING.** This audit did not rotate the external Wi-Fi credential; user confirmation and external configuration are required. Keep secret files ignored and untracked. A clean scoped scan does not prove no unknown historical credential exists. External rotation alone does not block documentation publication or paper writing. Any newly detected current tracked secret would block publication.
+
+No new hardware capture, training run, experimental result or literature-priority proof was created by this cleanup. The [readiness audit](../PAPER_READINESS_VERIFICATION.md) records the checks actually performed.

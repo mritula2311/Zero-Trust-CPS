@@ -1,13 +1,9 @@
 # Claim–Evidence Matrix
 
-> **[Paper-reference authority, 2026-09-07]** The [verified paper package](paper/00_PAPER_MASTER_GUIDE.md) governs current research claims. This document is retained as supporting implementation/history; earlier measurements and interpretations are historical unless reconfirmed there. Runtime uses M6 (Set Transformer) fusion as of 2026-09-07, superseding GCN after a held-out fusion-level comparison (`scripts/evaluate_ablation_m6.py`) showed a fused-decision improvement; prior GCN fusion artifacts are retained for reproducibility. SW-420 has TRAIN capture only.
+> **Historical claim matrix:** This preserves earlier contribution numbering and findings. Current claim authority is [docs/paper/17](paper/17_CLAIM_EVIDENCE_MATRIX.md); current numbers and model-lineage limits are [docs/paper/13](paper/13_RESULTS_MASTER_TABLES.md). Configured M6 integration is not a verified comparative or physical deployment result.
 
 
-Every substantive claim the manuscript may make, the experiment that supports
-it, what that experiment does **not** establish, and the wording that is and is
-not permitted.
-
-A claim absent from this table has no evidence behind it and must not be made.
+Historical contribution and withdrawal ledger. Its entries preserve the wording at the recorded revision; they do not override the current paper claim matrix.
 
 Numbers below are archived measurements with corrections through 2026-09-05.
 Physical session separation does not establish generated-source or temporal

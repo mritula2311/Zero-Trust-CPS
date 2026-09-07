@@ -20,7 +20,7 @@
   <section class="summary-grid" aria-label="Research overview">
     <div class="panel"><h2 class="panel-title">Physical identities</h2><div class="summary-number">02</div><div class="summary-label">One MPU6050 · one SW-420</div><p class="scope">Held-out physical validation is MPU-only. SW-420 VALIDATION/TEST are pending.</p></div>
     <div class="panel"><h2 class="panel-title">Constructed benchmark</h2><div class="summary-number">20 nodes</div><div class="summary-label">2 physical-source + 18 simulated</div><p class="scope">Physical-source rows are resampled. Network cardinality is not physical device count.</p></div>
-    <div class="panel"><h2 class="panel-title">Runtime relational model</h2><div class="summary-number">M6</div><div class="summary-label">Local scores → M6 Set Transformer → logistic fusion</div><p class="scope">M6 replaced GCN as the deployed relational scorer after a held-out fusion-level comparison (scripts/evaluate_ablation_m6.py); prior GCN-based artifacts are retained for reproducibility.</p></div>
+    <div class="panel"><h2 class="panel-title">Runtime relational model</h2><div class="summary-number">M6</div><div class="summary-label">Local scores → M6 Set Transformer → logistic fusion</div><p class="scope">M6 supplies the configured gateway relational score. Comparative effectiveness and physical end-to-end validation remain pending; prior GCN artifacts are retained.</p></div>
   </section>
   <div class="layout">
     <div class="main-col">
@@ -32,7 +32,7 @@
           <div class="channel process"><h3>Process Trust</h3><p>Rule + Isolation Forest + LSTM-AE, with an M6 Set Transformer relational score.</p><p>Four-score logistic fusion.<br>High score = greater process normality.</p></div>
         </div>
         <div class="meeting"><b>First meeting: policy evaluation</b><span class="scope">Offline contextual bandit or static two-score table<br>ALLOW / ALERT / STEP_UP / BLOCK</span></div>
-        <p class="scope">The gateway performs inference without fitting models or reward-based policy updates. M6 Set Transformer is outside this runtime path.</p>
+        <p class="scope">The gateway performs inference without fitting models or reward-based policy updates. A separate M6 runtime checkpoint supplies this path; benchmark M6 measurements do not describe it.</p>
       </section>
       <section aria-labelledby="hardware-title">
         <div class="panel-head"><h2 class="panel-title" id="hardware-title">Physical capture evidence</h2><span class="panel-sub">Select an identity for its schema and evidence</span></div>
@@ -68,7 +68,7 @@
             <tr><td>M9 · Mixed provenance</td><td>0.9842</td><td>0.0041</td><td>Hybrid + virtual training</td></tr>
           </tbody></table>
         </div>
-        <p class="scope">Preserved standalone measurements, not live or fused-model performance. M6 is not deployed and M6 fusion is untested. A single-seed ranking does not establish statistical or universal superiority.</p>
+        <p class="scope">Preserved standalone measurements, not live or fused-model performance. M6 serving and fusion are integrated; a correctly pinned comparative evaluation remains pending. A single-seed ranking does not establish statistical or universal superiority.</p>
       </section>
       <section class="panel" aria-labelledby="policy-title">
         <div class="panel-head"><h2 class="panel-title" id="policy-title">Policy boundary</h2><div class="policy-toggle" role="group" aria-label="Policy explanation"><button type="button" class="policy-opt active-static" data-policy="static" aria-pressed="true" aria-controls="static-policy">STATIC ILLUSTRATION</button><button type="button" class="policy-opt" data-policy="bandit" aria-pressed="false" aria-controls="bandit-policy">RUNTIME BANDIT</button></div></div>
@@ -83,11 +83,11 @@
     <aside class="alert-col" aria-label="Research claim boundaries">
       <section class="panel"><div class="panel-head"><h2 class="panel-title">Claim status</h2></div>
         <article class="alert-card sev-amber"><h3>Task-2 / claim #3</h3><p class="claim-status">SUPPORTED BUT WEAKER</p><p>B0 is a network-level count baseline, not a single-node baseline. Indexed context improves over that count.</p><p class="scope">Corrected TEST accuracy: B0 0.3958; concat MLP 0.5267; delta +0.1309. No GNN superiority claim.</p></article>
-        <article class="alert-card sev-cyan"><h3>M6 now deployed</h3><p>Standalone Macro-F1 0.9898. M6 replaced GCN as the runtime relational scorer after a held-out fusion comparison (scripts/evaluate_ablation_m6.py) showed a fused-decision improvement.</p></article>
+        <article class="alert-card sev-cyan"><h3>M6 serving integrated</h3><p>Standalone Macro-F1 0.9898 belongs to the benchmark. The separate runtime checkpoint has unresolved comparison, training-weight and policy-provenance limits.</p></article>
         <article class="alert-card sev-amber"><h3>Physical validation boundary</h3><p>SW-420 has TRAIN capture only. One device per modality does not establish manufacturing generalization.</p></article>
         <article class="alert-card sev-amber"><h3>Generator and topology</h3><p>LOW generator diagnostics are internal. Stress failures remain negative results. Feature-only permutation is not a graph-equivariance test.</p></article>
       </section>
-      <section class="panel" style="margin-top:20px"><div class="panel-head"><h2 class="panel-title">Next evidence gates</h2></div><p class="scope">Validate M6 with refitted fusion and matched policy evaluation. Collect independent SW validation/test sessions. Resolve hardware false alarms without tuning on TEST.</p><p class="scope">NIST/IEC mappings are implementation traceability, not compliance certification.</p></section>
+      <section class="panel" style="margin-top:20px"><div class="panel-head"><h2 class="panel-title">Next evidence gates</h2></div><p class="scope">Correctly pin the M6 comparison, training weights and policy evaluation. Collect independent SW validation/test sessions. Resolve hardware false alarms without tuning on TEST.</p><p class="scope">NIST/IEC mappings are implementation traceability, not compliance certification.</p></section>
     </aside>
   </div>
   <footer>Source snapshot: local main <code>4ffbe81</code>. Presentation values are preserved research evidence, not a current gateway connection. Security Trust and Process Trust remain separate until policy evaluation.

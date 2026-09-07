@@ -1,11 +1,11 @@
 # Product Requirements Document
 
-> **[Paper-reference authority, 2026-09-06]** The [verified paper package](docs/paper/00_PAPER_MASTER_GUIDE.md) governs current research claims. This document is retained as supporting implementation/history; earlier measurements and interpretations are historical unless reconfirmed there. Runtime uses GCN fusion; M6 is a standalone candidate. SW-420 has TRAIN capture only.
+> **Current reference, 2026-09-07:** Use the [paper master guide](docs/paper/00_PAPER_MASTER_GUIDE.md), [architecture](docs/paper/02_SYSTEM_ARCHITECTURE.md), [numerical authority](docs/paper/13_RESULTS_MASTER_TABLES.md), [claim gate](docs/paper/17_CLAIM_EVIDENCE_MATRIX.md) and [limitations](docs/paper/18_LIMITATIONS_AND_THREATS_TO_VALIDITY.md). The configured gateway uses M6 Set Transformer with M6-fitted fusion; the standalone M1–M9 benchmark and preserved GCN replay are separate evidence. M6 comparative gains need a correctly pinned replay. SW-420 has TRAIN capture only. Older sections below retain their historical scope.
 
 
-## Current audit status — 2026-09-05
+## Historical audit snapshot — 2026-09-05
 
-The runtime still uses Rule + IF + LSTM-AE + legacy GCN → logistic fusion;
+At that snapshot the runtime used Rule + IF + LSTM-AE + legacy GCN → logistic fusion;
 Security Trust stays separate until static/contextual-bandit policy evaluation.
 Set Transformer (M6/M8/M9) is a research candidate, concat MLP a fixed-size
 deployment baseline, Deep Sets a set baseline, GCN/GATv2 research baselines,
@@ -494,7 +494,7 @@ and `ZTCPS_GNN_EPOCHS` expose the GNN training knobs.
 | `README.md` | Quick start and orientation |
 | `docs/00–13` | Per-module reference and the as-built architecture |
 | `firmware/HARDWARE_SETUP.md` | Pinout and bring-up |
-| `CLAUDE.md` | Engineering invariants for contributors and coding agents |
+| `docs/paper/02_SYSTEM_ARCHITECTURE.md` | Current architecture and implementation invariants |
 
 ## 12. Current research contribution and delivery boundary
 

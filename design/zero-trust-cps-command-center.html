@@ -217,7 +217,7 @@
   <div class="banner err" id="banner" role="status"></div>
   <section class="research-status" aria-labelledby="research-title">
     <h2 id="research-title">Research status · reconciled 6 September 2026</h2>
-    <p><b>Runtime: M6 Set Transformer + logistic fusion.</b> M6 replaced GCN as the deployed relational scorer after a held-out fusion-level comparison (scripts/evaluate_ablation_m6.py) showed higher fused F1/accuracy and fewer false negatives, with the largest gain on stealthy_forged_values recall. The prior GCN-based fusion artifacts are retained (models/*_gcn_backup.*) for reproducibility.</p>
+    <p><b>Runtime: M6 Set Transformer + logistic fusion.</b> A separate M6 checkpoint supplies the configured gateway. Comparative effectiveness and physical end-to-end validation remain pending. Standalone benchmark metrics do not describe this runtime checkpoint.</p>
     <p><b>Physical evidence:</b> one MPU6050 identity and one SW-420 identity. SW-420 TRAIN capture exists; VALIDATION/TEST are pending. The 20-node benchmark is constructed from two physical-source and eighteen simulated identities.</p>
     <p><b>Task-2: SUPPORTED BUT WEAKER.</b> B0 is a network-level count baseline, not a single-node baseline. Indexed context improves over that count; GNN superiority is unsupported. This research snapshot is separate from the API observations below.</p>
   </section>

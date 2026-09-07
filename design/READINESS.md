@@ -1,6 +1,6 @@
 # Dashboard readiness receipt
 
-Completion pass on the existing dashboard branch, based on reconciled research main `4ffbe81d93cfafc70b179e6cd8405c210a5baf9a`. Initial presentation and gateway interface reused; no files moved/deleted and no backend, model, dataset or policy changes. The research presentation remains `design/Main.dc.html`; live gateway HTML remains `design/zero-trust-cps-command-center.html`. Canonical package is `design/`.
+Current documentation reconciliation: 2026-09-07. The presentation remains `design/Main.dc.html`; live gateway HTML remains `design/zero-trust-cps-command-center.html`. Current verification is recorded in browser-verification.json and the paper-readiness audit. Historical scenario observations below retain their GCN-era scope.
 
 ## Completion checklist
 
@@ -24,7 +24,7 @@ Completion pass on the existing dashboard branch, based on reconciled research m
 | Explanation panel | PASS | Backend reason, Level-2 summary, fusion SHAP | Missing attribution remains missing; no invented SHAP |
 | Demo scenario matrix | PASS | Matrix below | Explicit scope per row |
 | Practical demo checklist | PASS | DEMO_CHECKLIST.md | Physical rehearsal steps marked unverified |
-| Runtime model / candidate labels | PASS; updated 2026-09-07 | Both HTML entries | Runtime M6 Set Transformer (superseded GCN); held-out fusion comparison validated, not live-hardware validated |
+| Runtime model / candidate labels | Reconciled | Both HTML entries | Configured M6 serving; comparative and physical validation pending |
 | Physical vs simulated identities | PASS | Both HTML entries | Hardware identity does not authenticate physical message origin |
 | Explicit UNKNOWN / OFFLINE | PASS | Gateway cards and chain checks | OFFLINE follows backend SILENT; no browser timer guesses connection status |
 | Raw telemetry / per-feature histories | REQUIRES BACKEND INTEGRATION | DATA_CONTRACT.md | MPU five / SW four values absent from dashboard API |
@@ -37,7 +37,7 @@ Completion pass on the existing dashboard branch, based on reconciled research m
 | Publication hygiene / generated files | PASS | .gitignore, CLEANUP_MANIFEST.md | Sanitized browser receipt intentionally retained; raw screenshots/profiles excluded |
 | External documentation pointers | INSPECTED; RECONCILIATION FOLLOW-UP | Root README, docs/README, paper 02/22/24 | This design-only pass adds internal operation/reference links; integration owner can add canonical package backlinks when reconciling |
 
-## Actual runtime observations
+## Historical GCN-era runtime observations
 
 Command executed: `python design/verify-runtime.py`. Python 3.12, repository-fitted IF/LSTM/GCN/fusion and configured offline bandit. Seed 42, 40 warmup cycles, two seconds between cycles; scenario order is exactly the order below. This is an in-memory gateway run using existing synthetic generators, including a software stand-in for the MPU physical identity. No board, broker, HTTP ingestion, audit database or enforcement was exercised. This runner does not replace live dashboard data with its output.
 
@@ -57,7 +57,7 @@ The resumed MPU example is why the UI must not infer an action from the conceptu
 
 ## Validation and evidence limits
 
-`node design/verify-dashboard.mjs`: passed 14 viewport/artboard checks, 17 interaction/state checks and 18 artifact-value comparisons, zero uncaught browser runtime exceptions. Includes populated narrow layouts, API outage/recovery, malformed schema, unknown numeric scores/checks, watchdog OFFLINE and replay/HMAC labels. Screenshot fixtures are visibly marked DEMO MOCK MODE. No accessibility certification or physical scenario screenshots are claimed.
+`node design/verify-dashboard.mjs`: passed 14 viewport/artboard checks, 18 interaction/state checks and 18 artifact-value comparisons, zero uncaught browser runtime exceptions. Includes populated narrow layouts, API outage/recovery, malformed schema, unknown numeric scores/checks, watchdog OFFLINE and replay/HMAC labels. Screenshot fixtures are visibly marked DEMO MOCK MODE. No accessibility certification or physical scenario screenshots are claimed.
 
 `python -m unittest discover -s tests -p test_gateway_input_validation.py`: 15 tests passed. Existing SHAP dependency deprecation warnings and the expected unprovisioned-secret warning occurred; no local secrets were copied. This suite isolates model boundaries and is complementary to the real-inference offline runner.
 
@@ -65,4 +65,4 @@ The resumed MPU example is why the UI must not infer an action from the conceptu
 
 `node design/start-demo.mjs`: started and stopped successfully. HTTP checks confirmed presentation, README and linked result-reference responses (200), unavailable gateway API (503), and denied unlisted local-secret/environment paths (404). No secret content was read or served by these checks.
 
-Research constraints, updated 2026-09-07: Task-2 SUPPORTED BUT WEAKER; B0 network-level count baseline; M6 now the deployed runtime relational model (superseded GCN), validated at fusion level on held-out synthetic replay only, not live-hardware validated; one MPU6050 and one SW-420 physical identity; SW VALIDATION/TEST pending; 20-node benchmark constructed; Security and Process Trust separate until policy. Demonstrations support only the observed implementation behavior, not broader research claims.
+Research constraints, reconciled 2026-09-07: Task-2 SUPPORTED BUT WEAKER; B0 network-level count; configured M6 serving with unresolved comparative/training/policy lineage; physical M6 validation pending; one MPU6050 and one SW-420 physical identity; SW held-out sessions pending; 20-node constructed benchmark; Security and Process Trust separate until policy.

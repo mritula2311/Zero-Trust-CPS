@@ -446,7 +446,7 @@ entry 19); GNN `enabled: true` as a **live default**, not conditional
 fallback below; `min_baseline_messages_before_training`/
 `retrain_every_n_messages` are design-time parameters for a continuous-
 retraining architecture this project doesn't use (training is offline,
-once, per `CLAUDE.md` Section 8) — not implemented, not a gap, a
+once, per `docs/paper/02_SYSTEM_ARCHITECTURE.md`) — not implemented, not a gap, a
 consequence of the offline-training deviation.
 
 ```yaml

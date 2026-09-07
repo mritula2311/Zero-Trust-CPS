@@ -1,6 +1,6 @@
 # ZT-Duo / Zero-Trust CPS
 
-> **[Paper-reference authority, 2026-09-06]** The [verified paper package](docs/paper/00_PAPER_MASTER_GUIDE.md) governs current research claims. This document is retained as supporting implementation/history; earlier measurements and interpretations are historical unless reconfirmed there. Runtime uses GCN fusion; M6 is a standalone candidate. SW-420 has TRAIN capture only.
+> **Current reference, 2026-09-07:** Use the [paper master guide](docs/paper/00_PAPER_MASTER_GUIDE.md), [architecture](docs/paper/02_SYSTEM_ARCHITECTURE.md), [numerical authority](docs/paper/13_RESULTS_MASTER_TABLES.md), [claim gate](docs/paper/17_CLAIM_EVIDENCE_MATRIX.md) and [limitations](docs/paper/18_LIMITATIONS_AND_THREATS_TO_VALIDITY.md). The configured gateway uses M6 Set Transformer with M6-fitted fusion; the standalone M1–M9 benchmark and preserved GCN replay are separate evidence. M6 comparative gains need a correctly pinned replay. SW-420 has TRAIN capture only. Older sections below retain their historical scope.
 
 
 A research gateway that authenticates CPS telemetry and keeps **Security Trust**
@@ -8,10 +8,9 @@ separate from **Process Anomaly Trust** until an access policy consumes both.
 An authenticated physical disturbance should raise an operations alert while
 retaining telemetry; forged or replayed traffic is rejected.
 
-Read [RESULTS.md](RESULTS.md) through §0.13.25, [requirements](PRD.md),
-[methodology](METHODOLOGY.md), [claim matrix](docs/CLAIM_EVIDENCE_MATRIX.md) and
-[results history](RESULTS.md) together. Historical measurements remain available;
-RESULTS §0.13.17–25 qualify M9, masking repairs and the corrected baseline claims.
+Begin paper writing at the [paper master guide](docs/paper/00_PAPER_MASTER_GUIDE.md).
+The [results history](RESULTS.md), [requirements](PRD.md) and
+[methodology history](METHODOLOGY.md) preserve earlier decisions and experiments.
 This is a research testbed with unresolved deployment and evidence requirements.
 
 ## What runs
@@ -25,7 +24,7 @@ not CoAP or DTLS.
    boot/sequence freshness and timestamp freshness before committing device state.
    Failed-signature cooldown cannot suppress authentic telemetry.
 2. Compute Security Trust from cyber evidence: rate, step-up outcomes and silence.
-3. Fuse Rule + per-device Isolation Forest + LSTM-AE + the deployed legacy GCN
+3. Fuse Rule + per-device Isolation Forest + LSTM-AE + the configured M6 Set Transformer
    into Process Trust. Both trust scores are high-is-good.
 4. Apply the frozen contextual bandit (the legacy `USE_RL_POLICY` toggle) or the
    static two-score table. `STEP_UP` issues a nonce challenge. Automatic
@@ -48,7 +47,7 @@ the dedicated data-generation scripts. Configuration does not prove live presenc
 |---|---|
 | Rule, Isolation Forest, LSTM-AE | Local process baseline; training and evaluation must use matched, versioned artifacts. |
 | Legacy GCN | Superseded as the deployed relational scorer by M6 (2026-09-07); corrected ablations and topology probes do not support a general GNN superiority claim. Prior fusion artifacts retained (`models/*_gcn_backup.*`) for reproducibility. |
-| Set Transformer (M6/M8/M9) | M6 is now the deployed live relational scorer -- a held-out fusion-level comparison (`scripts/evaluate_ablation_m6.py`) showed higher fused F1/accuracy and fewer false negatives than the prior GCN-based fusion, with the largest gain on `stealthy_forged_values` recall. M8/M9 remain research candidates only. |
+| Set Transformer (M6/M8/M9) | A separately trained M6 checkpoint supplies the current gateway relational score and M6-fitted fusion. Standalone benchmark selection remains separate; comparative runtime gains require corrected replay provenance. M8/M9 remain research candidates. |
 | Concat MLP | Efficient fixed-size deployment baseline to compare under matched calibration. |
 | Deep Sets | Strong set baseline. |
 | Temporal Transformer | Ablation only; the fair undiluted comparison did not improve on LSTM-AE. |
@@ -146,8 +145,8 @@ retroactively correct saved model weights or measurements.
   saved measurements; preserve their history and provenance.
 - `docs/00_overview.md` through `docs/13_system_architecture_and_workflow.md`:
   module documentation, with current audit qualifications.
-- `ZERO_TRUST_CPS_KB.md`, `CLAUDE.md`, `SESSION_LOG.md`: engineering context,
-  agent instructions and historical handoff.
+- `ZERO_TRUST_CPS_KB.md`, `SESSION_LOG.md`: historical engineering decisions
+  and chronological handoff; current architecture is in the paper package.
 - `docs/MANUAL_EXTERNAL_REVIEW.md`: the requested independent review prompt.
 
 The older paper title and binary synopsis describe the project's historical

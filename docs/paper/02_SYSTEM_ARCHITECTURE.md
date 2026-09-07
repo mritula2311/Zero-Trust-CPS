@@ -12,7 +12,7 @@ flowchart TD
   A -->|rejected| R[Identity-targeting risk and rejection audit]
   A -->|accepted| S[Rate and step-up evidence: Security Trust]
   A -->|accepted| L[Rule, per-device IF and LSTM-AE]
-  L --> G[Runtime GCN on three local scores per node]
+  L --> G[Runtime M6 Set Transformer on local scores]
   L --> U[Four-score logistic fusion]
   G --> U
   U --> P[Process Trust and freshness state]
@@ -24,7 +24,7 @@ flowchart TD
 
 ## Exact boundary and computations
 
-`gateway._process_telemetry` holds `_pipeline_lock` through accepted-message scoring and decision persistence. It computes Security Trust at `score_security_trust(device_id, is_flood, step_up_result)` and Process Trust at `fusion_engine.combine(rule, IF, LSTM, GCN)`. The first computational meeting is the gateway policy branch: `adaptive_pdp.greedy_action(security_trust_score, process_trust_score)` when `USE_RL_POLICY=True`, otherwise `policy_engine.decide(security_trust_score, process_trust_score, process_status)`. Merely storing both values in the gateway or audit row is not a fusion of evidence.
+`gateway._process_telemetry` holds `_pipeline_lock` through accepted-message scoring and decision persistence. It computes Security Trust at `score_security_trust(device_id, is_flood, step_up_result)` and Process Trust at `fusion_engine.combine(rule, IF, LSTM, M6)`. The first computational meeting is the gateway policy branch: `adaptive_pdp.greedy_action(security_trust_score, process_trust_score)` when `USE_RL_POLICY=True`, otherwise `policy_engine.decide(security_trust_score, process_trust_score, process_status)`. Merely storing both values in the gateway or audit row is not a fusion of evidence.
 
 Security Trust starts at 0.8, applies bounded elapsed-time decay, then EWMA weight 0.35 to an authenticated observation: normal rate 0.95; flood 0.2; step-up success adds a bounded 0.1; failure observations decrease with the failure count. Decay is `min(0.3, 0.01*max(elapsed,0))`; score is clipped to [0,1] and rounded to three decimals. Signature failures update a separate identity-targeting record. Identity/HMAC/revocation are gates, not physical model inputs. See [trust engine](../../src/trust_engine.py), `score_security_trust`, `get_security_trust` and state classes.
 
@@ -51,9 +51,9 @@ Unless specified otherwise, runtime components do not train; tests are contract 
 | Preprocessing | `feature_engineering.feature_vector`; `datasets.normal_sequences` | Named fields/runs → ordered vectors/windows | Saved TRAIN mean/std | Training/inference separated | temporal/schema tests; model metadata | Resampled network trajectories are not contiguous physical acquisitions |
 | Local detectors | `rule_range_score`, `IsolationForestScorer`, `LSTMAEScorer` | Local reading/window → normality scores | Rule; offline IF and LSTM-AE | Runtime | local replay; checkpoint metadata | Scalar devices mirror rule into IF/LSTM slots |
 | Temporal Transformer | `TransformerScorer` | Eight-step window → score | Offline denoising Transformer AE | Ablation only | fair local comparison | No measured deployment advantage |
-| Relational runtime | `GNNScorer.score`, `_GCN` | Per-node [rule,IF,LSTM] → P(normal) | Offline GCN; 32 hidden, 3 layers | Runtime candidate | masking tests; `models/gnn.pt` | Active-time graph differs from benchmark topology |
+| Relational runtime | `SetTransformerScorer.score`, `_SetTransformer` (gateway alias `GNNScorer`) | Per-node [rule,IF,LSTM] → P(normal) | Offline attention model; three input channels, width 16, four heads, two blocks | Configured serving; offline scenario tested | `models/set_transformer_runtime.pt`; runtime verifier | Separate from four-channel benchmark M6; trainer class-weight and replay-clock limitations |
 | Relational research | Benchmark M1–M9 factories | Constructed score snapshots → per-node probabilities | Offline sklearn/PyTorch | Experimental | crossdevice metrics | No persisted per-model M1–M9 checkpoints |
-| Fusion | `FusionEngine.combine` | Four local/GCN scores → trust/confidence | Balanced logistic regression on VAL_001 | Runtime | `fusion_meta_learner.joblib`; replay | M6 complementarity untested |
+| Fusion | `FusionEngine.combine` | Rule/IF/LSTM/M6 scores → trust/confidence | Balanced logistic regression on VAL_001 | Configured serving | Active model/background match M6 variants | Comparative gain and local-only complementarity unverified |
 | Process Trust | `update_process_anomaly`, `get_process_anomaly` | Fused normality → retained score/status | State store; no training | Runtime | staleness tests | Confidence is probability decisiveness, not uncertainty calibration |
 | Policy | `decide`; `AdaptivePDP.greedy_action` | Two trusts → four actions | Static table / offline sample-average bandit | Bandit selected by config | policy comparison metrics | No sequential Bellman learning |
 | Explainability | `FusionEngine._explain`; `explainability.level2_explain` | Scores/models → additive log-odds and perturbation explanation | SHAP LinearExplainer; repair probes | Runtime and experimental evaluation | explanation tests/log | Repair/rank metrics differ; some use historical 0.5 |
@@ -67,7 +67,7 @@ Paths in the matrix resolve under [src](../../src), [scripts](../../scripts), [t
 
 ## Runtime versus research candidate
 
-The gateway instantiates `GNNScorer`, not any class from `benchmark_crossdevice_models.py`. Its `models/gnn.pt` uses time-coactive registry nodes and self-loop weight 3; benchmark M4 uses declared network topology, a validation-selected weight 5 and `models/gnn_network.pt`. These checkpoints are different. M6 would require an explicit serving adapter, matched score construction, retrained fusion, calibration, model identity and end-to-end evaluation. Selecting its standalone architecture implements none of those steps.
+The gateway imports `SetTransformerScorer` as `GNNScorer`; the alias and `gnn_score` audit/API field preserve compatibility. It loads `models/set_transformer_runtime.pt`, with three local-score input channels and attention over time-active identities. Benchmark M6 uses an additional validity input channel and separate unsaved fits; its metrics do not describe this checkpoint. Historical `models/gnn.pt` and `models/gnn_backup.pt` retain the time-coactive GCN lineage; benchmark M4 uses `models/gnn_network.pt` and declared topology. Active fusion/background match the M6 variants; GCN-fitted backups are retained. M6 integration exists, but matched comparative accuracy, policy lineage and physical end-to-end validation remain open; see [10](10_FUSION_AND_PROCESS_TRUST.md).
 
 Runtime registry includes the two physical identities, two legacy scalar identities and eighteen dynamically registered simulated feature nodes: 22 entries. The network benchmark uses the 20 feature-carrying entries. The legacy replay exercises three identities. Do not equate registry shape, benchmark cardinality and simultaneously connected physical devices.
 
@@ -84,19 +84,19 @@ Model-file absence can activate neutral score or mean-fusion fallbacks. Startup 
 | Required question | Verified answer and limit |
 |---|---|
 | 1. Where does Security Trust originate? | `score_security_trust`: authenticated rate/step-up evidence, decay and EWMA; initialized at 0.8. |
-| 2. Where does Process Trust originate? | `FusionEngine.combine`: logistic normality from rule, IF, LSTM and runtime GCN. |
+| 2. Where does Process Trust originate? | `FusionEngine.combine`: logistic normality from rule, IF, LSTM and configured runtime M6. |
 | 3. Where do they first meet? | Gateway policy call to `greedy_action(sec, proc)` or static `decide(sec, proc, status)`. |
 | 4. Can a security failure contaminate process-model training? | No runtime fitting occurs. Offline scripts use curated authentication/event annotations; arbitrary malicious dataset edits are outside this guarantee. |
 | 5. Can process inference bypass authentication? | Not through the inspected telemetry entry point; its gates precede model/state updates. Offline evaluators intentionally replay stored records. |
 | 6. Can rejected traffic mutate trust state? | Tested rejections leave accepted trust/history unchanged. Separate targeting/audit records change; expired previous-key cleanup is a registry-metadata exception. |
 | 7. Does live inference train? | No fit/backward/optimizer/bandit reward update on the gateway path. Static initialization of unseen policy buckets is memoization. |
 | 8. Are local features correct per sensor? | Five MPU and four SW channels, with device-specific ordering and saved dimensions. This does not establish SW held-out accuracy. |
-| 9. Are pending nodes structurally excluded? | Current training/metric/normalization/model boundaries mask invalid observations, with pre-arithmetic canonicalization. The historical permutation probe omits validity; all-invalid low-level semantics remain open. |
-| 10. Is M6 live? | No; selected standalone experimental candidate. |
-| 11. Which relational model does runtime use? | `GNNScorer` and `models/gnn.pt`: three-layer, hidden-32, time-coactive GCN, self-loop weight 3. |
-| 12. Is fusion trained with the selected relational candidate? | No. Saved logistic fusion includes the runtime GCN score, not M6. |
+| 9. Are pending nodes structurally excluded? | Tested benchmark paths and runtime inactive-score construction canonicalize invalid values before arithmetic. M6 serving uses `np.where` and attention masks. Runtime-M6 training still includes invalid labels in class-weight counts; do not extend benchmark training guarantees to it. |
+| 10. Is M6 live? | It is selected in serving code and exercised in offline scenarios. No physical live deployment was observed in this audit. |
+| 11. Which relational model does runtime use? | `SetTransformerScorer` and `models/set_transformer_runtime.pt`; the `GNNScorer` alias is a legacy identifier. |
+| 12. Is fusion trained with the selected relational candidate? | Yes: active model/background are byte-identical to the M6-fitted variants. This proves artifact selection, not comparative superiority or physical generalization. |
 | 13. Does final policy consume current fused output? | The gateway calls the configured policy with the fused Process Trust score and separate Security Trust; current config selects the offline bandit. Saved policy experiment metrics are a separate replay lineage. |
 | 14. What hardware is physically evidenced? | Captures from one MPU6050 and one SW-420; held-out physical replay exists only for MPU. No fresh flashing or broker session was performed here. |
 | 15. What is generated in the 20-node experiment? | Eighteen simulated identities; the two physical-source columns are constructed by split-respecting resampling. Missing SW held-out data remains pending. |
 | 16. Strongest verified end-to-end result? | Offline replay of the implemented GCN/fusion scoring chain on held-out MPU captures: 30/30 disturbances and 5/12 resting false alarms after exclusions. This is not complete sensor-to-policy-enforcement validation. |
-| 17. Which architectural component still needs validation? | M6 serving/fusion/policy integration and complementarity; physical SW held-out performance, firmware peer verification and full acquisition-to-enforcement latency. |
+| 17. Which architectural component still needs validation? | Correctly pinned M6 comparisons, valid-only training weights and replay-clock alignment, matched policy provenance, physical SW held-out performance, firmware peer verification and acquisition-to-enforcement latency. |

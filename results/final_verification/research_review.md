@@ -1,6 +1,6 @@
 # Independent research/code review: cross-device benchmark and masking audit
 
-**Scope.** Read-only review of `scripts/benchmark_crossdevice_models.py`, `scripts/evaluate_gnn_baselines.py`, the component training scripts, and artifacts under `results/crossdevice_benchmark`, `results/gnn_baselines`, and `results/astra_masking_review`. I did not rerun expensive training. Numbers below are transcribed from the checked-in JSON and checked against confusion-matrix arithmetic. Branch observed: `astra/verify-pending-masking-20260906`.
+**Scope.** Read-only review of `scripts/benchmark_crossdevice_models.py`, `scripts/evaluate_gnn_baselines.py`, the component training scripts, and artifacts under `results/crossdevice_benchmark`, `results/gnn_baselines`, and `results/astra_masking_review`. I did not rerun expensive training. Numbers below are transcribed from the checked-in JSON and checked against confusion-matrix arithmetic. Branch observed: `<historical-review-branch>`.
 
 ## Verdict
 

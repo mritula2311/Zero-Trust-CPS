@@ -31,7 +31,7 @@
 >    (`esp32-vib-001`, a 5-feature vibration vector, not raw 6-channel
 >    accel+gyro) plus two legacy scalar devices (`sensor-002`,
 >    `actuator-001`), not a uniform fleet of MPU6050 nodes. See
->    `CLAUDE.md` Section 2 for why.
+>    `docs/paper/02_SYSTEM_ARCHITECTURE.md` for why.
 > 3. **Flat `src/` + `config.py`** kept instead of this doc set's
 >    `src/simulation|identity|auth|trust|...` package layout and
 >    `config.yaml` — cosmetic, no functional benefit, only merge risk

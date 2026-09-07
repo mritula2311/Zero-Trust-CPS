@@ -1,6 +1,6 @@
 # Independent hardware, temporal-split, feature, and virtual-generator review
 
-**Scope.** Read-only inspection of raw capture JSON, the split manifest/loaders, generated network files, local-model trainers, firmware/gateway signing code, feature implementations, virtual generator, validation script, and available result artifacts. I ran only lightweight readers/counts; no model training or data generation. Branch observed: `astra/verify-pending-masking-20260906`.
+**Scope.** Read-only inspection of raw capture JSON, the split manifest/loaders, generated network files, local-model trainers, firmware/gateway signing code, feature implementations, virtual generator, validation script, and available result artifacts. I ran only lightweight readers/counts; no model training or data generation. Branch observed: `<historical-review-branch>`.
 
 ## Verdict
 

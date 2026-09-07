@@ -1,11 +1,11 @@
 # Zero-Trust CPS — System Architecture & Knowledge Base
 
-> **[Paper-reference authority, 2026-09-06]** The [verified paper package](docs/paper/00_PAPER_MASTER_GUIDE.md) governs current research claims. This document is retained as supporting implementation/history; earlier measurements and interpretations are historical unless reconfirmed there. Runtime uses GCN fusion; M6 is a standalone candidate. SW-420 has TRAIN capture only.
+> **Current reference, 2026-09-07:** Use the [paper master guide](docs/paper/00_PAPER_MASTER_GUIDE.md), [architecture](docs/paper/02_SYSTEM_ARCHITECTURE.md), [numerical authority](docs/paper/13_RESULTS_MASTER_TABLES.md), [claim gate](docs/paper/17_CLAIM_EVIDENCE_MATRIX.md) and [limitations](docs/paper/18_LIMITATIONS_AND_THREATS_TO_VALIDITY.md). The configured gateway uses M6 Set Transformer with M6-fitted fusion; the standalone M1–M9 benchmark and preserved GCN replay are separate evidence. M6 comparative gains need a correctly pinned replay. SW-420 has TRAIN capture only. Older sections below retain their historical scope.
 
 
-## Current audit status — 2026-09-05
+## Historical audit snapshot — 2026-09-05
 
-The runtime still uses Rule + IF + LSTM-AE + legacy GCN → logistic fusion;
+At that snapshot the runtime used Rule + IF + LSTM-AE + legacy GCN → logistic fusion;
 Security Trust stays separate until static/contextual-bandit policy evaluation.
 Set Transformer (M6/M8/M9) is a research candidate, concat MLP a fixed-size
 deployment baseline, Deep Sets a set baseline, GCN/GATv2 research baselines,
@@ -105,7 +105,7 @@ responses.
    hole described above.
 3. **Training is strictly offline.** The gateway only ever runs inference. No
    `.fit()` call exists on the live path. This is a hard constraint
-   (`CLAUDE.md` §8), not a preference — an online-learning PDP is an attack
+   (`docs/paper/02_SYSTEM_ARCHITECTURE.md`), not a preference — an online-learning PDP is an attack
    surface, because an attacker who can generate traffic can move the model.
 4. **Honest measurement over flattering numbers.** Where the system fails
    (`stealthy_forged_values` detection, Level-2 single-channel explainability at 37% against a
@@ -678,7 +678,7 @@ tolerance has room; the centre does not.
     single-node telemetry — information-theoretically out of reach for this
     design, and reported rather than engineered around.
   - Hardware secure-element key storage; secrets are plaintext constants, an
-    accepted prototype simplification (`CLAUDE.md` §8).
+    accepted prototype simplification (`docs/paper/02_SYSTEM_ARCHITECTURE.md`).
 
 ---
 

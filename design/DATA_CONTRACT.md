@@ -8,7 +8,7 @@ This is a view of existing gateway responses, with no model inference, trust upd
 | `/api/devices` | `devices[].device_id`, `kind` | Registered identities, not connected devices. No `last_seen`, revocation, hardware attestation or connection state |
 | `/api/decisions` | `rows[]` newest first; `timestamp`, `device_id`, `decision`, `auth_ok`, `reason`, `reason_category`, `transport` | Recent audit window; event time is not last accepted telemetry time. Malformed envelopes may be dropped before logging |
 | same | `security_trust_score`, `process_trust_score`, `process_status` | Separate scores, high means trusted/normal; missing or malformed numbers display an em dash (UNKNOWN), never measured zero |
-| same | `rule_score`, `anomaly_score`, `lstm_score`, `gnn_score`, `fused_score`, `confidence` | `anomaly_score` is IF normality; GCN is the runtime relational model. Numeric fallback scores cannot be distinguished from trained inference without backend model status |
+| same | `rule_score`, `anomaly_score`, `lstm_score`, `gnn_score`, `fused_score`, `confidence` | `anomaly_score` is IF normality; The legacy gnn_score field now carries M6 Set Transformer output. Numeric fallback scores cannot be distinguished from trained inference without backend model status |
 | same | `shap_rule`, `shap_isolation_forest`, `shap_lstm_ae`, `shap_gnn`, `level2_dominant_feature`, `level2_summary` | Actual fusion SHAP log-odds and backend Level-2 explanation; unavailable attribution remains missing |
 | `/api/chain` | `chain_ok`, `checkpoint_ok`, `full_scan_ok`, `tail_ok`, scan ages and row counts | Missing checks are UNKNOWN; no assumed PASS |
 | `/api/governance` | `coverage`, `tenets`, validation records and summary | Audit-window evidence, not certification |

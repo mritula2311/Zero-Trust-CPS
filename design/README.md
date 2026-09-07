@@ -1,6 +1,6 @@
 # Dashboard and research presentation
 
-This package reflects the reconciled research state at local main `4ffbe81d93cfafc70b179e6cd8405c210a5baf9a`. It contains two distinct views:
+This package follows the [current paper architecture](../docs/paper/02_SYSTEM_ARCHITECTURE.md). It contains two distinct views:
 
 | Entry | Purpose | Data and behavior |
 |---|---|---|
@@ -29,7 +29,7 @@ See the [data contract](DATA_CONTRACT.md), [verified scenario matrix and limitat
 ## Research boundaries carried by both views
 
 - Task-2 claim: **SUPPORTED BUT WEAKER**. B0 is a network-level count, not a single-node baseline.
-- M6 was the selected standalone relational candidate in the offline M1-M9 sweep; as of 2026-09-07 a separately-trained M6 checkpoint is the deployed runtime relational model, validated at fusion level on held-out synthetic replay (`scripts/evaluate_ablation_m6.py`), not live-hardware validated.
+- M6 is selected in the standalone M1–M9 benchmark. A separate checkpoint is configured in gateway serving and M6-fitted fusion. Correctly pinned comparative evaluation, training-weight correction and policy lineage remain open; no physical end-to-end M6 validation is claimed.
 - Runtime relational inference is M6 (Set Transformer), followed by logistic fusion. Prior GCN artifacts are retained (`models/*_gcn_backup.*`) for reproducibility.
 - Physical evidence comprises one MPU6050 identity and one SW-420 identity. SW-420 TRAIN capture exists; VALIDATION/TEST are pending.
 - The 20-node benchmark is constructed from two physical-source identities and eighteen simulated identities.
@@ -51,7 +51,7 @@ python design/check-package.py
 
 The runner uses an isolated temporary browser profile and a loopback fixture server. Optional `CHROME_PATH` selects the browser executable; `DASHBOARD_QA_DIR` selects the screenshot/report output directory. By default outputs use a temporary directory printed on completion. The runner closes its browser and server; it never contacts a production gateway or physical device. On this Windows environment, the sandboxed renderer timed out, so the successful browser run used approved execution outside the sandbox.
 
-[Recorded verification](browser-verification.json): 14 viewport/artboard checks across the three HTML entries, including 320/768/1024/1440 px and the two 1600 px artboards; 17 interaction/state checks including populated 320/1440 layouts; 18 numerical comparisons against the canonical JSON; local presentation reference checks; zero uncaught browser runtime exceptions. Keyboard selection, all four static actions, exact 0.6 boundary behavior, populated/rejected observations, absent SHAP, unknown scores/checks, watchdog OFFLINE, invalid response schema and API outage/recovery were exercised. The presentation issued zero API requests. These checks do not establish live hardware deployment or full accessibility certification.
+[Recorded verification](browser-verification.json): 14 viewport/artboard checks across the three HTML entries, including 320/768/1024/1440 px and the two 1600 px artboards; 18 interaction/state checks including populated 320/1440 layouts; 18 numerical comparisons against the canonical JSON; local presentation reference checks; zero uncaught browser runtime exceptions. Keyboard selection, all four static actions, exact 0.6 boundary behavior, populated/rejected observations, absent SHAP, unknown scores/checks, watchdog OFFLINE, invalid response schema and API outage/recovery were exercised. The presentation issued zero API requests. These checks do not establish live hardware deployment or full accessibility certification.
 
 Screenshot output is temporary and excluded from Git. Gateway screenshots show synthetic fixtures and a visible DEMO MOCK MODE label; presentation screenshots show preserved research values and labelled illustrations. No physical heavy-shake or coordinated-live screenshot is supplied. Keep these captions when using any image in an implementation chapter or presentation.
 

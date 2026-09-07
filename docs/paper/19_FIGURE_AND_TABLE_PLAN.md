@@ -5,7 +5,7 @@ No paper figures were fabricated in this audit. Existing images under [docs/figu
 | No. / title | Purpose and source | Script / artifact | Exists / regeneration / status |
 |---|---|---|---|
 | Fig1: Problem formulation | Separate forged identity and physical fault; architecture doc | Conceptual schematic from 02/03 | Proposed; no empirical visual claim |
-| Fig2: Actual and candidate architectures | Runtime GCN versus selected M6 gap | 02, gateway and fusion source | Mermaid in02 exists; publication redraw required |
+| Fig2: Actual and candidate architectures | Configured M6, separate benchmark M6 and historical GCN lineage | 02, gateway and fusion source | Mermaid in02 exists; publication redraw required |
 | Fig3: Two-trust decision flow | Two axes meet at policy | policy_engine / adaptive_pdp | Historical figB exists; regenerate with explicit protocol |
 | Fig4: Hardware/data provenance | Two physical modalities,18 simulated, separate5 virtual | 04, split manifest, node profiles | Proposed; no20-device photograph implied |
 | Fig5: M1–M9 error tradeoff | Macro-F1, precision, FPR, isolated/coordinated recall | benchmark / crossdevice metrics | Regenerate from current13 B; do not reuse stale eight-model chart |
@@ -23,9 +23,13 @@ No paper figures were fabricated in this audit. Existing images under [docs/figu
 | IV | M1–M9 /13 B | Descriptive standalone selection; no fused-M6 claim |
 | V | Topology /13 D–H | Controlled mechanisms and correct permutation interpretation |
 | VI | Negative results /16 | Preserve failed models and superseded diagnosis |
-| VII | Fusion /10 and13 A/O | Current coefficients, metric polarity and integration gap |
+| VII | Fusion /10 and13 A/O | Current artifact identity, historical GCN performance and M6 comparison gap |
 | VIII | Policy /13 P | Comparator constraint tradeoffs |
 | IX | Hardware /13 Q | Small dependent sample, false alarms included |
 | X | Validity limits /18 | Scope of admissible claims |
 
 Every exported chart should record source artifact hash, generator command, metric polarity, threshold protocol, cardinality, provenance and status in its caption/source notes. A plot generated from superseded numbers must remain marked historical until regenerated.
+
+## Figure types and publication gate
+
+Fig1 is CONCEPTUAL. Fig2 is an ARCHITECTURE DIAGRAM. Fig3 must label a static-policy schematic CONCEPTUAL; any observed policy chart is MEASURED RESULT for its saved protocol. Fig4 is GENERATED FROM VERIFIED ARTIFACT (provenance inventory), not a photograph of a physical fleet. Fig5–Fig10 are MEASURED RESULT / GENERATED FROM VERIFIED ARTIFACT, using the exact 13 source mappings. Additional M6 gain plots are OPTIONAL and blocked until a correctly pinned comparison exists. None of these labels turns a proposed figure into completed evidence.

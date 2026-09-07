@@ -4,7 +4,7 @@ Audit date: 2026-09-06. This report records the inspected branch, executed offli
 
 ## 1. Repository state
 
-Workspace: `<REPO_ROOT>`; branch: `astra/verify-pending-masking-20260906`. Initial HEAD: `cf4d82c4f7522ec9133d1e86324f8c47a3043288`. Reviewed local main and origin/main: `4f6afa25e4721c13a4e9f0355548f8ca07c70a5a`; main ahead/behind: 0/0. Initial tree was clean and docs/paper did not exist. This is newer than the supplied c5cd38d context. No fetch was performed: origin/main denotes the accessible tracking ref, not a freshly queried server head. Only one worktree was registered; inaccessible clones, other unpushed work and uncommitted work outside it are not verified. [Initial state](../results/final_verification/initial_repository_state.json) and [inventory](../results/final_verification/repository_inventory.json) preserve exact observations. Code/test audit HEAD is `9abecb8edfe7885c75cdc335f33c6ce589561ccd`; subsequent documentation/evidence commits are listed by Git and the delivery response.
+Workspace: `<REPO_ROOT>`; branch: `<historical-review-branch>`. Initial HEAD: `cf4d82c4f7522ec9133d1e86324f8c47a3043288`. Reviewed local main and origin/main: `4f6afa25e4721c13a4e9f0355548f8ca07c70a5a`; main ahead/behind: 0/0. Initial tree was clean and docs/paper did not exist. This is newer than the supplied c5cd38d context. No fetch was performed: origin/main denotes the accessible tracking ref, not a freshly queried server head. Only one worktree was registered; inaccessible clones, other unpushed work and uncommitted work outside it are not verified. [Initial state](../results/final_verification/initial_repository_state.json) and [inventory](../results/final_verification/repository_inventory.json) preserve exact observations. Code/test audit HEAD is `9abecb8edfe7885c75cdc335f33c6ce589561ccd`; subsequent documentation/evidence commits are listed by Git and the delivery response.
 
 ## 2. Full architecture verdict
 
@@ -231,7 +231,7 @@ Experimental methodology, results, architecture/methods, discussion, limitations
 
 ## 49. Confirmation main was not modified
 
-All edits and local commits were made on `astra/verify-pending-masking-20260906`. Local main remains `4f6afa25e4721c13a4e9f0355548f8ca07c70a5a`. No checkout of main for edits, merge, reset, rebase or history rewrite was performed.
+All edits and local commits were made on `<historical-review-branch>`. Local main remains `4f6afa25e4721c13a4e9f0355548f8ca07c70a5a`. No checkout of main for edits, merge, reset, rebase or history rewrite was performed.
 
 ## 50. Confirmation nothing was pushed to main
 

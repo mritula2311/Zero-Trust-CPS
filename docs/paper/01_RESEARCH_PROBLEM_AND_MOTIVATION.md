@@ -11,6 +11,6 @@ The implemented research question is whether separate cyber-behaviour and physic
 | Which relational candidate balances errors? | `benchmark_crossdevice_models.py`, M1–M9 | Descriptive model ranking at declared validation operating points |
 | Does topology affect the models? | Degree, peer-density and dilution probes | Sensitivity under the actual interventions |
 | How far can real-derived augmentation be pushed? | Generator validation and M9 stress | Internal consistency and OOD failure boundary |
-| Does the complete selected architecture work on hardware? | Current GCN fusion replay; M6 fusion absent | Current component-chain observations; selected end-to-end candidate remains pending |
+| Does the complete selected architecture work on hardware? | Preserved GCN-era physical replay; current M6 software integration | Historical component-chain observations; physical M6 end-to-end validation remains pending |
 
 Source implementations: [gateway](../../src/gateway.py), [baseline evaluation](../../scripts/evaluate_gnn_baselines.py), [relational benchmark](../../scripts/benchmark_crossdevice_models.py). Safe motivation is a need to distinguish evidence types. Avoid claiming that Zero Trust, ensemble anomaly detection, set attention or contextual bandits are themselves new inventions.

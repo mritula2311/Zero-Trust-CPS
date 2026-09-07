@@ -74,7 +74,7 @@ ARTIFACT
 
 The attached packet provides source and raw saved statistics. With repository
 access, also inspect `README.md`, `METHODOLOGY.md`,
-`RESULTS.md` §0.13.17, `PRD.md`, `ZERO_TRUST_CPS_KB.md`, `CLAUDE.md`,
+`RESULTS.md` §0.13.17, `PRD.md`, `ZERO_TRUST_CPS_KB.md`,
 `docs/CLAIM_EVIDENCE_MATRIX.md`, module docs and firmware guides. Check their
 current claims against implementation and preserved historical results.
 

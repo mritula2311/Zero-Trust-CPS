@@ -5,7 +5,7 @@
 
 Date: 2026-09-06. Reviewed local main:
 `4f6afa25e4721c13a4e9f0355548f8ca07c70a5a`.
-Review branch: `astra/verify-pending-masking-20260906`. Code/test repair:
+Review branch: `<historical-review-branch>`. Code/test repair:
 `6d74a0e`. Nothing was pushed.
 
 ## Verdict and paper wording

@@ -1,15 +1,11 @@
 # Session Log — Zero-Trust CPS Project
 
-> **[Paper-reference authority, 2026-09-06]** The [verified paper package](docs/paper/00_PAPER_MASTER_GUIDE.md) governs current research claims. This document is retained as supporting implementation/history; earlier measurements and interpretations are historical unless reconfirmed there. Runtime uses GCN fusion; M6 is a standalone candidate. SW-420 has TRAIN capture only.
+> **Current reference, 2026-09-07:** Use the [paper master guide](docs/paper/00_PAPER_MASTER_GUIDE.md), [architecture](docs/paper/02_SYSTEM_ARCHITECTURE.md), [numerical authority](docs/paper/13_RESULTS_MASTER_TABLES.md), [claim gate](docs/paper/17_CLAIM_EVIDENCE_MATRIX.md) and [limitations](docs/paper/18_LIMITATIONS_AND_THREATS_TO_VALIDITY.md). The configured gateway uses M6 Set Transformer with M6-fitted fusion; the standalone M1–M9 benchmark and preserved GCN replay are separate evidence. M6 comparative gains need a correctly pinned replay. SW-420 has TRAIN capture only. Older sections below retain their historical scope.
 
 
-Single running catch-up document for everything done on this project across
-sessions, in order. Read this top-to-bottom to get fully current without
-having to piece the story together from `docs/05_phase_status.md`,
-`CLAUDE.md`, or individual file docstrings — those remain the authoritative
-*reference* docs (architecture, config, how-to), this file is the
-*narrative* of how the project got here and why. **This file gets updated
-every session, not just this one** — treat it as the first thing to read.
+Historical chronological record of engineering sessions, including superseded decisions.
+Start current paper work at [the paper master guide](docs/paper/00_PAPER_MASTER_GUIDE.md);
+this log preserves the narrative of how the project evolved.
 
 ---
 
@@ -2016,7 +2012,7 @@ plain list — fixed after a live crash during multi-device smoke testing.
 **A second, more consequential bug found while cleaning up after that
 smoke testing**: the smoke tests wrote ~225 real rows into the actual
 `data/audit_log.db` (not a throwaway path — exactly the mistake
-`CLAUDE.md` Section 8 already warns about and `evaluate_latency.py` had
+`docs/paper/02_SYSTEM_ARCHITECTURE.md` already warns about and `evaluate_latency.py` had
 to fix once before, §8/RESULTS.md item 8). Deleting those rows to restore
 the genuine 31,670-row history (found via a timestamp-gap scan — a
 125,432-second gap cleanly separates 2026-08-29's real data from
