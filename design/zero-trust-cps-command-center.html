@@ -313,7 +313,7 @@
         <table>
           <thead><tr>
             <th>Time</th><th>Device</th><th>Decision</th><th class="mono">sec</th><th class="mono">proc</th>
-            <th class="mono">rule</th><th class="mono">IF</th><th class="mono">LSTM</th><th class="mono">M6</th><th class="mono">fused</th>
+            <th class="mono">rule</th><th class="mono">IF</th><th class="mono">LSTM</th><th class="mono" title="M6 Set Transformer">M6</th><th class="mono">fused</th>
             <th>Transport</th><th>Reason</th>
           </tr></thead>
           <tbody id="decrows"></tbody>
@@ -419,7 +419,7 @@
   var SIG=[["rule_score","Rule","shap_rule","rule_score"],
            ["isolation_forest_score","Isolation Forest","shap_isolation_forest","anomaly_score"],
            ["lstm_ae_score","LSTM-AE","shap_lstm_ae","lstm_score"],
-           ["gnn_score","M6","shap_gnn","gnn_score"]];
+           ["gnn_score","Set Transformer","shap_gnn","gnn_score"]];
   function $(id){return document.getElementById(id)}
   function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
   function finite(v){return typeof v==="number"&&Number.isFinite(v)}
@@ -494,7 +494,7 @@
         '<div class="section-t">Model predictions</div>'+
         '<div class="preds">'+
           predChip("Rule",r.rule_score)+predChip("Iso.Forest",r.anomaly_score)+
-          predChip("LSTM-AE",r.lstm_score)+predChip("M6",r.gnn_score)+
+          predChip("LSTM-AE",r.lstm_score)+predChip("Set Transf.",r.gnn_score)+
           predChip("Fused",r.process_trust_score,true)+
         '</div>'+
         '<div class="section-t">SHAP attribution — which signal moved the fused score (log-odds)</div>'+

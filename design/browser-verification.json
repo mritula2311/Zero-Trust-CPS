@@ -104,7 +104,7 @@
     "extracted/Main.dc.html": "46d866e4b2b4ee37f28d841f0e689b3559a037034e23d85d7c4c2584bb42f836",
     "presentation.css": "12b537d59a14b0f546ba5659b03b3264e1f393d15125982788b539c333086d91",
     "presentation.js": "c202c657798e5c7a8f6c0133828701c3aa5d808ff7a9eab20f245282eb66c355",
-    "zero-trust-cps-command-center.html": "39ae2245418c0a0285a446161a6c96ff1b80ee152cbc320163eff83cb07b9d83",
+    "zero-trust-cps-command-center.html": "092bb0a22e3c3a339c994aab43f977a9e54246e6493a54a7b7bb62bedfaf9872",
     "verify-dashboard.mjs": "2689e489e0f843040827051a301742bc80b5fdf34a7d8bfa2c12cf461ca946f4"
   },
   "hashNormalization": "sha256 of UTF-8 text with CRLF normalized to LF before hashing (see design/hash_lib.mjs); a Windows checkout with core.autocrlf converting the Git-stored LF blob to CRLF must not change this hash, but any substantive content edit still does."
