@@ -41,9 +41,8 @@ from config import DATA_COLLECTED_DIR, PROCESS_THRESHOLD, is_feature_vector, LST
 import feature_engineering as fe
 from isolation_forest_scorer import IsolationForestScorer
 from lstm_ae_scorer import LSTMAEScorer
-from gnn_scorer import GNNScorer
-from fusion_engine import FusionEngine
 from trust_engine import rule_range_score
+import relational_pin as rp
 import splits
 
 DEVICE = "esp32-vib-001"
@@ -102,7 +101,7 @@ def load_sessions(split: str = "test"):
     return rows
 
 
-def score_all(rows):
+def score_all(rows, pin):
     """Scores each record through the real pipeline.
 
     The LSTM-AE's rolling window is RESET at every phase boundary, and the first
@@ -120,10 +119,18 @@ def score_all(rows):
     than "given the board is in state X, does the pipeline score X correctly",
     which is what a labelled per-phase evaluation exists to answer.
 
-    The GNN needs a graph, and a single real device publishing alone IS the
-    deployed topology, so the two simulated devices are marked active with
-    neutral evidence -- matching what the live gateway sees with all three up."""
-    if_s, gnn_s, fusion = IsolationForestScorer(), GNNScorer(), FusionEngine()
+    The relational scorer needs neighbour activity, and a single real device
+    publishing alone IS the deployed topology, so the two simulated devices
+    are marked active with neutral evidence -- matching what the live
+    gateway sees with all three up.
+
+    `pin` (src/relational_pin.py RelationalPin) selects an explicit,
+    hash-verified relational checkpoint + matched fusion artifact -- prior
+    behaviour (bare GNNScorer() + FusionEngine()) silently paired true GCN
+    scores with the ambient FUSION_MODEL_PATH, which became the M6-fitted
+    model at the 2026-09-07 deployment. Default `gcn` reproduces the
+    historically reported numbers; pass an M6 pin for a current comparison."""
+    if_s, gnn_s, fusion = IsolationForestScorer(), pin.load_relational_scorer(), pin.load_fusion_engine()
     out = []
     lstm_s = LSTMAEScorer()
     # Keyed on (session, phase), not phase alone. Sessions are concatenated in
@@ -182,9 +189,12 @@ def score_all(rows):
 
 def main():
     split = sys.argv[sys.argv.index("--split") + 1] if "--split" in sys.argv else "test"
+    pin_name = sys.argv[sys.argv.index("--relational-model") + 1] if "--relational-model" in sys.argv else "gcn"
+    pin = rp.KNOWN_PINS[pin_name]  # raises KeyError loudly on an unknown name
     print("=" * 78)
     print("REAL HARDWARE EVALUATION -- operator-labelled ESP32 + MPU6050 telemetry")
     print(f"split = {split.upper()}   (allocation: data/splits/session_split.json)")
+    print(f"relational model pin = {pin_name}   (checkpoint {pin.relational_checkpoint})")
     print("=" * 78)
     rows = load_sessions(split)
     if not rows:
@@ -193,7 +203,7 @@ def main():
             "    python collect_hardware_session.py --labelled\n"
             "then add its session id to data/splits/session_split.json.")
 
-    scored = score_all(rows)
+    scored = score_all(rows, pin)
     by = collections.defaultdict(list)
     for r in scored:
         by[r["phase"]].append(r)

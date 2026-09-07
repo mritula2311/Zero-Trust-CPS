@@ -36,8 +36,7 @@ import feature_engineering as fe
 from trust_engine import rule_range_score
 from isolation_forest_scorer import IsolationForestScorer
 from lstm_ae_scorer import LSTMAEScorer
-from gnn_scorer import GNNScorer
-from fusion_engine import FusionEngine
+import relational_pin as rp
 import explainability
 from generate_training_data import physical_label
 
@@ -206,10 +205,20 @@ def main():
     with open(TEST_PATH) as f:
         records = json.load(f)
 
+    pin_name = sys.argv[sys.argv.index("--relational-model") + 1] if "--relational-model" in sys.argv else "gcn"
+    pin = rp.KNOWN_PINS[pin_name]
+    print(f"relational model pin = {pin_name}   (checkpoint {pin.relational_checkpoint})")
+
     if_scorer = IsolationForestScorer()
     lstm_scorer = LSTMAEScorer()
-    gnn_scorer = GNNScorer()
-    fusion = FusionEngine()
+    # Explicitly pinned, hash-verified checkpoint + matched fusion artifact
+    # (src/relational_pin.py) -- bare GNNScorer()+FusionEngine() silently
+    # paired true GCN scores with the ambient FUSION_MODEL_PATH, which
+    # became the M6-fitted model at the 2026-09-07 deployment. Default
+    # 'gcn' restores the "preserved GCN-era" reproducibility this script's
+    # documented protocol describes.
+    gnn_scorer = pin.load_relational_scorer()
+    fusion = pin.load_fusion_engine()
     if not fusion.is_trained():
         raise SystemExit("Fusion model not trained -- run scripts/train_fusion_meta_learner.py first.")
 

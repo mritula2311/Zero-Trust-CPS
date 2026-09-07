@@ -60,6 +60,8 @@ from config import (
     NETWORK_NODES, REAL_NODES, GNN_HIDDEN_SIZE, GNN_NUM_LAYERS, GNN_NODE_FEATURE_DIM,
     GNN_EPOCHS, GNN_LEARNING_RATE, TRAINING_SEED, MODELS_DIR, network_edges,
     PROCESS_THRESHOLD, is_feature_vector,
+    SET_TRANSFORMER_DIM, SET_TRANSFORMER_HEADS, SET_TRANSFORMER_BLOCKS,
+    SET_TRANSFORMER_EPOCHS, SET_TRANSFORMER_LEARNING_RATE,
 )
 import feature_engineering as fe
 import datasets
@@ -67,9 +69,11 @@ from trust_engine import rule_range_score
 from isolation_forest_scorer import IsolationForestScorer
 from lstm_ae_scorer import LSTMAEScorer
 from gnn_scorer import _GCN
+from set_transformer_scorer import _SetTransformer
 
 RESULTS_DIR = os.path.join(os.path.dirname(__file__), "..", "results", "gnn_baselines")
 NETWORK_GNN_PATH = os.path.join(MODELS_DIR, "gnn_network.pt")
+NETWORK_M6_PATH = os.path.join(MODELS_DIR, "set_transformer_network.pt")
 
 # Self-loop weights swept on VALIDATION only. Kept to a small, coarse range --
 # the point is to show the reported value was not simply assumed, not to squeeze
@@ -332,6 +336,57 @@ def gnn_scores(model, X, self_loop_weight, meta=None):
         return model(x, a_hat).cpu().numpy()
 
 
+def train_network_m6(X, y, meta):
+    """M6 (Set Transformer) arm for this Task-1/Task-2 comparison -- reuses
+    _SetTransformer from src/set_transformer_scorer.py (same precedent as
+    _GCN being imported directly from src/gnn_scorer.py above, not
+    reimplemented here) over the SAME upstream [rule, iso, lstm] snapshots
+    the GNN arm sees, so the two are directly comparable: same information,
+    different relational architecture (unordered-set attention with a
+    key_padding_mask instead of a declared-topology adjacency).
+
+    Class weights are computed over t[mask] (valid nodes only), matching
+    train_network_gnn's existing correct pattern above -- NOT the bug found
+    in scripts/train_set_transformer.py (which counted the full unmasked
+    tensor; see that file's docstring and
+    docs/paper/18_LIMITATIONS_AND_THREATS_TO_VALIDITY.md). This is a
+    separate, from-scratch training run for this benchmark's own protocol,
+    independent of the live runtime M6 checkpoint."""
+    torch.manual_seed(TRAINING_SEED)
+    model = _SetTransformer(in_dim=GNN_NODE_FEATURE_DIM, dim=SET_TRANSFORMER_DIM,
+                            heads=SET_TRANSFORMER_HEADS, blocks=SET_TRANSFORMER_BLOCKS).to(_TORCH_DEVICE)
+    valid = np.array([m["valid"] for m in meta])
+    x = torch.tensor(np.where(valid[:, :, None], X, 0.0),
+                     dtype=torch.float32, device=_TORCH_DEVICE)
+    t = torch.tensor(y, dtype=torch.float32, device=_TORCH_DEVICE)
+    mask = torch.tensor(valid, dtype=torch.bool, device=_TORCH_DEVICE)
+
+    n_pos = float(t[mask].sum().item())
+    n_neg = float(mask.sum().item() - n_pos)
+    w_pos = (n_pos + n_neg) / (2 * max(n_pos, 1.0))
+    w_neg = (n_pos + n_neg) / (2 * max(n_neg, 1.0))
+
+    opt = torch.optim.Adam(model.parameters(), lr=SET_TRANSFORMER_LEARNING_RATE)
+    model.train()
+    for _ in range(SET_TRANSFORMER_EPOCHS):
+        opt.zero_grad()
+        out = model(x, mask)
+        w = torch.where(t > 0.5, w_pos, w_neg)
+        loss = (nn.functional.binary_cross_entropy(out, t, reduction="none") * w)[mask].mean()
+        loss.backward()
+        opt.step()
+    model.eval()
+    return model
+
+
+def m6_scores(model, X, meta=None):
+    valid = np.ones(X.shape[:2], dtype=bool) if meta is None else np.array([m["valid"] for m in meta])
+    x = torch.tensor(np.where(valid[:, :, None], X, 0.0), dtype=torch.float32, device=_TORCH_DEVICE)
+    mask = torch.tensor(valid, dtype=torch.bool, device=_TORCH_DEVICE)
+    with torch.no_grad():
+        return model(x, mask).cpu().numpy()
+
+
 def metrics(scores, labels, threshold):
     """scores: probability-of-NORMAL. Anomaly predicted when score < threshold,
     matching the deployed convention (PROCESS_THRESHOLD, trust-style)."""
@@ -461,11 +516,24 @@ def main():
                       "test": metrics(s_te, te["flat_y"], thr),
                       "test_event": event_metrics(s_te, te["flat_y"], te["meta"], te["keep"], thr)}
 
+    # ---- M6 (Set Transformer) ---------------------------------------------
+    m6 = train_network_m6(tr["X"], tr["y"], tr["meta"])
+    torch.save(m6.state_dict(), NETWORK_M6_PATH)
+    m6_va = m6_scores(m6, va["X"], va["meta"])
+    s_va = np.array([m6_va[t][i] for t, i in va["keep"]])
+    thr_m6 = choose_threshold(s_va, va["flat_y"])
+    val_choices["M6_set_transformer"] = {"threshold": thr_m6}
+    m6_te = m6_scores(m6, te["X"], te["meta"])
+    s_te = np.array([m6_te[t][i] for t, i in te["keep"]])
+    results["M6_set_transformer"] = {"validation": metrics(s_va, va["flat_y"], thr_m6),
+                      "test": metrics(s_te, te["flat_y"], thr_m6),
+                      "test_event": event_metrics(s_te, te["flat_y"], te["meta"], te["keep"], thr_m6)}
+
     # ---- report -----------------------------------------------------------
     print(f"{'model':22s} {'prec':>7s} {'recall':>7s} {'F1':>7s} {'FPR':>7s} {'evt recall':>11s}")
     print("-" * 78)
     for name in ("B0_single_device", "B1_concat_logreg", "B2_concat_mlp",
-                 "B3_coordinated_rule", "GNN"):
+                 "B3_coordinated_rule", "GNN", "M6_set_transformer"):
         t = results[name]["test"]
         e = results[name]["test_event"]
         print(f"{name:22s} {t['precision']:>7.4f} {t['recall']:>7.4f} {t['f1']:>7.4f} "
@@ -518,6 +586,17 @@ def main():
         s = gnn_scores(gnn, d["X"], best_w, d["meta"])
         task2.setdefault("GNN_node_embeddings", {})[split_name] = round(
             float(head.score(s, snapshot_labels(d))), 4)
+
+    # M6 for this task: same construction as GNN_node_embeddings above, using
+    # the M6 arm's own scalar per-node P(normal) outputs (trained/selected
+    # for Task 1 above, not retrained here) concatenated into a snapshot
+    # vector, with a matching logistic head.
+    m6_tr = m6_scores(m6, tr["X"], tr["meta"])
+    m6_head = LogisticRegression(max_iter=3000, class_weight="balanced").fit(m6_tr, snapshot_labels(tr))
+    for split_name, d in (("validation", va), ("test", te)):
+        s = m6_scores(m6, d["X"], d["meta"])
+        task2.setdefault("M6_node_embeddings", {})[split_name] = round(
+            float(m6_head.score(s, snapshot_labels(d))), 4)
 
     print()
     print("TASK 2 -- network-level coordination pattern (4-way), accuracy")

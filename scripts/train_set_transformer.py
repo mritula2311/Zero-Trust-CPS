@@ -126,8 +126,21 @@ def main():
     # reason: node-targets are ~90% "normal" (1) / ~10% "suspicious" (0),
     # and an unweighted loss converges toward the majority class without
     # ever confidently crossing the 0.5 boundary.
-    num_pos = float((ys == 1).sum())
-    num_neg = float((ys == 0).sum())
+    #
+    # Counted over ys[valids], NOT the full ys tensor -- unlike train_gnn.py
+    # (whose adjacency always gives every node a well-defined self-loop
+    # contribution, so its unmasked loss legitimately sees every node-slot),
+    # this script's loss below is masked to `valids` only (~8.9% of all
+    # node-slots here; the rest are padded/inactive device-registry entries
+    # carrying stale or default-filled labels). Counting the full tensor
+    # previously computed weights from a distribution the loss never
+    # actually trains on -- verified against training_session.json: it
+    # inflated neg_weight (the suspicious class) to 45.18 vs. the correct
+    # 6.27 for the valid-only distribution, a 7.2x overweight. See
+    # docs/paper/18_LIMITATIONS_AND_THREATS_TO_VALIDITY.md and
+    # results/gcn_m6_corrected_comparison/summary.md for the fix's effect.
+    num_pos = float((ys[valids] == 1).sum())
+    num_neg = float((ys[valids] == 0).sum())
     pos_weight = num_pos and (num_pos + num_neg) / (2 * num_pos)
     neg_weight = num_neg and (num_pos + num_neg) / (2 * num_neg)
     print(f"class weights: pos(normal)={pos_weight:.3f} neg(suspicious)={neg_weight:.3f} "
@@ -153,9 +166,14 @@ def main():
         if epoch % 20 == 0 or epoch == SET_TRANSFORMER_EPOCHS - 1:
             print(f"  epoch {epoch}: total_loss={total_loss.item():.3f}")
 
+    # ZTCPS_SET_TRANSFORMER_OUTPUT lets a corrected/comparison retrain write
+    # to a different file (e.g. config.SET_TRANSFORMER_MODEL_PATH_CORRECTED)
+    # without touching the deployed checkpoint at SET_TRANSFORMER_MODEL_PATH.
+    # Unset (the default) reproduces exactly the prior save behavior.
+    output_path = os.environ.get("ZTCPS_SET_TRANSFORMER_OUTPUT", SET_TRANSFORMER_MODEL_PATH)
     os.makedirs(MODELS_DIR, exist_ok=True)
-    torch.save(model.state_dict(), SET_TRANSFORMER_MODEL_PATH)
-    print(f"trained Set Transformer on {len(snapshots)} snapshots, saved to {SET_TRANSFORMER_MODEL_PATH}")
+    torch.save(model.state_dict(), output_path)
+    print(f"trained Set Transformer on {len(snapshots)} snapshots, saved to {output_path}")
 
 
 if __name__ == "__main__":

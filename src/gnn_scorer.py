@@ -90,21 +90,29 @@ class GNNScorer:
     construction; `score()` is a pure forward pass over the current graph
     snapshot, no training."""
 
-    def __init__(self):
+    def __init__(self, checkpoint_path: str | None = None):
+        """checkpoint_path: explicit override for which checkpoint to load,
+        bypassing config.GNN_MODEL_PATH. None (default) preserves the
+        ambient-config behavior every existing caller (gateway, tests,
+        other scripts) relies on. An explicit path exists so a comparator
+        script can pin exactly which checkpoint an arm uses instead of
+        silently reading whatever the shared config constant currently
+        means -- see src/relational_pin.py."""
         self.device_ids = list(DEVICE_REGISTRY.keys())
         self._index = {d: i for i, d in enumerate(self.device_ids)}
         n = len(self.device_ids)
         self.last_seen = np.zeros(n)
         self.last_features = np.full((n, GNN_NODE_FEATURE_DIM), 0.9, dtype=np.float32)
         self.model: _GCN | None = None
+        self._checkpoint_path = checkpoint_path or GNN_MODEL_PATH
         self._load()
 
     def _load(self):
         import os
-        if not os.path.exists(GNN_MODEL_PATH):
+        if not os.path.exists(self._checkpoint_path):
             return
         model = _GCN()
-        model.load_state_dict(torch.load(GNN_MODEL_PATH, map_location=_TORCH_DEVICE, weights_only=True))
+        model.load_state_dict(torch.load(self._checkpoint_path, map_location=_TORCH_DEVICE, weights_only=True))
         model.eval()
         self.model = model.to(_TORCH_DEVICE)
 

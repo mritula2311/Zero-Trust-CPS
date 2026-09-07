@@ -801,6 +801,33 @@ FUSION_SHAP_BACKGROUND_SIZE = 50
 FUSION_MODEL_PATH_M6_VARIANT = os.path.join(MODELS_DIR, "fusion_meta_learner_m6_variant.joblib")
 FUSION_BACKGROUND_PATH_M6_VARIANT = os.path.join(MODELS_DIR, "fusion_background_m6_variant.npy")
 
+# --- GCN-fitted fusion backup (named constant) ---
+# The pre-deployment fusion artifacts, preserved when FUSION_MODEL_PATH /
+# FUSION_BACKGROUND_PATH were overwritten with the M6-fitted model above.
+# Previously only referenced by ad hoc string paths in docs/scripts; named
+# here so comparator scripts can pin the GCN arm explicitly instead of
+# relying on whatever FUSION_MODEL_PATH currently happens to mean (see
+# src/relational_pin.py, docs/paper/17_CLAIM_EVIDENCE_MATRIX.md C03/C05/C15).
+FUSION_MODEL_PATH_GCN_BACKUP = os.path.join(MODELS_DIR, "fusion_meta_learner_gcn_backup.joblib")
+FUSION_BACKGROUND_PATH_GCN_BACKUP = os.path.join(MODELS_DIR, "fusion_background_gcn_backup.npy")
+
+# --- M6 corrected comparison checkpoint (evaluation only) ---
+# scripts/train_set_transformer.py computed its inverse-frequency class
+# weights over the FULL node-target tensor, including invalid/padded node
+# slots the masked loss never actually trains on (only ~8.9% of slots are
+# ever valid) -- inflating the suspicious-class weight ~7.2x above what the
+# valid-only distribution calls for (verified against training_session.json:
+# neg_weight 45.18 actual vs. 6.27 correct). These paths hold a checkpoint
+# retrained after that one-line fix, for a scientifically valid GCN-vs-M6
+# comparison. Produced by an explicit output-path override in
+# train_set_transformer.py / train_fusion_meta_learner_m6.py -- the deployed
+# SET_TRANSFORMER_MODEL_PATH / FUSION_MODEL_PATH_M6_VARIANT artifacts above
+# are never written by that corrected run. See
+# results/gcn_m6_corrected_comparison/artifact_lineage.json.
+SET_TRANSFORMER_MODEL_PATH_CORRECTED = os.path.join(MODELS_DIR, "set_transformer_corrected.pt")
+FUSION_MODEL_PATH_M6_CORRECTED_VARIANT = os.path.join(MODELS_DIR, "fusion_meta_learner_m6_corrected_variant.joblib")
+FUSION_BACKGROUND_PATH_M6_CORRECTED_VARIANT = os.path.join(MODELS_DIR, "fusion_background_m6_corrected_variant.npy")
+
 # --- Access Control / Policy Decision Point (Module 5) ---
 # Two-score 2x2 table (docs/06_module5_access_control.md Section 2), NOT a
 # single trust threshold anymore -- both scores are "trust-style" (high =

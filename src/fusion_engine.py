@@ -33,7 +33,14 @@ FEATURE_NAMES = ["rule_score", "isolation_forest_score", "lstm_ae_score", "gnn_s
 
 
 class FusionEngine:
-    def __init__(self):
+    def __init__(self, model_path: str | None = None, background_path: str | None = None):
+        """model_path/background_path: explicit overrides bypassing
+        config.FUSION_MODEL_PATH / FUSION_BACKGROUND_PATH. None (default)
+        preserves the ambient-config behavior every existing caller
+        (gateway, tests, other scripts) relies on. Explicit paths exist so
+        a comparator script can pin exactly which fusion artifact an arm
+        uses instead of silently reading whatever the shared config
+        constant currently means -- see src/relational_pin.py."""
         self.model: LogisticRegression | None = None
         self.explainer = None
         self.last_shap: dict[str, float] | None = None  # see _explain() -- the
@@ -43,14 +50,16 @@ class FusionEngine:
         # (and the HTTPS handler in coap_server.py) process one message fully
         # before the next -- this is a single-threaded pipeline, not a shared
         # object read concurrently by multiple in-flight decisions.
+        self._model_path = model_path or FUSION_MODEL_PATH
+        self._background_path = background_path or FUSION_BACKGROUND_PATH
         self._load()
 
     def _load(self):
-        if not (os.path.exists(FUSION_MODEL_PATH) and os.path.exists(FUSION_BACKGROUND_PATH)):
+        if not (os.path.exists(self._model_path) and os.path.exists(self._background_path)):
             return
         import joblib
-        self.model = joblib.load(FUSION_MODEL_PATH)
-        background = np.load(FUSION_BACKGROUND_PATH)
+        self.model = joblib.load(self._model_path)
+        background = np.load(self._background_path)
         self.explainer = shap.LinearExplainer(self.model, background)
 
     def combine(self, rule_score: float, if_score: float, lstm_score: float, gnn_score: float) -> tuple[float, float, str]:

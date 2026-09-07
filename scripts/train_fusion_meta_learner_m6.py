@@ -44,7 +44,12 @@ SESSION_PATH = os.path.join(DATA_COLLECTED_DIR, "validation_session.json")
 def build_dataset(records):
     if_scorer = IsolationForestScorer()
     lstm_scorer = LSTMAEScorer()
-    m6_scorer = SetTransformerScorer()
+    # ZTCPS_M6_CHECKPOINT_FOR_FUSION_FIT lets this fit against a different M6
+    # checkpoint (e.g. config.SET_TRANSFORMER_MODEL_PATH_CORRECTED) so a
+    # corrected checkpoint gets its own matched fusion artifact instead of
+    # reusing coefficients fit against a different score distribution. Unset
+    # (the default) reproduces exactly the prior behavior (deployed checkpoint).
+    m6_scorer = SetTransformerScorer(checkpoint_path=os.environ.get("ZTCPS_M6_CHECKPOINT_FOR_FUSION_FIT") or None)
 
     label_window: dict[str, list[int]] = {}
     X, y = [], []
@@ -102,10 +107,16 @@ def main():
     background_idx = rng.choice(len(X), min(FUSION_SHAP_BACKGROUND_SIZE, len(X)), replace=False)
     background = X[background_idx]
 
+    # ZTCPS_FUSION_M6_VARIANT_OUTPUT(_BACKGROUND) redirect the save target for
+    # a corrected-checkpoint refit, without touching the deployed M6-variant
+    # fusion artifacts. Unset (the default) reproduces exactly the prior
+    # save behavior.
+    model_out = os.environ.get("ZTCPS_FUSION_M6_VARIANT_OUTPUT", FUSION_MODEL_PATH_M6_VARIANT)
+    background_out = os.environ.get("ZTCPS_FUSION_M6_VARIANT_OUTPUT_BACKGROUND", FUSION_BACKGROUND_PATH_M6_VARIANT)
     os.makedirs(MODELS_DIR, exist_ok=True)
-    joblib.dump(model, FUSION_MODEL_PATH_M6_VARIANT)
-    np.save(FUSION_BACKGROUND_PATH_M6_VARIANT, background)
-    print(f"saved M6-variant fusion model to {FUSION_MODEL_PATH_M6_VARIANT} (evaluation only)")
+    joblib.dump(model, model_out)
+    np.save(background_out, background)
+    print(f"saved M6-variant fusion model to {model_out} (evaluation only)")
 
 
 if __name__ == "__main__":

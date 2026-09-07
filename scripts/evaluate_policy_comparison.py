@@ -45,8 +45,7 @@ import feature_engineering as fe
 from trust_engine import RuleBasedTrustEngine, rule_range_score
 from isolation_forest_scorer import IsolationForestScorer
 from lstm_ae_scorer import LSTMAEScorer
-from gnn_scorer import GNNScorer
-from fusion_engine import FusionEngine
+import relational_pin as rp
 from adaptive_pdp import AdaptivePDP, CORRECT_ACTION_FOR_SITUATION
 from policy_engine import decide
 from generate_training_data import situation_for_event_type
@@ -66,7 +65,7 @@ R_MIN_PROCESS = 0.90
 EPS_FALSE_BLOCK = 0.01
 
 
-def build_triples(path):
+def build_triples(path, pin=rp.GCN):
     """Replays a session IN ORDER through the full two-score pipeline, exactly
     as train_adaptive_pdp.py does -- Security Trust is stateful (EWMA + decay
     per device via one shared engine), so record order matters and a shuffled
@@ -74,12 +73,25 @@ def build_triples(path):
 
     Records rejected at Module 2 (auth_ok=False, or event_type 'replay') are
     excluded: they never reach the policy layer live, so scoring a policy on
-    them measures something the policy is never asked to do."""
+    them measures something the policy is never asked to do.
+
+    `pin` (src/relational_pin.py RelationalPin) selects an explicit,
+    hash-verified relational checkpoint + matched fusion artifact. Prior
+    behaviour (bare GNNScorer() + FusionEngine()) silently paired true GCN
+    scores with the ambient FUSION_MODEL_PATH, which became the M6-fitted
+    model at the 2026-09-07 deployment -- not a reproduction of the
+    "preserved GCN-era" numbers this comparison reports. Default `gcn`
+    restores that historical reproducibility. There is no M6-trained policy
+    artifact (train_adaptive_pdp.py was not retrained in this pass -- see
+    docs/paper/17_CLAIM_EVIDENCE_MATRIX.md C12/objective 9D), so an M6 pin
+    here would score the CURRENT policy's saved Q-table/thresholds against
+    M6-derived Process Trust it was never calibrated on -- not a valid
+    comparison, and this function does not attempt one."""
     with open(path) as f:
         records = json.load(f)
     engine = RuleBasedTrustEngine()
     if_s, lstm_s, gnn_s, fusion = (IsolationForestScorer(), LSTMAEScorer(),
-                                   GNNScorer(), FusionEngine())
+                                   pin.load_relational_scorer(), pin.load_fusion_engine())
     out = []
     for r in sorted(records, key=lambda x: x["tick"]):
         if not r["auth_ok"] or r["event_type"] == "replay":
