@@ -1,12 +1,12 @@
 {
   "state": {
     "branch": "main",
-    "head": "0f503b52b20e5fc1f5476d1392a357e884340323",
-    "main": "0f503b52b20e5fc1f5476d1392a357e884340323",
-    "origin_main": "2175ebe3c4a3fad31d80d3b2899c51fe0a33b86b",
-    "main_ahead_behind": "0\t4",
-    "worktrees": "<REPO_ROOT>      0f503b5 [main]\n<WORKSPACE_ROOT>/zt-cps-design-astra 9dac09a [astra/design-dashboard-20260906]",
-    "status": "M docs/paper/13_RESULTS_MASTER_TABLES.md\n M docs/paper/17_CLAIM_EVIDENCE_MATRIX.md\n M docs/paper/18_LIMITATIONS_AND_THREATS_TO_VALIDITY.md\n M docs/paper/21_FINAL_PAPER_OUTLINE.md\n M results/final_verification/credential_scan.json\n M results/final_verification/documentation_validation.json\n M results/final_verification/markdown_inventory.csv\n M results/final_verification/paper_numeric_sources.json\n M results/final_verification/repository_inventory.json\n M results/final_verification/result_artifact_inventory.csv\n M results/final_verification/source_claim_occurrences.csv\n M results/final_verification/stale_claim_occurrences.csv\n M scripts/build_paper_results.py\n M scripts/evaluate_policy_comparison.py\n M scripts/train_adaptive_pdp.py\n M src/adaptive_pdp.py\n M src/config.py\n M src/gnn_scorer.py\n M src/relational_pin.py\n M src/set_transformer_scorer.py\n M src/trust_engine.py\n?? models/adaptive_pdp_qtable_gcn_corrected.json\n?? models/adaptive_pdp_qtable_gcn_corrected.meta.json\n?? models/adaptive_pdp_qtable_m6_corrected.json\n?? models/adaptive_pdp_qtable_m6_corrected.meta.json\n?? models/adaptive_pdp_qtable_m6_deployed_20260907_corrupted_provenance.json\n?? results/m6_corrected_policy/\n?? scripts/evaluate_m6_corrected_policy.py\n?? tests/test_policy_training_determinism.py",
+    "head": "58282a32dc09b4f04c1b66961d70ecc85a881c78",
+    "main": "58282a32dc09b4f04c1b66961d70ecc85a881c78",
+    "origin_main": "58282a32dc09b4f04c1b66961d70ecc85a881c78",
+    "main_ahead_behind": "0\t0",
+    "worktrees": "<REPO_ROOT>      58282a3 [main]\n<WORKSPACE_ROOT>/zt-cps-design-astra 9dac09a [astra/design-dashboard-20260906]",
+    "status": "M README.md\n M RESULTS.md\n M docs/paper/02_SYSTEM_ARCHITECTURE.md\n M docs/paper/22_PAPER_READY_FACTSHEET.md\n M docs/paper/25_OPEN_ITEMS_BEFORE_SUBMISSION.md\n M results/final_verification/documentation_validation.json\n M results/final_verification/markdown_inventory.csv\n M results/final_verification/source_claim_occurrences.csv\n M results/final_verification/stale_claim_occurrences.csv",
     "workspace": "<REPO_ROOT>",
     "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
     "platform": "Windows-11-10.0.26200-SP0",
@@ -253,6 +253,26 @@
       "sha256": "c5e0abf336546323ef6667e822d08000c9cc40e5d49202cd65548fb990a79378"
     },
     "models/adaptive_pdp_qtable.json": {
+      "bytes": 4296,
+      "sha256": "58db72ffc85a90dc62b078f6ed195d41b5ed44d1396d609811b20295bd8f9c52"
+    },
+    "models/adaptive_pdp_qtable_gcn_corrected.json": {
+      "bytes": 4355,
+      "sha256": "8592dd59ba6b72ec69c5455f562013ae8fe9aaff65f3597abfcc8266c678e8eb"
+    },
+    "models/adaptive_pdp_qtable_gcn_corrected.meta.json": {
+      "bytes": 1307,
+      "sha256": "cfecf0a6ddab144afaaedd3ee57b8826f6db48fa206988439095d8662e972c4f"
+    },
+    "models/adaptive_pdp_qtable_m6_corrected.json": {
+      "bytes": 3817,
+      "sha256": "1bac04dd0c887f96e4f98327ef8a5111fa7173c9142b9980b1fe5b145ad44fb0"
+    },
+    "models/adaptive_pdp_qtable_m6_corrected.meta.json": {
+      "bytes": 1356,
+      "sha256": "14ce93def986016a855fef6babdea2c65e2d5ddf7fd233926b5d924dd7a36dfa"
+    },
+    "models/adaptive_pdp_qtable_m6_deployed_20260907_corrupted_provenance.json": {
       "bytes": 4296,
       "sha256": "58db72ffc85a90dc62b078f6ed195d41b5ed44d1396d609811b20295bd8f9c52"
     },
@@ -768,6 +788,42 @@
       "bytes": 2787,
       "sha256": "63635039c0f04e53c9c658e89911eef3b15d6fdc7f148bf3f896126ae9f02d71"
     },
+    "results/m6_corrected_policy/artifact_lineage.json": {
+      "bytes": 2805,
+      "sha256": "1048c137f7aabcbc36fcbf55c3e25b825b7f21884a7220c4a561c9e8a0a14270"
+    },
+    "results/m6_corrected_policy/confusion_matrix_m6_corrected_policy_gcn_corrected.csv": {
+      "bytes": 115,
+      "sha256": "d7c28ef3b010311e4015b2e0747ae267309a3a13b123595778daabfd34a776e3"
+    },
+    "results/m6_corrected_policy/confusion_matrix_m6_corrected_policy_m6_corrected.csv": {
+      "bytes": 115,
+      "sha256": "b1d81f60973c8ff939d7984427c7be27207a15e41600f0d39c2603c569a429e4"
+    },
+    "results/m6_corrected_policy/hardware_regression.json": {
+      "bytes": 2204,
+      "sha256": "9a7a9c596e80d3d84e38df770e60b48d31070b3bc1a83fe6d7a1d2d28a9d0a84"
+    },
+    "results/m6_corrected_policy/policy_action_metrics.json": {
+      "bytes": 1558,
+      "sha256": "cfa17ae9d6fc80f9342198644b5f3eb6406b3d8de1894f1c9e092e545a6fd8ec"
+    },
+    "results/m6_corrected_policy/policy_metrics.json": {
+      "bytes": 1463,
+      "sha256": "30577c71b2bc2af2f2a39455b361897c02482594fb88cb4ce9620f3b995e5b98"
+    },
+    "results/m6_corrected_policy/policy_training_config.json": {
+      "bytes": 714,
+      "sha256": "f234ca3a3afc232ba34b66581fff19df70a7369907ba9ab1e794402ddef31ead"
+    },
+    "results/m6_corrected_policy/runtime_verification.json": {
+      "bytes": 11562,
+      "sha256": "22407326d358da6ba2c3031ea0efdf8fa44b21946386cc1a2276595ba0a6f2f0"
+    },
+    "results/m6_corrected_policy/summary.md": {
+      "bytes": 5428,
+      "sha256": "6c968277ec7839fc9fdd0618b7c89ce9502636141f82ba556f99aa3c896c2114"
+    },
     "results/policy_comparison/confusion_matrix_P1_static.csv": {
       "bytes": 111,
       "sha256": "32dd66321e22ea82d579df34cb3b392e273106465913c89f2e7098424a7efe69"
@@ -859,6 +915,10 @@
     "scripts/evaluate_latency_stages.py": {
       "bytes": 9679,
       "sha256": "44e37408a529000d5a4b11e8db8f576986bbff89cf24e846845d5e344dadb87a"
+    },
+    "scripts/evaluate_m6_corrected_policy.py": {
+      "bytes": 10987,
+      "sha256": "5ac8e7d4c9cd23bc0ffdf2ccfe191ecb9939d82d6e2950196774b73a906f2631"
     },
     "scripts/evaluate_policy_comparison.py": {
       "bytes": 17287,

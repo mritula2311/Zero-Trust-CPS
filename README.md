@@ -1,6 +1,6 @@
 # ZT-Duo / Zero-Trust CPS
 
-> **Current reference, 2026-09-07:** Use the [paper master guide](docs/paper/00_PAPER_MASTER_GUIDE.md), [architecture](docs/paper/02_SYSTEM_ARCHITECTURE.md), [numerical authority](docs/paper/13_RESULTS_MASTER_TABLES.md), [claim gate](docs/paper/17_CLAIM_EVIDENCE_MATRIX.md) and [limitations](docs/paper/18_LIMITATIONS_AND_THREATS_TO_VALIDITY.md). The configured gateway uses M6 Set Transformer with M6-fitted fusion; the standalone M1–M9 benchmark and preserved GCN replay are separate evidence. M6 comparative gains need a correctly pinned replay. SW-420 has TRAIN capture only. Older sections below retain their historical scope.
+> **Current reference, 2026-09-07 (final corrected-M6 pass):** Use the [paper master guide](docs/paper/00_PAPER_MASTER_GUIDE.md), [architecture](docs/paper/02_SYSTEM_ARCHITECTURE.md), [numerical authority](docs/paper/13_RESULTS_MASTER_TABLES.md), [claim gate](docs/paper/17_CLAIM_EVIDENCE_MATRIX.md) and [limitations](docs/paper/18_LIMITATIONS_AND_THREATS_TO_VALIDITY.md). The configured gateway uses a corrected M6 Set Transformer checkpoint with its matched fusion and policy artifacts (promoted after a confirmed training defect was found and fixed in the originally-deployed checkpoint, preserved as historical evidence); the standalone M1–M9 benchmark and preserved GCN replay are separate evidence. M6 comparative gains (fusion and policy) are now measured under an explicitly-pinned, held-out-replay-qualified comparison — see 13 O4/O5. SW-420 has TRAIN capture only. Older sections below retain their historical scope.
 
 
 A research gateway that authenticates CPS telemetry and keeps **Security Trust**
@@ -46,8 +46,8 @@ the dedicated data-generation scripts. Configuration does not prove live presenc
 | Component | Current role |
 |---|---|
 | Rule, Isolation Forest, LSTM-AE | Local process baseline; training and evaluation must use matched, versioned artifacts. |
-| Legacy GCN | Superseded as the deployed relational scorer by M6 (2026-09-07); corrected ablations and topology probes do not support a general GNN superiority claim. Prior fusion artifacts retained (`models/*_gcn_backup.*`) for reproducibility. |
-| Set Transformer (M6/M8/M9) | A separately trained M6 checkpoint supplies the current gateway relational score and M6-fitted fusion. Standalone benchmark selection remains separate; comparative runtime gains require corrected replay provenance. M8/M9 remain research candidates. |
+| Legacy GCN | Superseded as the deployed relational scorer by M6 (2026-09-07); corrected ablations and topology probes do not support a general GNN superiority claim. A fair, clean-provenance GCN policy baseline was retrained for the final policy comparison (`adaptive_pdp_qtable_gcn_corrected.json`). Prior fusion artifacts retained (`models/*_gcn_backup.*`) for reproducibility. |
+| Set Transformer (M6/M8/M9) | A corrected M6 checkpoint (`set_transformer_corrected.pt`, promoted 2026-09-07 after a confirmed class-weight training defect was found and fixed in the originally-deployed checkpoint) supplies the current gateway relational score, matched fusion and matched policy. Standalone benchmark selection remains a separate protocol; comparative runtime gains over GCN are now measured (fusion +~1-1.2 Macro-F1 pts, policy +0.0029 macro-F1), held-out-replay-qualified — see 13 O4/O5. M8/M9 remain research candidates. |
 | Concat MLP | Efficient fixed-size deployment baseline to compare under matched calibration. |
 | Deep Sets | Strong set baseline. |
 | Temporal Transformer | Ablation only; the fair undiluted comparison did not improve on LSTM-AE. |

@@ -1,13 +1,13 @@
 {
   "markdown_files": 76,
-  "local_links_checked": 386,
+  "local_links_checked": 388,
   "broken_links": [],
   "missing_canonical_files": [],
   "undersized_documents": [],
   "numeric_source_errors": [],
-  "stale_occurrences_classified": 170,
+  "stale_occurrences_classified": 171,
   "result_artifacts_indexed": 84,
-  "source_claim_occurrences_classified": 32,
+  "source_claim_occurrences_classified": 33,
   "scope": "Local clickable Markdown file/directory targets (not remote URLs or section anchors); all listed historical phrase/number occurrences retained with context; numeric-source hashes verified.",
   "ok": true
 }
