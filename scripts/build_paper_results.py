@@ -29,6 +29,105 @@ def citation(name, script, protocol):
     return f'Source: [{name}](../../{name}); producer [{script}](../../{script}). {protocol}\n'
 
 
+def _render_o4_corrected_comparison():
+    """O4: reads results/gcn_m6_corrected_comparison/* (produced by the
+    2026-09-07 comparator repair) and results/comparator_repair/
+    comparator_audit.json, rather than hand-transcribing numbers, so a
+    future rerun of those evaluators regenerates this section correctly."""
+    d = 'results/gcn_m6_corrected_comparison'
+    standalone = read(f'{d}/standalone_comparison.json')
+    fusion = read(f'{d}/fusion_comparison.json')
+    latency = read(f'{d}/latency_comparison.json')
+    hardware = read(f'{d}/hardware_comparison.json')
+    policy = read(f'{d}/policy_comparison.json')
+    read(f'{d}/task2_comparison.json')
+    read(f'{d}/artifact_lineage.json')
+    read('results/comparator_repair/comparator_audit.json')
+
+    out = ['## O4. Corrected GCN vs M6 comparator (2026-09-07)\n']
+    out.append(
+        '[CURRENT — explicit artifact pinning] Fixes the O2/O3 comparator-mismatch bug: '
+        '`evaluate_ablation_m6.py`, `evaluate_real_hardware.py`, `evaluate_policy_comparison.py` and '
+        '`evaluate_explainability_level2.py` previously constructed `FusionEngine()` with no arguments, '
+        'which read the *ambient* `config.FUSION_MODEL_PATH` — correct until the 2026-09-07 deployment '
+        'overwrote it with the M6-fitted model, after which every "GCN arm" silently paired true GCN '
+        'relational scores with M6-calibrated fusion coefficients. Fixed via `src/relational_pin.py`: '
+        'three explicit, hash-verified `RelationalPin`s (`gcn`, `m6_deployed`, `m6_corrected`) — see '
+        '[results/comparator_repair/comparator_audit.json](../../results/comparator_repair/comparator_audit.json) '
+        'for the full per-script before/after audit. `gcn` and `m6_deployed` reference the exact '
+        'deployed/preserved artifacts (verified byte-identical, unchanged by this repair). `m6_corrected` '
+        'is a **new** checkpoint, retrained after fixing a confirmed class-weight bug in '
+        '`scripts/train_set_transformer.py` (below) — **not deployed**; evaluation/comparison only.\n')
+    out.append(
+        '**Class-weight bug, confirmed with numbers.** `train_set_transformer.py` computed its '
+        'inverse-frequency `pos_weight`/`neg_weight` over the full, unmasked node-target tensor, but the '
+        'loss only ever trains on the `valid`-masked subset (verified against `training_session.json`: '
+        '656,040 total node-slots, only 58,486 / 8.9% ever valid). Actual (buggy) vs. correct: '
+        '`neg_weight` (suspicious class) = 45.18 vs. 6.27 — a **7.2x overweight**. `train_gnn.py` does '
+        'not have this bug (its loss is unmasked by design). Fixed by counting `ys[valids]`; '
+        '`m6_corrected` is one retrain with the fix, deployed `set_transformer_runtime.pt` untouched '
+        '(verified byte-identical hash before/after this work).\n')
+
+    out.append('**Standalone relational score** (`test_session.json`, threshold 0.6, normal-positive polarity):\n')
+    rows = [[arm, r['macro_f1'], r.get('precision_normal'), r['recall_normal'], r['false_alarm_rate_fpr'], r['roc_auc']]
+            for arm, r in standalone['results'].items()]
+    out.append(table(['Arm', 'Macro-F1', 'Precision (normal)', 'Recall (normal)', 'FPR', 'ROC-AUC'], rows))
+    out.append(
+        "The deployed M6 checkpoint's raw/standalone score is badly miscalibrated at the deployed "
+        'threshold (near-zero normal recall). The corrected retrain repairs this dramatically. ROC-AUC '
+        '(threshold-independent) is comparable across all three, showing the raw discriminative '
+        'information was less damaged than the threshold-0.6 operating point suggests.\n')
+
+    out.append('**Fusion** (Rule+IF+LSTM+relational, matched fusion artifact per arm):\n')
+    rows = [[arm, r['macro_f1'], r['recall_normal'], r['false_alarm_rate_fpr'], r['roc_auc']]
+            for arm, r in fusion['results'].items()]
+    out.append(table(['Arm', 'Macro-F1', 'Recall (normal)', 'FPR', 'ROC-AUC'], rows))
+    out.append(
+        'Both M6 variants modestly beat the GCN fusion arm on this held-out replay, now under a '
+        'genuinely matched comparison — safe to describe as a **modest, held-out-replay-qualified** '
+        'improvement (17 Claim C), not a general claim. The fusion layer visibly compensates for the '
+        "deployed checkpoint's poor standalone calibration.\n")
+
+    out.append('**Latency** (standalone relational-scorer inference, post-warmup, this environment):\n')
+    rows = [[arm, r['mean_ms'], r['p95_ms'], r['n_calls']] for arm, r in latency['results'].items()]
+    out.append(table(['Arm', 'Mean (ms)', 'p95 (ms)', 'n calls'], rows))
+    out.append(
+        'M6 (either variant) is slower per call than GCN; both remain a small fraction of the '
+        'previously measured end-to-end pipeline latency (R below), so this does not by itself threaten '
+        'the practical latency budget.\n')
+
+    out.append('**Hardware** (real MPU6050 TEST session, inference only, no retrain on test data):\n')
+    rows = []
+    for arm, r in hardware['results'].items():
+        fp, det = r['resting_false_positive_rate'], r['disturbance_detection_rate']
+        rows.append([arm, f"{fp['k']}/{fp['n']}", f"{fp['rate']:.1%}", f"{det['k']}/{det['n']}", f"{det['rate']:.1%}"])
+    out.append(table(['Arm', 'Resting FP', 'Resting FP rate', 'Detection', 'Detection rate'], rows))
+    out.append(
+        'Identical across all three arms — no regression from GCN to either M6 variant on the available '
+        'physical evidence (Gate H).\n')
+
+    out.append('**Policy** (`evaluate_policy_comparison.py`, GCN pin):\n')
+    out.append(table(['Policy', 'GCN-pin rerun Macro-F1', 'Preserved historical Macro-F1'],
+                     [[k, v['macro_f1'], policy['historical_preserved_2026_09_04'][k]['macro_f1']]
+                      for k, v in policy['gcn_pin_repaired_rerun'].items()]))
+    out.append(
+        'P1/P2/P6 (pure threshold policies) reproduce within verified wall-clock jitter. P5 (adaptive '
+        'bandit) is stable across repeated runs but differs from its preserved number by more than that '
+        'jitter — evidence `models/adaptive_pdp_qtable.json` was itself retrained during the 2026-09-07 '
+        'deployment under the same mismatched-artifact bug. **No M6 policy arm is reported**: no policy '
+        'retrain was performed in this pass (explicit scope decision). Status for a GCN-vs-M6 **policy** '
+        'comparison: **INVALID COMPARATOR / REQUIRES RERUN** (17 Claim D).\n')
+
+    out.append(
+        'Source for this section: `results/gcn_m6_corrected_comparison/` '
+        '(`standalone_comparison.json`, `fusion_comparison.json`, `hardware_comparison.json`, '
+        '`latency_comparison.json`, `policy_comparison.json`, `artifact_lineage.json`, `summary.md`); '
+        'producers `scripts/evaluate_ablation_m6.py`, '
+        '`scripts/evaluate_real_hardware.py --relational-model {gcn,m6_deployed,m6_corrected}`. '
+        f"Commit {standalone['meta']['commit']}; seed {standalone['meta']['seed']}.\n")
+    return ''.join(out)
+
+
 def main():
     bpath = 'results/crossdevice_benchmark/metrics.json'
     b = read(bpath)
@@ -59,8 +158,9 @@ def main():
     out.append(table(['Artifact', 'Coefficients: rule, IF, LSTM, relational', 'Intercept', 'SHA-256'], model_rows))
     for name in ('models/set_transformer_runtime.pt', 'models/fusion_background.npy', 'models/fusion_background_m6_variant.npy', 'models/fusion_background_gcn_backup.npy'):
         SOURCES[name] = hashlib.sha256((ROOT/name).read_bytes()).hexdigest()
-    out.append('## O3. Historical reported M6 comparison — not a verified headline\n')
-    out.append('[HISTORICAL PROSE ONLY / REQUIRES PINNED REPLAY] [RESULTS.md](../../RESULTS.md) records normal-positive fused F1 0.805→0.815, accuracy 0.698→0.712, normal false negatives 872→833 and anomaly misses 14→13. No matching raw comparison log/JSON was found. After promotion, `evaluate_ablation_m6.py` uses default M6 fusion for its GCN arm; these prose values are not independently reproduced by that current command. Runtime-M6 class weights also count inactive labels and replay activity depends on wall time. Preserve the reported observation without claiming verified superiority, physical validation or local-only complementarity.\n')
+    out.append('## O3. Historical reported M6 comparison — SUPERSEDED by O4\n')
+    out.append('[SUPERSEDED — see O4] [RESULTS.md](../../RESULTS.md) records normal-positive fused F1 0.805→0.815, accuracy 0.698→0.712, normal false negatives 872→833 and anomaly misses 14→13. No matching raw comparison log/JSON was found for that specific prose observation, and the comparator that would have reproduced it (`evaluate_ablation_m6.py`) had a confirmed artifact-mismatch bug (its "GCN arm" silently read the M6-fitted fusion model — see O2). That bug is fixed (2026-09-07, results/comparator_repair/comparator_audit.json); O4 below is the current, correctly-pinned replacement. Keep this paragraph for chronology only — do not cite it as a current number.\n')
+    out.append(_render_o4_corrected_comparison())
     out.append('## B / C. M1–M9, validation max-anomaly-F1 operating point\n')
     out.append(citation(bpath, bs, '[CURRENT EXPERIMENTAL] Seed 0; fit TRAIN 2,400 snapshots/48,000 valid rows, select VALIDATION 1,200 snapshots/22,800 valid rows, report TEST with same held-out counts; declared network 20 (19 valid held-out); hybrid provenance. TEST has 1,500 anomalous rows: 150 isolated and 1,350 coordinated, plus 21,300 normal; 15 anomaly events.'))
     rows = []
@@ -128,22 +228,34 @@ def main():
     current=read('results/gnn_baselines/metrics.json')
     for name,v in current['task2_network_coordination_pattern'].items():
         if isinstance(v,dict):
-            rows.append(['CURRENT corrected','4f6afa2 + nonfinite hardening',20,name,v['test'],v['validation']])
+            rows.append(['CURRENT + M6 (2026-09-07)','4f6afa2 + nonfinite hardening + M6 arm',20,name,v['test'],v['validation']])
     out.append(table(['Chronology','Producer','Declared n','Representation label','TEST accuracy','VAL accuracy'],rows))
     out.append('B0 Task 2 counts network anomalies, B1 is indexed concatenated logistic regression, B2 is indexed concatenated MLP; `GNN_node_embeddings` actually concatenates final scalar GCN scores before a logistic head. Corrected B0→B2 is 0.3958→0.5267 (delta +0.1309); pre-fix B2 0.5283 (delta +0.1325). B1 0.5433 exceeds GCN-score 0.5375 numerically. Verdict: SUPPORTED BUT WEAKER for indexed representation versus count; no graph-superiority claim.\n')
-    out.append('The same preserved historical_metrics.json records B2 Task-1 anomaly F1 **0.9662→0.9174**, false positives **28→270**, and false negatives **72→0** (`pre_audit_20_node` versus `corrected_20_node`, `metrics.results.B2_concat_mlp.test`). Keep this degradation alongside the Task-2 correction.\n')
+    out.append('**M6 arm added 2026-09-07** (evaluate_gnn_baselines.py previously had none — see 17 Claim B and [results/gcn_m6_corrected_comparison/task2_comparison.json](../../results/gcn_m6_corrected_comparison/task2_comparison.json)). A from-scratch model trained under this script\'s own protocol (correct valid-only class weighting from the start), NOT the runtime checkpoint. `M6_node_embeddings` is the best of all five Task-2 methods, beating `GNN_node_embeddings` by a wide margin; the companion Task-1 per-node run shows the same pattern more sharply (M6 test F1 0.9736 vs. GNN 0.5865) — a controlled, apples-to-apples result distinct from both the offline M1-M9 sweep (C05) and the separately-flawed runtime M6 checkpoint (O4).\n')
+    read('results/astra_masking_review/historical_metrics.json')
+    out.append(
+        '### Task-1 B2 degradation — status table\n\n'
+        '| Field | Value |\n|---|---|\n'
+        '| Claim | B2 (concat MLP) Task-1 anomaly F1 degraded 0.9662 → 0.9174 (false positives 28 → 270, false negatives 72 → 0) between `pre_audit_20_node` and `corrected_20_node` above |\n'
+        '| Status | CURRENT — reproduced fresh 2026-09-07 (byte-identical to the preserved run) |\n'
+        '| Source artifact | [results/astra_masking_review/historical_metrics.json](../../results/astra_masking_review/historical_metrics.json) (`metrics.results.B2_concat_mlp.test`); reproduced in [results/gnn_baselines/metrics.json](../../results/gnn_baselines/metrics.json) |\n'
+        '| Protocol | Fit TRAIN, threshold selected on VALIDATION (max F1), reported on TEST once; 20-node declared network, PENDING-node masking |\n'
+        '| Bug/fix state | Reflects the nonfinite/pending-node masking fix (4f6afa2 + hardening); the recall gain trades against precision — a real, measured degradation, not something to fix further here |\n'
+        '| Current/superseded | CURRENT — numerical authority for B2\'s Task-1 result; `pre_audit_20_node` is preserved chronology only |\n\n')
     pp='results/policy_comparison/metrics.json'; p=read(pp)
     out.append('## P. Policy comparison\n')
     out.append(citation(pp,'scripts/evaluate_policy_comparison.py','[PRESERVED GCN-ERA ARTIFACT; NOT CURRENT M6 POLICY VALIDATION] 2,933 accepted legacy TEST rows; comparators share two-score replay inputs. Fitting/threshold selection uses simulated VAL_002. These are offline policy classifications, not measured enforcement effectiveness. Current policy producers use GCN plus default M6 fusion; the saved runtime Q table lacks producing-model hashes.'))
     out.append(table(['Policy','Accuracy','Macro-F1','False-block rate','ALERT recall','BLOCK recall'],[[n,r['accuracy'],r['macro_f1'],r['false_block_rate'],r['per_class']['ALERT']['recall'],r['per_class']['BLOCK']['recall']] for n,r in p['results'].items()]))
     out.append('P6 is constrained static, P5 contextual bandit. P6 searches under ALERT recall≥0.90 and false-block≤0.01 on validation. P5 was not trained with this constrained search; both meet those bounds descriptively on the saved TEST rows. P5 Macro-F1 exceeds P6. Neither detects the BLOCK class here.\n')
+    out.append('**2026-09-07 comparator fix and finding** (see O4 and [results/gcn_m6_corrected_comparison/policy_comparison.json](../../results/gcn_m6_corrected_comparison/policy_comparison.json)): `evaluate_policy_comparison.py` is now explicitly pinned to `gcn` by default (was silently reading the ambient, now-M6-fitted `FUSION_MODEL_PATH`). A pinned rerun reproduces P1/P2/P6 within verified wall-clock-jitter tolerance, but P5 is stably different from this table\'s preserved number — evidence `models/adaptive_pdp_qtable.json` was itself retrained under the mismatched-artifact bug during the 2026-09-07 deployment. Not corrected in this pass. **No M6 policy row is reported — INVALID COMPARATOR for a GCN-vs-M6 policy claim (17 Claim D).**\n')
     out.append('## Q. Held-out physical hardware\n')
-    out.append(citation('results/final_verification/hardware_evaluation.log','scripts/evaluate_real_hardware.py','[VERIFIED PRESERVED GCN-ERA REPLAY; NOT M6 VALIDATION] One MPU6050 TEST session 20260902_221217. Reset/warm-up exclusion leaves 42 scored observations at threshold 0.6. Raw session has 116 rows. Select matching GCN fusion backups before reproducing this protocol.'))
+    out.append(citation('results/final_verification/hardware_evaluation.log','scripts/evaluate_real_hardware.py','[VERIFIED PRESERVED GCN-ERA REPLAY] One MPU6050 TEST session 20260902_221217. Reset/warm-up exclusion leaves 42 scored observations at threshold 0.6. Raw session has 116 rows.'))
     out.append(table(['Endpoint','Count','Rate','Printed Wilson 95% interval','Limit'],[['Rest false alarm','5 / 12','41.7%','19.3%–68.0%','Small dependent sample'],['Disturbance detection','30 / 30','100%','88.6%–100%','Hand-induced physical events; no cyberattack'],['SW-420 held-out','0 physical sessions',None,None,'PENDING VALIDATION']]))
     out.append('Two action-labelled windows have peak no greater than resting maximum; 28 movement-containing windows are also all detected. Do not drop the quiet windows silently or use this replay as twenty-device field evidence.\n')
+    out.append('**2026-09-07: M6 comparison now exists.** `evaluate_real_hardware.py --relational-model {gcn,m6_deployed,m6_corrected}` (src/relational_pin.py) reproduces this exact table when pinned to `gcn`, and gives identical numbers for both M6 variants — no regression on the available physical evidence (Gate H). See O4 and [results/gcn_m6_corrected_comparison/hardware_comparison.json](../../results/gcn_m6_corrected_comparison/hardware_comparison.json).\n')
     out.append('## Explainability: single-channel and exploratory rank-aware repair\n')
     ep='results/final_verification/explainability_evaluation_corrected.log'
-    out.append(citation(ep,'scripts/evaluate_explainability_level2.py','[VERIFIED PRESERVED GCN-ERA REPLAY; NOT M6 VALIDATION] Single-channel evaluation uses flagged resolvable legacy TEST rows and a historical 0.5 threshold, not runtime 0.6. The separate minimal repair analysis pools labelled MPU captures across TRAIN/VALIDATION/TEST and is exploratory, not held-out validation. Current replay requires a matching GCN fusion/background pair.'))
+    out.append(citation(ep,'scripts/evaluate_explainability_level2.py','[VERIFIED PRESERVED GCN-ERA REPLAY] Single-channel evaluation uses flagged resolvable legacy TEST rows and a historical 0.5 threshold, not runtime 0.6. The separate minimal repair analysis pools labelled MPU captures across TRAIN/VALIDATION/TEST and is exploratory, not held-out validation. 2026-09-07: `--relational-model {gcn,m6_deployed,m6_corrected}` now pins this explicitly; default `gcn` reproduces the table below exactly. Not in the required GCN-vs-M6 comparison set, so no new M6 explainability headline number is reported.'))
     out.append(table(['Protocol','Repair','Recovered / denominator','Interpretation'],[['Single-channel TEST','GCN peer','78 / 78','Resolvable flagged subset'],['Single-channel TEST','IF feature','1 / 2','Tiny subset'],['Single-channel TEST','LSTM feature','0 / 139','Does not recover'],['Single-channel TEST','All','79 / 219','36% < declared 70% target'],['Exploratory pooled captures','Best 1 of 5','0 / 182','MPU-only; all-split analysis'],['Exploratory pooled captures','Best 2 of 5','11 / 182','Not held-out'],['Exploratory pooled captures','Best 3 of 5','179 / 182','98% is a different metric; not a replacement for 36%'],['Exploratory pooled captures','Best 4 of 5','182 / 182','Not held-out']]))
     out.append('## R. Runtime stage latency, preserved historical measurement\n')
     latp='results/latency/latency.json'; lat=read(latp)
