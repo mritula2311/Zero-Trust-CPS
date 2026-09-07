@@ -7,9 +7,12 @@ from captured sessions allocated to the requested split, and retain source
 metadata. The serialized source labels are REAL and SIMULATED; the paper maps
 them to REAL_HARDWARE and LEGACY_SIMULATED provenance categories.
 
-SW-420 has a TRAIN capture but no physical VALIDATION/TEST capture. A missing
-split pool produces PENDING_REAL_HARDWARE_DATA rows without readings. Pending
-rows must be excluded from fitting/metrics and masked in relational context.
+Standalone SW-420 physical VALIDATION/TEST captures now exist (see
+docs/paper/15_HARDWARE_VALIDATION.md), but this frozen constructed 20-node
+benchmark was not regenerated against them, so its SW held-out rows still
+intentionally read PENDING_REAL_HARDWARE_DATA. A missing split pool produces
+PENDING_REAL_HARDWARE_DATA rows without readings. Pending rows must be
+excluded from fitting/metrics and masked in relational context.
 
 NETWORK_NORMAL is the control. Scenario memberships are specified in SCENARIOS
 below; identities outside each anomaly set remain normal. Capture resampling

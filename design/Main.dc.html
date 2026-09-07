@@ -17,7 +17,7 @@
   </header>
   <p class="intro">Two kinds of evidence. One policy boundary. Explore the implemented architecture, physical evidence and selected research candidate. Measurements below come from preserved experiment artifacts; the policy sliders are a labelled illustration.</p>
   <section class="summary-grid" aria-label="Research overview">
-    <div class="panel"><h2 class="panel-title">Physical identities</h2><div class="summary-number">02</div><div class="summary-label">One MPU6050 · one SW-420</div><p class="scope">Held-out physical validation is MPU-only. SW-420 VALIDATION/TEST are pending.</p></div>
+    <div class="panel"><h2 class="panel-title">Physical identities</h2><div class="summary-number">02</div><div class="summary-label">One MPU6050 · one SW-420</div><p class="scope">Both sensors now have held-out VALIDATION/TEST evaluation: MPU6050 30/30 detection, 5/12 resting FP; SW-420 115/115 detection, 0/108 resting FP (easier binary-switch discrimination, not a stronger pipeline).</p></div>
     <div class="panel"><h2 class="panel-title">Constructed benchmark</h2><div class="summary-number">20 nodes</div><div class="summary-label">2 physical-source + 18 simulated</div><p class="scope">Physical-source rows are resampled. Network cardinality is not physical device count.</p></div>
     <div class="panel"><h2 class="panel-title">Runtime relational model</h2><div class="summary-number">M6</div><div class="summary-label">Local scores → M6 Set Transformer → logistic fusion</div><p class="scope">M6 supplies the configured gateway relational score. Comparative effectiveness and physical end-to-end validation remain pending; prior GCN artifacts are retained.</p></div>
   </section>
@@ -41,8 +41,8 @@
             <div class="dc-facts"><div class="fact-row">TRAIN + VALIDATION + TEST</div><div class="fact-row">5 feature channels · one physical identity</div></div>
           </button>
           <button type="button" class="device-card" data-device="sw" aria-pressed="false" aria-controls="sensor-detail">
-            <div class="dc-top"><div><div class="dc-id">esp32-vib-002</div><div class="dc-meta">ESP32 · SW-420 digital vibration module</div></div><span class="badge badge-stepup">TRAIN ONLY</span></div>
-            <div class="dc-facts"><div class="fact-row">VALIDATION / TEST pending</div><div class="fact-row">4 feature channels · one physical identity</div></div>
+            <div class="dc-top"><div><div class="dc-id">esp32-vib-002</div><div class="dc-meta">ESP32 · SW-420 digital vibration module</div></div><span class="badge badge-allow">HELD-OUT CAPTURE</span></div>
+            <div class="dc-facts"><div class="fact-row">TRAIN + VALIDATION + TEST</div><div class="fact-row">4 feature channels · one physical identity</div></div>
           </button>
         </div>
       </section>
@@ -67,7 +67,7 @@
             <tr><td>M9 · Mixed provenance</td><td>0.9842</td><td>0.0041</td><td>Hybrid + virtual training</td></tr>
           </tbody></table>
         </div>
-        <p class="scope">Preserved standalone measurements, not live or fused-model performance. M6 serving and fusion are integrated; a correctly pinned comparative evaluation remains pending. A single-seed ranking does not establish statistical or universal superiority.</p>
+        <p class="scope">Preserved standalone measurements, not live or fused-model performance. M6 serving and fusion are integrated; a correctly pinned comparative evaluation is now complete (corrected M6 modestly beats GCN on fusion, Task-2 and policy metrics). A single-seed ranking does not establish statistical or universal superiority.</p>
       </section>
       <section class="panel" aria-labelledby="policy-title">
         <div class="panel-head"><h2 class="panel-title" id="policy-title">Policy boundary</h2><div class="policy-toggle" role="group" aria-label="Policy explanation"><button type="button" class="policy-opt active-static" data-policy="static" aria-pressed="true" aria-controls="static-policy">STATIC ILLUSTRATION</button><button type="button" class="policy-opt" data-policy="bandit" aria-pressed="false" aria-controls="bandit-policy">RUNTIME BANDIT</button></div></div>
@@ -82,11 +82,11 @@
     <aside class="alert-col" aria-label="Research claim boundaries">
       <section class="panel"><div class="panel-head"><h2 class="panel-title">Claim status</h2></div>
         <article class="alert-card sev-amber"><h3>Task-2 / claim #3</h3><p class="claim-status">SUPPORTED BUT WEAKER</p><p>B0 is a network-level count baseline, not a single-node baseline. Indexed context improves over that count.</p><p class="scope">Corrected TEST accuracy: B0 0.3958; concat MLP 0.5267; delta +0.1309. No GNN superiority claim.</p></article>
-        <article class="alert-card sev-cyan"><h3>M6 serving integrated</h3><p>Standalone Macro-F1 0.9898 belongs to the benchmark. The separate runtime checkpoint has unresolved comparison, training-weight and policy-provenance limits.</p></article>
-        <article class="alert-card sev-amber"><h3>Physical validation boundary</h3><p>SW-420 has TRAIN capture only. One device per modality does not establish manufacturing generalization.</p></article>
+        <article class="alert-card sev-cyan"><h3>M6 serving integrated</h3><p>Standalone Macro-F1 0.9898 belongs to the benchmark. The separate runtime checkpoint's comparison, training-weight and policy-provenance issues were found and fixed 2026-09-07; the corrected checkpoint is now deployed.</p></article>
+        <article class="alert-card sev-amber"><h3>Physical validation boundary</h3><p>SW-420 now has TRAIN/VALIDATION/TEST captures. One device per modality does not establish manufacturing generalization.</p></article>
         <article class="alert-card sev-amber"><h3>Generator and topology</h3><p>LOW generator diagnostics are internal. Stress failures remain negative results. Feature-only permutation is not a graph-equivariance test.</p></article>
       </section>
-      <section class="panel" style="margin-top:20px"><div class="panel-head"><h2 class="panel-title">Next evidence gates</h2></div><p class="scope">Correctly pin the M6 comparison, training weights and policy evaluation. Collect independent SW validation/test sessions. Resolve hardware false alarms without tuning on TEST.</p><p class="scope">NIST/IEC mappings are implementation traceability, not compliance certification.</p></section>
+      <section class="panel" style="margin-top:20px"><div class="panel-head"><h2 class="panel-title">Next evidence gates</h2></div><p class="scope">Collect additional independent SW-420 sessions/devices and mounting variation. Resolve hardware resting false alarms without tuning on TEST. Broaden physical validation beyond one unit per modality.</p><p class="scope">NIST/IEC mappings are implementation traceability, not compliance certification.</p></section>
     </aside>
   </div>
   <footer>Source snapshot: local main <code>4ffbe81</code>. Presentation values are preserved research evidence, not a current gateway connection. Security Trust and Process Trust remain separate until policy evaluation.

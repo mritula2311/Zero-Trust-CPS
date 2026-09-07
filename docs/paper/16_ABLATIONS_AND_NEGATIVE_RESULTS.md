@@ -13,10 +13,9 @@ Negative findings constrain the architecture and are part of the research record
 | M9 LOW→MEDIUM→HIGH degradation | [CURRENT FOR SAVED PROTOCOL] High recall accompanies very high false alarms | Report FPR/precision and keep high heterogeneity OOD |
 | Virtual-only versus hybrid superiority | [INCONCLUSIVE] Corrected masking and cardinality/provenance changes confound chronology | Do not claim either training provenance universally wins |
 | Earlier M1/M2 isolated collapse | [SUPERSEDED INTERPRETATION] Missing-node leakage was found; corrected recall recovers | Preserve original numbers and initial distribution-gap diagnosis as historical, not current causal explanation |
-| Task-2 cross-device claim | [SUPPORTED BUT WEAKER] Indexed representations improve a network-count comparator | B0 is not single-device; best concat exceeds GCN-score vector numerically |
+| Task-2 cross-device claim | [SUPPORTED BUT WEAKER] Indexed representations improve a network-count comparator; corrected M6 (0.5983 TEST accuracy) is the strongest of the corrected five-method comparison | B0 is not single-device; best concat exceeds GCN-score vector numerically; M6 beats both by a wider margin |
 | Old graph permutation conclusion | [REJECTED INTERPRETATION] Adjacency was not jointly permuted | Call it fixed-topology slot reassignment, not failure of graph equivariance |
 | Current hardware resting FPR | [VERIFIED] 5/12 in held-out post-warm-up replay | Physical cross-session generalization is limited |
-| SW held-out performance | [PENDING VALIDATION] TRAIN capture exists, no physical VAL/TEST | No two-sensor held-out accuracy claim |
 | Final M6 fusion | [IMPLEMENTED; COMPARATIVE VALIDATION RESOLVED 2026-09-07] Active corrected-M6 checkpoint/fusion; pinned comparator (`src/relational_pin.py`) and valid-only class weights, both fixed | Modest, held-out-replay-qualified gain over GCN is measured (13 O4/O5) — cite with that qualifier, not as unconditional superiority |
 | Nonfinite pending inputs | [FIXED IN FINAL AUDIT] NaN/Infinity survived late masks | Canonicalize before arithmetic; retain red and green tests |
 | Mixed-sensor explainability repair analysis | [CORRECTED EVALUATION] MPU-only routine ingested SW rows | Explicit sensor scope before sequence construction; preserve failure log |

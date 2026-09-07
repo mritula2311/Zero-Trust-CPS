@@ -217,8 +217,8 @@
   <div class="banner err" id="banner" role="status"></div>
   <section class="research-status" aria-labelledby="research-title">
     <h2 id="research-title">Research status · reconciled 6 September 2026</h2>
-    <p><b>Runtime: M6 Set Transformer + logistic fusion.</b> A separate M6 checkpoint supplies the configured gateway. Comparative effectiveness and physical end-to-end validation remain pending. Standalone benchmark metrics do not describe this runtime checkpoint.</p>
-    <p><b>Physical evidence:</b> one MPU6050 identity and one SW-420 identity. SW-420 TRAIN capture exists; VALIDATION/TEST are pending. The 20-node benchmark is constructed from two physical-source and eighteen simulated identities.</p>
+    <p><b>Runtime: M6 Set Transformer + logistic fusion.</b> The deployed M6 checkpoint is now corrected and pinned; comparative evaluation against GCN is complete (modest, held-out-replay-qualified gain). Physical end-to-end/live-enforcement validation remains pending — no authenticated attack or actuator enforcement has been run against physical hardware.</p>
+    <p><b>Physical evidence:</b> one MPU6050 identity and one SW-420 identity, both now with held-out VALIDATION/TEST evaluation. The 20-node benchmark is constructed from two physical-source and eighteen simulated identities.</p>
     <p><b>Task-2: SUPPORTED BUT WEAKER.</b> B0 is a network-level count baseline, not a single-node baseline. Indexed context improves over that count; GNN superiority is unsupported. This research snapshot is separate from the API observations below.</p>
   </section>
 

@@ -8,10 +8,10 @@
       limit: "Small, dependent hardware sample. This is not low-false-alarm reliability or complete sensor-to-enforcement validation. The implemented ‘peak’ feature is peak-to-peak."
     },
     sw: {
-      title: "SW-420 · TRAIN capture only", kind: "Four-channel schema",
+      title: "SW-420 · TRAIN/VALIDATION/TEST captured", kind: "Four-channel schema",
       features: ["trigger_rate", "duty_cycle", "burst_max_ms", "inter_event_cv"],
-      evidence: "First physical capture: 20260905_162002, 321 TRAIN rows, including 140 all-zero resting readings. Per-device four-channel checkpoints exist.",
-      limit: "SW-420 VALIDATION/TEST are pending. A saved checkpoint does not establish held-out detection performance. SW-420 is a digital vibration module, not a second MPU6050."
+      evidence: "TRAIN capture 20260905_162002 (321 rows, including 140 all-zero resting readings). VALIDATION: 109/109 detection, 0/70 resting FP. TEST: 115/115 detection, 0/108 resting FP.",
+      limit: "SW-420's binary switch output makes at-rest discrimination easier than MPU6050's continuous-amplitude sensing — trigger_rate reads exactly 0 on a still desk by construction. SW-420 is a digital vibration module, not a second MPU6050."
     }
   };
   document.querySelectorAll("[data-device]").forEach(button => {

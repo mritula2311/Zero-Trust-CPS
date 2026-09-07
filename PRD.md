@@ -12,7 +12,7 @@ Cyber-physical systems (CPS) — industrial sensors/actuators talking to a gatew
 
 - **Primary:** the project author, as a research deliverable — a paper and reproducible artifact evaluating a two-score, explainable Zero-Trust architecture for CPS telemetry.
 - **Secondary:** downstream readers of the paper/repo — security researchers evaluating CPS Zero-Trust architectures, and engineers evaluating whether the two-score pattern (or the M6 Set Transformer relational scorer) transfers to their own device fleets.
-- **Direct system consumers:** the ESP32+MPU6050 real device (`esp32-vib-001`), a second real SW-420 vibration sensor (`esp32-vib-002`, TRAIN-only capture so far), 18 network-research simulated devices, and 2 legacy scalar simulated devices (`sensor-002`, `actuator-001`) — 22 identities total in `DEVICE_REGISTRY`. A real actuator consuming `cps/decisions/<device_id>` and refusing to act unless its own latest decision is `ALLOW` is designed for but not deployed against a physical actuator in this build.
+- **Direct system consumers:** the ESP32+MPU6050 real device (`esp32-vib-001`), a second real SW-420 vibration sensor (`esp32-vib-002`, TRAIN/VALIDATION/TEST captures all exist), 18 network-research simulated devices, and 2 legacy scalar simulated devices (`sensor-002`, `actuator-001`) — 22 identities total in `DEVICE_REGISTRY`. A real actuator consuming `cps/decisions/<device_id>` and refusing to act unless its own latest decision is `ALLOW` is designed for but not deployed against a physical actuator in this build.
 
 ## 3. Scope
 

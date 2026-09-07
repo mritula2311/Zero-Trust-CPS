@@ -22,7 +22,7 @@
 | Demonstration interface | Static implementation/demonstration presentation, no gateway connection, not a research contribution; [design/](../../design/README.md) |
 | Strong contributions | Implemented two-score separation; auditable explanation; controlled benchmark/mechanism evidence; corrected-M6 comparative fusion/policy gain (held-out-replay-qualified); [17](17_CLAIM_EVIDENCE_MATRIX.md) |
 | Negative findings | Transformer tie, GCN isolation failure, M8/M9 tradeoffs, hardware false alarms, BLOCK unreachable for either policy arm; [16](16_ABLATIONS_AND_NEGATIVE_RESULTS.md) |
-| Limits | Fixed-split refit CIs; no held-out SW; no full physical network. M6 comparative/training/policy provenance gaps are RESOLVED as of 2026-09-07 (13 O4/O5); [18](18_LIMITATIONS_AND_THREATS_TO_VALIDITY.md) |
+| Limits | Fixed-split refit CIs; one physical identity per modality, no manufacturing/fleet generalization; no full physical network. M6 comparative/training/policy provenance gaps are RESOLVED as of 2026-09-07 (13 O4/O5); [18](18_LIMITATIONS_AND_THREATS_TO_VALIDITY.md) |
 | Pending work | Claim-scoped blockers and reproduction gaps; [25](25_OPEN_ITEMS_BEFORE_SUBMISSION.md) |
 
 Numbers are protocol-specific references to13; do not recombine them into a single system-wide accuracy, latency or “final model” row. Fresh runtime verification refers to tests and offline replay, not a newly observed live hardware deployment.
