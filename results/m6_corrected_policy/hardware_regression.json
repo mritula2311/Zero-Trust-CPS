@@ -1,0 +1,32 @@
+{
+  "meta": {
+    "generated": "2026-09-07",
+    "note": "PART 9/13's explicit instruction: known existing evidence may be reused where the protocol is identical, do not rerun merely to regenerate the same artifact. The corrected-M6 arm was already measured against the real MPU6050 hardware capture during the comparator-repair pass (results/gcn_m6_corrected_comparison/hardware_comparison.json), using the exact SAME rows/labels/masking and the exact SAME set_transformer_corrected.pt checkpoint this promotion just made the runtime default. Reproduced here verbatim, not re-run.",
+    "source_file": "results/gcn_m6_corrected_comparison/hardware_comparison.json",
+    "protocol": "Real MPU6050 hardware capture, offline inference replay only, no training. Same rows/labels/masking for every arm.",
+    "dataset": "data/collected hardware_session_20260902_221217_labelled.json",
+    "threshold": 0.6
+  },
+  "m6_corrected": {
+    "resting_false_positive_rate": {
+      "k": 5,
+      "n": 12,
+      "rate": 0.4166666666666667,
+      "wilson_95ci": [0.19325746190524656, 0.6804926643446272]
+    },
+    "disturbance_detection_rate": {
+      "k": 30,
+      "n": 30,
+      "rate": 1.0,
+      "wilson_95ci": [0.8864829086095221, 1.0]
+    },
+    "n_scored_total": 42
+  },
+  "comparison_context": {
+    "gcn": {"resting_fp": "5/12", "disturbance_detection": "30/30"},
+    "m6_deployed_flawed": {"resting_fp": "5/12", "disturbance_detection": "30/30"},
+    "m6_corrected": {"resting_fp": "5/12", "disturbance_detection": "30/30"}
+  },
+  "verdict": "NO REGRESSION. All three arms (GCN, flawed-deployed M6, corrected M6) produce byte-identical hardware detection/false-positive statistics on the available evidence -- the relational-model choice does not move this particular hardware result. 5/12 (41.7%) resting false-positive rate remains the honestly-reported, wide-interval [19.3-68.0%] result; it is NOT re-measured or narrowed by this promotion. SW-420 physical VALIDATION/TEST remain pending -- not invented here, no new physical data exists.",
+  "sw420_status": "TRAIN physical capture available; VALIDATION/TEST physical data does not exist as of this pass -- unchanged by the corrected-M6 promotion."
+}

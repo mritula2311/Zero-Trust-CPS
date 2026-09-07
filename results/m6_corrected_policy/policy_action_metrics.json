@@ -1,0 +1,86 @@
+{
+  "m6_corrected": {
+    "ALLOW": {
+      "support": 2541,
+      "precision": 0.9895,
+      "recall": 0.7068,
+      "f1": 0.8246,
+      "tp": 1796,
+      "fp": 19,
+      "fn": 745,
+      "tn": 373
+    },
+    "ALERT": {
+      "support": 200,
+      "precision": 0.2015,
+      "recall": 0.97,
+      "f1": 0.3336,
+      "tp": 194,
+      "fp": 769,
+      "fn": 6,
+      "tn": 1964
+    },
+    "STEP_UP": {
+      "support": 159,
+      "precision": 0.9871,
+      "recall": 0.9623,
+      "f1": 0.9745,
+      "tp": 153,
+      "fp": 2,
+      "fn": 6,
+      "tn": 2772
+    },
+    "BLOCK": {
+      "support": 33,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 33,
+      "tn": 2900
+    }
+  },
+  "gcn_corrected": {
+    "ALLOW": {
+      "support": 2541,
+      "precision": 0.9895,
+      "recall": 0.7013,
+      "f1": 0.8208,
+      "tp": 1782,
+      "fp": 19,
+      "fn": 759,
+      "tn": 373
+    },
+    "ALERT": {
+      "support": 200,
+      "precision": 0.2002,
+      "recall": 0.98,
+      "f1": 0.3325,
+      "tp": 196,
+      "fp": 783,
+      "fn": 4,
+      "tn": 1950
+    },
+    "STEP_UP": {
+      "support": 159,
+      "precision": 0.9869,
+      "recall": 0.9497,
+      "f1": 0.9679,
+      "tp": 151,
+      "fp": 2,
+      "fn": 8,
+      "tn": 2772
+    },
+    "BLOCK": {
+      "support": 33,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 33,
+      "tn": 2900
+    }
+  }
+}

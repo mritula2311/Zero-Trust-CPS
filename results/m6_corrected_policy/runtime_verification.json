@@ -1,0 +1,272 @@
+{
+  "meta": {
+    "generated": "2026-09-07",
+    "tool": "design/verify-runtime.py",
+    "note": "Run AFTER the corrected-M6 promotion (config.py ambient SET_TRANSFORMER_MODEL_PATH / FUSION_MODEL_PATH / FUSION_BACKGROUND_PATH / ADAPTIVE_PDP_MODEL_PATH repointed to the corrected artifacts). Confirms the live gateway process actually loads the corrected checkpoint/fusion/policy, not just that config.py says it should.",
+    "verified_runtime_paths": {
+      "relational_checkpoint": "models/set_transformer_corrected.pt",
+      "relational_checkpoint_sha256": "910ed7a4b7388ea4025c3de922648e71f7b463459df9b125d84a7e241707859d",
+      "fusion_model": "models/fusion_meta_learner_m6_corrected_variant.joblib",
+      "fusion_model_sha256": "6d89db099e2fd4efd438af27ad2d6da6ea72d093fb7e31f055f11c69bfed19fa",
+      "policy_qtable": "models/adaptive_pdp_qtable_m6_corrected.json",
+      "policy_qtable_sha256": "1bac04dd0c887f96e4f98327ef8a5111fa7173c9142b9980b1fe5b145ad44fb0"
+    },
+    "verification_method": "gateway.gnn_scorer._checkpoint_path / fusion_engine._model_path / adaptive_pdp._path introspected directly on the live gateway module after import, confirmed to equal the three paths above (not merely config.py source inspection)."
+  },
+  "verify_runtime_output": {
+    "ok": true,
+    "mode": "OFFLINE REPLAY / SIMULATED",
+    "runtime_relational_model": "M6 Set Transformer",
+    "policy_source": "offline bandit",
+    "rejected_state_unchanged": true,
+    "outcomes": [
+      {
+        "scenario": "normal synthetic windows",
+        "source": "SIMULATED / OFFLINE REPLAY",
+        "observations": [
+          {
+            "device_id": "esp32-vib-001",
+            "decision": "ALLOW",
+            "security_trust_score": 0.912,
+            "process_trust_score": 0.9219330103546881,
+            "process_status": "FRESH",
+            "rule_score": 0.9,
+            "if_score": 0.9298354040397314,
+            "lstm_score": 0.9,
+            "gnn_score": 0.7312048673629761,
+            "reason": "security: authenticated, normal rate | process: fusion: gnn_score=0.73 most raised trust (SHAP=0.68, log-odds)"
+          },
+          {
+            "device_id": "sensor-002",
+            "decision": "ALLOW",
+            "security_trust_score": 0.912,
+            "process_trust_score": 0.9141020251561627,
+            "process_status": "FRESH",
+            "rule_score": 0.9,
+            "if_score": 0.9,
+            "lstm_score": 0.9,
+            "gnn_score": 0.730628490447998,
+            "reason": "security: authenticated, normal rate | process: fusion: gnn_score=0.73 most raised trust (SHAP=0.68, log-odds)"
+          },
+          {
+            "device_id": "actuator-001",
+            "decision": "ALLOW",
+            "security_trust_score": 0.912,
+            "process_trust_score": 0.9141020251561627,
+            "process_status": "FRESH",
+            "rule_score": 0.9,
+            "if_score": 0.9,
+            "lstm_score": 0.9,
+            "gnn_score": 0.730628490447998,
+            "reason": "security: authenticated, normal rate | process: fusion: gnn_score=0.73 most raised trust (SHAP=0.68, log-odds)"
+          }
+        ]
+      },
+      {
+        "scenario": "replay",
+        "source": "SIMULATED / OFFLINE REPLAY",
+        "observations": [
+          {
+            "device_id": "actuator-001",
+            "decision": "REJECTED",
+            "security_trust_score": 0.912,
+            "process_trust_score": null,
+            "process_status": "",
+            "rule_score": null,
+            "if_score": null,
+            "lstm_score": null,
+            "gnn_score": null,
+            "reason": "replay_or_stale_sequence"
+          }
+        ]
+      },
+      {
+        "scenario": "invalid HMAC",
+        "source": "SIMULATED / OFFLINE REPLAY",
+        "observations": [
+          {
+            "device_id": "actuator-001",
+            "decision": "REJECTED",
+            "security_trust_score": 0.912,
+            "process_trust_score": null,
+            "process_status": "",
+            "rule_score": null,
+            "if_score": null,
+            "lstm_score": null,
+            "gnn_score": null,
+            "reason": "hmac_mismatch"
+          }
+        ]
+      },
+      {
+        "scenario": "isolated synthetic anomaly",
+        "source": "SIMULATED / OFFLINE REPLAY",
+        "observations": [
+          {
+            "device_id": "esp32-vib-001",
+            "decision": "ALERT",
+            "security_trust_score": 0.912,
+            "process_trust_score": 1.1825509864684767e-05,
+            "process_status": "FRESH",
+            "rule_score": 0.9,
+            "if_score": 0.0,
+            "lstm_score": 0.0,
+            "gnn_score": 0.008660509251058102,
+            "reason": "security: authenticated, normal rate | process: fusion: gnn_score=0.01 most lowered trust (SHAP=-5.02, log-odds)"
+          },
+          {
+            "device_id": "sensor-002",
+            "decision": "ALERT",
+            "security_trust_score": 0.912,
+            "process_trust_score": 0.2538274602049142,
+            "process_status": "FRESH",
+            "rule_score": 0.9,
+            "if_score": 0.9,
+            "lstm_score": 0.9,
+            "gnn_score": 0.2939392328262329,
+            "reason": "security: authenticated, normal rate | process: fusion: gnn_score=0.29 most lowered trust (SHAP=-2.77, log-odds)"
+          },
+          {
+            "device_id": "actuator-001",
+            "decision": "ALERT",
+            "security_trust_score": 0.912,
+            "process_trust_score": 0.2538274602049142,
+            "process_status": "FRESH",
+            "rule_score": 0.9,
+            "if_score": 0.9,
+            "lstm_score": 0.9,
+            "gnn_score": 0.2939392328262329,
+            "reason": "security: authenticated, normal rate | process: fusion: gnn_score=0.29 most lowered trust (SHAP=-2.77, log-odds)"
+          }
+        ]
+      },
+      {
+        "scenario": "coordinated synthetic anomaly",
+        "source": "SIMULATED / OFFLINE REPLAY",
+        "observations": [
+          {
+            "device_id": "esp32-vib-001",
+            "decision": "ALERT",
+            "security_trust_score": 0.912,
+            "process_trust_score": 1.1825509864684767e-05,
+            "process_status": "FRESH",
+            "rule_score": 0.9,
+            "if_score": 0.0,
+            "lstm_score": 0.0,
+            "gnn_score": 0.008660509251058102,
+            "reason": "security: authenticated, normal rate | process: fusion: gnn_score=0.01 most lowered trust (SHAP=-5.02, log-odds)"
+          },
+          {
+            "device_id": "sensor-002",
+            "decision": "ALERT",
+            "security_trust_score": 0.912,
+            "process_trust_score": 0.2538274602049142,
+            "process_status": "FRESH",
+            "rule_score": 0.9,
+            "if_score": 0.9,
+            "lstm_score": 0.9,
+            "gnn_score": 0.2939392328262329,
+            "reason": "security: authenticated, normal rate | process: fusion: gnn_score=0.29 most lowered trust (SHAP=-2.77, log-odds)"
+          },
+          {
+            "device_id": "actuator-001",
+            "decision": "ALERT",
+            "security_trust_score": 0.912,
+            "process_trust_score": 0.2538274602049142,
+            "process_status": "FRESH",
+            "rule_score": 0.9,
+            "if_score": 0.9,
+            "lstm_score": 0.9,
+            "gnn_score": 0.2939392328262329,
+            "reason": "security: authenticated, normal rate | process: fusion: gnn_score=0.29 most lowered trust (SHAP=-2.77, log-odds)"
+          }
+        ]
+      },
+      {
+        "scenario": "silence watchdog (controlled clock)",
+        "source": "SIMULATED / OFFLINE REPLAY",
+        "observations": [
+          {
+            "device_id": "sensor-002",
+            "decision": "SILENT",
+            "security_trust_score": 0.702,
+            "process_trust_score": null,
+            "process_status": "STALE",
+            "rule_score": null,
+            "if_score": null,
+            "lstm_score": null,
+            "gnn_score": null,
+            "reason": "no message received within the staleness window -- device offline, disconnected, or possibly silenced/compromised; indistinguishable from here"
+          },
+          {
+            "device_id": "actuator-001",
+            "decision": "SILENT",
+            "security_trust_score": 0.702,
+            "process_trust_score": null,
+            "process_status": "STALE",
+            "rule_score": null,
+            "if_score": null,
+            "lstm_score": null,
+            "gnn_score": null,
+            "reason": "no message received within the staleness window -- device offline, disconnected, or possibly silenced/compromised; indistinguishable from here"
+          },
+          {
+            "device_id": "esp32-vib-001",
+            "decision": "SILENT",
+            "security_trust_score": 0.702,
+            "process_trust_score": null,
+            "process_status": "STALE",
+            "rule_score": null,
+            "if_score": null,
+            "lstm_score": null,
+            "gnn_score": null,
+            "reason": "no message received within the staleness window -- device offline, disconnected, or possibly silenced/compromised; indistinguishable from here"
+          }
+        ]
+      },
+      {
+        "scenario": "resumed synthetic telemetry",
+        "source": "SIMULATED / OFFLINE REPLAY",
+        "observations": [
+          {
+            "device_id": "esp32-vib-001",
+            "decision": "ALLOW",
+            "security_trust_score": 0.776,
+            "process_trust_score": 0.0900987480548654,
+            "process_status": "FRESH",
+            "rule_score": 0.9,
+            "if_score": 0.9986238281383033,
+            "lstm_score": 0.0,
+            "gnn_score": 0.7315703630447388,
+            "reason": "security: authenticated, normal rate | process: fusion: lstm_ae_score=0.00 most lowered trust (SHAP=-4.71, log-odds)"
+          },
+          {
+            "device_id": "sensor-002",
+            "decision": "ALLOW",
+            "security_trust_score": 0.776,
+            "process_trust_score": 0.9144748710127678,
+            "process_status": "FRESH",
+            "rule_score": 0.9,
+            "if_score": 0.9,
+            "lstm_score": 0.9,
+            "gnn_score": 0.7312319278717041,
+            "reason": "security: authenticated, normal rate | process: fusion: gnn_score=0.73 most raised trust (SHAP=0.68, log-odds)"
+          },
+          {
+            "device_id": "actuator-001",
+            "decision": "ALLOW",
+            "security_trust_score": 0.776,
+            "process_trust_score": 0.9144748710127678,
+            "process_status": "FRESH",
+            "rule_score": 0.9,
+            "if_score": 0.9,
+            "lstm_score": 0.9,
+            "gnn_score": 0.7312319278717041,
+            "reason": "security: authenticated, normal rate | process: fusion: gnn_score=0.73 most raised trust (SHAP=0.68, log-odds)"
+          }
+        ]
+      }
+    ],
+    "limitations": "Transport, physical hardware, persistent audit and enforcement are not exercised. Publish/challenge/quarantine boundaries are disabled. Fixed generator seed and controlled clock are a scenario sample, not statistical evidence. Dual-abnormal scenario NOT CURRENTLY SUPPORTED by this runner."
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "m6_corrected": {
+    "rl_training_episodes": 20,
+    "rl_epsilon": 0.1,
+    "excluded_situation_classes": [
+      "combined"
+    ],
+    "triples_used": 2900,
+    "seed": 0,
+    "clock_protocol": "deterministic, per-record ts/1000.0 (seconds) -- not wall-clock time.time()",
+    "commit_hash": "0f503b52b20e5fc1f5476d1392a357e884340323"
+  },
+  "gcn_corrected": {
+    "rl_training_episodes": 20,
+    "rl_epsilon": 0.1,
+    "excluded_situation_classes": [
+      "combined"
+    ],
+    "triples_used": 2900,
+    "seed": 0,
+    "clock_protocol": "deterministic, per-record ts/1000.0 (seconds) -- not wall-clock time.time()",
+    "commit_hash": "0f503b52b20e5fc1f5476d1392a357e884340323"
+  }
+}

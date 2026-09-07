@@ -630,10 +630,41 @@ def transformer_meta_path(device_id: str) -> str:
     return os.path.join(MODELS_DIR, f"transformer_ae_{device_id}_meta.json")
 
 # Shared, device-agnostic artifacts (see FEATURE_VECTOR_DEVICE_IDS' comment).
+#
+# CORRECTED-M6 PROMOTION (2026-09-07, final-deployment pass, follows the
+# 3c827e8 M6 deployment and the beaeca4..0f503b5 comparator repair). The
+# deployed M6 checkpoint (models/set_transformer_runtime.pt) had a confirmed
+# class-weight training defect (results/gcn_m6_corrected_comparison/
+# summary.md finding 1: standalone Macro-F1 0.0736 vs 0.7926 corrected), and
+# its policy Q-table's own provenance was corrupted by the same
+# ambient-fusion-path bug that motivated the comparator repair (finding 2).
+# A corrected checkpoint, a matched fusion refit, and a freshly-trained
+# corrected-M6 policy (results/m6_corrected_policy/) all outperform or match
+# their fair GCN counterparts with clean lineage; see
+# docs/paper/13_RESULTS_MASTER_TABLES.md and 17_CLAIM_EVIDENCE_MATRIX.md for
+# the full gate-by-gate justification. These four ambient constants now
+# point at the CORRECTED artifacts. The originally deployed (flawed) files
+# are UNTOUCHED and kept on disk under their original names -- see
+# SET_TRANSFORMER_MODEL_PATH_M6_DEPLOYED_FLAWED_20260907 below and
+# src/relational_pin.py's M6_DEPLOYED pin, which still hash-verifies against
+# them explicitly (not via these ambient constants) so they remain a
+# permanent, reproducible historical reference. Nothing is deleted.
 GNN_MODEL_PATH = os.path.join(MODELS_DIR, "gnn.pt")
-FUSION_MODEL_PATH = os.path.join(MODELS_DIR, "fusion_meta_learner.joblib")
-FUSION_BACKGROUND_PATH = os.path.join(MODELS_DIR, "fusion_background.npy")   # SHAP background sample
-ADAPTIVE_PDP_MODEL_PATH = os.path.join(MODELS_DIR, "adaptive_pdp_qtable.json")
+FUSION_MODEL_PATH = os.path.join(MODELS_DIR, "fusion_meta_learner_m6_corrected_variant.joblib")
+FUSION_BACKGROUND_PATH = os.path.join(MODELS_DIR, "fusion_background_m6_corrected_variant.npy")   # SHAP background sample
+ADAPTIVE_PDP_MODEL_PATH = os.path.join(MODELS_DIR, "adaptive_pdp_qtable_m6_corrected.json")
+
+# HISTORICAL / SUPERSEDED as of the corrected-M6 promotion above -- the
+# exact checkpoint the live gateway ran from 3c827e8 (2026-09-07) until this
+# promotion. Kept as an explicit, ambient-config-independent path so
+# src/relational_pin.py's M6_DEPLOYED pin remains hash-verifiable forever,
+# regardless of what SET_TRANSFORMER_MODEL_PATH points at going forward.
+# Its matched fusion artifact was already independently named
+# (FUSION_MODEL_PATH_M6_VARIANT below) and needs no new constant. The
+# corresponding pre-promotion policy Q-table is preserved at
+# models/adaptive_pdp_qtable.json (untouched) and explicitly copied to
+# models/adaptive_pdp_qtable_m6_deployed_20260907_corrupted_provenance.json.
+SET_TRANSFORMER_MODEL_PATH_M6_DEPLOYED_FLAWED_20260907 = os.path.join(MODELS_DIR, "set_transformer_runtime.pt")
 
 # --- Training seed ---
 # Every training script pins its RNG so a rebuild is reproducible. That makes each
@@ -765,7 +796,13 @@ GNN_NODE_FEATURE_DIM = 3
 # replay data (build_snapshots) so M6 becomes a fair, comparable candidate
 # for the live fusion pipeline rather than only a standalone offline result.
 # See docs/paper/17_CLAIM_EVIDENCE_MATRIX.md C05/C15 for why this gap existed.
-SET_TRANSFORMER_MODEL_PATH = os.path.join(MODELS_DIR, "set_transformer_runtime.pt")
+#
+# Points at the CORRECTED checkpoint as of the 2026-09-07 corrected-M6
+# promotion (see the block above GNN_MODEL_PATH) -- the checkpoint
+# originally deployed at set_transformer_runtime.pt had a confirmed
+# class-weight training defect and is preserved, untouched, as
+# SET_TRANSFORMER_MODEL_PATH_M6_DEPLOYED_FLAWED_20260907.
+SET_TRANSFORMER_MODEL_PATH = os.path.join(MODELS_DIR, "set_transformer_corrected.pt")
 # 300 epochs / lr=1e-2 match benchmark_crossdevice_models.py's own
 # DEEPSETS_EPOCHS/DEEPSETS_LR for this architecture family (M3/M5/M6/M7) --
 # not GCN's GNN_EPOCHS/GNN_LEARNING_RATE, which are tuned for a different
@@ -790,13 +827,18 @@ FUSION_SHAP_BACKGROUND_SIZE = 50
 # --- M6 fusion variant ---
 # A separate meta-learner fit on [rule, if, lstm, m6_score] instead of
 # [rule, if, lstm, gnn_score]. As of the 2026-09-07 M6 deployment (3c827e8),
-# FUSION_MODEL_PATH / FUSION_BACKGROUND_PATH themselves were overwritten with
-# this M6-fitted model -- fusion_meta_learner.joblib and
-# fusion_meta_learner_m6_variant.joblib are now byte-identical (see
-# docs/paper/13_RESULTS_MASTER_TABLES.md O2). This constant is kept so
-# scripts/evaluate_ablation_m6.py can still name the M6 arm explicitly even
-# though it now coincides with the deployed default. The pre-deployment
-# GCN-fitted fusion model is preserved separately as
+# FUSION_MODEL_PATH / FUSION_BACKGROUND_PATH were overwritten with this
+# M6-fitted model, making it byte-identical to the then-deployed default
+# (docs/paper/13_RESULTS_MASTER_TABLES.md O2). SUPERSEDED by the
+# corrected-M6 promotion later the same day: FUSION_MODEL_PATH now points at
+# FUSION_MODEL_PATH_M6_CORRECTED_VARIANT below, not this constant, whose
+# checkpoint had the confirmed class-weight defect (see the ambient-constant
+# block above GNN_MODEL_PATH). This file is UNCHANGED and kept -- it is the
+# matched fusion artifact for
+# SET_TRANSFORMER_MODEL_PATH_M6_DEPLOYED_FLAWED_20260907 /
+# src/relational_pin.py's M6_DEPLOYED pin, still used by scripts/
+# evaluate_ablation_m6.py to name that historical arm explicitly. The
+# pre-M6 GCN-fitted fusion model is preserved separately as
 # fusion_meta_learner_gcn_backup.joblib, NOT loaded by src/fusion_engine.py.
 FUSION_MODEL_PATH_M6_VARIANT = os.path.join(MODELS_DIR, "fusion_meta_learner_m6_variant.joblib")
 FUSION_BACKGROUND_PATH_M6_VARIANT = os.path.join(MODELS_DIR, "fusion_background_m6_variant.npy")
@@ -811,7 +853,7 @@ FUSION_BACKGROUND_PATH_M6_VARIANT = os.path.join(MODELS_DIR, "fusion_background_
 FUSION_MODEL_PATH_GCN_BACKUP = os.path.join(MODELS_DIR, "fusion_meta_learner_gcn_backup.joblib")
 FUSION_BACKGROUND_PATH_GCN_BACKUP = os.path.join(MODELS_DIR, "fusion_background_gcn_backup.npy")
 
-# --- M6 corrected comparison checkpoint (evaluation only) ---
+# --- M6 corrected comparison checkpoint (DEPLOYED as of 2026-09-07 promotion) ---
 # scripts/train_set_transformer.py computed its inverse-frequency class
 # weights over the FULL node-target tensor, including invalid/padded node
 # slots the masked loss never actually trains on (only ~8.9% of slots are
@@ -820,9 +862,16 @@ FUSION_BACKGROUND_PATH_GCN_BACKUP = os.path.join(MODELS_DIR, "fusion_background_
 # neg_weight 45.18 actual vs. 6.27 correct). These paths hold a checkpoint
 # retrained after that one-line fix, for a scientifically valid GCN-vs-M6
 # comparison. Produced by an explicit output-path override in
-# train_set_transformer.py / train_fusion_meta_learner_m6.py -- the deployed
-# SET_TRANSFORMER_MODEL_PATH / FUSION_MODEL_PATH_M6_VARIANT artifacts above
-# are never written by that corrected run. See
+# train_set_transformer.py / train_fusion_meta_learner_m6.py -- the
+# originally-deployed SET_TRANSFORMER_MODEL_PATH_M6_DEPLOYED_FLAWED_20260907
+# / FUSION_MODEL_PATH_M6_VARIANT artifacts above are never written by that
+# corrected run, and remain byte-identical to what 3c827e8 deployed. As of
+# the corrected-M6 promotion (see the ambient-constant block above
+# GNN_MODEL_PATH), the ambient SET_TRANSFORMER_MODEL_PATH /
+# FUSION_MODEL_PATH / FUSION_BACKGROUND_PATH now equal these two paths
+# exactly -- these named constants are kept so a comparator can still name
+# the corrected-M6 arm explicitly, independent of whatever the ambient
+# constants point at in the future. See
 # results/gcn_m6_corrected_comparison/artifact_lineage.json.
 SET_TRANSFORMER_MODEL_PATH_CORRECTED = os.path.join(MODELS_DIR, "set_transformer_corrected.pt")
 FUSION_MODEL_PATH_M6_CORRECTED_VARIANT = os.path.join(MODELS_DIR, "fusion_meta_learner_m6_corrected_variant.joblib")

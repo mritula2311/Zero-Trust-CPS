@@ -1,0 +1,76 @@
+{
+  "protocol": {
+    "fitted_on": "validation (SIM_SESSION_VAL_002)",
+    "reported_on": "test (SIM_SESSION_TEST_001)",
+    "clock": "deterministic, per-record ts/1000.0 -- see relational_pin/train_adaptive_pdp.py",
+    "terminology": "both arms are contextual bandits with sample-average action-value estimation, not reinforcement learning"
+  },
+  "results": {
+    "m6_corrected": {
+      "accuracy": 0.7307,
+      "macro_f1": 0.5332,
+      "weighted_f1": 0.79,
+      "false_block_rate": 0.0,
+      "false_step_up_rate": 0.0007,
+      "confusion_matrix": [
+        [
+          1796,
+          745,
+          0,
+          0
+        ],
+        [
+          4,
+          194,
+          2,
+          0
+        ],
+        [
+          2,
+          4,
+          153,
+          0
+        ],
+        [
+          13,
+          20,
+          0,
+          0
+        ]
+      ]
+    },
+    "gcn_corrected": {
+      "accuracy": 0.7259,
+      "macro_f1": 0.5303,
+      "weighted_f1": 0.7863,
+      "false_block_rate": 0.0,
+      "false_step_up_rate": 0.0007,
+      "confusion_matrix": [
+        [
+          1782,
+          759,
+          0,
+          0
+        ],
+        [
+          2,
+          196,
+          2,
+          0
+        ],
+        [
+          5,
+          3,
+          151,
+          0
+        ],
+        [
+          12,
+          21,
+          0,
+          0
+        ]
+      ]
+    }
+  }
+}

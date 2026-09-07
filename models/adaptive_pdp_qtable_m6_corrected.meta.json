@@ -1,0 +1,25 @@
+{
+  "pin_name": "m6_corrected",
+  "relational_family": "m6",
+  "relational_checkpoint": "D:\\zt-cps\\zt-cps-starter\\src\\..\\models\\set_transformer_corrected.pt",
+  "relational_checkpoint_sha256": "910ed7a4b7388ea4025c3de922648e71f7b463459df9b125d84a7e241707859d",
+  "fusion_model_path": "D:\\zt-cps\\zt-cps-starter\\src\\..\\models\\fusion_meta_learner_m6_corrected_variant.joblib",
+  "fusion_model_sha256": "6d89db099e2fd4efd438af27ad2d6da6ea72d093fb7e31f055f11c69bfed19fa",
+  "fusion_background_path": "D:\\zt-cps\\zt-cps-starter\\src\\..\\models\\fusion_background_m6_corrected_variant.npy",
+  "fusion_background_sha256": "8d9018218a8881e0eb244e3b23678f7a23902b75b61bf74331644ec576aa1dee",
+  "training_data_path": "D:\\zt-cps\\zt-cps-starter\\src\\..\\data\\collected\\validation_policy_session.json",
+  "training_data_sha256": "e512b1b2bc1bfd2c065422bfb128adfa966cdb3c009c6a1eb85cbe82619e10fc",
+  "seed": 0,
+  "clock_protocol": "deterministic, per-record ts/1000.0 (seconds) -- not wall-clock time.time()",
+  "training_config": {
+    "rl_training_episodes": 20,
+    "rl_epsilon": 0.1,
+    "excluded_situation_classes": [
+      "combined"
+    ],
+    "triples_used": 2900
+  },
+  "commit_hash": "0f503b52b20e5fc1f5476d1392a357e884340323",
+  "output_path": "models/adaptive_pdp_qtable_m6_corrected.json",
+  "states_visited": 27
+}
