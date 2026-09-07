@@ -1,6 +1,6 @@
 # Claim–Evidence Matrix
 
-> **Historical claim matrix:** This preserves earlier contribution numbering and findings. Current claim authority is [docs/paper/17](paper/17_CLAIM_EVIDENCE_MATRIX.md); current numbers and model-lineage limits are [docs/paper/13](paper/13_RESULTS_MASTER_TABLES.md). Configured M6 integration is not a verified comparative or physical deployment result.
+> **Historical claim matrix:** This preserves earlier contribution numbering and findings. Current claim authority is [docs/paper/17](paper/17_CLAIM_EVIDENCE_MATRIX.md); current numbers and model-lineage limits are [docs/paper/13](paper/13_RESULTS_MASTER_TABLES.md). As of 2026-09-07, M6's comparative fusion and policy gain over GCN ARE verified (held-out-replay-qualified, 13 O4/O5) — configured M6 integration is still not a verified *physical* deployment result.
 
 
 Historical contribution and withdrawal ledger. Its entries preserve the wording at the recorded revision; they do not override the current paper claim matrix.

@@ -1,12 +1,12 @@
 {
   "state": {
     "branch": "main",
-    "head": "e717df4aa7e9eb5fdc6d9f98866562a8b8676f6b",
-    "main": "e717df4aa7e9eb5fdc6d9f98866562a8b8676f6b",
-    "origin_main": "e717df4aa7e9eb5fdc6d9f98866562a8b8676f6b",
+    "head": "d80a4fca4dc197ab11d60c728864a133badc81bf",
+    "main": "d80a4fca4dc197ab11d60c728864a133badc81bf",
+    "origin_main": "d80a4fca4dc197ab11d60c728864a133badc81bf",
     "main_ahead_behind": "0\t0",
-    "worktrees": "<REPO_ROOT>      e717df4 [main]\n<WORKSPACE_ROOT>/zt-cps-design-astra 9dac09a [astra/design-dashboard-20260906]",
-    "status": "D docs/figures/r14_correction_impact.png\n D docs/figures/r1_relational_model_comparison.png\n D docs/figures/r3_task2_comparison.png\n D docs/figures/r4_policy_per_action.png\n D docs/figures/r5_hardware_behavior.png\n D docs/figures/r6_local_detector_attack_recall.png\n M docs/paper/19_FIGURE_AND_TABLE_PLAN.md\n M results/final_verification/markdown_inventory.csv\n M scripts/generate_corrected_m6_figures.py\n?? docs/figures/hardware_validation.png\n?? docs/figures/local_detector_attack_class_recall.png\n?? docs/figures/m6_training_correction.png\n?? docs/figures/model_performance_gcn_vs_m6.png\n?? docs/figures/pending_node_masking_correction.png\n?? docs/figures/policy_action_performance.png",
+    "worktrees": "<REPO_ROOT>      d80a4fc [main]\n<WORKSPACE_ROOT>/zt-cps-design-astra 9dac09a [astra/design-dashboard-20260906]",
+    "status": "M METHODOLOGY.md\n M PRD.md\n M SESSION_LOG.md\n M ZERO_TRUST_CPS_KB.md\n M docs/00_overview.md\n M docs/01_simulation_and_hardware_abstraction.md\n M docs/02_module1_device_identity.md\n M docs/03_module2_authentication.md\n M docs/04_module3_trust_evaluation.md\n M docs/05_module4_continuous_verification.md\n M docs/06_module5_access_control.md\n M docs/07_module6_secure_communication.md\n M docs/08_module7_monitoring_and_audit.md\n M docs/09_integration_and_data_flow.md\n M docs/10_testing_and_attack_simulation.md\n M docs/11_project_structure_and_config.md\n M docs/12_model_validation_and_justification.md\n M docs/13_system_architecture_and_workflow.md\n M docs/CLAIM_EVIDENCE_MATRIX.md\n M docs/ENVIRONMENT.md\n M docs/EXPERIMENTAL_PROTOCOL.md\n M docs/MANUAL_EXTERNAL_REVIEW.md\n M docs/PAPER_GNN_BASELINE_VERIFICATION.md\n M docs/PAPER_READINESS_VERIFICATION.md\n M docs/REPOSITORY_AUDIT.md\n M docs/REVIEW_RESPONSE_TRACKER.md\n M docs/SECURITY_TRUST_SPEC.md\n M docs/paper/00_PAPER_MASTER_GUIDE.md\n M docs/paper/07_RELATIONAL_MODELS_M1_M9.md\n M docs/paper/10_FUSION_AND_PROCESS_TRUST.md\n M docs/paper/11_POLICY_ENGINE.md\n M docs/paper/12_EXPERIMENTAL_PROTOCOL.md\n M docs/paper/15_HARDWARE_VALIDATION.md\n M docs/paper/16_ABLATIONS_AND_NEGATIVE_RESULTS.md\n M docs/paper/17_CLAIM_EVIDENCE_MATRIX.md\n M docs/paper/24_REPRODUCIBILITY_GUIDE.md\n M results/final_verification/documentation_validation.json\n M results/final_verification/markdown_inventory.csv\n M results/final_verification/stale_claim_occurrences.csv",
     "workspace": "<REPO_ROOT>",
     "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
     "platform": "Windows-11-10.0.26200-SP0",

@@ -1,6 +1,6 @@
 # Product Requirements Document
 
-> **Current reference, 2026-09-07:** Use the [paper master guide](docs/paper/00_PAPER_MASTER_GUIDE.md), [architecture](docs/paper/02_SYSTEM_ARCHITECTURE.md), [numerical authority](docs/paper/13_RESULTS_MASTER_TABLES.md), [claim gate](docs/paper/17_CLAIM_EVIDENCE_MATRIX.md) and [limitations](docs/paper/18_LIMITATIONS_AND_THREATS_TO_VALIDITY.md). The configured gateway uses M6 Set Transformer with M6-fitted fusion; the standalone M1–M9 benchmark and preserved GCN replay are separate evidence. M6 comparative gains need a correctly pinned replay. SW-420 has TRAIN capture only. Older sections below retain their historical scope.
+> **Current reference, 2026-09-07 (final corrected-M6 pass):** Use the [paper master guide](docs/paper/00_PAPER_MASTER_GUIDE.md), [architecture](docs/paper/02_SYSTEM_ARCHITECTURE.md), [numerical authority](docs/paper/13_RESULTS_MASTER_TABLES.md), [claim gate](docs/paper/17_CLAIM_EVIDENCE_MATRIX.md) and [limitations](docs/paper/18_LIMITATIONS_AND_THREATS_TO_VALIDITY.md). The configured gateway uses a corrected M6 Set Transformer checkpoint with its matched fusion and policy artifacts (promoted after a confirmed training defect was found and fixed in the originally-deployed checkpoint, preserved as historical evidence); the standalone M1–M9 benchmark and preserved GCN replay are separate evidence. M6 comparative gains (fusion and policy) are now measured under an explicitly-pinned, held-out-replay-qualified comparison — see 13 O4/O5. SW-420 has TRAIN capture only. Older sections below retain their historical scope.
 
 
 ## Historical audit snapshot — 2026-09-05
@@ -504,11 +504,15 @@ mixed-cardinality research and deployment-constrained policy analysis. Merely
 using a GNN is not novelty, and graph superiority is withdrawn. Rank-aware
 explanations preserve physical feature meaning; the lower rank-1 score is retained.
 
-Implemented: authenticated telemetry, separate scores, legacy GCN fusion,
-contextual-bandit/static policy, audit/dashboard, virtual generator and M1–M9
-experiment code. Validated within stated scopes: software invariants, MPU6050
-captures on the saved chain, and LOW TRAIN residual consistency. Experimental:
-set-model selection and mixed cardinality. Pending: corrected-chain results,
-actual n=15 tests, fusion complementarity, SW-420 captures, same-sensor replication,
-source-independent validation, and verified firmware TLS. This is a research
+Implemented: authenticated telemetry, separate scores, corrected-M6 fusion
+(deployed 2026-09-07 after fixing a confirmed class-weight training defect in
+the checkpoint originally deployed; the flawed checkpoint and legacy GCN fusion
+are preserved as historical evidence, not loaded), contextual-bandit/static
+policy, audit/dashboard, virtual generator and M1–M9 experiment code. Validated
+within stated scopes: software invariants, MPU6050 captures on the saved chain,
+and LOW TRAIN residual consistency. Experimental: set-model selection and mixed
+cardinality. Pending: actual n=15 tests, fusion complementarity, SW-420
+captures, same-sensor replication, source-independent validation, and verified
+firmware TLS (the corrected-chain results this line used to list as pending are
+done — see docs/paper/13_RESULTS_MASTER_TABLES.md O4/O5). This is a research
 prototype with unmet production requirements, not a completed deployment claim.

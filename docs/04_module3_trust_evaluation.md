@@ -1,9 +1,9 @@
 # 04 — Module 3: Trust Evaluation
 
-> **[Paper-reference authority, 2026-09-06]** The [verified paper package](paper/00_PAPER_MASTER_GUIDE.md) governs current research claims. This document is retained as supporting implementation/history; earlier measurements and interpretations are historical unless reconfirmed there. Runtime uses GCN fusion; M6 is a standalone candidate. SW-420 has TRAIN capture only.
+> **[Paper-reference authority, 2026-09-07]** The [verified paper package](paper/00_PAPER_MASTER_GUIDE.md) governs current research claims. This document is retained as supporting implementation/history; earlier measurements and interpretations are historical unless reconfirmed there. Runtime uses a corrected M6 (Set Transformer) fusion, deployed 2026-09-07 after a confirmed training defect was found and fixed in the originally-deployed checkpoint (preserved as historical evidence); M6 was also the selected standalone candidate in the separate M1-M9 benchmark. SW-420 has TRAIN capture only.
 
 
-> **2026-09-05 audit update:** Runtime remains Rule/IF/LSTM/legacy GCN fusion. M6/M8/M9 are experimental; temporal Transformer and NP-ST are not live inputs. Temporal training now preserves run boundaries; saved performance predates this fix.
+> **2026-09-05 audit update (superseded 2026-09-07 — see the banner above):** Runtime was then Rule/IF/LSTM/legacy GCN fusion. As of 2026-09-07 it is Rule/IF/LSTM/corrected-M6 fusion; M8/M9 remain experimental; temporal Transformer and NP-ST are not live inputs. Temporal training now preserves run boundaries; saved performance predates this fix.
 > Current evidence and limitations: RESULTS §0.13.17.
 
 > **AS-BUILT NOTE:** Section A (Security Behaviour Engine) is implemented

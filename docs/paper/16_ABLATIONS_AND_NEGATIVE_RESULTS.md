@@ -17,7 +17,7 @@ Negative findings constrain the architecture and are part of the research record
 | Old graph permutation conclusion | [REJECTED INTERPRETATION] Adjacency was not jointly permuted | Call it fixed-topology slot reassignment, not failure of graph equivariance |
 | Current hardware resting FPR | [VERIFIED] 5/12 in held-out post-warm-up replay | Physical cross-session generalization is limited |
 | SW held-out performance | [PENDING VALIDATION] TRAIN capture exists, no physical VAL/TEST | No two-sensor held-out accuracy claim |
-| Final M6 fusion | [IMPLEMENTED; COMPARATIVE VALIDATION PENDING] Active M6 checkpoint/fusion; unpinned comparator and invalid-label class weights | Do not turn standalone selection or historical prose into verified runtime gain |
+| Final M6 fusion | [IMPLEMENTED; COMPARATIVE VALIDATION RESOLVED 2026-09-07] Active corrected-M6 checkpoint/fusion; pinned comparator (`src/relational_pin.py`) and valid-only class weights, both fixed | Modest, held-out-replay-qualified gain over GCN is measured (13 O4/O5) — cite with that qualifier, not as unconditional superiority |
 | Nonfinite pending inputs | [FIXED IN FINAL AUDIT] NaN/Infinity survived late masks | Canonicalize before arithmetic; retain red and green tests |
 | Mixed-sensor explainability repair analysis | [CORRECTED EVALUATION] MPU-only routine ingested SW rows | Explicit sensor scope before sequence construction; preserve failure log |
 | Single-channel explanation repair | [VERIFIED NEGATIVE]79/219 (36%) recover versus70% target | Separate exploratory all-split best-three-channel179/182 result cannot replace the failed single-channel result |

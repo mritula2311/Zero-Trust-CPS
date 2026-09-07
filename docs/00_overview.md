@@ -1,6 +1,6 @@
 # Zero-Trust Security Framework for IoT-Based CPS
 
-> **[Paper-reference authority, 2026-09-06]** The [verified paper package](paper/00_PAPER_MASTER_GUIDE.md) governs current research claims. This document is retained as supporting implementation/history; earlier measurements and interpretations are historical unless reconfirmed there. Runtime uses GCN fusion; M6 is a standalone candidate. SW-420 has TRAIN capture only.
+> **[Paper-reference authority, 2026-09-07]** The [verified paper package](paper/00_PAPER_MASTER_GUIDE.md) governs current research claims. This document is retained as supporting implementation/history; earlier measurements and interpretations are historical unless reconfirmed there. Runtime uses a corrected M6 (Set Transformer) fusion, deployed 2026-09-07 after a confirmed training defect was found and fixed in the originally-deployed checkpoint (preserved as historical evidence); M6 was also the selected standalone candidate in the separate M1-M9 benchmark. SW-420 has TRAIN capture only.
 
 
 > **2026-09-05 audit update:** Live defaults remain legacy GCN fusion and a contextual bandit. Set Transformer is a research candidate; old Transformer-win and universal-GNN claims below are historical and superseded by RESULTS 0.13.2–17.
@@ -36,12 +36,14 @@
 >    `src/simulation|identity|auth|trust|...` package layout and
 >    `config.yaml` — cosmetic, no functional benefit, only merge risk
 >    against a large existing codebase.
-> 4. **The contextual bandit (`adaptive_pdp.py`) and legacy GCN are live defaults**, not the
+> 4. **The contextual bandit (`adaptive_pdp.py`) is a live default**, not the
 >    "optional stretch goal" / "conditional on ablation" framing below —
->    both are already trained and evaluated; RL's live path
+>    already trained and evaluated; its live path
 >    (`greedy_action()`) is a frozen, no-exploration Q-table lookup with
 >    no live reward-signal dependency, which is what makes it safe as a
->    default (see `06_module5_access_control.md`'s note).
+>    default (see `06_module5_access_control.md`'s note). The relational
+>    scorer default was GCN when this note was written; as of 2026-09-07
+>    it is a corrected M6 Set Transformer (see the top-of-file banner).
 > 5. **`stealthy_forged_values`** (Section B.8 below, attack-matrix row 11)
 >    is implemented and measured, not hypothetical — its honestly-low
 >    detection rate is the intended, reported result.

@@ -7,63 +7,63 @@ design/DATA_CONTRACT.md,SUPPORTING,Historical research claims; supporting implem
 design/DEMO_CHECKLIST.md,SUPPORTING,Historical research claims; supporting implementation/chronology,4983
 design/READINESS.md,SUPPORTING,Historical research claims; supporting implementation/chronology,9347
 design/README.md,SUPPORTING,Historical research claims; supporting implementation/chronology,7729
-docs/00_overview.md,SUPPORTING,Historical research claims; supporting implementation/chronology,18469
-docs/01_simulation_and_hardware_abstraction.md,SUPPORTING,Historical research claims; supporting implementation/chronology,19574
-docs/02_module1_device_identity.md,SUPPORTING,Historical research claims; supporting implementation/chronology,15902
-docs/03_module2_authentication.md,SUPPORTING,Historical research claims; supporting implementation/chronology,22450
-docs/04_module3_trust_evaluation.md,SUPPORTING,Historical research claims; supporting implementation/chronology,33752
-docs/05_module4_continuous_verification.md,SUPPORTING,Historical research claims; supporting implementation/chronology,13614
-docs/06_module5_access_control.md,SUPPORTING,Historical research claims; supporting implementation/chronology,17842
-docs/07_module6_secure_communication.md,SUPPORTING,Historical research claims; supporting implementation/chronology,14176
-docs/08_module7_monitoring_and_audit.md,SUPPORTING,Historical research claims; supporting implementation/chronology,22395
-docs/09_integration_and_data_flow.md,SUPPORTING,Historical research claims; supporting implementation/chronology,16031
-docs/10_testing_and_attack_simulation.md,SUPPORTING,Historical research claims; supporting implementation/chronology,19277
-docs/11_project_structure_and_config.md,SUPPORTING,Historical research claims; supporting implementation/chronology,15260
-docs/12_model_validation_and_justification.md,SUPPORTING,Historical research claims; supporting implementation/chronology,32771
-docs/13_system_architecture_and_workflow.md,SUPPORTING,Historical research claims; supporting implementation/chronology,17210
-docs/CLAIM_EVIDENCE_MATRIX.md,SUPPORTING,Historical research claims; supporting implementation/chronology,20838
-docs/ENVIRONMENT.md,SUPPORTING,Historical research claims; supporting implementation/chronology,9505
-docs/EXPERIMENTAL_PROTOCOL.md,SUPPORTING,Historical research claims; supporting implementation/chronology,15560
+docs/00_overview.md,SUPPORTING,Historical research claims; supporting implementation/chronology,18830
+docs/01_simulation_and_hardware_abstraction.md,SUPPORTING,Historical research claims; supporting implementation/chronology,19800
+docs/02_module1_device_identity.md,SUPPORTING,Historical research claims; supporting implementation/chronology,16128
+docs/03_module2_authentication.md,SUPPORTING,Historical research claims; supporting implementation/chronology,22676
+docs/04_module3_trust_evaluation.md,SUPPORTING,Historical research claims; supporting implementation/chronology,34083
+docs/05_module4_continuous_verification.md,SUPPORTING,Historical research claims; supporting implementation/chronology,13840
+docs/06_module5_access_control.md,SUPPORTING,Historical research claims; supporting implementation/chronology,18068
+docs/07_module6_secure_communication.md,SUPPORTING,Historical research claims; supporting implementation/chronology,14402
+docs/08_module7_monitoring_and_audit.md,SUPPORTING,Historical research claims; supporting implementation/chronology,22621
+docs/09_integration_and_data_flow.md,SUPPORTING,Historical research claims; supporting implementation/chronology,16372
+docs/10_testing_and_attack_simulation.md,SUPPORTING,Historical research claims; supporting implementation/chronology,19503
+docs/11_project_structure_and_config.md,SUPPORTING,Historical research claims; supporting implementation/chronology,15486
+docs/12_model_validation_and_justification.md,SUPPORTING,Historical research claims; supporting implementation/chronology,32997
+docs/13_system_architecture_and_workflow.md,SUPPORTING,Historical research claims; supporting implementation/chronology,17436
+docs/CLAIM_EVIDENCE_MATRIX.md,SUPPORTING,Historical research claims; supporting implementation/chronology,20951
+docs/ENVIRONMENT.md,SUPPORTING,Historical research claims; supporting implementation/chronology,9731
+docs/EXPERIMENTAL_PROTOCOL.md,SUPPORTING,Historical research claims; supporting implementation/chronology,15786
 docs/FINAL_PROJECT_VERIFICATION.md,PRIVATE AUDIT,Historical research claims; supporting implementation/chronology,26037
-docs/MANUAL_EXTERNAL_REVIEW.md,PRIVATE AUDIT,Historical research claims; supporting implementation/chronology,5849
-docs/paper/00_PAPER_MASTER_GUIDE.md,AUTHORITATIVE,CURRENT paper reference,6771
+docs/MANUAL_EXTERNAL_REVIEW.md,PRIVATE AUDIT,Historical research claims; supporting implementation/chronology,6075
+docs/paper/00_PAPER_MASTER_GUIDE.md,AUTHORITATIVE,CURRENT paper reference,7350
 docs/paper/01_RESEARCH_PROBLEM_AND_MOTIVATION.md,AUTHORITATIVE,CURRENT paper reference,2330
 docs/paper/02_SYSTEM_ARCHITECTURE.md,AUTHORITATIVE,CURRENT paper reference,17319
 docs/paper/03_THREAT_MODEL_AND_ZERO_TRUST_DESIGN.md,AUTHORITATIVE,CURRENT paper reference,4331
 docs/paper/04_HARDWARE_DATA_AND_PROVENANCE.md,AUTHORITATIVE,CURRENT paper reference,5126
 docs/paper/05_PROCESS_FEATURES_AND_PREPROCESSING.md,AUTHORITATIVE,CURRENT paper reference,3972
 docs/paper/06_LOCAL_ANOMALY_MODELS.md,AUTHORITATIVE,CURRENT paper reference,3430
-docs/paper/07_RELATIONAL_MODELS_M1_M9.md,AUTHORITATIVE,CURRENT paper reference,6766
+docs/paper/07_RELATIONAL_MODELS_M1_M9.md,AUTHORITATIVE,CURRENT paper reference,7000
 docs/paper/08_TOPOLOGY_AND_ROBUSTNESS_ANALYSIS.md,AUTHORITATIVE,CURRENT paper reference,3700
 docs/paper/09_VIRTUAL_DEVICE_GENERATION.md,AUTHORITATIVE,CURRENT paper reference,3111
-docs/paper/10_FUSION_AND_PROCESS_TRUST.md,AUTHORITATIVE,CURRENT paper reference,4553
-docs/paper/11_POLICY_ENGINE.md,AUTHORITATIVE,CURRENT paper reference,3546
-docs/paper/12_EXPERIMENTAL_PROTOCOL.md,AUTHORITATIVE,CURRENT paper reference,5448
+docs/paper/10_FUSION_AND_PROCESS_TRUST.md,AUTHORITATIVE,CURRENT paper reference,5554
+docs/paper/11_POLICY_ENGINE.md,AUTHORITATIVE,CURRENT paper reference,4437
+docs/paper/12_EXPERIMENTAL_PROTOCOL.md,AUTHORITATIVE,CURRENT paper reference,6406
 docs/paper/13_RESULTS_MASTER_TABLES.md,AUTHORITATIVE,CURRENT paper reference,50253
 docs/paper/14_STATISTICAL_ANALYSIS.md,AUTHORITATIVE,CURRENT paper reference,2854
-docs/paper/15_HARDWARE_VALIDATION.md,AUTHORITATIVE,CURRENT paper reference,2896
-docs/paper/16_ABLATIONS_AND_NEGATIVE_RESULTS.md,AUTHORITATIVE,CURRENT paper reference,4032
-docs/paper/17_CLAIM_EVIDENCE_MATRIX.md,AUTHORITATIVE,CURRENT paper reference,14462
+docs/paper/15_HARDWARE_VALIDATION.md,AUTHORITATIVE,CURRENT paper reference,3151
+docs/paper/16_ABLATIONS_AND_NEGATIVE_RESULTS.md,AUTHORITATIVE,CURRENT paper reference,4139
+docs/paper/17_CLAIM_EVIDENCE_MATRIX.md,AUTHORITATIVE,CURRENT paper reference,14577
 docs/paper/18_LIMITATIONS_AND_THREATS_TO_VALIDITY.md,AUTHORITATIVE,CURRENT paper reference,10311
 docs/paper/19_FIGURE_AND_TABLE_PLAN.md,AUTHORITATIVE,CURRENT paper reference,7054
 docs/paper/20_RELATED_WORK_POSITIONING.md,AUTHORITATIVE,CURRENT paper reference,2888
 docs/paper/21_FINAL_PAPER_OUTLINE.md,AUTHORITATIVE,CURRENT paper reference,4743
 docs/paper/22_PAPER_READY_FACTSHEET.md,AUTHORITATIVE,CURRENT paper reference,3835
 docs/paper/23_TERMINOLOGY_AND_NOTATION.md,AUTHORITATIVE,CURRENT paper reference,3861
-docs/paper/24_REPRODUCIBILITY_GUIDE.md,AUTHORITATIVE,CURRENT paper reference,8030
+docs/paper/24_REPRODUCIBILITY_GUIDE.md,AUTHORITATIVE,CURRENT paper reference,10120
 docs/paper/25_OPEN_ITEMS_BEFORE_SUBMISSION.md,AUTHORITATIVE,CURRENT paper reference,5987
 docs/paper/REPOSITORY_CLEANUP_MANIFEST.md,AUTHORITATIVE,CURRENT paper reference,5281
-docs/PAPER_GNN_BASELINE_VERIFICATION.md,PRIVATE AUDIT,Historical research claims; supporting implementation/chronology,15354
-docs/PAPER_READINESS_VERIFICATION.md,SUPPORTING,Historical research claims; supporting implementation/chronology,6141
+docs/PAPER_GNN_BASELINE_VERIFICATION.md,PRIVATE AUDIT,Historical research claims; supporting implementation/chronology,15580
+docs/PAPER_READINESS_VERIFICATION.md,SUPPORTING,Historical research claims; supporting implementation/chronology,7738
 docs/README.md,AUTHORITATIVE,CURRENT paper reference,3645
-docs/REPOSITORY_AUDIT.md,PRIVATE AUDIT,Historical research claims; supporting implementation/chronology,14823
-docs/REVIEW_RESPONSE_TRACKER.md,PRIVATE AUDIT,Historical research claims; supporting implementation/chronology,17790
-docs/SECURITY_TRUST_SPEC.md,SUPPORTING,Historical research claims; supporting implementation/chronology,9682
+docs/REPOSITORY_AUDIT.md,PRIVATE AUDIT,Historical research claims; supporting implementation/chronology,15049
+docs/REVIEW_RESPONSE_TRACKER.md,PRIVATE AUDIT,Historical research claims; supporting implementation/chronology,18016
+docs/SECURITY_TRUST_SPEC.md,SUPPORTING,Historical research claims; supporting implementation/chronology,9908
 firmware/HARDWARE_DATA_LOG.md,SUPPORTING,Historical research claims; supporting implementation/chronology,9853
 firmware/HARDWARE_SETUP.md,SUPPORTING,Historical research claims; supporting implementation/chronology,31216
 firmware/HARDWARE_SETUP_SW420.md,SUPPORTING,Historical research claims; supporting implementation/chronology,6802
-METHODOLOGY.md,SUPPORTING,Historical research claims; supporting implementation/chronology,42168
-PRD.md,SUPPORTING,Historical research claims; supporting implementation/chronology,32444
+METHODOLOGY.md,SUPPORTING,Historical research claims; supporting implementation/chronology,42463
+PRD.md,SUPPORTING,Historical research claims; supporting implementation/chronology,33048
 PUBLICATION_MANIFEST.md,SUPPORTING,Historical research claims; supporting implementation/chronology,2306
 README.md,SUPPORTING,Historical research claims; supporting implementation/chronology,10368
 results/final_verification/AUDIT_RECEIPT_PUBLICATION_MANIFEST.md,PRIVATE AUDIT,Historical research claims; supporting implementation/chronology,4548
@@ -73,5 +73,5 @@ results/final_verification/research_review.md,PRIVATE AUDIT,Historical research 
 results/gcn_m6_corrected_comparison/summary.md,PRIVATE AUDIT,Historical research claims; supporting implementation/chronology,4511
 results/m6_corrected_policy/summary.md,PRIVATE AUDIT,Historical research claims; supporting implementation/chronology,5366
 RESULTS.md,HISTORICAL,Historical research claims; supporting implementation/chronology,247343
-SESSION_LOG.md,HISTORICAL,Historical research claims; supporting implementation/chronology,197671
-ZERO_TRUST_CPS_KB.md,SUPPORTING,Historical research claims; supporting implementation/chronology,70252
+SESSION_LOG.md,HISTORICAL,Historical research claims; supporting implementation/chronology,197966
+ZERO_TRUST_CPS_KB.md,SUPPORTING,Historical research claims; supporting implementation/chronology,70781

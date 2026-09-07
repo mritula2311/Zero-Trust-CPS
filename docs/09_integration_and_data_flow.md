@@ -1,9 +1,9 @@
 # 09 — Integration and Data Flow
 
-> **[Paper-reference authority, 2026-09-06]** The [verified paper package](paper/00_PAPER_MASTER_GUIDE.md) governs current research claims. This document is retained as supporting implementation/history; earlier measurements and interpretations are historical unless reconfirmed there. Runtime uses GCN fusion; M6 is a standalone candidate. SW-420 has TRAIN capture only.
+> **[Paper-reference authority, 2026-09-07]** The [verified paper package](paper/00_PAPER_MASTER_GUIDE.md) governs current research claims. This document is retained as supporting implementation/history; earlier measurements and interpretations are historical unless reconfirmed there. Runtime uses a corrected M6 (Set Transformer) fusion, deployed 2026-09-07 after a confirmed training defect was found and fixed in the originally-deployed checkpoint (preserved as historical evidence); M6 was also the selected standalone candidate in the separate M1-M9 benchmark. SW-420 has TRAIN capture only.
 
 
-> **2026-09-05 audit update:** Runtime and research pipelines differ: legacy GCN is deployed; M9 is not. Registered/pending identities must not be counted as measured physical nodes.
+> **2026-09-05 audit update (superseded 2026-09-07 — see the banner above):** Runtime and research pipelines differ: legacy GCN was then deployed, M9 was not; as of 2026-09-07 a corrected M6 Set Transformer is deployed. Registered/pending identities must not be counted as measured physical nodes.
 > Current evidence and limitations: RESULTS §0.13.17.
 
 > **AS-BUILT NOTE:** Section 1's sequence matches the live `gateway.py::process_telemetry()`

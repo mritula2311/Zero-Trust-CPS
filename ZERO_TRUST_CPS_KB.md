@@ -1,6 +1,6 @@
 # Zero-Trust CPS — System Architecture & Knowledge Base
 
-> **Current reference, 2026-09-07:** Use the [paper master guide](docs/paper/00_PAPER_MASTER_GUIDE.md), [architecture](docs/paper/02_SYSTEM_ARCHITECTURE.md), [numerical authority](docs/paper/13_RESULTS_MASTER_TABLES.md), [claim gate](docs/paper/17_CLAIM_EVIDENCE_MATRIX.md) and [limitations](docs/paper/18_LIMITATIONS_AND_THREATS_TO_VALIDITY.md). The configured gateway uses M6 Set Transformer with M6-fitted fusion; the standalone M1–M9 benchmark and preserved GCN replay are separate evidence. M6 comparative gains need a correctly pinned replay. SW-420 has TRAIN capture only. Older sections below retain their historical scope.
+> **Current reference, 2026-09-07 (final corrected-M6 pass):** Use the [paper master guide](docs/paper/00_PAPER_MASTER_GUIDE.md), [architecture](docs/paper/02_SYSTEM_ARCHITECTURE.md), [numerical authority](docs/paper/13_RESULTS_MASTER_TABLES.md), [claim gate](docs/paper/17_CLAIM_EVIDENCE_MATRIX.md) and [limitations](docs/paper/18_LIMITATIONS_AND_THREATS_TO_VALIDITY.md). The configured gateway uses a corrected M6 Set Transformer checkpoint with its matched fusion and policy artifacts (promoted after a confirmed training defect was found and fixed in the originally-deployed checkpoint, preserved as historical evidence); the standalone M1–M9 benchmark and preserved GCN replay are separate evidence. M6 comparative gains (fusion and policy) are now measured under an explicitly-pinned, held-out-replay-qualified comparison — see 13 O4/O5. SW-420 has TRAIN capture only. Older sections below retain their historical scope.
 
 
 ## Historical audit snapshot — 2026-09-05
@@ -1074,8 +1074,7 @@ not alternative rounding. Both runs remain preserved in Git and the paper
 ledger. The current 20-node corrected artifact is `4f6afa2`; its pre-audit
 20-node predecessor is `c5cd38d`, unchanged at `162d4a6`.
 
-The GNN remains in deployed fusion; this benchmark evaluates a separate GCN
-trained on the constructed network. See C2/C3 for permitted claim wording.
+GNN/GCN was the deployed relational scorer at the time this section was written; as of 2026-09-07 it was superseded by a (corrected, as of the same day) M6 Set Transformer — see `docs/paper/13_RESULTS_MASTER_TABLES.md` O4/O5. This benchmark still evaluates a separate GCN trained on the constructed network, unaffected by that deployment change. See C2/C3 for permitted claim wording.
 
 **A validation-tuned static policy beats the adaptive policy -- reported as a
 negative result.** `scripts/evaluate_policy_comparison.py` scores five policies on
