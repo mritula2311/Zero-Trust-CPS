@@ -1,12 +1,12 @@
 {
   "state": {
     "branch": "main",
-    "head": "c3a80a163cc1fb2aa0d3e42ac01b9f2fe0825802",
-    "main": "c3a80a163cc1fb2aa0d3e42ac01b9f2fe0825802",
-    "origin_main": "c3a80a163cc1fb2aa0d3e42ac01b9f2fe0825802",
+    "head": "e717df4aa7e9eb5fdc6d9f98866562a8b8676f6b",
+    "main": "e717df4aa7e9eb5fdc6d9f98866562a8b8676f6b",
+    "origin_main": "e717df4aa7e9eb5fdc6d9f98866562a8b8676f6b",
     "main_ahead_behind": "0\t0",
-    "worktrees": "<REPO_ROOT>      c3a80a1 [main]\n<WORKSPACE_ROOT>/zt-cps-design-astra 9dac09a [astra/design-dashboard-20260906]",
-    "status": "M RESULTS.md\nD  docs/figures/fig10_level2_explainability_by_signal.png\nD  docs/figures/fig11_rl_convergence_trend.png\nD  docs/figures/fig12_nist_governance_coverage.png\nD  docs/figures/fig13_iec62443_fr_coverage.png\nD  docs/figures/fig14_score_responsiveness.png\nD  docs/figures/fig15_dataset_class_balance.png\nD  docs/figures/fig16_threshold_sensitivity_fused.png\nD  docs/figures/fig16_threshold_sensitivity_gnn.png\nD  docs/figures/fig16_threshold_sensitivity_isolation_forest.png\nD  docs/figures/fig17_training_loss_lstm_vs_transformer.png\nD  docs/figures/fig1_signal_comparison_blended.png\nD  docs/figures/fig2_per_event_type_recall.png\nD  docs/figures/fig3_fair_lstm_vs_transformer.png\nD  docs/figures/fig4_capacity_vs_accuracy_tradeoff.png\nD  docs/figures/fig5_rl_vs_static_reward.png\nD  docs/figures/fig6_confusion_matrix_rl.png\nD  docs/figures/fig6_confusion_matrix_static.png\nD  docs/figures/fig7_macro_f1_comparison.png\nD  docs/figures/fig8_latency.png\nD  docs/figures/fig9_level1_explainability.png\nD  docs/figures/figA_real_hardware_discrimination.png\nD  docs/figures/figB_two_score_separation_live.png\nD  docs/figures/figC_anomaly_rank_explainability.png\nD  docs/figures/figD_seed_sensitivity.png\n M docs/paper/19_FIGURE_AND_TABLE_PLAN.md\n M docs/paper/REPOSITORY_CLEANUP_MANIFEST.md\n M results/final_verification/markdown_inventory.csv\n M results/final_verification/stale_claim_occurrences.csv\n?? docs/figures/\n?? scripts/generate_corrected_m6_figures.py",
+    "worktrees": "<REPO_ROOT>      e717df4 [main]\n<WORKSPACE_ROOT>/zt-cps-design-astra 9dac09a [astra/design-dashboard-20260906]",
+    "status": "D docs/figures/r14_correction_impact.png\n D docs/figures/r1_relational_model_comparison.png\n D docs/figures/r3_task2_comparison.png\n D docs/figures/r4_policy_per_action.png\n D docs/figures/r5_hardware_behavior.png\n D docs/figures/r6_local_detector_attack_recall.png\n M docs/paper/19_FIGURE_AND_TABLE_PLAN.md\n M results/final_verification/markdown_inventory.csv\n M scripts/generate_corrected_m6_figures.py\n?? docs/figures/hardware_validation.png\n?? docs/figures/local_detector_attack_class_recall.png\n?? docs/figures/m6_training_correction.png\n?? docs/figures/model_performance_gcn_vs_m6.png\n?? docs/figures/pending_node_masking_correction.png\n?? docs/figures/policy_action_performance.png",
     "workspace": "<REPO_ROOT>",
     "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
     "platform": "Windows-11-10.0.26200-SP0",
@@ -939,6 +939,10 @@
     "scripts/evaluate_trust_responsiveness.py": {
       "bytes": 9740,
       "sha256": "3214799d9c3a3ee960ba87ee4629e8f6f7bca13ababa6d1bd9993e2784767e09"
+    },
+    "scripts/generate_corrected_m6_figures.py": {
+      "bytes": 26722,
+      "sha256": "b463637b114f286ca9141cd6b92852a724e3a8b5aa43eb8c6131730d5c36f3e9"
     },
     "scripts/generate_evaluation_graphs.py": {
       "bytes": 33034,
