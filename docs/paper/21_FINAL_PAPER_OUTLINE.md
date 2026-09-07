@@ -7,7 +7,7 @@ This outline is a writing plan, not paper prose. All numbers resolve to [13](13_
 | I Introduction | Problem and bounded contribution;01/17 | Physical count2, benchmark20 with qualifier; Fig1 | Separate concerns; avoid unverified first/novel priority |
 | II Related Work | Compare verified literature;20 | No invented citation; comparison table if supported | Position evidence; avoid universal superiority |
 | III System/Problem/Threat Model | Trust assumptions, attacker powers, labels;03/23 | Freshness600s, thresholds0.6; TableI | Implemented threat scope; avoid certification |
-| IV Architecture and policy boundary | Configured runtime, benchmark and historical chain;02/11 | Registry22 vs benchmark20; Fig2/3 | M6 serving exists; avoid physical deployment or comparative-gain claims |
+| IV Architecture and policy boundary | Configured runtime (corrected M6, 13 O5), benchmark and historical chain;02/11 | Registry22 vs benchmark20; Fig2/3 | Corrected-M6 serving exists (checkpoint/fusion/policy all promoted 2026-09-07); avoid physical deployment claims beyond the available hardware evidence |
 | V Security Trust | Gates, rejection isolation, EWMA;02/03 | Alpha0.35, bounded decay; TableI | Tested state contract; avoid DoS immunity |
 | VI-A Local detection: features | Sensor math/schema;05 | MPU5/SW4; rates/windows; TableII | Exact features; avoid conventional crest definition mismatch |
 | VI-A Local detection: models | TRAIN and inference models;06 | Fair temporal comparison13A; TableVI | Ablation tie; avoid Transformer advantage |
@@ -25,8 +25,8 @@ This outline is a writing plan, not paper prose. All numbers resolve to [13](13_
 | VIII-D Topology | Degree/peer/self-loop/permutation;08/13 | Paired deltas and all seed signs; Fig6 | Consistent with mechanism; not formal proof |
 | VIII-E Cardinality | M8 and dilution;07/13H | Tested sizes; Fig7 | Extrapolation within constructed setting |
 | VIII-F/G Generator/M9 | Validity boundary and stress;09/13I–M | FPR with recall; Fig8 | Preserve degradation and inconclusive ablation |
-| VIII-H Fusion | Runtime replay and gap;10/13O | Actual model result | No invented M6 gain |
-| VIII-I Policy | Shared triples/constraints;11/13P | Macro-F1, ALERT, false BLOCK, rare class | Constrained comparison with limitations |
+| VIII-H Fusion | Runtime replay and gap;10/13O4/O5 | Corrected-M6 vs GCN fusion, held-out replay | Modest, held-out-replay-qualified gain only; no invented M6 gain |
+| VIII-I Policy | Shared triples/constraints, deterministic clock;11/13O5/P | Macro-F1, ALERT, false BLOCK, rare class; corrected-M6 vs fair-GCN-baseline | Constrained comparison with limitations; BLOCK unreachable for both arms (architectural, report as-is) |
 | VIII-J Hardware | Physical held-out discrimination;15/13Q |5/12 false alarms,30/30 detection; Fig10 | Small-sample physical replay, not attack prevention |
 | IX Discussion | Explain architecture consequences;16/17 | Negative evidence TableVI | Qualify combined interpretation |
 | X Limitations | Internal/external/statistical validity;18 | TableX | Preserve actual gaps |

@@ -32,14 +32,17 @@ The log also reports anomaly-event recall: fused shock 1.000, coordinated 0.983,
 
 ## O2. Configured fusion artifact identity, not a performance result
 
+[SUPERSEDED BY THE 2026-09-07 CORRECTED-M6 PROMOTION — see O5] This table originally described the artifact deployed by commit `3c827e8`, through the comparator-repair pass that produced O4; kept for chronology. As of the corrected-M6 promotion (O5), `config.py`'s ambient `FUSION_MODEL_PATH` / `FUSION_BACKGROUND_PATH` point at `fusion_meta_learner_m6_corrected_variant.joblib` instead — included below, marked CURRENT. `fusion_meta_learner.joblib` itself is untouched on disk (still byte-identical to its row below) and remains reachable as the historical/superseded deployed artifact via `src/relational_pin.py`'s `M6_DEPLOYED` pin.
+
 [VERIFIED ARTIFACT INSPECTION, 2026-09-07] Active fusion/background match the M6 variants. The fourth input retains the legacy name `gnn_score`, but the gateway supplies M6. The older model_metadata.json describes the GCN backup. Source: the following saved joblib files; producer of this inspection: `scripts/build_paper_results.py`. No evaluation or fitting occurs.
 
 
 | Artifact | Coefficients: rule, IF, LSTM, relational | Intercept | SHA-256 |
 |---|---|---|---|
-| [models/fusion_meta_learner.joblib](../../models/fusion_meta_learner.joblib) | -0.01457110136, 2.808748237, 5.249222727, 12.18787891 | -8.53572 | d5e2bfeecc57142bf432ed233ec8f50c0e45a787f448a3590c8d849af955e934 |
+| [models/fusion_meta_learner.joblib](../../models/fusion_meta_learner.joblib) (historical: deployed until the O5 promotion) | -0.01457110136, 2.808748237, 5.249222727, 12.18787891 | -8.53572 | d5e2bfeecc57142bf432ed233ec8f50c0e45a787f448a3590c8d849af955e934 |
 | [models/fusion_meta_learner_m6_variant.joblib](../../models/fusion_meta_learner_m6_variant.joblib) | -0.01457110136, 2.808748237, 5.249222727, 12.18787891 | -8.53572 | d5e2bfeecc57142bf432ed233ec8f50c0e45a787f448a3590c8d849af955e934 |
 | [models/fusion_meta_learner_gcn_backup.joblib](../../models/fusion_meta_learner_gcn_backup.joblib) | -0.004829691542, 3.286754353, 4.31543991, 5.007398278 | -7.26074 | 20ea7bcbba43861b21736c857c47d80434cd8e0daea42cd645a6aabd4abbf8e8 |
+| [models/fusion_meta_learner_m6_corrected_variant.joblib](../../models/fusion_meta_learner_m6_corrected_variant.joblib) (CURRENT: deployed as of O5) | 0.01327222603, 3.33760767, 5.570895115, 7.884517403 | -11.4255 | 6d89db099e2fd4efd438af27ad2d6da6ea72d093fb7e31f055f11c69bfed19fa |
 
 
 ## O3. Historical reported M6 comparison — SUPERSEDED by O4
@@ -94,8 +97,34 @@ Identical across all three arms — no regression from GCN to either M6 variant 
 | P6_static_constrained | 0.278 | 0.2777 |
 | P5_adaptive_bandit | 0.5132 | 0.5271 |
 
-P1/P2/P6 (pure threshold policies) reproduce within verified wall-clock jitter. P5 (adaptive bandit) is stable across repeated runs but differs from its preserved number by more than that jitter — evidence `models/adaptive_pdp_qtable.json` was itself retrained during the 2026-09-07 deployment under the same mismatched-artifact bug. **No M6 policy arm is reported**: no policy retrain was performed in this pass (explicit scope decision). Status for a GCN-vs-M6 **policy** comparison: **INVALID COMPARATOR / REQUIRES RERUN** (17 Claim D).
+P1/P2/P6 (pure threshold policies) reproduce within verified wall-clock jitter. P5 (adaptive bandit) is stable across repeated runs but differs from its preserved number by more than that jitter — evidence `models/adaptive_pdp_qtable.json` was itself retrained during the 2026-09-07 deployment under the same mismatched-artifact bug. **No M6 policy arm is reported here**: no policy retrain was performed in this earlier pass (explicit scope decision at the time). **This gap is closed in O5 below**, the same day's final pass (17 Claim D).
 Source for this section: `results/gcn_m6_corrected_comparison/` (`standalone_comparison.json`, `fusion_comparison.json`, `hardware_comparison.json`, `latency_comparison.json`, `policy_comparison.json`, `artifact_lineage.json`, `summary.md`); producers `scripts/evaluate_ablation_m6.py`, `scripts/evaluate_real_hardware.py --relational-model {gcn,m6_deployed,m6_corrected}`. Commit 2175ebe3c4a3fad31d80d3b2899c51fe0a33b86b; seed 0.
+
+## O5. Corrected M6 policy comparison and deployment promotion (2026-09-07 final pass)
+[CURRENT] Closes the O4/17-Claim-D gap. Two fixes made this possible, both additive/opt-in (default behaviour of every existing caller unchanged, verified via the pre-existing 193-test suite passing unmodified): (1) `scripts/train_adaptive_pdp.py` now requires an explicit `src/relational_pin.py` `RelationalPin` (`ZTCPS_ADAPTIVE_PDP_PIN` env var, default `gcn`) instead of the bare `GNNScorer()`/`FusionEngine()` that corrupted `models/adaptive_pdp_qtable.json`'s provenance during the M6 deployment; a metadata sidecar records full lineage, and `relational_pin.verify_policy_lineage()` fails loudly on any future mismatch. (2) `GNNScorer`/`SetTransformerScorer`'s active-neighbour window and `RuleBasedTrustEngine`'s Security Trust EWMA decay both accept an injected deterministic `clock` (default `None` -> `time.time()`, so live-gateway freshness semantics are provably unchanged) — offline replay now uses each record's own `ts` field instead of wall-clock time, fixing a confirmed non-determinism (see `tests/test_policy_training_determinism.py`).
+Two Q-tables were trained fresh (seed 0, deterministic clock, `validation_policy_session.json`, `'combined'`/stealthy-forged-values excluded as unlearnable — same protocol the historical table used): `adaptive_pdp_qtable_gcn_corrected.json` (GCN + matched GCN fusion — a **fair, clean-provenance GCN baseline**, distinct from the corrupted-provenance `adaptive_pdp_qtable.json`) and `adaptive_pdp_qtable_m6_corrected.json` (corrected M6 + matched corrected-M6 fusion). Evaluated on the untouched `test_session.json`:
+
+| Policy | Macro-F1 | Weighted-F1 | Accuracy | False-block rate | False-step-up rate |
+|---|---|---|---|---|---|
+| m6_corrected | 0.5332 | 0.79 | 0.7307 | 0 | 0.0007 |
+| gcn_corrected | 0.5303 | 0.7863 | 0.7259 | 0 | 0.0007 |
+
+Per-action (BLOCK recall reported as measured, not hidden or substituted, whatever its value):
+
+| Arm | Action | Support | Precision | Recall | F1 | TP | FP | FN |
+|---|---|---|---|---|---|---|---|---|
+| m6_corrected | ALLOW | 2541 | 0.9895 | 0.7068 | 0.8246 | 1796 | 19 | 745 |
+| m6_corrected | ALERT | 200 | 0.2015 | 0.97 | 0.3336 | 194 | 769 | 6 |
+| m6_corrected | STEP_UP | 159 | 0.9871 | 0.9623 | 0.9745 | 153 | 2 | 6 |
+| m6_corrected | BLOCK | 33 | 0 | 0 | 0 | 0 | 0 | 33 |
+| gcn_corrected | ALLOW | 2541 | 0.9895 | 0.7013 | 0.8208 | 1782 | 19 | 759 |
+| gcn_corrected | ALERT | 200 | 0.2002 | 0.98 | 0.3325 | 196 | 783 | 4 |
+| gcn_corrected | STEP_UP | 159 | 0.9869 | 0.9497 | 0.9679 | 151 | 2 | 8 |
+| gcn_corrected | BLOCK | 33 | 0 | 0 | 0 | 0 | 0 | 33 |
+
+BLOCK is unreachable for **both** arms — the pre-existing, architectural `stealthy_forged_values`/`combined`-class blind spot (excluded from training as unlearnable from a `(security_trust, process_trust)` state space; see `train_adaptive_pdp.py`'s docstring), not specific to either relational model. ALERT precision is low for both (matching the project's already-documented finding that a validation-tuned static policy beats the adaptive bandit — see 18). **Corrected M6's policy modestly outperforms the fair GCN baseline** on macro-F1 and weighted-F1 — consistent in direction and magnitude with the fusion-level gap in O4, small enough that it should be described as "matches or modestly exceeds," not a strong claim.
+**Deployment decision: PROMOTE_CORRECTED_M6.** Given the confirmed training defect in the checkpoint deployed by `3c827e8` (O4), and clean results on every gate (lineage, fusion, policy, 193/193 tests, no hardware regression — NO REGRESSION. All three arms (GCN, flawed-deployed M6, corrected M6) produce byte-identical hardware detection/false-po…, latency unchanged and within budget, runtime integration verified — `design/verify-runtime.py` ok=True, runtime_relational_model='M6 Set Transformer'), `config.py`'s ambient `SET_TRANSFORMER_MODEL_PATH` / `FUSION_MODEL_PATH` / `FUSION_BACKGROUND_PATH` / `ADAPTIVE_PDP_MODEL_PATH` now point at the corrected checkpoint, its matched fusion artifact, and `adaptive_pdp_qtable_m6_corrected.json` respectively. **No previously-deployed artifact was modified or deleted** — `set_transformer_runtime.pt`, `fusion_meta_learner.joblib`/`fusion_meta_learner_m6_variant.joblib` and `adaptive_pdp_qtable.json` remain on disk byte-identical, and are additionally preserved under `models/adaptive_pdp_qtable_m6_deployed_20260907_corrupted_provenance.json`. `src/relational_pin.py`'s `M6_DEPLOYED` pin now resolves via an explicit, ambient-independent constant (`SET_TRANSFORMER_MODEL_PATH_M6_DEPLOYED_FLAWED_20260907`) so it remains hash-verifiable regardless of what is deployed later.
+Source for this section: `results/m6_corrected_policy/` (`policy_metrics.json`, `policy_action_metrics.json`, `artifact_lineage.json`, `policy_training_config.json`, `runtime_verification.json`, `hardware_regression.json`, `summary.md`); producers `scripts/evaluate_m6_corrected_policy.py`, `scripts/train_adaptive_pdp.py`. Seed 0; deterministic clock (per-record `ts`).
 
 ## B / C. M1–M9, validation max-anomaly-F1 operating point
 
@@ -559,7 +588,7 @@ Source: [results/policy_comparison/metrics.json](../../results/policy_comparison
 
 P6 is constrained static, P5 contextual bandit. P6 searches under ALERT recall≥0.90 and false-block≤0.01 on validation. P5 was not trained with this constrained search; both meet those bounds descriptively on the saved TEST rows. P5 Macro-F1 exceeds P6. Neither detects the BLOCK class here.
 
-**2026-09-07 comparator fix and finding** (see O4 and [results/gcn_m6_corrected_comparison/policy_comparison.json](../../results/gcn_m6_corrected_comparison/policy_comparison.json)): `evaluate_policy_comparison.py` is now explicitly pinned to `gcn` by default (was silently reading the ambient, now-M6-fitted `FUSION_MODEL_PATH`). A pinned rerun reproduces P1/P2/P6 within verified wall-clock-jitter tolerance, but P5 is stably different from this table's preserved number — evidence `models/adaptive_pdp_qtable.json` was itself retrained under the mismatched-artifact bug during the 2026-09-07 deployment. Not corrected in this pass. **No M6 policy row is reported — INVALID COMPARATOR for a GCN-vs-M6 policy claim (17 Claim D).**
+**2026-09-07 comparator fix and finding** (see O4 and [results/gcn_m6_corrected_comparison/policy_comparison.json](../../results/gcn_m6_corrected_comparison/policy_comparison.json)): `evaluate_policy_comparison.py` is now explicitly pinned to `gcn` by default (was silently reading the ambient, now-M6-fitted `FUSION_MODEL_PATH`). A pinned rerun reproduces P1/P2/P6 within verified wall-clock-jitter tolerance, but P5 is stably different from this table's preserved number — evidence `models/adaptive_pdp_qtable.json` was itself retrained under the mismatched-artifact bug during the 2026-09-07 deployment. **Same day, final pass: closed — see O5** for a corrected, deterministic-clock, clean-provenance GCN-vs-M6 policy comparison (17 Claim D).
 
 ## Q. Held-out physical hardware
 

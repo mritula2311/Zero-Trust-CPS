@@ -39,15 +39,15 @@ docs/paper/09_VIRTUAL_DEVICE_GENERATION.md,AUTHORITATIVE,CURRENT paper reference
 docs/paper/10_FUSION_AND_PROCESS_TRUST.md,AUTHORITATIVE,CURRENT paper reference,4553
 docs/paper/11_POLICY_ENGINE.md,AUTHORITATIVE,CURRENT paper reference,3546
 docs/paper/12_EXPERIMENTAL_PROTOCOL.md,AUTHORITATIVE,CURRENT paper reference,5448
-docs/paper/13_RESULTS_MASTER_TABLES.md,AUTHORITATIVE,CURRENT paper reference,44202
+docs/paper/13_RESULTS_MASTER_TABLES.md,AUTHORITATIVE,CURRENT paper reference,50253
 docs/paper/14_STATISTICAL_ANALYSIS.md,AUTHORITATIVE,CURRENT paper reference,2854
 docs/paper/15_HARDWARE_VALIDATION.md,AUTHORITATIVE,CURRENT paper reference,2896
 docs/paper/16_ABLATIONS_AND_NEGATIVE_RESULTS.md,AUTHORITATIVE,CURRENT paper reference,4032
-docs/paper/17_CLAIM_EVIDENCE_MATRIX.md,AUTHORITATIVE,CURRENT paper reference,13037
-docs/paper/18_LIMITATIONS_AND_THREATS_TO_VALIDITY.md,AUTHORITATIVE,CURRENT paper reference,8332
+docs/paper/17_CLAIM_EVIDENCE_MATRIX.md,AUTHORITATIVE,CURRENT paper reference,14462
+docs/paper/18_LIMITATIONS_AND_THREATS_TO_VALIDITY.md,AUTHORITATIVE,CURRENT paper reference,10311
 docs/paper/19_FIGURE_AND_TABLE_PLAN.md,AUTHORITATIVE,CURRENT paper reference,3843
 docs/paper/20_RELATED_WORK_POSITIONING.md,AUTHORITATIVE,CURRENT paper reference,2888
-docs/paper/21_FINAL_PAPER_OUTLINE.md,AUTHORITATIVE,CURRENT paper reference,4446
+docs/paper/21_FINAL_PAPER_OUTLINE.md,AUTHORITATIVE,CURRENT paper reference,4743
 docs/paper/22_PAPER_READY_FACTSHEET.md,AUTHORITATIVE,CURRENT paper reference,3233
 docs/paper/23_TERMINOLOGY_AND_NOTATION.md,AUTHORITATIVE,CURRENT paper reference,3861
 docs/paper/24_REPRODUCIBILITY_GUIDE.md,AUTHORITATIVE,CURRENT paper reference,8030
@@ -71,6 +71,7 @@ results/final_verification/hardware_temporal_review.md,PRIVATE AUDIT,Historical 
 results/final_verification/masking_boundary_review.md,PRIVATE AUDIT,Historical research claims; supporting implementation/chronology,5565
 results/final_verification/research_review.md,PRIVATE AUDIT,Historical research claims; supporting implementation/chronology,13980
 results/gcn_m6_corrected_comparison/summary.md,PRIVATE AUDIT,Historical research claims; supporting implementation/chronology,4511
+results/m6_corrected_policy/summary.md,PRIVATE AUDIT,Historical research claims; supporting implementation/chronology,5366
 RESULTS.md,HISTORICAL,Historical research claims; supporting implementation/chronology,247714
 SESSION_LOG.md,HISTORICAL,Historical research claims; supporting implementation/chronology,197671
 ZERO_TRUST_CPS_KB.md,SUPPORTING,Historical research claims; supporting implementation/chronology,70252

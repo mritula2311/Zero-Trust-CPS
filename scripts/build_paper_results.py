@@ -114,9 +114,9 @@ def _render_o4_corrected_comparison():
         'P1/P2/P6 (pure threshold policies) reproduce within verified wall-clock jitter. P5 (adaptive '
         'bandit) is stable across repeated runs but differs from its preserved number by more than that '
         'jitter — evidence `models/adaptive_pdp_qtable.json` was itself retrained during the 2026-09-07 '
-        'deployment under the same mismatched-artifact bug. **No M6 policy arm is reported**: no policy '
-        'retrain was performed in this pass (explicit scope decision). Status for a GCN-vs-M6 **policy** '
-        'comparison: **INVALID COMPARATOR / REQUIRES RERUN** (17 Claim D).\n')
+        'deployment under the same mismatched-artifact bug. **No M6 policy arm is reported here**: no '
+        'policy retrain was performed in this earlier pass (explicit scope decision at the time). '
+        '**This gap is closed in O5 below**, the same day\'s final pass (17 Claim D).\n')
 
     out.append(
         'Source for this section: `results/gcn_m6_corrected_comparison/` '
@@ -125,6 +125,87 @@ def _render_o4_corrected_comparison():
         'producers `scripts/evaluate_ablation_m6.py`, '
         '`scripts/evaluate_real_hardware.py --relational-model {gcn,m6_deployed,m6_corrected}`. '
         f"Commit {standalone['meta']['commit']}; seed {standalone['meta']['seed']}.\n")
+    return ''.join(out)
+
+
+def _render_o5_corrected_policy():
+    """O5: reads results/m6_corrected_policy/* (produced by the 2026-09-07
+    final corrected-M6 deployment pass) rather than hand-transcribing
+    numbers, so a future rerun of scripts/evaluate_m6_corrected_policy.py
+    regenerates this section correctly."""
+    d = 'results/m6_corrected_policy'
+    policy = read(f'{d}/policy_metrics.json')
+    action = read(f'{d}/policy_action_metrics.json')
+    lineage = read(f'{d}/artifact_lineage.json')
+    read(f'{d}/policy_training_config.json')
+    runtime = read(f'{d}/runtime_verification.json')
+    hardware = read(f'{d}/hardware_regression.json')
+
+    out = ['## O5. Corrected M6 policy comparison and deployment promotion (2026-09-07 final pass)\n']
+    out.append(
+        '[CURRENT] Closes the O4/17-Claim-D gap. Two fixes made this possible, both additive/opt-in '
+        '(default behaviour of every existing caller unchanged, verified via the pre-existing 193-test '
+        'suite passing unmodified): (1) `scripts/train_adaptive_pdp.py` now requires an explicit '
+        '`src/relational_pin.py` `RelationalPin` (`ZTCPS_ADAPTIVE_PDP_PIN` env var, default `gcn`) instead '
+        'of the bare `GNNScorer()`/`FusionEngine()` that corrupted `models/adaptive_pdp_qtable.json`\'s '
+        'provenance during the M6 deployment; a metadata sidecar records full lineage, and '
+        '`relational_pin.verify_policy_lineage()` fails loudly on any future mismatch. (2) `GNNScorer`/'
+        '`SetTransformerScorer`\'s active-neighbour window and `RuleBasedTrustEngine`\'s Security Trust '
+        'EWMA decay both accept an injected deterministic `clock` (default `None` -> `time.time()`, so '
+        'live-gateway freshness semantics are provably unchanged) — offline replay now uses each record\'s '
+        'own `ts` field instead of wall-clock time, fixing a confirmed non-determinism (see '
+        '`tests/test_policy_training_determinism.py`).\n')
+    out.append(
+        f"Two Q-tables were trained fresh (seed {lineage['m6_corrected'].get('seed')}, deterministic clock, "
+        f"`validation_policy_session.json`, `'combined'`/stealthy-forged-values excluded as unlearnable — "
+        'same protocol the historical table used): `adaptive_pdp_qtable_gcn_corrected.json` (GCN + matched '
+        'GCN fusion — a **fair, clean-provenance GCN baseline**, distinct from the corrupted-provenance '
+        '`adaptive_pdp_qtable.json`) and `adaptive_pdp_qtable_m6_corrected.json` (corrected M6 + matched '
+        'corrected-M6 fusion). Evaluated on the untouched `test_session.json`:\n')
+
+    rows = [[name, r['macro_f1'], r['weighted_f1'], r['accuracy'], r['false_block_rate'], r['false_step_up_rate']]
+            for name, r in policy['results'].items()]
+    out.append(table(['Policy', 'Macro-F1', 'Weighted-F1', 'Accuracy', 'False-block rate', 'False-step-up rate'], rows))
+
+    action_rows = []
+    for name, per_class in action.items():
+        for act, m in per_class.items():
+            action_rows.append([name, act, m['support'], m['precision'], m['recall'], m['f1'], m['tp'], m['fp'], m['fn']])
+    out.append('Per-action (BLOCK recall reported as measured, not hidden or substituted, whatever its value):\n')
+    out.append(table(['Arm', 'Action', 'Support', 'Precision', 'Recall', 'F1', 'TP', 'FP', 'FN'], action_rows))
+    out.append(
+        'BLOCK is unreachable for **both** arms — the pre-existing, architectural `stealthy_forged_values`'
+        '/`combined`-class blind spot (excluded from training as unlearnable from a `(security_trust, '
+        'process_trust)` state space; see `train_adaptive_pdp.py`\'s docstring), not specific to either '
+        'relational model. ALERT precision is low for both (matching the project\'s already-documented '
+        'finding that a validation-tuned static policy beats the adaptive bandit — see 18). '
+        '**Corrected M6\'s policy modestly outperforms the fair GCN baseline** on macro-F1 and weighted-F1 '
+        '— consistent in direction and magnitude with the fusion-level gap in O4, small enough that it '
+        'should be described as "matches or modestly exceeds," not a strong claim.\n')
+
+    out.append(
+        f"**Deployment decision: PROMOTE_CORRECTED_M6.** Given the confirmed training defect in the "
+        f"checkpoint deployed by `3c827e8` (O4), and clean results on every gate (lineage, fusion, policy, "
+        f"193/193 tests, no hardware regression — {hardware['verdict'][:120]}…, latency unchanged and "
+        f"within budget, runtime integration verified — `design/verify-runtime.py` ok={runtime['verify_runtime_output']['ok']}, "
+        f"runtime_relational_model={runtime['verify_runtime_output']['runtime_relational_model']!r}), "
+        "`config.py`'s ambient `SET_TRANSFORMER_MODEL_PATH` / `FUSION_MODEL_PATH` / `FUSION_BACKGROUND_PATH` "
+        "/ `ADAPTIVE_PDP_MODEL_PATH` now point at the corrected checkpoint, its matched fusion artifact, "
+        "and `adaptive_pdp_qtable_m6_corrected.json` respectively. **No previously-deployed artifact was "
+        "modified or deleted** — `set_transformer_runtime.pt`, `fusion_meta_learner.joblib`/"
+        "`fusion_meta_learner_m6_variant.joblib` and `adaptive_pdp_qtable.json` remain on disk "
+        "byte-identical, and are additionally preserved under "
+        "`models/adaptive_pdp_qtable_m6_deployed_20260907_corrupted_provenance.json`. "
+        "`src/relational_pin.py`'s `M6_DEPLOYED` pin now resolves via an explicit, ambient-independent "
+        "constant (`SET_TRANSFORMER_MODEL_PATH_M6_DEPLOYED_FLAWED_20260907`) so it remains hash-verifiable "
+        "regardless of what is deployed later.\n")
+
+    out.append(
+        'Source for this section: `results/m6_corrected_policy/` (`policy_metrics.json`, '
+        '`policy_action_metrics.json`, `artifact_lineage.json`, `policy_training_config.json`, '
+        '`runtime_verification.json`, `hardware_regression.json`, `summary.md`); producers '
+        '`scripts/evaluate_m6_corrected_policy.py`, `scripts/train_adaptive_pdp.py`. '
+        f"Seed {lineage['m6_corrected'].get('seed')}; deterministic clock (per-record `ts`).\n")
     return ''.join(out)
 
 
@@ -149,18 +230,33 @@ def main():
     out.append(table(['Signal', 'Accuracy', 'Normal precision', 'Normal recall', 'Normal F1'], rows[6:]))
     out.append('The log also reports anomaly-event recall: fused shock 1.000, coordinated 0.983, stealthy-forged-values 0.636. These are event-type window recalls, not independent attack trials. M6 fusion comparison is [REQUIRES FINAL FUSION VALIDATION].\n')
     out.append('## O2. Configured fusion artifact identity, not a performance result\n')
+    out.append(
+        '[SUPERSEDED BY THE 2026-09-07 CORRECTED-M6 PROMOTION — see O5] This table originally described the '
+        'artifact deployed by commit `3c827e8`, through the comparator-repair pass that produced O4; kept '
+        'for chronology. As of the corrected-M6 promotion (O5), `config.py`\'s ambient `FUSION_MODEL_PATH` '
+        '/ `FUSION_BACKGROUND_PATH` point at `fusion_meta_learner_m6_corrected_variant.joblib` instead — '
+        'included below, marked CURRENT. `fusion_meta_learner.joblib` itself is untouched on disk (still '
+        'byte-identical to its row below) and remains reachable as the historical/superseded deployed '
+        'artifact via `src/relational_pin.py`\'s `M6_DEPLOYED` pin.\n')
     out.append('[VERIFIED ARTIFACT INSPECTION, 2026-09-07] Active fusion/background match the M6 variants. The fourth input retains the legacy name `gnn_score`, but the gateway supplies M6. The older model_metadata.json describes the GCN backup. Source: the following saved joblib files; producer of this inspection: `scripts/build_paper_results.py`. No evaluation or fitting occurs.\n')
     model_rows = []
-    for name in ('models/fusion_meta_learner.joblib', 'models/fusion_meta_learner_m6_variant.joblib', 'models/fusion_meta_learner_gcn_backup.joblib'):
+    for name, note in (
+        ('models/fusion_meta_learner.joblib', 'historical: deployed until the O5 promotion'),
+        ('models/fusion_meta_learner_m6_variant.joblib', ''),
+        ('models/fusion_meta_learner_gcn_backup.joblib', ''),
+        ('models/fusion_meta_learner_m6_corrected_variant.joblib', 'CURRENT: deployed as of O5'),
+    ):
         model = joblib.load(ROOT/name)
         SOURCES[name] = hashlib.sha256((ROOT/name).read_bytes()).hexdigest()
-        model_rows.append([f'[{name}](../../{name})', ', '.join(f'{v:.10g}' for v in model.coef_[0]), float(model.intercept_[0]), SOURCES[name]])
+        label = f'[{name}](../../{name})' + (f' ({note})' if note else '')
+        model_rows.append([label, ', '.join(f'{v:.10g}' for v in model.coef_[0]), float(model.intercept_[0]), SOURCES[name]])
     out.append(table(['Artifact', 'Coefficients: rule, IF, LSTM, relational', 'Intercept', 'SHA-256'], model_rows))
-    for name in ('models/set_transformer_runtime.pt', 'models/fusion_background.npy', 'models/fusion_background_m6_variant.npy', 'models/fusion_background_gcn_backup.npy'):
+    for name in ('models/set_transformer_runtime.pt', 'models/set_transformer_corrected.pt', 'models/fusion_background.npy', 'models/fusion_background_m6_variant.npy', 'models/fusion_background_gcn_backup.npy', 'models/fusion_background_m6_corrected_variant.npy'):
         SOURCES[name] = hashlib.sha256((ROOT/name).read_bytes()).hexdigest()
     out.append('## O3. Historical reported M6 comparison — SUPERSEDED by O4\n')
     out.append('[SUPERSEDED — see O4] [RESULTS.md](../../RESULTS.md) records normal-positive fused F1 0.805→0.815, accuracy 0.698→0.712, normal false negatives 872→833 and anomaly misses 14→13. No matching raw comparison log/JSON was found for that specific prose observation, and the comparator that would have reproduced it (`evaluate_ablation_m6.py`) had a confirmed artifact-mismatch bug (its "GCN arm" silently read the M6-fitted fusion model — see O2). That bug is fixed (2026-09-07, results/comparator_repair/comparator_audit.json); O4 below is the current, correctly-pinned replacement. Keep this paragraph for chronology only — do not cite it as a current number.\n')
     out.append(_render_o4_corrected_comparison())
+    out.append(_render_o5_corrected_policy())
     out.append('## B / C. M1–M9, validation max-anomaly-F1 operating point\n')
     out.append(citation(bpath, bs, '[CURRENT EXPERIMENTAL] Seed 0; fit TRAIN 2,400 snapshots/48,000 valid rows, select VALIDATION 1,200 snapshots/22,800 valid rows, report TEST with same held-out counts; declared network 20 (19 valid held-out); hybrid provenance. TEST has 1,500 anomalous rows: 150 isolated and 1,350 coordinated, plus 21,300 normal; 15 anomaly events.'))
     rows = []
@@ -247,7 +343,7 @@ def main():
     out.append(citation(pp,'scripts/evaluate_policy_comparison.py','[PRESERVED GCN-ERA ARTIFACT; NOT CURRENT M6 POLICY VALIDATION] 2,933 accepted legacy TEST rows; comparators share two-score replay inputs. Fitting/threshold selection uses simulated VAL_002. These are offline policy classifications, not measured enforcement effectiveness. Current policy producers use GCN plus default M6 fusion; the saved runtime Q table lacks producing-model hashes.'))
     out.append(table(['Policy','Accuracy','Macro-F1','False-block rate','ALERT recall','BLOCK recall'],[[n,r['accuracy'],r['macro_f1'],r['false_block_rate'],r['per_class']['ALERT']['recall'],r['per_class']['BLOCK']['recall']] for n,r in p['results'].items()]))
     out.append('P6 is constrained static, P5 contextual bandit. P6 searches under ALERT recall≥0.90 and false-block≤0.01 on validation. P5 was not trained with this constrained search; both meet those bounds descriptively on the saved TEST rows. P5 Macro-F1 exceeds P6. Neither detects the BLOCK class here.\n')
-    out.append('**2026-09-07 comparator fix and finding** (see O4 and [results/gcn_m6_corrected_comparison/policy_comparison.json](../../results/gcn_m6_corrected_comparison/policy_comparison.json)): `evaluate_policy_comparison.py` is now explicitly pinned to `gcn` by default (was silently reading the ambient, now-M6-fitted `FUSION_MODEL_PATH`). A pinned rerun reproduces P1/P2/P6 within verified wall-clock-jitter tolerance, but P5 is stably different from this table\'s preserved number — evidence `models/adaptive_pdp_qtable.json` was itself retrained under the mismatched-artifact bug during the 2026-09-07 deployment. Not corrected in this pass. **No M6 policy row is reported — INVALID COMPARATOR for a GCN-vs-M6 policy claim (17 Claim D).**\n')
+    out.append('**2026-09-07 comparator fix and finding** (see O4 and [results/gcn_m6_corrected_comparison/policy_comparison.json](../../results/gcn_m6_corrected_comparison/policy_comparison.json)): `evaluate_policy_comparison.py` is now explicitly pinned to `gcn` by default (was silently reading the ambient, now-M6-fitted `FUSION_MODEL_PATH`). A pinned rerun reproduces P1/P2/P6 within verified wall-clock-jitter tolerance, but P5 is stably different from this table\'s preserved number — evidence `models/adaptive_pdp_qtable.json` was itself retrained under the mismatched-artifact bug during the 2026-09-07 deployment. **Same day, final pass: closed — see O5** for a corrected, deterministic-clock, clean-provenance GCN-vs-M6 policy comparison (17 Claim D).\n')
     out.append('## Q. Held-out physical hardware\n')
     out.append(citation('results/final_verification/hardware_evaluation.log','scripts/evaluate_real_hardware.py','[VERIFIED PRESERVED GCN-ERA REPLAY] One MPU6050 TEST session 20260902_221217. Reset/warm-up exclusion leaves 42 scored observations at threshold 0.6. Raw session has 116 rows.'))
     out.append(table(['Endpoint','Count','Rate','Printed Wilson 95% interval','Limit'],[['Rest false alarm','5 / 12','41.7%','19.3%–68.0%','Small dependent sample'],['Disturbance detection','30 / 30','100%','88.6%–100%','Hand-induced physical events; no cyberattack'],['SW-420 held-out','0 physical sessions',None,None,'PENDING VALIDATION']]))
