@@ -24,7 +24,7 @@ Current documentation reconciliation: 2026-09-07. The presentation remains `desi
 | Explanation panel | PASS | Backend reason, Level-2 summary, fusion SHAP | Missing attribution remains missing; no invented SHAP |
 | Demo scenario matrix | PASS | Matrix below | Explicit scope per row |
 | Practical demo checklist | PASS | DEMO_CHECKLIST.md | Physical rehearsal steps marked unverified |
-| Runtime model / candidate labels | Reconciled | Both HTML entries | Configured M6 serving; comparative and physical validation pending |
+| Runtime model / candidate labels | Reconciled | Both HTML entries | Configured corrected-M6 serving; comparative evaluation complete; full physical acquisition-to-enforcement/live-enforcement validation pending |
 | Physical vs simulated identities | PASS | Both HTML entries | Hardware identity does not authenticate physical message origin |
 | Explicit UNKNOWN / OFFLINE | PASS | Gateway cards and chain checks | OFFLINE follows backend SILENT; no browser timer guesses connection status |
 | Raw telemetry / per-feature histories | REQUIRES BACKEND INTEGRATION | DATA_CONTRACT.md | MPU five / SW four values absent from dashboard API |
@@ -65,4 +65,4 @@ The resumed MPU example is why the UI must not infer an action from the conceptu
 
 `node design/start-demo.mjs`: started and stopped successfully. HTTP checks confirmed presentation, README and linked result-reference responses (200), unavailable gateway API (503), and denied unlisted local-secret/environment paths (404). No secret content was read or served by these checks.
 
-Research constraints, reconciled 2026-09-07: Task-2 SUPPORTED BUT WEAKER; B0 network-level count; configured M6 serving with unresolved comparative/training/policy lineage; physical M6 acquisition-to-enforcement validation pending; one MPU6050 and one SW-420 physical identity, both now with held-out (VALIDATION/TEST) sessions as of 2026-09-07 (`results/sw420_real_hardware/` for SW-420); SW-420's slot in the 20-node constructed benchmark remains PENDING_REAL_HARDWARE_DATA, a separate pipeline; Security and Process Trust separate until policy.
+Research constraints, reconciled 2026-09-07: Task-2 SUPPORTED BUT WEAKER; B0 network-level count; configured corrected-M6 serving with resolved comparator, training-weight and policy lineage; full physical M6 acquisition-to-enforcement validation remains pending; one MPU6050 and one SW-420 physical identity, both now with held-out (VALIDATION/TEST) sessions as of 2026-09-07 (`results/sw420_real_hardware/` for SW-420); SW-420's slot in the 20-node constructed benchmark remains PENDING_REAL_HARDWARE_DATA, a separate pipeline; Security and Process Trust separate until policy.

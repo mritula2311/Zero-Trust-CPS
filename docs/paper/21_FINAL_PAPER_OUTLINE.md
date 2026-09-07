@@ -12,9 +12,9 @@ This outline is a writing plan, not paper prose. All numbers resolve to [13](13_
 | VI-A Local detection: features | Sensor math/schema;05 | MPU5/SW4; rates/windows; TableII | Exact features; avoid conventional crest definition mismatch |
 | VI-A Local detection: models | TRAIN and inference models;06 | Fair temporal comparison13A; TableVI | Ablation tie; avoid Transformer advantage |
 | VI-B Relational models | M1–M9 and masks;07 |13B/C, params/latency; Fig5/TableIV | Standalone candidate comparison |
-| VI-C Process fusion | Four-score logistic model;10 | Saved coefficients; TableVII | Historical GCN metrics; configured M6 integration; comparative effectiveness pending |
+| VI-C Process fusion | Four-score logistic model;10 | Saved coefficients; TableVII | Historical GCN metrics; configured corrected-M6 integration; modest held-out-replay-qualified fusion improvement over GCN |
 | IV-B Policy boundary | Static/bandit, overrides and constraints;11 |13P; Fig9/TableVIII | Contextual bandit; avoid P6 global-best claim |
-| VII-A Hardware | Physical evidence grade;04/15 | Session counts; TableIII | Two modalities; held-out MPU only |
+| VII-A Hardware | Physical evidence grade;04/15 | Session counts; TableIII | Two physical modalities; held-out MPU6050 and SW-420 evaluation |
 | VII-B Provenance | Raw/parametric/virtual distinctions;04/12 |48k TRAIN/22.8k valid TEST rows; Fig4 | Constructed network; not physical sample size |
 | VII-C Simulation/generation | Equation/regimes/seeds;09 | Presets and internal check13I | Measured structure with sensitivity parameters |
 | VII-D Training | Base→fusion→policy order;06/07/12 | Cardinalities, fixed epochs; TableIV | Offline fits; no live learning |
