@@ -1,5 +1,6 @@
 {
   "split": "test",
+  "other_split": "validation",
   "n": 223,
   "iso_values_observed": [
     0.5
@@ -19,8 +20,13 @@
     "new_intercept": -5.617362104461016,
     "flagged_mismatches": 0
   },
-  "independent_refit": {
+  "in_sample_refit": {
     "new_intercept": -4.110501847569014,
+    "flagged_mismatches": 0
+  },
+  "cross_split_refit": {
+    "fit_on": "validation",
+    "new_intercept": -4.308276067809394,
     "flagged_mismatches": 0
   },
   "verdict": "CONFIRMED"
