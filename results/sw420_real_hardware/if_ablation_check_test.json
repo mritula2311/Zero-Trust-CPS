@@ -1,0 +1,27 @@
+{
+  "split": "test",
+  "n": 223,
+  "iso_values_observed": [
+    0.5
+  ],
+  "rule_values_observed": [
+    0.9
+  ],
+  "fusion_model": "D:\\zt-cps\\zt-cps-starter\\src\\..\\models\\fusion_meta_learner_gcn_backup.joblib",
+  "original_coefficients": {
+    "rule": -0.004829691541639968,
+    "isolation_forest": 3.286754353063406,
+    "lstm": 4.315439909514899,
+    "gnn": 5.007398278039863,
+    "intercept": -7.260739280992719
+  },
+  "exact_rederivation": {
+    "new_intercept": -5.617362104461016,
+    "flagged_mismatches": 0
+  },
+  "independent_refit": {
+    "new_intercept": -4.110501847569014,
+    "flagged_mismatches": 0
+  },
+  "verdict": "CONFIRMED"
+}

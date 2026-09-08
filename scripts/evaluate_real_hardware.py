@@ -245,6 +245,9 @@ def main():
             "then add its session id to data/splits/session_split.json.")
 
     scored = score_all(rows, pin, DEVICE)
+    if DEVICE == "esp32-vib-002":  # per-window dump for the IF-constant-term check (verify_sw420_if_ablation.py)
+        json.dump([{k: r[k] for k in ("phase", "rule", "iso", "lstm", "gnn", "fused", "label")} for r in scored],
+                  open(os.path.join(os.path.dirname(__file__), "..", "results", "sw420_real_hardware", f"window_scores_{split}.json"), "w"), indent=2)
     by = collections.defaultdict(list)
     for r in scored:
         by[r["phase"]].append(r)
