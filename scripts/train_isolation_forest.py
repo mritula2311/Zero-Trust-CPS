@@ -28,6 +28,7 @@ from config import (
     isolation_forest_meta_path,
     ISOLATION_FOREST_CONTAMINATION,
     FEATURE_VECTOR_DEVICE_IDS,
+    ISOLATION_FOREST_DISABLED_DEVICE_IDS,
     FEATURE_NAMES, TRAINING_SEED,
 )
 import feature_engineering as fe
@@ -41,7 +42,18 @@ def train_one(records, device_id) -> bool:
     saves it to that device's per-device path. Returns True if a model was
     trained, False if the device had too few examples (skipped, not fatal --
     a device with no captured data yet simply gets no model, and its scorer
-    falls back to the neutral score, per isolation_forest_scorer.py)."""
+    falls back to the neutral score, per isolation_forest_scorer.py) OR is in
+    ISOLATION_FOREST_DISABLED_DEVICE_IDS (skipped deliberately and
+    permanently -- see that constant's docstring: for esp32-vib-002, "only 30
+    examples" isn't the problem, EVERY real at-rest example is the identical
+    (0,0,0,0), so no amount of additional real capture changes this, and
+    fitting on it would just regenerate the same degenerate, verified-useless
+    model isolation_forest_scorer.py now bypasses without loading)."""
+    if device_id in ISOLATION_FOREST_DISABLED_DEVICE_IDS:
+        print(f"[skip] {device_id}: Isolation Forest permanently disabled for this device -- "
+              f"see config.ISOLATION_FOREST_DISABLED_DEVICE_IDS")
+        return False
+
     normal = [
         r for r in records
         if r["device_id"] == device_id and r["label"] == 1 and r["auth_ok"]
@@ -89,11 +101,14 @@ def main():
     # See src/datasets.py for why the primary device's corpus is unchanged.
     records = datasets.training_records()
 
+    eligible = [d for d in FEATURE_VECTOR_DEVICE_IDS if d not in ISOLATION_FOREST_DISABLED_DEVICE_IDS]
     trained = sum(train_one(records, d) for d in FEATURE_VECTOR_DEVICE_IDS)
     if trained == 0:
         raise SystemExit("no feature_vector device had >= 30 normal examples -- re-run generate_training_data.py "
                          "(and merge_real_hardware_data.py if you have real captures)")
-    print(f"trained {trained}/{len(FEATURE_VECTOR_DEVICE_IDS)} per-device Isolation Forest model(s)")
+    print(f"trained {trained}/{len(eligible)} eligible per-device Isolation Forest model(s) "
+          f"({len(FEATURE_VECTOR_DEVICE_IDS) - len(eligible)} permanently disabled, see "
+          f"config.ISOLATION_FOREST_DISABLED_DEVICE_IDS)")
 
 
 if __name__ == "__main__":

@@ -470,6 +470,41 @@ def feature_vector_for(device_id: str, features: dict) -> list[float]:
 # they are device-agnostic by construction.
 FEATURE_VECTOR_DEVICE_IDS = [d for d, i in DEVICE_REGISTRY.items() if i.get("kind") in ML_FEATURE_KINDS]
 
+# Devices for which the LEARNED Isolation Forest is disabled, LSTM-AE/Transformer
+# UNCHANGED. This is narrower than removing a device from
+# FEATURE_VECTOR_DEVICE_IDS above (which also controls LSTM-AE/Transformer
+# training/inference and must keep including esp32-vib-002 -- its LSTM-AE score
+# is the primary real discriminator for that device, see below).
+#
+# esp32-vib-002 (SW-420) is here because its Isolation Forest is not merely
+# undertrained but STRUCTURALLY UNTRAINABLE given this codebase's own (correct)
+# training-data policy: datasets.training_records() restricts real-device rows
+# to real TRAIN-split AT-REST examples only (to avoid training on the
+# label-vs-physics mismatch documented in evaluate_real_hardware.py's module
+# docstring). For a comparator-gated vibration SWITCH (feature_engineering_sw420.py:
+# trigger_rate/duty_cycle/burst_max_ms/inter_event_cv, all edge-count-derived),
+# a genuinely at-rest window is not approximately constant, it is EXACTLY
+# (0.0, 0.0, 0.0, 0.0) by construction -- confirmed empirically across every
+# real esp32-vib-002 session on disk, at every phase filtered to real TRAIN-split
+# at-rest rows: 140/140 identical. An IsolationForest fit on one repeated point
+# has no spread to place a split on, so it scores every nonzero query
+# identically -- confirmed, results/sw420_real_hardware/: raw decision_function()
+# was EXACTLY 0.0 for all 223 TEST + 179 VALIDATION real windows, including the
+# highly-varied gentle_tap/moderate_shake/tilt_rotate/sharp_impact ones, which
+# calibrates to the neutral 0.5 the fusion intercept was already absorbing
+# (if_ablation_check_{split}_{pin}.json: dropping it and refitting only the
+# intercept reproduces every flagged/not-flagged decision, 0 mismatches, both
+# fusion arms, both cross-split directions).
+#
+# This is a property of THIS SENSOR TYPE's feature definitions plus THIS
+# CODEBASE's (correct) at-rest-only training policy, not of Isolation Forest in
+# general, real hardware in general, or "binary sensors" in general -- it does
+# NOT extend to esp32-vib-001 (MPU6050: continuous accelerometer noise gives a
+# genuine, nonzero-variance at-rest distribution) or to any other SW-420 unit,
+# mounting, or configuration that has not been checked the same way. See
+# docs/KNOWN_LIMITATIONS_SW420_ISOLATION_FOREST.md.
+ISOLATION_FOREST_DISABLED_DEVICE_IDS: set = {"esp32-vib-002"}
+
 KEY_ROTATION_GRACE_SECONDS = 24 * 3600   # docs/02 Section 3's "24 hours in hardware-time-equivalent" default
 
 # --- Real hardware onboarding (firmware/HARDWARE_SETUP.md) ---

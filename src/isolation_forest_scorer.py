@@ -13,6 +13,17 @@ crest_factor, kurtosis, dominant_freq) -- the two scalar simulated devices
 (sensor-002, actuator-001) don't have an Isolation Forest model of their
 own; gateway.py mirrors their rule_score into the fusion/GNN feature slots
 this scorer would otherwise fill (see gnn_scorer.py's docstring).
+
+config.ISOLATION_FOREST_DISABLED_DEVICE_IDS (currently just esp32-vib-002 /
+SW-420) never gets a model loaded OR trained here, on purpose -- see that
+constant's docstring for the full evidence trail. It is not "no model
+trained YET" (the 0.9 fallback below, for a device that may get a real one
+later): it is a permanent, verified finding that this device's Isolation
+Forest is structurally incapable of learning anything (its real-world
+training-eligible "normal" class is a single repeated point, not a
+distribution), so it is scored with the same NEUTRAL_SCORE its own
+(verified-degenerate) trained model already produced -- bit-identical fused
+output, without ever loading or running that model.
 """
 
 import json
@@ -23,7 +34,7 @@ import numpy as np
 
 from config import (
     isolation_forest_path, isolation_forest_meta_path, FEATURE_VECTOR_DEVICE_IDS, FEATURE_NAMES,
-    feature_names_for,
+    feature_names_for, ISOLATION_FOREST_DISABLED_DEVICE_IDS,
 )
 
 
@@ -70,6 +81,8 @@ class IsolationForestScorer:
 
     def _load(self):
         for device_id in FEATURE_VECTOR_DEVICE_IDS:
+            if device_id in ISOLATION_FOREST_DISABLED_DEVICE_IDS:
+                continue  # never load a model for this device -- see module docstring
             path = isolation_forest_path(device_id)
             if os.path.exists(path):
                 self.models[device_id] = joblib.load(path)
@@ -79,6 +92,12 @@ class IsolationForestScorer:
                     self._calibration[device_id] = json.load(f)["raw_normal_median"]
 
     def score(self, device_id: str, feature_vec: list[float]) -> float:
+        if device_id in ISOLATION_FOREST_DISABLED_DEVICE_IDS:
+            # Permanent neutral score, not the "not trained yet" 0.9 fallback
+            # below -- this device's IF was verified structurally unable to
+            # learn anything (see module docstring), so its score is fixed
+            # rather than deferred to a model that will never usefully exist.
+            return NEUTRAL_SCORE
         model = self.models.get(device_id)
         if model is None:
             return 0.9  # no model for this device yet -- defer to the rule-based score
