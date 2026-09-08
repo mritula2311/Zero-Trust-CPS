@@ -246,8 +246,12 @@ def main():
 
     scored = score_all(rows, pin, DEVICE)
     if DEVICE == "esp32-vib-002":  # per-window dump for the IF-constant-term check (verify_sw420_if_ablation.py)
+        # Filename carries pin_name -- the relational/gnn score (and hence
+        # `fused`) is pin-specific (GCN vs M6's SetTransformer are different
+        # models), so a dump from one pin must never silently overwrite, or
+        # be silently read as, a dump from another.
         json.dump([{k: r[k] for k in ("phase", "rule", "iso", "lstm", "gnn", "fused", "label")} for r in scored],
-                  open(os.path.join(os.path.dirname(__file__), "..", "results", "sw420_real_hardware", f"window_scores_{split}.json"), "w"), indent=2)
+                  open(os.path.join(os.path.dirname(__file__), "..", "results", "sw420_real_hardware", f"window_scores_{split}_{pin_name}.json"), "w"), indent=2)
     by = collections.defaultdict(list)
     for r in scored:
         by[r["phase"]].append(r)

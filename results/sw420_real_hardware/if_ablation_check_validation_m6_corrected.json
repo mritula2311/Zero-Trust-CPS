@@ -1,0 +1,44 @@
+{
+  "split": "validation",
+  "other_split": "test",
+  "pin": "m6_corrected",
+  "n": 179,
+  "iso_values_observed": [
+    0.5
+  ],
+  "rule_values_observed": [
+    0.9
+  ],
+  "fusion_model": "D:\\zt-cps\\zt-cps-starter\\src\\..\\models\\fusion_meta_learner_m6_corrected_variant.joblib",
+  "original_coefficients": {
+    "rule": 0.013272226030790146,
+    "isolation_forest": 3.3376076701291657,
+    "lstm": 5.570895114560932,
+    "gnn": 7.8845174032613565,
+    "intercept": -11.425468620753898
+  },
+  "exact_rederivation": {
+    "new_intercept": -9.756664785689315,
+    "flagged_mismatches": 0
+  },
+  "in_sample_feasibility": {
+    "interval": [
+      -10.367457450279584,
+      -5.342392222665843
+    ],
+    "feasible": true,
+    "representative_intercept": -7.854924836472714,
+    "flagged_mismatches": 0
+  },
+  "cross_split_feasibility": {
+    "fit_on": "test",
+    "interval": [
+      -10.367457450279584,
+      -5.342392222665843
+    ],
+    "feasible": true,
+    "representative_intercept": -7.854924836472714,
+    "flagged_mismatches": 0
+  },
+  "verdict": "CONFIRMED"
+}

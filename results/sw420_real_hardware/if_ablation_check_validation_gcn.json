@@ -1,6 +1,7 @@
 {
   "split": "validation",
   "other_split": "test",
+  "pin": "gcn",
   "n": 179,
   "iso_values_observed": [
     0.5
@@ -20,13 +21,23 @@
     "new_intercept": -5.617362104461016,
     "flagged_mismatches": 0
   },
-  "in_sample_refit": {
-    "new_intercept": -4.308276067809394,
+  "in_sample_feasibility": {
+    "interval": [
+      -6.881505352693232,
+      -0.46323019043435226
+    ],
+    "feasible": true,
+    "representative_intercept": -3.672367771563792,
     "flagged_mismatches": 0
   },
-  "cross_split_refit": {
+  "cross_split_feasibility": {
     "fit_on": "test",
-    "new_intercept": -4.110501847569014,
+    "interval": [
+      -6.881505352693232,
+      -0.46323019043435226
+    ],
+    "feasible": true,
+    "representative_intercept": -3.672367771563792,
     "flagged_mismatches": 0
   },
   "verdict": "CONFIRMED"
